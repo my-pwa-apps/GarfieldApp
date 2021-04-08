@@ -158,10 +158,11 @@ function doStuff()
   fetch(siteUrl)
      .then(function(response) 
      {
+      var response2 = response.clone();
       response.text().then(function(text) 
       {
-      const blob = response.blob();
-      const file = new File([blob], '.\garfield.jpg', {type:blob.type});  
+      const blob = response2.blob();
+      const file = new File([blob], 'garfield.jpg', {type:blob.type});  
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition+63);
