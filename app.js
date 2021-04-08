@@ -2,7 +2,7 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./serviceworker.js");
 }
 
-bestand = null;
+//bestand = null;
 
 function Share()
 {
@@ -29,7 +29,7 @@ function onload()
 
     today = year+'-'+month+'-'+day;
     document.getElementById("DatePicker").setAttribute("max", today);
-    doStuff(bestand);
+    doStuff();
 
 }
 
@@ -163,12 +163,12 @@ function doStuff()
       response.text().then(function(text) 
       {
       //const blob = response2.blob();
-      //const file = new File([blob], 'garfield.jpg', {type:blob.type});  
+     // const myfile = new File([blob], 'garfield.jpg', {type:blob.type});  
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition+63);
       document.getElementById("comic").src = pictureUrl;
-      //return file;
+      //return myfile;
     });
   });
 }
