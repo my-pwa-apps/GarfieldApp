@@ -8,7 +8,7 @@ function Share()
     navigator.share({
       title: 'https://garfieldapp.tk',
       text: 'https://garfieldapp.tk',
-      files: pictureUrl
+      files: '.\garfield.jpg'
     });
   } 
 }
@@ -160,6 +160,8 @@ function doStuff()
      {
       response.text().then(function(text) 
       {
+      const blob = response.blob();
+      const file = new File([blob], '.\garfield.jpg', {type:blob.type});  
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition+63);
