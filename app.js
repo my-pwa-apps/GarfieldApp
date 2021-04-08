@@ -2,13 +2,15 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./serviceworker.js");
 }
 
+bestand = null;
+
 function Share()
 {
   if (navigator.share) {
     navigator.share({
       title: 'https://garfieldapp.tk',
       text: 'https://garfieldapp.tk',
-      files: '.\garfield.jpg'
+      url: pictureUrl
     });
   } 
 }
@@ -27,8 +29,7 @@ function onload()
 
     today = year+'-'+month+'-'+day;
     document.getElementById("DatePicker").setAttribute("max", today);
-        
-    doStuff();
+    doStuff(bestand);
 
 }
 
@@ -158,15 +159,16 @@ function doStuff()
   fetch(siteUrl)
      .then(function(response) 
      {
-      var response2 = response.clone();
+      //var response2 = response.clone();
       response.text().then(function(text) 
       {
-      const blob = response2.blob();
-      const file = new File([blob], 'garfield.jpg', {type:blob.type});  
+      //const blob = response2.blob();
+      //const file = new File([blob], 'garfield.jpg', {type:blob.type});  
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition+63);
       document.getElementById("comic").src = pictureUrl;
+      //return file;
     });
   });
 }
