@@ -2,6 +2,17 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./serviceworker.js");
 }
 
+function Share()
+{
+  if (navigator.share) {
+    navigator.share({
+      title: 'Shared from https://garfieldapp.tk',
+      url: pictureUrl
+    });
+  } 
+}
+
+
 function onload()
 {
     
