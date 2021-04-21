@@ -131,7 +131,7 @@ function RandomClick()
   
   showComic();
  
-};
+}
 
 function DateChange()
 {
@@ -142,7 +142,7 @@ function DateChange()
   
   showComic();
   
-};
+}
 
 function showComic()
 {
