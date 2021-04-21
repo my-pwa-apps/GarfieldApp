@@ -2,8 +2,6 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./serviceworker.js");
 }
 
-//bestand = null;
-
 function Share()
 {
   if (navigator.share) {
@@ -28,7 +26,7 @@ function onload()
 
     today = year+'-'+month+'-'+day;
     document.getElementById("DatePicker").setAttribute("max", today);
-    doStuff();
+    showComic();
 
 }
 
@@ -42,7 +40,7 @@ document.addEventListener('swiped-right', function(e)
 
   CompareDates();
 
-  doStuff();
+  showComic();
 });
 
 function PreviousClick()
@@ -54,7 +52,7 @@ function PreviousClick()
 
   CompareDates();
 
-  doStuff();
+  showComic();
 
 } 
 
@@ -66,7 +64,7 @@ document.addEventListener('swiped-left', function(e)
 
   CompareDates();
 
-  doStuff();
+  showComic();
 });
 
 
@@ -78,7 +76,7 @@ function NextClick()
 
   CompareDates();
 
-  doStuff();
+  showComic();
 
 }
 
@@ -88,7 +86,7 @@ function FirstClick()
   
   CompareDates();
   
-  doStuff();
+  showComic();
 
 }
 
@@ -98,7 +96,7 @@ document.addEventListener('swiped-up', function(e)
   
   CompareDates();
 
-  doStuff();
+  showComic();
 });
 
 function CurrentClick()
@@ -107,7 +105,7 @@ function CurrentClick()
   
   CompareDates();
 
-  doStuff();
+  showComic();
  
 }
 
@@ -120,7 +118,7 @@ document.addEventListener('swiped-down', function(e)
 
   CompareDates();
   
-  doStuff();
+  showComic();
 });
 
 function RandomClick()
@@ -131,7 +129,7 @@ function RandomClick()
 
   CompareDates();
   
-  doStuff();
+  showComic();
  
 };
 
@@ -142,11 +140,11 @@ function DateChange()
   
   CompareDates();
   
-  doStuff();
+  showComic();
   
 };
 
-function doStuff()
+function showComic()
 {
   
   formatDate(currentselectedDate);
@@ -158,17 +156,13 @@ function doStuff()
   fetch(siteUrl)
      .then(function(response) 
      {
-      //var response2 = response.clone();
       response.text().then(function(text) 
       {
-      //const blob = response2.blob();
-      //const myfile = new File([blob], 'garfield.jpg', {type:blob.type});  
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition+63);
       document.getElementById("comic").src = pictureUrl;
-     // return myfile;
-    });
+     });
   });
 }
 
