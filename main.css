@@ -50,10 +50,9 @@ input
 {
     -webkit-appearance: none;
     -moz-appearance: none;
-    box-sizing: border-box;
+    box-sizing: border-box  ;
     max-width: 100%;
     font-size: 0.8pc;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     opacity: 0.5;
     text-align: center;
 }
@@ -63,8 +62,6 @@ input
     display: grid;
     grid-template-columns: 33% 33% 33%;
     grid-template-rows:60% 60%;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-weight: normal;
     text-align: center;
     gap: 3px;
 }
@@ -82,16 +79,3 @@ input
     height: 70%;
 }
 
-.legend
-{
-  display: grid;
-  grid-template-columns: max-content max-content max-content max-content;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: xx-small;
-  color: white;
-  align-items: center;
-  padding: 5px;
-  border: 1px solid white ;
-  width: fit-content;
-  box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);
-}
