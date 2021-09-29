@@ -79,3 +79,18 @@ input
     height: 70%;
 }
 
+.rotate {
+    -ms-transform: rotate(90deg);
+     -webkit-transform: rotate(90deg);
+      transform: rotate(90deg);
+    
+    
+    
+    
+ }
+ 
+ .normal {
+    -ms-transform: rotate(0deg);
+     -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+ }

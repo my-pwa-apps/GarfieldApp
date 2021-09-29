@@ -225,5 +225,16 @@ function CompareDates()
   day = ("0"+day).slice(-2);
  }
 
+ function Rotate() {
+  var element = document.getElementById('comic');
+
+  if (element.className === "normal") {
+    element.className = "rotate";
+  }
+  else if ( element.className === "rotate") {
+    element.className = 'normal';
+  }
+}
+
 
 
