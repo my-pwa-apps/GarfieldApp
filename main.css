@@ -83,6 +83,11 @@ input
     -ms-transform: rotate(90deg);
      -webkit-transform: rotate(90deg);
       transform: rotate(90deg);
+      position: relative;
+      margin-top: 0vw;
+      margin-bottom: 0vw;
+      zoom: 90%;
+
     
     
     
@@ -93,4 +98,10 @@ input
     -ms-transform: rotate(0deg);
      -webkit-transform: rotate(0deg);
       transform: rotate(0deg);
+      width: 100vw;
+      margin-left: -50vw;
+      margin-right: -50vw;
+      position: relative;
+      right: 50%;
+      left: 50%;
  }
