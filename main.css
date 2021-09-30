@@ -81,19 +81,13 @@ input
 
 .rotate {
     -ms-transform: rotate(90deg);
-     -webkit-transform: rotate(90deg);
-      transform: rotate(90deg);
-      margin-top: 1vw;
-      margin-bottom: 1vw;
-      margin-left: 1vw;
-      margin-right: 1vw;
-      zoom: 75%;
-      
-
-    
-    
-    
-    
+    -webkit-transform: rotate(90deg);
+    transform: rotate(90deg);
+    zoom: 75%;
+    position: fixed;
+    top:40%;
+    left:1%;
+    bottom: 10%
  }
  
  .normal {
