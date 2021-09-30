@@ -86,7 +86,7 @@ input
     zoom: 75%;
     position: fixed;
     top:40%;
-    left:1%;
+    left:-90px;
     bottom: 10%
  }
  
