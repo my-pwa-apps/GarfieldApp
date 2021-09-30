@@ -84,8 +84,10 @@ input
      -webkit-transform: rotate(90deg);
       transform: rotate(90deg);
       position: relative;
-      margin-top: 0vw;
-      margin-bottom: 0vw;
+      margin-top: 1vw;
+      margin-bottom: 1vw;
+      margin-left: 1vw;
+      margin-right: 1vw;
       zoom: 80%;
       
 
