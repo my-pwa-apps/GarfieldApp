@@ -83,10 +83,10 @@ input
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
     transform: rotate(90deg);
-    zoom: 75%;
+    zoom: 50%;
     position: fixed;
     top:40%;
-    left:-90px;
+    left:-120px;
     bottom: 10%
  }
  
