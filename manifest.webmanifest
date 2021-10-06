@@ -8,40 +8,6 @@
     "theme_color": "#eee239",
     "categories": ["entertainment"],
     "icons": [
-      {
-        "src": "./android-chrome-192x192.png",
-        "sizes": "192x192",
-        "type": "image/png"
-    },
-    {
-      "src": "./android-chrome-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-  },
-    {
-        "src": "./android-chrome-256x256.png",
-        "sizes": "256x256",
-        "type": "image/png"
-    },
-    {
-      "src": "./android-chrome-256x256.png",
-      "sizes": "256x256",
-      "type": "image/png",
-      "purpose":"maskable"
-  },
-    {
-      "src": "./android-chrome-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-  },
-  {
-    "src": "./maskable_icon_x512_yellow.png",
-    "sizes": "512x512",
-    "type": "image/png",
-    "purpose":"maskable"
-}{
-  "icons": [
     {
       "src": "windows10/SmallTile.scale-100.png",
       "sizes": "71x71"
@@ -398,11 +364,10 @@
       "src": "chrome/chrome-installprocess-128-128.png",
       "sizes": "128x128"
     }
-  ]
-}
-            
-  ],
-    "screenshots" : 
+  
+         
+  ],  
+  "screenshots" : 
     [
     {
       "src": "./screenshot1.webp",
