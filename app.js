@@ -146,7 +146,7 @@ function showComic()
   fetch(siteUrl, {
     method: "GET",
     headers: {
-      "x-cors-grida-api-key": "x-cors-grida-api-key: your-api-key-here"
+      "x-cors-grida-api-key": "77a0175b-4435-49b0-ad18-52d2dea5a548"
     }
   })
      .then(function(response) 
