@@ -12,24 +12,21 @@ function Share()
   } 
 }
 
-
 function onload()
 {
     
-  
-    currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+  currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
     
-    document.getElementById("Next").disabled = true;
-    document.getElementById("Current").disabled = true;
+  document.getElementById("Next").disabled = true;
+  document.getElementById("Current").disabled = true;
     
-    formatDate(currentselectedDate);
+  formatDate(currentselectedDate);
 
-    today = year+'-'+month+'-'+day;
-    document.getElementById("DatePicker").setAttribute("max", today);
-    showComic();
+  today = year+'-'+month+'-'+day;
+  document.getElementById("DatePicker").setAttribute("max", today);
+  showComic();
 
 }
-
 
 document.addEventListener('swiped-right', function(e)
  {
@@ -67,7 +64,6 @@ document.addEventListener('swiped-left', function(e)
   showComic();
 });
 
-
 function NextClick()
 {
   currentselectedDate = document.getElementById('DatePicker');
@@ -77,7 +73,6 @@ function NextClick()
   CompareDates();
 
   showComic();
-
 }
 
 function FirstClick()
@@ -87,7 +82,6 @@ function FirstClick()
   CompareDates();
   
   showComic();
-
 }
 
 document.addEventListener('swiped-up', function(e)
@@ -106,9 +100,7 @@ function CurrentClick()
   CompareDates();
 
   showComic();
- 
 }
-
 
 document.addEventListener('swiped-down', function(e)
  {
@@ -130,7 +122,6 @@ function RandomClick()
   CompareDates();
   
   showComic();
- 
 }
 
 function DateChange()
@@ -141,7 +132,6 @@ function DateChange()
   CompareDates();
   
   showComic();
-  
 }
 
 function showComic()
@@ -153,7 +143,12 @@ function showComic()
   formattedComicDate = year+"/"+month+"/"+day;
   document.getElementById('DatePicker').value = formattedDate;
   siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/"+formattedComicDate;
-  fetch(siteUrl)
+  fetch(siteUrl, {
+    method: "GET",
+    headers: {
+      "x-cors-grida-api-key": "x-cors-grida-api-key: your-api-key-here"
+    }
+  })
      .then(function(response) 
      {
       response.text().then(function(text) 
@@ -213,7 +208,6 @@ function CompareDates()
     document.getElementById("Next").disabled = false;
     document.getElementById("Current").disabled = false;
   } 
-
  }
 
  function formatDate(datetoFormat)
