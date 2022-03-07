@@ -34,14 +34,14 @@
     {
       "src": "./garyellowmask.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
+      "type": "image/png"
+      
   },
   {
     "src": "./maskable_icon_x512_yellow.png",
     "sizes": "512x512",
-    "type": "image/png",
-    "purpose":"maskable"
+    "type": "image/png"
+    
 }
   
          
