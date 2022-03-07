@@ -6,14 +6,13 @@ const OFFLINE_URL =
   "./index.html",
   "./garlogo.webp",
   "./mail.webp",
-  "./paypaldonate.webp",
-  "./pwa-pass-3.svg",
   "./swiped-events.min.js",    
   "./app.js",
   "./main.css",
   "./serviceworker.js",
   "./garfield.webp",    
-  "./maskable_icon.png",
+  "./garyellowmask.png",
+  "./garscreenshot1.png",
   "./mstile-150x150.png",
   "./favicon.ico",
   "./favicon-32x32.png",
@@ -21,7 +20,6 @@ const OFFLINE_URL =
   "./favicon-32x32.webp",
   "./favicon-16x16.webp",
   "./apple-touch-icon.png",
-  "./android-chrome-192x192.png",
   "./android-chrome-192x192.png"
  ];
 
