@@ -32,9 +32,10 @@
       "purpose":"maskable"
   },
     {
-      "src": "./android-chrome-512x512.png",
+      "src": "./garyellowmask.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable"
   },
   {
     "src": "./maskable_icon_x512_yellow.png",
