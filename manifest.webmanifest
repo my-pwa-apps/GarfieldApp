@@ -1,5 +1,6 @@
 {
     "name": "Daily Garfield",
+    "description": "Garfield Comics, Current, Next, Previous, Random, First, Specific Date, Swipe",
     "short_name": "Garfield",
     "start_url": "./index.html",
     "display": "standalone",
