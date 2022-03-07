@@ -47,9 +47,9 @@
   "screenshots" : 
     [
     {
-      "src": "./screenshot1.webp",
+      "src": "./garscreenshot1.png",
       "sizes": "1226x1290",
-      "type": "image/webp"
+      "type": "image/png"
     },
     {
       "src": "./screenshot2.webp",
