@@ -20,19 +20,8 @@
       "type": "image/png",
       "purpose": "maskable"
   },
-    {
-        "src": "./android-chrome-256x256.png",
-        "sizes": "256x256",
-        "type": "image/png"
-    },
-    {
-      "src": "./android-chrome-256x256.png",
-      "sizes": "256x256",
-      "type": "image/png",
-      "purpose":"maskable"
-  },
-    {
-      "src": "./garyellowmask.png",
+    
+  {      "src": "./garyellowmask.png",
       "sizes": "512x512",
       "type": "image/png"
       
