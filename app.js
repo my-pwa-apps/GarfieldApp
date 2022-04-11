@@ -31,8 +31,6 @@ function PreviousClick() {
 	showComic();
 }
 
-
-
 function NextClick() {
 	currentselectedDate = document.getElementById('DatePicker');
 	currentselectedDate = new Date(currentselectedDate.value);
@@ -47,14 +45,11 @@ function FirstClick() {
 	showComic();
 }
 
-
 function CurrentClick() {
 	currentselectedDate = new Date();
 	CompareDates();
 	showComic();
 }
-
-
 
 function RandomClick() {
 	start = new Date("1978-06-19");
@@ -160,7 +155,7 @@ document.addEventListener('swiped-left', function(e) {
 
 document.addEventListener('swiped-up', function(e) {
 	if(document.getElementById("swipe").checked) {
-	CurrentClick()}
+		CurrentClick()}
 })
 
 setStatus = document.getElementById('swipe');
@@ -173,8 +168,8 @@ setStatus = document.getElementById('swipe');
     }
 
 
-getStstus = localStorage.getItem('stat');
-    if (getStstus == "true") {
+getStatus = localStorage.getItem('stat');
+    if (getStatus == "true") {
         document.getElementById("swipe").checked = true;
     } else {
         document.getElementById("swipe").checked = false;
