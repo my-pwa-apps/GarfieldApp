@@ -1,3 +1,5 @@
+
+
 if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 }
@@ -21,14 +23,6 @@ function onload() {
 	showComic();
 }
 
-document.addEventListener('swiped-right', function(e) {
-	currentselectedDate = document.getElementById('DatePicker');
-	currentselectedDate = new Date(currentselectedDate.value);
-	currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-	CompareDates();
-	showComic();
-});
-
 function PreviousClick() {
 	currentselectedDate = document.getElementById('DatePicker');
 	currentselectedDate = new Date(currentselectedDate.value);
@@ -37,13 +31,7 @@ function PreviousClick() {
 	showComic();
 }
 
-document.addEventListener('swiped-left', function(e) {
-	currentselectedDate = document.getElementById('DatePicker');
-	currentselectedDate = new Date(currentselectedDate.value);
-	currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-	CompareDates();
-	showComic();
-});
+
 
 function NextClick() {
 	currentselectedDate = document.getElementById('DatePicker');
@@ -59,11 +47,6 @@ function FirstClick() {
 	showComic();
 }
 
-document.addEventListener('swiped-up', function(e) {
-	currentselectedDate = new Date();
-	CompareDates();
-	showComic();
-});
 
 function CurrentClick() {
 	currentselectedDate = new Date();
@@ -71,13 +54,7 @@ function CurrentClick() {
 	showComic();
 }
 
-document.addEventListener('swiped-down', function(e) {
-	start = new Date("1978-06-19");
-	end = new Date();
-	currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-	CompareDates();
-	showComic();
-});
+
 
 function RandomClick() {
 	start = new Date("1978-06-19");
@@ -164,3 +141,25 @@ function Rotate() {
 		element.className = 'normal';
 	}
 }
+
+document.addEventListener('swiped-down', function(e) {
+	if(document.getElementById("swipe").checked) {
+		RandomClick()}
+})
+
+document.addEventListener('swiped-right', function(e) {
+	if(document.getElementById("swipe").checked) {
+		PreviousClick()}
+})
+
+
+document.addEventListener('swiped-left', function(e) {
+	if(document.getElementById("swipe").checked) {
+		NextClick()}
+})
+
+document.addEventListener('swiped-up', function(e) {
+	if(document.getElementById("swipe").checked) {
+	CurrentClick()}
+})
+
