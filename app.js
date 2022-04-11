@@ -163,3 +163,19 @@ document.addEventListener('swiped-up', function(e) {
 	CurrentClick()}
 })
 
+setStatus = document.getElementById('swipe');
+    setStatus.onclick = function() {
+        if(document.getElementById('swipe').checked) {
+            localStorage.setItem('stat', "true");
+        } else {
+            localStorage.setItem('stat', "false");
+        }
+    }
+
+
+getStstus = localStorage.getItem('stat');
+    if (getStstus == "true") {
+        document.getElementById("swipe").checked = true;
+    } else {
+        document.getElementById("swipe").checked = false;
+    }
