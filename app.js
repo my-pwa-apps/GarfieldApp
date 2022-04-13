@@ -227,18 +227,6 @@ function Rotate() {
 	}
 }
 
-function ShowFavsClick()
-{
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
-	else{
-	currentselectedDate = new Date();
-	CompareDates();
-	showComic();
-	}
-	
-}
-
 document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
 		RandomClick()}
