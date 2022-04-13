@@ -42,7 +42,7 @@ input[type=checkbox]:checked:after {
 	left: 6px;
 }
 
-.chxboxlabel
+.labels
 {
 	padding-left: 30px;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
