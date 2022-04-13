@@ -24,32 +24,43 @@ function Addfav()
 	{
 		favs.push(formattedComicDate);
 		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
+		document.getElementById("showfavs").disabled = false;
 	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
 		$(".favicon").css({"color": "black"}).removeClass('fa-star').addClass('fa-star-o');
+		if(favs.length === 0)
+		{
+			document.getElementById("showfavs").checked = false;
+			document.getElementById("showfavs").disabled = true;
+			
+		}
 	}
 	favs.sort();
 	localStorage.setItem('favs', JSON.stringify(favs));
 }
 
-function onload() {
+function OnLoad() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(favs[0]);
 		if(favs.length === 0)
 		{
-			document.getElementById("Random").disabled = true;
-			document.getElementById("First").disabled = true;
-			document.getElementById("Next").disabled = true;
-			document.getElementById("Previous").disabled = true;
-			document.getElementById("Current").disabled = true;
-			document.getElementById("DatePicker").disabled = true;
+			document.getElementById("showfavs").checked = false;
+			document.getElementById("showfavs").disabled = true;
+			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+			
 		}
 		
 	}
 	else{
+
+		if(favs.length === 0)
+		{
+			document.getElementById("showfavs").checked = false;
+			document.getElementById("showfavs").disabled = true;
+		}
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
@@ -216,6 +227,18 @@ function Rotate() {
 	}
 }
 
+function ShowFavsClick()
+{
+	if(document.getElementById("showfavs").checked) {
+		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
+	else{
+	currentselectedDate = new Date();
+	CompareDates();
+	showComic();
+	}
+	
+}
+
 document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
 		RandomClick()}
@@ -243,6 +266,9 @@ setStatus = document.getElementById('swipe');
             localStorage.setItem('stat', "true");
         } else {
             localStorage.setItem('stat', "false");
+			currentselectedDate = new Date();
+			CompareDates();
+			showComic();
         }
     }
 
@@ -250,6 +276,7 @@ setStatus = document.getElementById('swipe');
     setStatus.onclick = function() {
         if(document.getElementById('showfavs').checked) {
             localStorage.setItem('showfavs', "true");
+			currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);
         } else {
             localStorage.setItem('showfavs', "false");
         }
