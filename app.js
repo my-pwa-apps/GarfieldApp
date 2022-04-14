@@ -107,9 +107,14 @@ function FirstClick() {
 }
 
 function CurrentClick() {
+	if(document.getElementById("showfavs").checked) {
+	}
+	else
+	{
 	currentselectedDate = new Date();
 	CompareDates();
 	showComic();
+}
 }
 
 function RandomClick() {
@@ -265,8 +270,12 @@ setStatus = document.getElementById('swipe');
         if(document.getElementById('showfavs').checked) {
             localStorage.setItem('showfavs', "true");
 			currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);
+			CompareDates();
+			showComic();
+	
         } else {
             localStorage.setItem('showfavs', "false");
+			CompareDates()
         }
     }
 
