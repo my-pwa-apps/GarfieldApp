@@ -254,7 +254,7 @@ setStatus = document.getElementById('swipe');
             localStorage.setItem('stat', "true");
         } else {
             localStorage.setItem('stat', "false");
-			currentselectedDate = new Date();
+			//currentselectedDate = new Date();
 			CompareDates();
 			showComic();
         }
