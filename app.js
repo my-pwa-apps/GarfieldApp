@@ -42,29 +42,29 @@ function Addfav()
 }
 
 function OnLoad() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(favs[0]);
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-			
-		}
+//	var favs = JSON.parse(localStorage.getItem('favs'));
+//	if(document.getElementById("showfavs").checked) {
+//		currentselectedDate = new Date(favs[0]);
+//		if(favs.length === 0)
+//		{
+//			document.getElementById("showfavs").checked = false;
+//			document.getElementById("showfavs").disabled = true;
+//			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		
-	}
-	else{
+//		}
+		
+//	}
+//	else{
 
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-		}
+//		if(favs.length === 0)
+//		{
+//			document.getElementById("showfavs").checked = false;
+//			document.getElementById("showfavs").disabled = true;
+//		}
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
-	}
+	
 	formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
@@ -73,58 +73,58 @@ function OnLoad() {
 }
 
 function PreviousClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}
-	else{
+//	if(document.getElementById("showfavs").checked) {
+//		var favs = JSON.parse(localStorage.getItem('favs'));
+//		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}
+//	else{
 		currentselectedDate = document.getElementById('DatePicker');
 		currentselectedDate = new Date(currentselectedDate.value);
-		currentselectedDate.setDate(currentselectedDate.getDate() - 1);}
+		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	CompareDates();
 	showComic();
 }
 
 function NextClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}
-	else{
+//	if(document.getElementById("showfavs").checked) {
+//		var favs = JSON.parse(localStorage.getItem('favs'));
+//		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}
+//	else{
 		currentselectedDate = document.getElementById('DatePicker');
 		currentselectedDate = new Date(currentselectedDate.value);
-		currentselectedDate.setDate(currentselectedDate.getDate() + 1);}
+		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	CompareDates();
 	showComic();
 }
 
 function FirstClick() {
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
-	else{
+//	if(document.getElementById("showfavs").checked) {
+//		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
+//	else{
 	currentselectedDate = new Date("1978-06-19");
-	}
+	
 	CompareDates();
 	showComic();
 }
 
 function CurrentClick() {
-	if(document.getElementById("showfavs").checked) {
-	}
-	else
-	{
+//	if(document.getElementById("showfavs").checked) {
+//	}
+//	else
+//	{
 	currentselectedDate = new Date();
 	CompareDates();
 	showComic();
 }
-}
+//}
 
 function RandomClick() {
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
-	else{
+//	if(document.getElementById("showfavs").checked) {
+//		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
+//	else{
 		start = new Date("1978-06-19");
 		end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-	}
+	
 	CompareDates();
 	showComic();
 }
@@ -174,12 +174,12 @@ function showComic() {
 }
 
 function CompareDates() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById("showfavs").checked) {
-		startDate = new Date(favs[0])}
-	else{	
+//	var favs = JSON.parse(localStorage.getItem('favs'));
+//	if(document.getElementById("showfavs").checked) {
+//		startDate = new Date(favs[0])}
+//	else{	
 		startDate = new Date("1978/06/19");
-	}
+//	}
 	startDate = startDate.setHours(0, 0, 0, 0);
 	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
 	startDate = new Date(startDate);
@@ -190,7 +190,7 @@ function CompareDates() {
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
 		document.getElementById('DatePicker').value = startDate;
-		//currentselectedDate = new Date("1978/06/19");
+		currentselectedDate = new Date("1978/06/19");
 	} else {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
@@ -208,7 +208,7 @@ function CompareDates() {
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		document.getElementById('DatePicker').value = endDate;
-		//currentselectedDate = new Date();
+		currentselectedDate = new Date();
 	} else {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Current").disabled = false;
@@ -265,19 +265,19 @@ setStatus = document.getElementById('swipe');
         }
     }
 
-	setStatus = document.getElementById('showfavs');
-    setStatus.onclick = function() {
-        if(document.getElementById('showfavs').checked) {
-            localStorage.setItem('showfavs', "true");
-			currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);
-			CompareDates();
-			showComic();
+//	setStatus = document.getElementById('showfavs');
+//    setStatus.onclick = function() {
+ //       if(document.getElementById('showfavs').checked) {
+ //           localStorage.setItem('showfavs', "true");
+//			currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);
+//			CompareDates();
+//			showComic();
 	
-        } else {
-            localStorage.setItem('showfavs', "false");
-			CompareDates()
-        }
-    }
+ //       } else {
+//            localStorage.setItem('showfavs', "false");
+//			CompareDates()
+ //       }
+ //   }
 
 
 getStatus = localStorage.getItem('stat');
@@ -287,12 +287,12 @@ getStatus = localStorage.getItem('stat');
         document.getElementById("swipe").checked = false;
     }
 
-getStatus = localStorage.getItem('showfavs');
-    if (getStatus == "true") {
-        document.getElementById("showfavs").checked = true;
-    } else {
-        document.getElementById("showfavs").checked = false;
-    }
+//getStatus = localStorage.getItem('showfavs');
+//    if (getStatus == "true") {
+ //       document.getElementById("showfavs").checked = true;
+ //   } else {
+ //       document.getElementById("showfavs").checked = false;
+ //   }
 
 	
 
