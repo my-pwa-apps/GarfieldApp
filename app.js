@@ -12,7 +12,7 @@ function Share() {
 	}
 }
 
-function Addfav()
+/* function Addfav()
 {
 	formattedComicDate = year + "/" + month + "/" + day;
 	var favs = JSON.parse(localStorage.getItem('favs'));
@@ -39,7 +39,7 @@ function Addfav()
 	}
 	favs.sort();
 	localStorage.setItem('favs', JSON.stringify(favs));
-}
+}*/
 
 function OnLoad() {
 //	var favs = JSON.parse(localStorage.getItem('favs'));
