@@ -195,11 +195,11 @@ function CompareDates() {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
 	}
-	if(document.getElementById("showfavs").checked) {
+/*	if(document.getElementById("showfavs").checked) {
 		endDate = new Date(favs[favs.length - 1])}
-	else{
+	else{ */
 		endDate = new Date();
-	}
+//	}
 	endDate = endDate.setHours(0, 0, 0, 0);
 	endDate = new Date(endDate);
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
