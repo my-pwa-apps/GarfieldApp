@@ -31,7 +31,7 @@
 		<button class="button" id="Next" onclick="NextClick()">Next <i class="fa fa-arrow-circle-right"></i></button>
 		<button class="button" id="First" onclick="FirstClick()">First</button>
 		<input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-		<button class="button" id="Current" onclick="CurrentClick()">Today</button>
+		<button class="button" id="Today" onclick="TodayClick()">Today</button>
 	</div>
 	<br>
 	<br> <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
@@ -48,12 +48,13 @@
     	<label for="swipe" class="labels">Swipe enabled</label>	
     </div>
 	<br>
-	<div>
-		<input type="checkbox" id="showfavs">
+	<!-- <div>
+		<input type="checkbox" id="showfavs" disabled>
 		<label for="showfavs" class="labels">Show favorites only</label>
 		<i onclick="Addfav()" aria-hidden="true" class="fa fa-star-o favicon" style="font-size: 25px; right: 20px; position: absolute"></i>
-	</div>
-	<script src="./app.js"></script>
+	</div> -->
+	
+	<script src="./app.js"></script> 
 
 </body>
 
