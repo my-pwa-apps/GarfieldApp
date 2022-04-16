@@ -190,7 +190,6 @@ function CompareDates() {
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
 		document.getElementById('DatePicker').value = startDate;
-		//currentselectedDate = new Date("1978/06/19");
 	} else {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
@@ -208,7 +207,6 @@ function CompareDates() {
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		document.getElementById('DatePicker').value = endDate;
-		//currentselectedDate = new Date();
 	} else {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Current").disabled = false;
