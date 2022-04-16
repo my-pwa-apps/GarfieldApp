@@ -69,13 +69,13 @@ function OnLoad() {
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
-	
+}
 	formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
 	CompareDates();
 	showComic();
-}
+
 }
 
 function PreviousClick() {
@@ -86,9 +86,10 @@ function PreviousClick() {
 		/*currentselectedDate = document.getElementById('DatePicker');
 		 = new Date(currentselectedDate.value);*/
 		 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+	}
 	CompareDates();
 	showComic();
-}
+
 }
 
 function NextClick() {
@@ -99,9 +100,10 @@ function NextClick() {
 		//currentselectedDate = document.getElementById('DatePicker');
 		//currentselectedDate = new Date(currentselectedDate.value);
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+	}
 	CompareDates();
 	showComic();
-}
+
 }
 
 function FirstClick() {
@@ -109,10 +111,10 @@ function FirstClick() {
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
 	else{
 	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
-	
+	}
 	CompareDates();
 	showComic();
-}
+
 }
 
 function CurrentClick() {
@@ -121,9 +123,10 @@ function CurrentClick() {
 	else
 	{
 	currentselectedDate = new Date();
+	}
 	CompareDates();
 	showComic();
-}
+
 }
 
 
@@ -207,7 +210,8 @@ function CompareDates() {
 		document.getElementById("First").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
-		endDate = new Date(favs[favs.length - 1])}
+		endDate = new Date(favs[favs.length - 1]);
+	}
 	else{ 
 		endDate = new Date();
 	}
@@ -219,10 +223,15 @@ function CompareDates() {
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		document.getElementById('DatePicker').value = endDate;
-		currentselectedDate = new Date();
+		//currentselectedDate = new Date();
 	} else {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Current").disabled = false;
+	}
+	if(document.getElementById("showfavs").checked) {
+		if(document.getElementById("showfavs").checked) {
+		document.getElementById("Current").disabled = true;
+	}
 	}
 }
 
