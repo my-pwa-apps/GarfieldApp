@@ -83,9 +83,9 @@ function PreviousClick() {
 		var favs = JSON.parse(localStorage.getItem('favs'));
 		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}
 	else{
-		//currentselectedDate = document.getElementById('DatePicker');
-		//currentselectedDate = new Date(currentselectedDate.value);
-		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+		/*currentselectedDate = document.getElementById('DatePicker');
+		 = new Date(currentselectedDate.value);*/
+		 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	CompareDates();
 	showComic();
 }
