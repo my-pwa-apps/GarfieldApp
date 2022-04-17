@@ -41,6 +41,8 @@ function Share() {
 	}
 	favs.sort();
 	localStorage.setItem('favs', JSON.stringify(favs));
+	CompareDates();
+	showComic();
 }
 
 function OnLoad() {
@@ -297,7 +299,8 @@ setStatus = document.getElementById('swipe');
 	
        } else {
            localStorage.setItem('showfavs', "false");
-			CompareDates()
+			CompareDates();
+			showComic();
         }
     }
 
