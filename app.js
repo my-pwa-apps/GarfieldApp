@@ -10,6 +10,7 @@ function Share() {
 		navigator.share({
 			title: 'https://garfieldapp.tk',
 			url: pictureUrl
+	//		files: document.getElementById("Comic")
 		});
 	}
 }
@@ -85,7 +86,8 @@ function OnLoad() {
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}
+		if(favs.indexOf(formattedComicDate) > 0){
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
 	else{
 		/*currentselectedDate = document.getElementById('DatePicker');
 		 = new Date(currentselectedDate.value);*/
@@ -99,7 +101,8 @@ function PreviousClick() {
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}
+		if(favs.indexOf(formattedComicDate) < favs.length - 1){
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
 	else{
 		//currentselectedDate = document.getElementById('DatePicker');
 		//currentselectedDate = new Date(currentselectedDate.value);
@@ -186,7 +189,7 @@ function showComic() {
 			picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
 			pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
 			document.getElementById("comic").src = pictureUrl;
-
+		//	blob = await response.blob();
 			});
 	});
 }
@@ -207,8 +210,8 @@ function CompareDates() {
 		document.getElementById("First").disabled = true;
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
-		document.getElementById('DatePicker').value = startDate;
-		//currentselectedDate = new Date("1978/06/19");
+		//document.getElementById('DatePicker').value = startDate;
+		currentselectedDate = new Date(startDate);
 	} else {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
@@ -226,17 +229,22 @@ function CompareDates() {
 		document.getElementById("Current").disabled = true;
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
-		document.getElementById('DatePicker').value = endDate;
-		//currentselectedDate = new Date();
+		//document.getElementById('DatePicker').value = endDate;
+		currentselectedDate = new Date(endDate);
 	} else {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Current").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
-		if(document.getElementById("showfavs").checked) {
 		document.getElementById("Current").disabled = true;
-	}
-	}
+		if(favs.length == 1) {
+			document.getElementById("Random").disabled = true;
+			document.getElementById("Previous").disabled = true;
+			document.getElementById("First").disabled = true;
+		
+		}}
+	else {
+		document.getElementById("Random").disabled = false;}
 }
 
 function formatDate(datetoFormat) {
