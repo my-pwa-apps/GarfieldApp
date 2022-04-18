@@ -26,31 +26,31 @@
 	<h1 hidden>Daily Garfield Comics</h1>
 	<div class="logo"> <img src="./garlogo.webp" style="width: 100%" alt="Daily Garfield Comics" /> </div>
 	<div class="buttongrid">
-		<button class="button" id="Previous" onclick="PreviousClick()"><i class="fa fa-arrow-circle-left"></i> Previous</button>
-		<button class="button" id="Random" onclick="RandomClick()">Random</button>
-		<button class="button" id="Next" onclick="NextClick()">Next <i class="fa fa-arrow-circle-right"></i></button>
-		<button class="button" id="First" onclick="FirstClick()">First</button>
-		<input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-		<button class="button" id="Current" onclick="CurrentClick()">Today</button>
+		<button class="button" cursor="pointer" id="Previous" onclick="PreviousClick()"><i class="fa fa-arrow-circle-left"></i> Previous</button>
+		<button class="button" cursor="pointer" id="Random" onclick="RandomClick()">Random</button>
+		<button class="button" cursor="pointer" id="Next" onclick="NextClick()">Next <i class="fa fa-arrow-circle-right"></i></button>
+		<button class="button" cursor="pointer" id="First" onclick="FirstClick()">First</button>
+		<input id="DatePicker" cursor="pointer" oninput="DateChange()" type="date" min="1978-06-19">
+		<button class="button" cursor="pointer" id="Current" onclick="CurrentClick()">Today</button>
 	</div>
 	<br>
-	<br> <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
+	<br> <img id="comic" cursor="pointer" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
 	<br>
 	<br>
-	<div> <i onclick="Share()" aria-hidden="true" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i> </div>
+	<div> <i onclick="Share()" aria-hidden="true" cursor="pointer" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i> </div>
 	<div class="info">
 		<a href=mailto:garfieldapp@outlook.com><img src="./mail.webp" alt="email address"></a>
 	</div>
 	<br>
 	<br>
     <div>
-		<input type="checkbox" id="swipe" checked>
-    	<label for="swipe" class="labels">Swipe enabled</label>	
+		<input type="checkbox" id="swipe" checked cursor="pointer">
+    	<label for="swipe" class="labels" cursor="pointer">Swipe enabled</label>	
     </div>
 	<br>
 	<div>
-		<input type="checkbox" id="showfavs">
-		<label for="showfavs" class="labels">Show favorites only</label>
+		<input type="checkbox" id="showfavs" cursor="pointer">
+		<label for="showfavs" class="labels" cursor="pointer">Show favorites only</label>
 		<i onclick="Addfav()" aria-hidden="true" class="fa fa-star-o favicon" style="font-size: 25px; right: 20px; position: absolute"></i>
 	</div> 
 	
