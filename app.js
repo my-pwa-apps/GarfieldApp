@@ -48,7 +48,8 @@ function Share() {
 	showComic();
 }
 
-function OnLoad() {
+function OnLoad() 
+{
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
@@ -80,10 +81,10 @@ function OnLoad() {
 		document.getElementById("First").disabled = true;
 		document.getElementById("DatePicker").disabled = true;
 }
-	formatDate(currentselectedDate);
+	/*formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
-	//CompareDates();
+	CompareDates();*/
 	showComic();
 
 }
@@ -120,6 +121,11 @@ function PreviousClick() {
 	
 	document.getElementById("Next").disabled = false;
 	document.getElementById("Current").disabled = false;
+
+	//currentselectedDate = currentselectedDate - 1;
+	currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+
+	CompareDates();
 	showComic();
 
 }
@@ -152,7 +158,9 @@ function NextClick() {
 		comicUrl = siteBody.substring(after, after + 29);
 		comicUrl = "https://www.arcamax.com/" + comicUrl;
 	}
-			
+	//currentselectedDate = currentselectedDate + 1;	
+	currentselectedDate.setDate(currentselectedDate.getDate() +1);
+	CompareDates();
 	showComic();
 
 }
@@ -184,7 +192,7 @@ function CurrentClick() {
 }
 
 
-function RandomClick() {
+/*function RandomClick() {
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
 	else{
@@ -195,7 +203,7 @@ function RandomClick() {
 	CompareDates();
 	showComic();
 
-}
+}*/
 
 function DateChange() {
 	currentselectedDate = document.getElementById('DatePicker');
@@ -210,8 +218,10 @@ function showComic() {
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
 	//siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
+
 	siteUrl = "https://cors.bridged.cc/" + comicUrl;
-    var favs = JSON.parse(localStorage.getItem('favs'));
+   
+	 var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
 		favs = [];
@@ -264,7 +274,7 @@ function CompareDates() {
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Previous").disabled = false;
-		document.getElementById("First").disabled = false;
+		document.getElementById("First").disabled = true;
 	}
 	if(document.getElementById("showfavs").checked) {
 		endDate = new Date(favs[favs.length - 1]);
@@ -294,7 +304,7 @@ function CompareDates() {
 		
 		}}
 	else {
-		document.getElementById("Random").disabled = false;}
+		document.getElementById("Random").disabled = true;}
 }
 
 function formatDate(datetoFormat) {
