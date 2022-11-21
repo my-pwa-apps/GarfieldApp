@@ -100,9 +100,24 @@ function PreviousClick() {
 	//}
 	//CompareDates();
 	comicPosition = siteBody.indexOf('class="prev" href="');
-	after = comicPosition + 20;
-	comicUrl = siteBody.substring(after, after + 29);
-	comicUrl = "https://www.arcamax.com/" + comicUrl;
+	
+	if (
+		navigator.userAgent.match(/Android/i) ||
+		navigator.userAgent.match(/iPhone/i)
+	  ) 
+	  {
+		after = comicPosition + 19;
+		comicUrl = siteBody.substring(after, after + 51);
+		//comicUrl = "https://m.arcamax.com/" + comicUrl;
+	  }
+	else
+	{
+		after = comicPosition + 20;
+		comicUrl = siteBody.substring(after, after + 29);
+		comicUrl = "https://www.arcamax.com/" + comicUrl;
+	}
+			
+	
 	document.getElementById("Next").disabled = false;
 	document.getElementById("Current").disabled = false;
 	showComic();
@@ -120,10 +135,24 @@ function NextClick() {
 	//	 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	//}
 	//CompareDates();
-	comicPosition = siteBody.indexOf('class="next" href="');
-	after = comicPosition + 20;
-	comicUrl = siteBody.substring(after, after + 29);
-	comicUrl = "https://www.arcamax.com/" + comicUrl;
+	comicPosition = siteBody.indexOf('class="prev" href="');
+	
+	if (
+		navigator.userAgent.match(/Android/i) ||
+		navigator.userAgent.match(/iPhone/i)
+	  ) 
+	  {
+		after = comicPosition + 19;
+		comicUrl = siteBody.substring(after, after + 51);
+		//comicUrl = "https://m.arcamax.com/" + comicUrl;
+	  }
+	else
+	{
+		after = comicPosition + 20;
+		comicUrl = siteBody.substring(after, after + 29);
+		comicUrl = "https://www.arcamax.com/" + comicUrl;
+	}
+			
 	showComic();
 
 }
