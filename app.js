@@ -135,7 +135,7 @@ function NextClick() {
 	//	 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	//}
 	//CompareDates();
-	comicPosition = siteBody.indexOf('class="prev" href="');
+	comicPosition = siteBody.indexOf('class="next" href="');
 	
 	if (
 		navigator.userAgent.match(/Android/i) ||
