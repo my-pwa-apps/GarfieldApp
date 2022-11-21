@@ -1,6 +1,8 @@
 
 //garfieldapp.tk, garfieldapp.pages.dev
 
+comicUrl = "https://www.arcamax.com/thefunnies/garfield/"
+
 if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 }
@@ -74,41 +76,54 @@ function OnLoad() {
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
+		document.getElementById("Random").disabled = true;
+		document.getElementById("First").disabled = true;
+		document.getElementById("DatePicker").disabled = true;
 }
 	formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
-	CompareDates();
+	//CompareDates();
 	showComic();
 
 }
 
 function PreviousClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
-	else{
+	//if(document.getElementById("showfavs").checked) {
+	//	var favs = JSON.parse(localStorage.getItem('favs'));
+	//	if(favs.indexOf(formattedComicDate) > 0){
+	//		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
+	//else{
 		/*currentselectedDate = document.getElementById('DatePicker');
 		 = new Date(currentselectedDate.value);*/
-		 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-	}
-	CompareDates();
+	//	 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+	//}
+	//CompareDates();
+	comicPosition = siteBody.indexOf('class="prev" href="');
+	after = comicPosition + 20;
+	comicUrl = siteBody.substring(after, after + 29);
+	comicUrl = "https://www.arcamax.com/" + comicUrl;
+	document.getElementById("Next").disabled = false;
+	document.getElementById("Current").disabled = false;
 	showComic();
 
 }
 
 function NextClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
-	else{
-		//currentselectedDate = document.getElementById('DatePicker');
-		//currentselectedDate = new Date(currentselectedDate.value);
-		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-	}
-	CompareDates();
+	//if(document.getElementById("showfavs").checked) {
+	//	var favs = JSON.parse(localStorage.getItem('favs'));
+	//	if(favs.indexOf(formattedComicDate) > 0){
+	//		currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
+	//else{
+		/*currentselectedDate = document.getElementById('DatePicker');
+		 = new Date(currentselectedDate.value);*/
+	//	 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+	//}
+	//CompareDates();
+	comicPosition = siteBody.indexOf('class="next" href="');
+	after = comicPosition + 20;
+	comicUrl = siteBody.substring(after, after + 29);
+	comicUrl = "https://www.arcamax.com/" + comicUrl;
 	showComic();
 
 }
@@ -131,7 +146,10 @@ function CurrentClick() {
 	{
 	currentselectedDate = new Date();
 	}
-	CompareDates();
+	//CompareDates();
+	comicUrl = "https://www.arcamax.com/thefunnies/garfield/"
+	document.getElementById("Next").disabled = true;
+	document.getElementById("Current").disabled = true;
 	showComic();
 
 }
@@ -162,7 +180,8 @@ function showComic() {
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
+	//siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
+	siteUrl = "https://cors.bridged.cc/" + comicUrl;
     var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
@@ -186,8 +205,8 @@ function showComic() {
 	}).then(function(response) {
 		response.text().then(function(text) {
 			siteBody = text;
-			picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-			pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+			picturePosition = siteBody.indexOf("https://resources.arcamax.com/newspics/");
+			pictureUrl = siteBody.substring(picturePosition, picturePosition + 60);
 			document.getElementById("comic").src = pictureUrl;
 		//	blob = await response.blob();
 			});
