@@ -17,7 +17,7 @@ function Share() {
 	}
 }
 
- function Addfav()
+ /*function Addfav()
 {
 	formattedComicDate = year + "/" + month + "/" + day;
 	var favs = JSON.parse(localStorage.getItem('favs'));
@@ -46,11 +46,11 @@ function Share() {
 	localStorage.setItem('favs', JSON.stringify(favs));
 	CompareDates();
 	showComic();
-}
+}*/
 
 function OnLoad() 
 {
-	var favs = JSON.parse(localStorage.getItem('favs'));
+	/*var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
 		favs = [];
@@ -73,14 +73,14 @@ function OnLoad()
 			document.getElementById("showfavs").checked = false;
 			document.getElementById("showfavs").disabled = true;
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
+	}*/
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
 		document.getElementById("Random").disabled = true;
 		document.getElementById("First").disabled = true;
 		document.getElementById("DatePicker").disabled = true;
-}
+
 	/*formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
@@ -104,7 +104,11 @@ function PreviousClick() {
 	
 	if (
 		navigator.userAgent.match(/Android/i) ||
-		navigator.userAgent.match(/iPhone/i)
+		navigator.userAgent.match(/iPhone/i) ||
+		navigator.userAgent.match(/iPad/i) ||
+		navigator.userAgent.match(/iPod/i) ||
+		navigator.userAgent.match(/BlackBerry/i) ||
+		navigator.userAgent.match(/Windows Phone/i)
 	  ) 
 	  {
 		after = comicPosition + 19;
@@ -145,7 +149,11 @@ function NextClick() {
 	
 	if (
 		navigator.userAgent.match(/Android/i) ||
-		navigator.userAgent.match(/iPhone/i)
+		navigator.userAgent.match(/iPhone/i) ||
+		navigator.userAgent.match(/iPad/i) ||
+		navigator.userAgent.match(/iPod/i) ||
+		navigator.userAgent.match(/BlackBerry/i) ||
+		navigator.userAgent.match(/Windows Phone/i)
 	  ) 
 	  {
 		after = comicPosition + 19;
@@ -177,16 +185,17 @@ function FirstClick() {
 }
 
 function CurrentClick() {
-	if(document.getElementById("showfavs").checked) {
-	}
-	else
-	{
+	//if(document.getElementById("showfavs").checked) {
+//	}
+//	else
+//	{
 	currentselectedDate = new Date();
-	}
-	//CompareDates();
+//	}
+	CompareDates();
 	comicUrl = "https://www.arcamax.com/thefunnies/garfield/"
 	document.getElementById("Next").disabled = true;
 	document.getElementById("Current").disabled = true;
+	CompareDates();
 	showComic();
 
 }
@@ -222,7 +231,7 @@ function showComic() {
 	siteUrl = "https://cors.bridged.cc/" + comicUrl;
    
 	 var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
+	/*if(favs == null)
 	{
 		favs = [];
 	}
@@ -234,7 +243,7 @@ function showComic() {
 	else
 	{
 		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
-	}
+	}*/
 
 	fetch(siteUrl, {
 		method: "GET",
@@ -253,14 +262,14 @@ function showComic() {
 }
 
 function CompareDates() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
+	/*var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked) {
 		if(favs.includes(document.getElementById("DatePicker").value)) {}
 		else{	
 		startDate = new Date(favs[0])}}
-	else{	
+	else{	*/
 		startDate = new Date("1978/06/19");
-	}
+	//}
 	startDate = startDate.setHours(0, 0, 0, 0);
 	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
 	startDate = new Date(startDate);
@@ -276,12 +285,12 @@ function CompareDates() {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = true;
 	}
-	if(document.getElementById("showfavs").checked) {
-		endDate = new Date(favs[favs.length - 1]);
-	}
-	else{ 
+	//if(document.getElementById("showfavs").checked) {
+	//	endDate = new Date(favs[favs.length - 1]);
+	//}
+	//else{ 
 		endDate = new Date();
-	}
+	//}
 	endDate = endDate.setHours(0, 0, 0, 0);
 	endDate = new Date(endDate);
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
@@ -295,7 +304,7 @@ function CompareDates() {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Current").disabled = false;
 	}
-	if(document.getElementById("showfavs").checked) {
+	/*if(document.getElementById("showfavs").checked) {
 		document.getElementById("Current").disabled = true;
 		if(favs.length == 1) {
 			document.getElementById("Random").disabled = true;
@@ -304,7 +313,7 @@ function CompareDates() {
 		
 		}}
 	else {
-		document.getElementById("Random").disabled = true;}
+		document.getElementById("Random").disabled = true;}*/
 }
 
 function formatDate(datetoFormat) {
@@ -324,10 +333,10 @@ function Rotate() {
 	}
 }
 
-document.addEventListener('swiped-down', function(e) {
+/*document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
 		RandomClick()}
-})
+})*/
 
 document.addEventListener('swiped-right', function(e) {
 	if(document.getElementById("swipe").checked) {
@@ -340,10 +349,10 @@ document.addEventListener('swiped-left', function(e) {
 		NextClick()}
 })
 
-document.addEventListener('swiped-up', function(e) {
+/*document.addEventListener('swiped-up', function(e) {
 	if(document.getElementById("swipe").checked) {
 		CurrentClick()}
-})
+})*/
 
 setStatus = document.getElementById('swipe');
     setStatus.onclick = function() {
@@ -357,7 +366,7 @@ setStatus = document.getElementById('swipe');
         }
     }
 
-	setStatus = document.getElementById('showfavs');
+/*	setStatus = document.getElementById('showfavs');
 	var favs = JSON.parse(localStorage.getItem('favs'));
     setStatus.onclick = function() {
         if(document.getElementById('showfavs').checked) {
@@ -380,7 +389,7 @@ setStatus = document.getElementById('swipe');
 		CompareDates();
 		showComic();
 
-	}
+	}*/
 
 
 getStatus = localStorage.getItem('stat');
@@ -390,12 +399,12 @@ getStatus = localStorage.getItem('stat');
         document.getElementById("swipe").checked = false;
     }
 
-getStatus = localStorage.getItem('showfavs');
+/*getStatus = localStorage.getItem('showfavs');
     if (getStatus == "true") {
         document.getElementById("showfavs").checked = true;
     } else {
         document.getElementById("showfavs").checked = false;
-    }
+    }*/
 
 	
 
