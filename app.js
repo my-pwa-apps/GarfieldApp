@@ -162,7 +162,8 @@ function showComic() {
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
+	//siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
+	siteUrl =  "https://api.codetabs.com/v1/proxy?quest=https://www.gocomics.com/garfield/" + formattedComicDate;
     var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
@@ -179,10 +180,10 @@ function showComic() {
 	}
 
 	fetch(siteUrl, {
-		method: "GET",
-		headers: {
+		method: "GET"
+		/*headers: {
 			"x-cors-grida-api-key": "77a0175b-4435-49b0-ad18-52d2dea5a548"
-		}
+		}*/
 	}).then(function(response) {
 		response.text().then(function(text) {
 			siteBody = text;
