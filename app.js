@@ -163,7 +163,7 @@ function showComic() {
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
 	//siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
-	siteUrl =  "https://api.codetabs.com/v1/proxy?quest=https://www.gocomics.com/garfield/" + formattedComicDate;
+	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;;
     var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
@@ -179,21 +179,18 @@ function showComic() {
 		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
 	}
 
-	fetch(siteUrl, {
-		method: "GET"
-		/*headers: {
-			"x-cors-grida-api-key": "77a0175b-4435-49b0-ad18-52d2dea5a548"
-		}*/
-	}).then(function(response) {
-		response.text().then(function(text) {
-			siteBody = text;
-			picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-			pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-			document.getElementById("comic").src = pictureUrl;
-		//	blob = await response.blob();
-			});
-	});
-}
+	fetch(siteUrl)
+    .then(function(response) {
+      return response.text();
+    })
+    .then(function(text) {
+      siteBody = text;
+      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
+      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+      document.getElementById("comic").src = pictureUrl;
+    });
+	};
+
 
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
