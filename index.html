@@ -24,7 +24,7 @@
 
 <body onload=OnLoad()>
 	<h1 hidden>Daily Garfield Comics App</h1>
-	<div class="logo"> <img src="./garlogo.webp" style="width: 100%" alt="Daily Garfield Comics" /> </div>
+	<div class="logo"> <img src="./garlogo.webp" style="width: 100%" alt="Daily Garfield Comics" style="position:absolute;top: 0"/> </div>
 	<div class="buttongrid">
 		<button class="button" cursor="pointer" id="Previous" onclick="PreviousClick()"><i class="fa fa-arrow-circle-left"></i> Previous</button>
 		<button class="button" cursor="pointer" id="Random" onclick="RandomClick()">Random</button>
@@ -53,6 +53,8 @@
 		<label for="showfavs" class="labels" cursor="pointer">Show my favorites only</label>
 		<i onclick="Addfav()" aria-hidden="true" class="fa fa-star-o favicon" style="font-size: 25px; right: 20px; position: absolute"></i>
 	</div> 
+	<br>
+	<br>
 	<a href="https://buymeacoffee.com/garfieldapp" target="_blank" style="position:absolute;bottom: 0"><img src="./bmc-full-logo-no-background.png" style="width: 30%;height: 30%"></a>
 	<script src="./app.js"></script> 
 
