@@ -10,7 +10,6 @@ function Share() {
 		navigator.share({
 			title: 'https://garfieldapp.tk',
 			url: pictureUrl
-	//		files: document.getElementById("Comic")
 		});
 	}
 }
@@ -89,9 +88,7 @@ function PreviousClick() {
 		if(favs.indexOf(formattedComicDate) > 0){
 			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
 	else{
-		/*currentselectedDate = document.getElementById('DatePicker');
-		 = new Date(currentselectedDate.value);*/
-		 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
 	CompareDates();
 	showComic();
@@ -104,8 +101,6 @@ function NextClick() {
 		if(favs.indexOf(formattedComicDate) < favs.length - 1){
 			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
 	else{
-		//currentselectedDate = document.getElementById('DatePicker');
-		//currentselectedDate = new Date(currentselectedDate.value);
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
 	CompareDates();
@@ -162,7 +157,6 @@ function showComic() {
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	//siteUrl = "https://cors.bridged.cc/https://www.gocomics.com/garfield/" + formattedComicDate;
 	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;;
     var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
@@ -210,7 +204,6 @@ function CompareDates() {
 		document.getElementById("First").disabled = true;
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
-		//document.getElementById('DatePicker').value = startDate;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Previous").disabled = false;
@@ -229,7 +222,6 @@ function CompareDates() {
 		document.getElementById("Current").disabled = true;
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
-		//document.getElementById('DatePicker').value = endDate;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Next").disabled = false;
@@ -291,7 +283,6 @@ setStatus = document.getElementById('swipe');
             localStorage.setItem('stat', "true");
         } else {
             localStorage.setItem('stat', "false");
-			//currentselectedDate = new Date();
 			CompareDates();
 			showComic();
         }
