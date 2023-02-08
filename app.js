@@ -14,38 +14,6 @@ if ("serviceWorker" in navigator) {
 	}
 	}
 
- /*function Addfav()
-{
-	formattedComicDate = year + "/" + month + "/" + day;
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(favs.indexOf(formattedComicDate) == -1)
-	{
-		favs.push(formattedComicDate);
-		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
-		document.getElementById("showfavs").disabled = false;
-	}
-	else
-	{
-		favs.splice(favs.indexOf(formattedComicDate), 1);
-		$(".favicon").css({"color": "black"}).removeClass('fa-star').addClass('fa-star-o');
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			
-		}
-	}
-	favs.sort();
-	localStorage.setItem('favs', JSON.stringify(favs));
-	CompareDates();
-	showComic();
-}
-*/
-
 function Addfav() {
 	const formattedComicDate = `${year}/${month}/${day}`;
 	let favs = JSON.parse(localStorage.getItem("favs")) || [];
@@ -66,46 +34,6 @@ function Addfav() {
 	showComic();
   }
   
-
-
-/*function OnLoad() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(favs[0]);
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-		
-		}
-		
-	}
-	else{
-
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
-		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-		document.getElementById("Next").disabled = true;
-		document.getElementById("Current").disabled = true;
-}
-	formatDate(currentselectedDate);
-	today = year + '-' + month + '-' + day;
-	document.getElementById("DatePicker").setAttribute("max", today);
-	CompareDates();
-	showComic();
-
-}
-*/
-
 function OnLoad() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	favs = favs || [];
@@ -127,22 +55,6 @@ function OnLoad() {
 	showComic();
 }
 
-
-/*function PreviousClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
-	else{
-		currentselectedDate = document.getElementById('DatePicker');
-		 = new Date(currentselectedDate.value);
-		 currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-	}
-	CompareDates();
-	showComic();
-
-}*/
-
 function PreviousClick() {
 	const favs = JSON.parse(localStorage.getItem('favs')) || [];
 	const favIndex = favs.indexOf(formattedComicDate);
@@ -156,24 +68,6 @@ function PreviousClick() {
 	CompareDates();
 	showComic();
 }
-
-
-
-
-/*function NextClick() {
-	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
-	else{
-		//currentselectedDate = document.getElementById('DatePicker');
-		//currentselectedDate = new Date(currentselectedDate.value);
-		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-	}
-	CompareDates();
-	showComic();
-
-}*/
 
 function NextClick() {
 	let favs;
@@ -191,21 +85,6 @@ function NextClick() {
 	showComic();
   }
   
-
-
-
-/*function FirstClick() {
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
-	else{
-	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
-	}
-	CompareDates();
-	showComic();
-
-}*/
-
-
 function FirstClick() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked) {
@@ -217,20 +96,6 @@ function FirstClick() {
 	showComic();
 	}
 
-
-/*function CurrentClick() {
-	if(document.getElementById("showfavs").checked) {
-	}
-	else
-	{
-	currentselectedDate = new Date();
-	}
-	CompareDates();
-	showComic();
-
-}*/
-
-
 function CurrentClick() {
 	currentselectedDate = new Date();
 	if (!document.getElementById("showfavs").checked) {
@@ -238,20 +103,6 @@ function CurrentClick() {
 	showComic();
 	}
 	}
-
-
-/*function RandomClick() {
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
-	else{
-		start = new Date("1978-06-19");
-		end = new Date();
-		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-	}
-	CompareDates();
-	showComic();
-
-} */
 
 function RandomClick() {
 	const favs = JSON.parse(localStorage.getItem('favs'));
@@ -269,8 +120,6 @@ function RandomClick() {
 	showComic();
 }
 
-
-
 function DateChange() {
 	currentselectedDate = new Date(document.getElementById("DatePicker").value);
 	CompareDates();
@@ -282,35 +131,26 @@ function showComic() {
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://api.codetabs.com/v1/proxy?quest=https://www.gocomics.com/garfield/" + formattedComicDate;
-    var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(favs.indexOf(formattedComicDate) == -1)
-	{
-		$(".favicon").css({"color": "black"}).removeClass('fa-star').addClass('fa-star-o');
+  
+  document.getElementById('DatePicker').value = formattedDate;
 
-	}	
-	else
-	{
-		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
-	}
+  const siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/${formattedComicDate}`;
+  const favs = JSON.parse(localStorage.getItem('favs')) || [];
+  
+  $(".favicon").css({"color": "black"})
+    .removeClass(favs.includes(formattedComicDate) ? 'fa-star-o' : 'fa-star')
+    .addClass(favs.includes(formattedComicDate) ? 'fa-star' : 'fa-star-o');
 
-	fetch(siteUrl, {
-		method: "GET"
-	}).then(function(response) {
-		response.text().then(function(text) {
-			siteBody = text;
-			picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-			pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-			document.getElementById("comic").src = pictureUrl;
-		});
-	});
+  fetch(siteUrl)
+    .then(response => response.text())
+    .then(text => {
+      const picturePosition = text.indexOf("https://assets.amuniversal.com");
+      const pictureUrl = text.substring(picturePosition, picturePosition + 63);
+      document.getElementById("comic").src = pictureUrl;
+    });
 }
 
-function CompareDates() {
+ function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked) {
 		if(favs.includes(document.getElementById("DatePicker").value)) {}
@@ -328,7 +168,6 @@ function CompareDates() {
 		document.getElementById("First").disabled = true;
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
-		//document.getElementById('DatePicker').value = startDate;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Previous").disabled = false;
@@ -365,12 +204,11 @@ function CompareDates() {
 		document.getElementById("Random").disabled = false;}
 }
 
+
 function formatDate(datetoFormat) {
-	day = datetoFormat.getDate();
-	month = datetoFormat.getMonth() + 1;
+	day = ('0' + datetoFormat.getDate()).slice(-2);
+	month = ('0' + (datetoFormat.getMonth() + 1)).slice(-2);
 	year = datetoFormat.getFullYear();
-	month = ("0" + month).slice(-2);
-	day = ("0" + day).slice(-2);
 }
 
 function Rotate() {
