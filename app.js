@@ -157,7 +157,7 @@ function showComic() {
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;;
+	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
     var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
