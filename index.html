@@ -6,7 +6,12 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta name="keywords" content="garfield, gocomics, gocomics.com, gocomics.com/garfield, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, platform, multi, platforms, independent">
 	<meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
-	<title>Daily Garfield Comics</title>
+	<meta property="og:title" content="Daily Garfield Comics by Jim Davis">
+	<meta property="og:type" content="website">
+	<meta property="og:url" content="https://garfieldapp.tk">
+	<meta property="og:image" content="./garlogo.png">
+	<meta property="og:description" content="Get your daily dose of laughter with the official Garfield Comics app. Read current, previous, and random comics, swipe through the strips, and save your favorites.">
+	<title>Daily Garfield Comics by Jim Davis</title>
 	<link rel="stylesheet" href="./main.css">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
@@ -33,13 +38,11 @@
 		<button class="button" cursor="pointer" id="Current" onclick="CurrentClick()">Today</button>
 	</div>
 	<br>
-	<br> <img id="comic" cursor="pointer" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
-	<br>
-	<br>
+	<figure>
+		<img id="comic" class="normal" src="" alt="Loading comic from https://gocomics.com..." onclick="Rotate()">
+	</figure>
 	<div> <i onclick="Share()" aria-hidden="true" cursor="pointer" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i> </div>
-	<div class="info">
-		<a href=mailto:garfieldapp@outlook.com><img src="./mail.webp" alt="email address"></a>
-	</div>
+	
 	<br>
 	<br>
     <div>
@@ -54,7 +57,7 @@
 	</div> 
 	<br>
 	<br>
-	<a href="https://buymeacoffee.com/garfieldapp" target="_blank" style="position:absolute;bottom: 0"><img src="./bmc-full-logo-no-background.png" style="width: 30%;height: 30%"></a>
+	<a href="https://buymeacoffee.com/garfieldapp" target="_blank"><img src="./bmc-full-logo-no-background.png" style="width: 30%;height: 30%"></a>
 	<script src="./app.js"></script> 
 	<script src="./swiped-events.min.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
