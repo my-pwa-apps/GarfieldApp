@@ -15,7 +15,6 @@ if ("serviceWorker" in navigator) {
 	}
 
 function Addfav() {
-	//currentselectedDate = getElementById("DatePicker").valueAsDate = new Date();
 	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
 	formatmattedComicDate = formattedDate.split('-').join('/');
 	let favs = getFavs();
