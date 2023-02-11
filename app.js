@@ -202,7 +202,7 @@ function Rotate() {
 	if(element.className === "normal") {
 		element.className = "rotate";
 	} else if(element.className === "rotate") {
-		element.className = 'normal';
+		element.className = "normal";
 	}
 }
 
