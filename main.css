@@ -51,19 +51,18 @@ input[type=checkbox]:checked:after {
 
 
 .button {
-	margin: 5px;
+  margin: 5px;
   padding: 10px 10px;
   text-align: center;
   
   transition: 0.5s;
   background-size: 200% auto;
-  color: white;
+  color: black;
   border-radius: 10px;
   display: block;
-  border: 0px;
   font-weight: 700;
   box-shadow: 0px 0px 10px -7px #f09819;
-  background-image: linear-gradient(45deg, #FF512F 0%, #F09819  51%, #FF512F  100%);
+  background-image: linear-gradient(45deg, yellow 0%, #F09819  51%, yellow  100%);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -75,8 +74,7 @@ input[type=checkbox]:checked:after {
   }
 
 .button:hover {
-	background-position: right center;
-  /* change the direction of the change here */
+  background-position: right center;
   color: #fff;
   text-decoration: none;
 }
@@ -84,23 +82,24 @@ input[type=checkbox]:checked:after {
 .button:disabled {
 	background-color: #f39700;
 	opacity: 0.5;
-	border: navajowhite;
 	color: black;
 	
 	box-shadow: none;
 }
 
 input {
+	margin: 5px;
+	padding: 10px 10px;
 	-webkit-appearance: none;
 	-moz-appearance: none;
 	box-sizing: border-box;
 	max-width: 100%;
 	font-size: 0.8pc;
-	opacity: 0.5;
+	
 	text-align: center;
+	border-radius: 10px;
 	background-color: white;
-	border-color: white;
-}
+	}
 
 .buttongrid {
 	display: grid;

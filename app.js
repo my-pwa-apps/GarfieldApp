@@ -15,8 +15,9 @@ if ("serviceWorker" in navigator) {
 	}
 
 function Addfav() {
-	const formattedComicDate = `${year}/${month}/${day}`;
-	formatmattedComicDate = today.split('-').join('/');
+	//currentselectedDate = getElementById("DatePicker").valueAsDate = new Date();
+	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	formatmattedComicDate = formattedDate.split('-').join('/');
 	let favs = getFavs();
   
 	if (favs.includes(formattedComicDate)) {
@@ -48,10 +49,7 @@ function OnLoad() {
 
 	document.getElementById("Next").disabled = !favs.length;
 	document.getElementById("Current").disabled = !favs.length;
-
-	//formatDate(currentselectedDate);
 	today = currentselectedDate.toISOString().substr(0, 10);
-	//today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
 	CompareDates();
 	showComic();
