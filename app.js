@@ -39,8 +39,8 @@ function OnLoad() {
 	var favs = getFavs();
 	favs = favs || [];
 
-	document.getElementById("showfavs").checked = favs.length !== 0;
-	document.getElementById("showfavs").disabled = favs.length === 0;
+//	document.getElementById("showfavs").checked = favs.length !== 0;
+	//document.getElementById("showfavs").disabled = favs.length === 0;
 	
 	currentselectedDate = favs.length !== 0 
 		? new Date(favs[0]) 
