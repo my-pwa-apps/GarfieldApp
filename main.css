@@ -75,7 +75,7 @@ input[type=checkbox]:checked:after {
 
 .button:hover {
   background-position: right center;
-  color: #fff;
+  color: black;
   text-decoration: none;
 }
 
