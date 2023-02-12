@@ -24,9 +24,9 @@ input[type=checkbox]:before {
 	height: 16px;
 	top: 0;
 	left: 0;
-	border: 2px solid #555555;
+	border: 2px solid black;
 	border-radius: 3px;
-	background-color: white;
+	background-color: #eee239;
 }
 input[type=checkbox]:checked:after {
 	content: "";
