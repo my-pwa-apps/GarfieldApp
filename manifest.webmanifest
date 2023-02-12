@@ -5,6 +5,7 @@
     "start_url": "./index.html",
     "display": "standalone",
     "orientation": "portrait-primary",
+    "background": "background: linear-gradient(#eee239, orange) no-repeat",
     "background_color": "#eee239",
     "theme_color": "#eee239",
     "categories": ["entertainment"],
