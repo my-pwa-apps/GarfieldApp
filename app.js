@@ -149,7 +149,7 @@ function showComic() {
 
  function CompareDates() {
 	var favs = getFavs();
-	if(document.getElementById("showfavs").checked) {
+	if(document.getElementById("showfavs").checked && favs.length !== 0) {
 		if(favs.includes(document.getElementById("DatePicker").value)) {}
 		else{	
 		startDate = new Date(favs[0])}}
@@ -239,7 +239,7 @@ setStatus = document.getElementById('swipe');
 
 	setStatus = document.getElementById('showfavs');
 	favs = getFavs();
-    setStatus.onclick = function() {
+	setStatus.onclick = function() {
         if(document.getElementById('showfavs').checked) {
             localStorage.setItem('showfavs', "true");
 			if(favs.indexOf(formattedComicDate) == -1)
