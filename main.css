@@ -63,7 +63,7 @@ input[type=checkbox]:checked:after {
   border-color: black;
   display: block;
   font-weight: 700;
-  background-image: linear-gradient(45deg, yellow 0%, #F09819  51%, yellow  100%);
+  background-image: linear-gradient(45deg, #eee239 0%, #F09819  51%, #eee239  100%);
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
