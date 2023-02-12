@@ -142,7 +142,7 @@ function showComic() {
     .then(response => response.text())
     .then(text => {
       const picturePosition = text.indexOf("https://assets.amuniversal.com");
-      const pictureUrl = text.substring(picturePosition, picturePosition + 63);
+      pictureUrl = text.substring(picturePosition, picturePosition + 63);
       document.getElementById("comic").src = pictureUrl;
     });
 }
