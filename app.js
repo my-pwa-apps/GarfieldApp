@@ -63,9 +63,9 @@ function PreviousClick() {
 	} else {
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
-
-	CompareDates();
-	showComic();
+    formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	document.getElementById("DatePicker").value = formattedDate;
+	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
 }
 
 function NextClick() {
@@ -79,9 +79,9 @@ function NextClick() {
 	} else {
 	  currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
-  
-	CompareDates();
-	showComic();
+	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	document.getElementById("DatePicker").value = formattedDate;
+	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
   }
   
 function FirstClick() {
@@ -91,17 +91,18 @@ function FirstClick() {
 	} else {
 	currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
 	}
-	CompareDates();
-	showComic();
+	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	document.getElementById("DatePicker").value = formattedDate;
+	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
 	}
 
 function CurrentClick() {
+
 	currentselectedDate = new Date();
-	if (!document.getElementById("showfavs").checked) {
-	CompareDates();
-	showComic();
-	}
-	}
+	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	document.getElementById("DatePicker").value = formattedDate;
+	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
+}
 
 function RandomClick() {
 	const favs = getFavs();
@@ -114,9 +115,9 @@ function RandomClick() {
 		const end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
-
-	CompareDates();
-	showComic();
+	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
+	document.getElementById("DatePicker").value = formattedDate;
+	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
 }
 
 function DateChange() {
