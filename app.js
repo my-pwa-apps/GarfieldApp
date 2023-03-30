@@ -31,8 +31,8 @@ function Addfav() {
   
 	favs.sort();
 	localStorage.setItem("favs", JSON.stringify(favs));
-	CompareDates();
-	showComic();
+	//CompareDates();
+	//showComic();
   }
   
 function OnLoad() {
@@ -43,9 +43,14 @@ function OnLoad() {
 //	document.getElementById("showfavs").checked = favs.length !== 0;
 	//document.getElementById("showfavs").disabled = favs.length === 0;
 	
+	if(document.getElementById("showfavs").checked) {
 	currentselectedDate = favs.length !== 0 
 		? new Date(favs[0]) 
 		: document.getElementById("DatePicker").valueAsDate = new Date();
+	}
+	else {
+	currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+	}
 
 	document.getElementById("Next").disabled = !favs.length;
 	document.getElementById("Current").disabled = !favs.length;
@@ -268,8 +273,8 @@ setStatus = document.getElementById('swipe');
 			
         }
 
-		CompareDates();
-		showComic();
+		//CompareDates();
+		//showComic();
 
 	}
 
