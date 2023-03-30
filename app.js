@@ -38,6 +38,7 @@ function Addfav() {
 function OnLoad() {
 	var favs = getFavs();
 	favs = favs || [];
+	previousUrl = null;
 
 //	document.getElementById("showfavs").checked = favs.length !== 0;
 	//document.getElementById("showfavs").disabled = favs.length === 0;
@@ -144,7 +145,16 @@ function showComic() {
     .then(text => {
       const picturePosition = text.indexOf("https://assets.amuniversal.com");
       pictureUrl = text.substring(picturePosition, picturePosition + 63);
-      document.getElementById("comic").src = pictureUrl;
+      if(pictureUrl != previousUrl)
+	   {
+		  document.getElementById("comic").src = pictureUrl;
+		  previousUrl = pictureUrl;
+	   }
+	   else
+	   {
+		   PreviousClick();
+	   }
+	   
     });
 }
 
