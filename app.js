@@ -36,6 +36,7 @@ function Addfav() {
   }
   
 function OnLoad() {
+	nextclicked = false;
 	var favs = getFavs();
 	favs = favs || [];
 	previousUrl = null;
@@ -75,6 +76,7 @@ function PreviousClick() {
 }
 
 function NextClick() {
+	nextclicked = true;
 	let favs;
 	if (document.getElementById("showfavs").checked) {
 	  favs = getFavs();
@@ -157,7 +159,11 @@ function showComic() {
 	   }
 	   else
 	   {
-		   PreviousClick();
+		   if(!nextclicked)
+		   {
+			PreviousClick();
+			nextclicked = false;
+		   }
 	   }
 	   
     });
