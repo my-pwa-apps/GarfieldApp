@@ -76,6 +76,8 @@ function PreviousClick() {
 }
 
 function NextClick() {
+	if(new Date(currentselectedDate).toLocaleDateString() == new Date(today).toLocaleDateString()) {
+	} else {
 	nextclicked = true;
 	let favs;
 	if (document.getElementById("showfavs").checked) {
@@ -91,6 +93,7 @@ function NextClick() {
 	document.getElementById("DatePicker").value = formattedDate;
 	document.getElementById("DatePicker").dispatchEvent(new Event("change"));
   }
+}
   
 function FirstClick() {
 	var favs = getFavs();
