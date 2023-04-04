@@ -167,6 +167,7 @@ function showComic() {
 	   }
 	   
     });
+	nextclicked = false;
 }
 
  function CompareDates() {
