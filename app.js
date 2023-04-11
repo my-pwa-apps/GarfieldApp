@@ -155,7 +155,7 @@ function showComic() {
     .then(text => {
       const picturePosition = text.indexOf("https://assets.amuniversal.com");
       pictureUrl = text.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl)
+      if(pictureUrl != previousUrl && !nextclicked )
 	   {
 		  document.getElementById("comic").src = pictureUrl;
 		  previousUrl = pictureUrl;
