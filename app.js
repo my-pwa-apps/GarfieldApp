@@ -15,8 +15,9 @@ if ("serviceWorker" in navigator) {
 	}
 
 function Addfav() {
+	
 	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
-	formatmattedComicDate = formattedDate.split('-').join('/');
+	formattedComicDate = formattedDate.split('-').join('/');
 	let favs = getFavs();
   
 	if (favs.includes(formattedComicDate)) {
@@ -31,8 +32,6 @@ function Addfav() {
   
 	favs.sort();
 	localStorage.setItem("favs", JSON.stringify(favs));
-	//CompareDates();
-	//showComic();
   }
   
 function OnLoad() {
@@ -41,9 +40,6 @@ function OnLoad() {
 	favs = favs || [];
 	previousUrl = null;
 
-//	document.getElementById("showfavs").checked = favs.length !== 0;
-	//document.getElementById("showfavs").disabled = favs.length === 0;
-	
 	if(document.getElementById("showfavs").checked) {
 	currentselectedDate = favs.length !== 0 
 		? new Date(favs[0]) 
@@ -64,7 +60,6 @@ function OnLoad() {
 function PreviousClick() {
 	const favs = getFavs();
 	const favIndex = favs.indexOf(formattedComicDate);
-
 	if (document.getElementById("showfavs").checked && favIndex > 0) {
 		currentselectedDate = new Date(favs[favIndex - 1]);
 	} else {
@@ -138,7 +133,7 @@ function DateChange() {
 }
 
 function showComic() {
-	currentselectedDate = new Date(currentselectedDate);
+	//currentselectedDate = new Date(currentselectedDate);
 	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
 	formattedComicDate = formattedDate.split('-').join('/');
 	document.getElementById('DatePicker').value = formattedDate;
@@ -182,10 +177,10 @@ function showComic() {
 	else{	
 		startDate = new Date("1978/06/19");
 	}
-	startDate = startDate.setHours(0, 0, 0, 0);
-	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
-	startDate = new Date(startDate);
-	currentselectedDate = new Date(currentselectedDate);
+	startDate = new Date(startDate.setHours(0, 0, 0, 0));
+	currentselectedDate = new Date(currentselectedDate.setHours(0, 0, 0, 0));
+	//startDate = new Date(startDate);
+	//currentselectedDate = new Date(currentselectedDate);
 	if(currentselectedDate.getTime() <= startDate.getTime()) {
 		document.getElementById("Previous").disabled = true;
 		document.getElementById("First").disabled = true;
@@ -200,8 +195,8 @@ function showComic() {
 	else{ 
 		endDate = new Date();
 	}
-	endDate = endDate.setHours(0, 0, 0, 0);
-	endDate = new Date(endDate);
+	endDate = new Date(endDate.setHours(0, 0, 0, 0));
+	//endDate = new Date(endDate);
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
@@ -283,10 +278,7 @@ setStatus = document.getElementById('swipe');
 			
         }
 
-		//CompareDates();
-		//showComic();
-
-	}
+		}
 
 
 getStatus = localStorage.getItem('stat');
@@ -307,6 +299,7 @@ getStatus = localStorage.getItem('showfavs');
 		return JSON.parse(localStorage.getItem('favs')) || [];
 	  }
 		  
+
 
 	
    
