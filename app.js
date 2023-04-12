@@ -36,7 +36,7 @@ function Addfav() {
   }
   
 function OnLoad() {
-	nextclicked = false;
+	timezoneissue = false;
 	var favs = getFavs();
 	favs = favs || [];
 	previousUrl = null;
@@ -78,7 +78,7 @@ function PreviousClick() {
 function NextClick() {
 	if(new Date(currentselectedDate).toLocaleDateString() == new Date(today).toLocaleDateString()) {
 	} else {
-	nextclicked = true;
+	timezoneissue = true;
 	let favs;
 	if (document.getElementById("showfavs").checked) {
 	  favs = getFavs();
@@ -108,7 +108,7 @@ function FirstClick() {
 	}
 
 function CurrentClick() {
-
+	timezoneissue = true;
 	currentselectedDate = new Date();
 	formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
 	document.getElementById("DatePicker").value = formattedDate;
@@ -118,7 +118,7 @@ function CurrentClick() {
 function RandomClick() {
 	const favs = getFavs();
 	const isShowFavsChecked = document.getElementById("showfavs").checked;
-
+	timezoneissue = true;
 	if (isShowFavsChecked && favs.length) {
 		currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
 	} else {
@@ -155,22 +155,22 @@ function showComic() {
     .then(text => {
       const picturePosition = text.indexOf("https://assets.amuniversal.com");
       pictureUrl = text.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl && !nextclicked )
+      if(pictureUrl != previousUrl )
 	   {
 		  document.getElementById("comic").src = pictureUrl;
 		  previousUrl = pictureUrl;
 	   }
 	   else
 	   {
-		   if(!nextclicked)
+		   if(!timezoneissue)
 		   {
 			PreviousClick();
-			nextclicked = false;
+			timezoneissue = false;
 		   }
 	   }
 	   
     });
-	nextclicked = false;
+	timezoneissue = false;
 }
 
  function CompareDates() {
