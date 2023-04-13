@@ -170,7 +170,6 @@ function showComic() {
 	// 	imgfile = new File([blob], "garfield.png", {type: "image/png", lastModified: Date.now()});
 	// });
 	//timezoneissue = false;
-	
 }
 
  function CompareDates() {
