@@ -11,19 +11,6 @@ randombutton = document.getElementById("Random");
 comicpicture = document.getElementById("comic");
 swipetoggle = document.getElementById("swipe");
 
-//var favs = getFavs();
-
-// if(showfavorites.checked) {
-// 	var currentselectedDate = favs.length !== 0 
-// 		? new Date(favs[0]) 
-// 		: datepicker.valueAsDate = new Date();
-// 	}
-// 	else {
-// 	var currentselectedDate = datepicker.valueAsDate = new Date();
-
-// var formattedDate = currentselectedDate.getFullYear() + "-" + ("0" + (currentselectedDate.getMonth("") +1 )).slice(-2) + "-" + ("0" + (currentselectedDate.getDate(""))).slice(-2);
-// var formattedComicDate = formattedDate.split('-').join('/');
-
 if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 	}
@@ -59,7 +46,7 @@ function Addfav() {
 function OnLoad() {
 	
 	timezoneissue = false;
-	var favs = getFavs();
+	favs = getFavs();
 	favs = favs || [];
 	previousUrl = null;
 
@@ -82,6 +69,7 @@ function OnLoad() {
 }
 
 function PreviousClick() {
+	timezoneissue = true;
 	const favs = getFavs();
 	const favIndex = favs.indexOf(formattedComicDate);
 	if (showfavorites.checked && favIndex > 0) {
@@ -95,7 +83,6 @@ function PreviousClick() {
 function NextClick() {
 	if(new Date(currentselectedDate).toLocaleDateString() == new Date(today).toLocaleDateString()) {
 	} else {
-	timezoneissue = true;
 	const favs = getFavs();
 	if (showfavorites.checked) {
 	  favs = getFavs();
@@ -121,7 +108,6 @@ function FirstClick() {
 	}
 
 function CurrentClick() {
-	timezoneissue = true;
 	currentselectedDate = new Date();
 	DateFormat();
 }
@@ -129,7 +115,6 @@ function CurrentClick() {
 function RandomClick() {
 	const favs = getFavs();
 	const isShowFavsChecked = showfavorites.checked;
-	timezoneissue = true;
 	if (isShowFavsChecked && favs.length) {
 		currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
 	} else {
@@ -170,7 +155,7 @@ function showComic() {
 	   }
 	   else
 	   {
-		   if(!timezoneissue)
+		   if(timezoneissue)
 		   {
 			PreviousClick();
 			timezoneissue = false;
@@ -184,7 +169,7 @@ function showComic() {
 	// 	imgfile = new Image([blob]);
 	// 	imgfile = new File([blob], "garfield.png", {type: "image/png", lastModified: Date.now()});
 	// });
-	timezoneissue = false;
+	//timezoneissue = false;
 	
 }
 
