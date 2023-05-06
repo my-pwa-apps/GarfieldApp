@@ -91,8 +91,8 @@ function NextClick()
 	if(!new Date(currentselectedDate).toLocaleDateString() == new Date(today).toLocaleDateString())
 	{
 	const favs = getFavs();
-		if (showfavorites.checked)
-		{
+		//if (showfavorites.checked)
+		//{
 	  		//favs = getFavs();
 	  		let index = favs.indexOf(formattedComicDate);
 	  		/* if (index < favs.length - 1)
@@ -101,7 +101,7 @@ function NextClick()
 	  		} */
 			showfavorites.checked && index < favs.length - 1 ? (currentselectedDate = new Date(favs[index + 1])): currentselectedDate.setDate(currentselectedDate.getDate() + 1);				
 			
-		}
+		//}
 		/* else
 		{
 	  		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
