@@ -71,45 +71,51 @@ function Share()
 
 function PreviousClick()
 {
-	timezoneissue = true;
-	//const favs = getFavs();
-	const favIndex = favs.indexOf(formattedComicDate);
-	/* if (showfavorites.checked && favIndex > 0)
+	if (!previousbutton.disabled)
 	{
-		currentselectedDate = new Date(favs[favIndex - 1]);
+		timezoneissue = true;
+		//const favs = getFavs();
+		const favIndex = favs.indexOf(formattedComicDate);
+		/* if (showfavorites.checked && favIndex > 0)
+		{
+			currentselectedDate = new Date(favs[favIndex - 1]);
+		}
+		else
+		{
+			currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+		} */
+		showfavorites.checked && favIndex === 0 ? currentselectedDate = new Date(favs[favs.length - 1]): currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+   		DateFormat();
 	}
-	else
-	{
-		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-	} */
-	showfavorites.checked && favIndex === 0 ? currentselectedDate = new Date(favs[favs.length - 1]): currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-   	DateFormat();
 }
 
 function NextClick()
 {
-	if(!new Date(currentselectedDate).toLocaleDateString() == new Date(today).toLocaleDateString())
+	if (!nextbutton.disabled)
 	{
-	const favs = getFavs();
-		//if (showfavorites.checked)
-		//{
+		const favs = getFavs();
+		/* if (showfavorites.checked)
+		{
 	  		//favs = getFavs();
 	  		let index = favs.indexOf(formattedComicDate);
-	  		/* if (index < favs.length - 1)
+	  		 if (index < favs.length - 1)
 			{
 				currentselectedDate = new Date(favs[index + 1]);
-	  		} */
-			showfavorites.checked && index < favs.length - 1 ? (currentselectedDate = new Date(favs[index + 1])): currentselectedDate.setDate(currentselectedDate.getDate() + 1);				
+	  		}  */
+
+
+			let index = favs.indexOf(formattedComicDate);
+			showfavorites.checked & index < favs.length - 1 ? (currentselectedDate = new Date(favs[index + 1])): currentselectedDate.setDate(currentselectedDate.getDate() + 1);				
 			
-		//}
-		/* else
+		/* }
+		 else
 		{
 	  		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-		} */
+		}  */
 		DateFormat();
-	 }
+	}
 }
-  
+
 function FirstClick() {
 	const favs = getFavs();
 	/* if(showfavorites.checked) {
