@@ -76,14 +76,6 @@ function PreviousClick()
 		timezoneissue = true;
 		//const favs = getFavs();
 		const favIndex = favs.indexOf(formattedComicDate);
-		/* if (showfavorites.checked && favIndex > 0)
-		{
-			currentselectedDate = new Date(favs[favIndex - 1]);
-		}
-		else
-		{
-			currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-		} */
 		showfavorites.checked && favIndex === 0 ? currentselectedDate = new Date(favs[favs.length - 1]): currentselectedDate.setDate(currentselectedDate.getDate() - 1);
    		DateFormat();
 	}
@@ -93,60 +85,29 @@ function NextClick()
 {
 	if (!nextbutton.disabled)
 	{
-		const favs = getFavs();
-		/* if (showfavorites.checked)
-		{
-	  		//favs = getFavs();
-	  		let index = favs.indexOf(formattedComicDate);
-	  		 if (index < favs.length - 1)
-			{
-				currentselectedDate = new Date(favs[index + 1]);
-	  		}  */
-
-
-			let index = favs.indexOf(formattedComicDate);
-			showfavorites.checked & index < favs.length - 1 ? (currentselectedDate = new Date(favs[index + 1])): currentselectedDate.setDate(currentselectedDate.getDate() + 1);				
-			
-		/* }
-		 else
-		{
-	  		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-		}  */
+		//const favs = getFavs();
+		let index = favs.indexOf(formattedComicDate);
+		showfavorites.checked & index < favs.length - 1 ? (currentselectedDate = new Date(favs[index + 1])): currentselectedDate.setDate(currentselectedDate.getDate() + 1);				
 		DateFormat();
 	}
 }
 
-function FirstClick() {
-	const favs = getFavs();
-	/* if(showfavorites.checked) {
-	currentselectedDate = new Date(favs[0]);
-	} else {
-	currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
-	} */
+function FirstClick() 
+{
+	//const favs = getFavs();
 	showfavorites.checked ? (currentselectedDate = new Date(favs[0])): currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
-		DateFormat();
-	}
+	DateFormat();
+}
 
 function CurrentClick() {
 	currentselectedDate = new Date();
 	DateFormat();
 }
 
-function RandomClick() {
-	const favs = getFavs();
-	/* if (showfavorites.checked && favs.length)
-	{
-		currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
-	}
-	else
-	{
-		const start = new Date("1978-06-19");
-		const end = new Date();
-		currentselectedDate = new Date(start.getTime() + Math.floor(Math.random() * (end.getTime() - start.getTime())));
-	} */
+function RandomClick()
+{
+	//const favs = getFavs();
 	showfavorites.checked && favs.length ? (currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)])): ( start = new Date("1978-06-19"), end = new Date(),currentselectedDate = new Date(start.getTime() + Math.floor(Math.random() * (end.getTime() - start.getTime()))));
-
-
 	DateFormat();
 }
 
