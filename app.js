@@ -136,30 +136,10 @@ function showComic() {
 	{
     	const picturePosition = text.indexOf("https://assets.amuniversal.com");
       	pictureUrl = text.substring(picturePosition, picturePosition + 63);
-      	/* if(pictureUrl != previousUrl )
-	   	{
-			comicpicture.src = pictureUrl;
-		  	previousUrl = pictureUrl;
-	   	}
-	   	else
-	   	{
-			if(timezoneissue)
-		   	{
-				PreviousClick();
-				timezoneissue = false;
-		   	}
-	   	} */
-		pictureUrl != previousUrl ? (comicpicture.src = pictureUrl, previousUrl = pictureUrl): timezoneissue && (PreviousClick(), timezoneissue = false);
+      	pictureUrl != previousUrl ? (comicpicture.src = pictureUrl, previousUrl = pictureUrl): timezoneissue && (PreviousClick(), timezoneissue = false);
 	   
     }
 	);
-	// fetch(siteUrl)
-	// .then(response => response.blob())
-	// .then(blob => {
-	// 	imgfile = new Image([blob]);
-	// 	imgfile = new File([blob], "garfield.png", {type: "image/png", lastModified: Date.now()});
-	// });
-	//timezoneissue = false;
 }
 
 function CompareDates()
@@ -178,33 +158,17 @@ function CompareDates()
 function Rotate()
 {
 	var element = comicpicture;
-	/* if(element.className === "normal")
-	{
-		element.className = "rotate";
-	} 
-	else if(element.className === "rotate")
-	{
-		element.className = "normal";
-	} */
 	element.className = element.className === "normal" ? "rotate" : "normal";
 }
 
 document.addEventListener('swiped-down', function(e)
 {
-	/* if(document.getElementById("swipe").checked)
-	{
-		RandomClick()
-	} */
 	document.getElementById("swipe").checked && RandomClick();
 }
 )
 
 document.addEventListener('swiped-right', function(e) 
 {
-	/* if(document.getElementById("swipe").checked)
-	{
-		PreviousClick()
-	} */
 	document.getElementById("swipe").checked && PreviousClick();
 
 }
