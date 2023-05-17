@@ -9,7 +9,6 @@
 
 //This app is not affiliated with GoComics.
 
-
 //"use strict";
 
 var timezoneissue = false;
@@ -31,17 +30,6 @@ var favs = [];
 	
 function Share()
  {
-	/* if (navigator.share) 
-	{
-		navigator.share
-		(
-			{
-				title: "https://garfieldapp.tk",
-				url: pictureUrl
-				//files: [imgfile]
-			}
-		);
-	} */
 	navigator.share && navigator.share({title: "https://garfieldapp.tk", url: pictureUrl});
 }
 
