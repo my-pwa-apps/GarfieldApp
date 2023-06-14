@@ -3,7 +3,10 @@
     "description": "Garfield Comics, Current, Next, Previous, Random, First, Specific Date, Swipe",
     "short_name": "Garfield",
     "start_url": "./index.html",
-    "display": "standalone",
+    "display": "browser",
+    "edge_side_panel": {
+        
+    },
     "orientation": "portrait-primary",
     "background": "background: linear-gradient(#eee239, orange) no-repeat",
     "background_color": "#eee239",

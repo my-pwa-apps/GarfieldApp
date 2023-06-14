@@ -283,8 +283,8 @@ setStatus = document.getElementById('swipe');
             localStorage.setItem('stat', "true");
         } else {
             localStorage.setItem('stat', "false");
-			CompareDates();
-			showComic();
+			//CompareDates();
+			//showComic();
         }
     }
 
