@@ -5,11 +5,18 @@ if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 }
 
-function Share() {
+async function Share() 
+{
 	if(navigator.share) {
+		comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
+		const response = await fetch(comicurl);
+		const blob = await response.blob();
+		const file = new File([blob], "garfield.png", {type: "image/png",
+        lastModified: new Date().getTime()});
 		navigator.share({
 			title: 'https://garfieldapp.tk',
-			url: pictureUrl
+			url: pictureUrl,
+			files: [file]
 		});
 	}
 }
