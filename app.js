@@ -74,9 +74,19 @@ function OnLoad() {
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
 }
+	
+	if(document.getElementById("lastdate").checked)   
+	{
+		if(localStorage.getItem('lastcomic') !== null)
+		{
+			currentselectedDate = new Date(localStorage.getItem('lastcomic'));
+		}
+		
+	}
 	formatDate(currentselectedDate);
 	today = year + '-' + month + '-' + day;
 	document.getElementById("DatePicker").setAttribute("max", today);
+	
 	CompareDates();
 	showComic();
 
@@ -172,7 +182,7 @@ function showComic() {
 	{
 		$(".favicon").css({"color": "black"}).removeClass('fa-star-o').addClass('fa-star');
 	}
-
+	localStorage.setItem('lastcomic', currentselectedDate);
 	fetch(siteUrl)
     .then(function(response) {
       return response.text();
@@ -278,57 +288,88 @@ document.addEventListener('swiped-up', function(e) {
 })
 
 setStatus = document.getElementById('swipe');
-    setStatus.onclick = function() {
-        if(document.getElementById('swipe').checked) {
-            localStorage.setItem('stat', "true");
-        } else {
+setStatus.onclick = function()
+{
+	if(document.getElementById('swipe').checked)
+	{
+    	localStorage.setItem('stat', "true");
+    }
+	else
+	{
             localStorage.setItem('stat', "false");
 			CompareDates();
 			showComic();
-        }
     }
+}
 
-	setStatus = document.getElementById('showfavs');
-	var favs = JSON.parse(localStorage.getItem('favs'));
-    setStatus.onclick = function() {
-        if(document.getElementById('showfavs').checked) {
-            localStorage.setItem('showfavs', "true");
-			if(favs.indexOf(formattedComicDate) == -1)
-			{
-				
-			}
-			else
-			{
-				currentselectedDate = new Date(favs[0]);	
-			}
-			
-	
-       } else {
-           localStorage.setItem('showfavs', "false");
-			
-        }
+setStatus = document.getElementById('lastdate');
+setStatus.onclick = function()
+{
+	if(document.getElementById('lastdate').checked) 
+	{
+		localStorage.setItem('lastdate', "true");
+	}
+	else
+	{
+		localStorage.setItem('lastdate', "false");
+	}
+}
 
-		CompareDates();
-		showComic();
 
+setStatus = document.getElementById('showfavs');
+var favs = JSON.parse(localStorage.getItem('favs'));
+setStatus.onclick = function()
+{
+	if(document.getElementById('showfavs').checked)
+	{
+		localStorage.setItem('showfavs', "true");
+		if(favs.indexOf(formattedComicDate) == -1)
+		{
+		}
+		else
+		{
+			currentselectedDate = new Date(favs[0]);	
+		}
+	} 
+	else
+	{
+		localStorage.setItem('showfavs', "false");
 	}
 
+	CompareDates();
+	showComic();
+
+}
 
 getStatus = localStorage.getItem('stat');
-    if (getStatus == "true") {
-        document.getElementById("swipe").checked = true;
-    } else {
-        document.getElementById("swipe").checked = false;
-    }
+if (getStatus == "true")
+{
+	document.getElementById("swipe").checked = true;
+}
+else
+{
+	document.getElementById("swipe").checked = false;
+}
 
 getStatus = localStorage.getItem('showfavs');
-    if (getStatus == "true") {
-        document.getElementById("showfavs").checked = true;
-    } else {
-        document.getElementById("showfavs").checked = false;
-    }
+if (getStatus == "true") 
+{
+	document.getElementById("showfavs").checked = true;
+}
+else
+{
+	document.getElementById("showfavs").checked = false;
+}
 
-	
+getStatus = localStorage.getItem('lastdate');
+if (getStatus == "true")
+{
+	document.getElementById("lastdate").checked = true;
+}
+else
+{
+	document.getElementById("lastdate").checked = false;
+}	
 
 	
 	   
