@@ -15,7 +15,7 @@ async function Share()
         lastModified: new Date().getTime()});
 		navigator.share({
 			//title: 'https://garfieldapp.tk',
-			//url: pictureUrl,
+			url: 'https://garfieldapp.tk',
 			text: 'Shared from https://garfieldapp.tk',
 			files: [file]
 		});
