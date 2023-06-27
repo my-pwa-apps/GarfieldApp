@@ -14,8 +14,9 @@ async function Share()
 		const file = new File([blob], "garfield.png", {type: "image/png",
         lastModified: new Date().getTime()});
 		navigator.share({
-			title: 'https://garfieldapp.tk',
-			url: pictureUrl,
+			//title: 'https://garfieldapp.tk',
+			//url: pictureUrl,
+			text: 'Shared from https://garfieldapp.tk',
 			files: [file]
 		});
 	}
