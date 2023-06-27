@@ -81,8 +81,12 @@ function OnLoad() {
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
-}
+	}
 	
+	formatDate(new Date());
+	today = year + '-' + month + '-' + day;
+	document.getElementById("DatePicker").setAttribute("max", today);
+
 	if(document.getElementById("lastdate").checked)   
 	{
 		if(localStorage.getItem('lastcomic') !== null)
@@ -92,10 +96,6 @@ function OnLoad() {
 		
 	}
 
-	formatDate(currentselectedDate);
-	today = year + '-' + month + '-' + day;
-	document.getElementById("DatePicker").setAttribute("max", today);
-	
 	CompareDates();
 	showComic();
 
