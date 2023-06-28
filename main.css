@@ -13,7 +13,7 @@ main {
 }
 
 input[type=checkbox] {
-	position: relative;
+	position: absolute;
 	cursor: pointer;
 	vertical-align: middle;
 	
@@ -47,7 +47,7 @@ input[type=checkbox]:checked:after {
 
 .labels
 {
-	padding-left: 1px;
+	padding-left: 30px;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 	font-size: small;
 	vertical-align: middle;
