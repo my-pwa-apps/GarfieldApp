@@ -115,6 +115,7 @@ input {
 	display: inline-block;
 	font-size: small;
 	cursor: pointer;
+	display: block;
 	
 	
 }
@@ -152,6 +153,7 @@ input[type=checkbox] {
 	flex: none;
 	display: inline-block;
 	vertical-align: middle;
+	bottom: 1px;
 	
 	
 	
