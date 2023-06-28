@@ -12,8 +12,6 @@ main {
 	text-align: center;
 }
 
-
-
 .button {
   margin: 5px 5px 5px 5px;
   padding: 10px 10px 10px 10px;
@@ -108,15 +106,13 @@ input {
 	left: 50%;
 }
 
-.label {
-	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-	font-size: small;
-	display: flex;
-	text-align: left;
-	display: inline-block;
-	font-size: small;
-	cursor: pointer;
-	display: block;
+input[type="checkbox"], label {
+    float: left;
+    line-height: 1.6em;
+    height: 1.6em;
+    margin: 0px 2px;
+    padding: 0px;
+    font-size: small;
 }
 
 input[type=checkbox]:before {
@@ -150,10 +146,14 @@ input[type=checkbox] {
 
 	position: relative;
 	cursor: pointer;
-	flex: none;
-	display: inline-block;
-	vertical-align: middle;
+	
+	
+	
 	bottom: 1px;
+	clear: left;
+	margin-right: 25px;
+	margin-bottom: 20px;
+	
 	
 	
 	
