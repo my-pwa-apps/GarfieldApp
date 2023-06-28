@@ -207,11 +207,14 @@ function showComic() {
 
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById("showfavs").checked) {
+	if(document.getElementById("showfavs").checked)
+	{
+		document.getElementById("DatePicker").disabled = true;
 		if(favs.includes(document.getElementById("DatePicker").value)) {}
 		else{	
 		startDate = new Date(favs[0])}}
 	else{	
+		document.getElementById("DatePicker").disabled = false;
 		startDate = new Date("1978/06/19");
 	}
 	startDate = startDate.setHours(0, 0, 0, 0);
