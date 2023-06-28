@@ -109,6 +109,7 @@ input {
 }
 
 .label {
+	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 	font-size: small;
 	display: flex;
 	text-align: left;
@@ -116,8 +117,6 @@ input {
 	font-size: small;
 	cursor: pointer;
 	display: block;
-	
-	
 }
 
 input[type=checkbox]:before {
@@ -148,6 +147,7 @@ input[type=checkbox]:checked:after {
 }
 
 input[type=checkbox] {
+
 	position: relative;
 	cursor: pointer;
 	flex: none;
