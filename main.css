@@ -111,7 +111,7 @@ input {
 .label {
 	font-size: small;
 	display: flex;
-	text-align: center;
+	text-align: left;
 	display: inline-block;
 	font-size: small;
 	cursor: pointer;
