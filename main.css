@@ -148,7 +148,6 @@ input[type=checkbox]
 {
 	position: relative;
 	cursor: pointer;
-	bottom: 1px;
 	clear: left;
 	margin-right: 25px;
 	margin-bottom: 20px;
