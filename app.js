@@ -201,6 +201,7 @@ function showComic() {
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
       document.getElementById("comic").src = pictureUrl;
+	  changeCommentsUrl(pictureUrl)
     });
 	};
 
@@ -388,8 +389,8 @@ function changeCommentsUrl(newUrl){
 	// should refresh fb comments plugin for the "newUrl" variable
 	document.getElementById('comments').innerHTML='';
 	parser=document.getElementById('comments');
-	/*parser.innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+pictureUrl+'" data-num-posts="20" data-width="380"></div>';
+	/*parser.innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>';
 	FB.XFBML.parse(parser);*/
-	document.getElementById('comments').innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+link+'" data-num-posts="20" data-width="380"></div>'; 
+	document.getElementById('comments').innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>'; 
 	FB.XFBML.parse(document.getElementById('comments'));
 	}	   
