@@ -389,8 +389,8 @@ function changeCommentsUrl(newUrl){
 	// should refresh fb comments plugin for the "newUrl" variable
 	document.getElementById('comments').innerHTML='';
 	parser=document.getElementById('comments');
-	/*parser.innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>';
-	FB.XFBML.parse(parser);*/
-	document.getElementById('comments').innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>'; 
-	FB.XFBML.parse(document.getElementById('comments'));
+	parser.innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>';
+	FB.XFBML.parse(parser);
+	//document.getElementById('comments').innerHTML='<div style="float: left; padding-left:5px; min-height:500px" class="fb-comments" data-href="'+newUrl+'" data-num-posts="20" data-width="380"></div>'; 
+	//FB.XFBML.parse(document.getElementById('comments'));
 	}	   
