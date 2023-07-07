@@ -329,9 +329,9 @@ setStatus.onclick = function()
 
 
 setStatus = document.getElementById('showfavs');
-var favs = JSON.parse(localStorage.getItem('favs'));
 setStatus.onclick = function()
 {
+	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById('showfavs').checked)
 	{
 		localStorage.setItem('showfavs', "true");
