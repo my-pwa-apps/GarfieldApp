@@ -54,6 +54,8 @@ async function Share()
 }
 
 function OnLoad() {
+	previousclicked = false;
+	previousUrl = "";
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
 	{
@@ -109,6 +111,7 @@ function PreviousClick() {
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
+	previousclicked = true;
 	CompareDates();
 	showComic();
 
@@ -196,7 +199,20 @@ function showComic()
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      document.getElementById("comic").src = pictureUrl;
+      if(pictureUrl != previousUrl) {
+		document.getElementById("comic").src = pictureUrl;
+	  }
+	  else
+	  {
+		if(previousclicked == true)
+		{
+			PreviousClick();
+		}
+		
+		previousclicked = false;			
+		previousUrl = pictureUrl;
+	  }	
+	 
 	  var favs = JSON.parse(localStorage.getItem('favs'));
 		if(favs == null)
 		{
