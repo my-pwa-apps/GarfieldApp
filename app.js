@@ -14,7 +14,6 @@ async function Share()
 		const file = new File([blob], "garfield.png", {type: "image/png",
         lastModified: new Date().getTime()});
 		navigator.share({
-			//title: 'https://garfieldapp.tk',
 			url: 'https://garfieldapp.tk',
 			text: 'Shared from https://garfieldapp.tk',
 			files: [file]
@@ -156,7 +155,6 @@ function CurrentClick() {
 
 function RandomClick()
 {
-	//prevdate = Date.UTC(currentselectedDate);
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
 	else{
@@ -164,10 +162,7 @@ function RandomClick()
 		end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
-	/*if(new Date(currentselectedDate).toISOString().split('T')[0] === new Date(prevdate).toISOString().split('T')[0])
-	{
-		RandomClick();
-	}*/
+	
 	CompareDates();
 	showComic();
 
