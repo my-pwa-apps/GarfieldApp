@@ -238,7 +238,7 @@ function showComic()
 		
 		
 	  }	
-	 
+	  previouscomics.push = pictureUrl;
 	  previousclicked = false;			
 	  previousUrl = pictureUrl;
 	  var favs = JSON.parse(localStorage.getItem('favs'));
