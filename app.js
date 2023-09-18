@@ -104,8 +104,8 @@ function OnLoad() {
 	{
 		if(previouscomics.length === 0)
 		{
-			document.getElementById("showprevious").checked = false;
-			document.getElementById("showprevious").disabled = true;
+			//document.getElementById("showprevious").checked = false;
+			//document.getElementById("showprevious").disabled = true;
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		}
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
