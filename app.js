@@ -238,6 +238,7 @@ function showComic()
 		
 		
 	  }	
+	  var previouscomics = JSON.parse(localStorage.getItem('previouscomics'));
 	  previouscomics.push = pictureUrl;
 	  previousclicked = false;			
 	  previousUrl = pictureUrl;
