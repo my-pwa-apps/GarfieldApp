@@ -414,7 +414,7 @@ setStatus.onclick = function()
 	if(document.getElementById('showprevious').checked)
 	{
 		localStorage.setItem('showprevious', "true");
-		if(favs.indexOf(formattedComicDate) !== -1)
+		if(previouscomics.indexOf(formattedComicDate) !== -1)
 		{
 		}
 		else
