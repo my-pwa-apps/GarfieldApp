@@ -226,6 +226,8 @@ function showComic()
       siteBody = text;
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+	  var previouscomics = JSON.parse(localStorage.getItem('previouscomics'));
+	  previouscomics.push = pictureUrl;
       if(pictureUrl != previousUrl) {
 		document.getElementById("comic").src = pictureUrl;
 	  }
@@ -238,8 +240,6 @@ function showComic()
 		
 		
 	  }	
-	  var previouscomics = JSON.parse(localStorage.getItem('previouscomics'));
-	  previouscomics.push = pictureUrl;
 	  previousclicked = false;			
 	  previousUrl = pictureUrl;
 	  var favs = JSON.parse(localStorage.getItem('favs'));
