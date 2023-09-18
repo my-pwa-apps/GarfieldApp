@@ -60,6 +60,11 @@ function OnLoad() {
 	{
 		favs = [];
 	}
+	var previouscomics = JSON.parse(localStorage.getItem('previouscomics'));
+	if(previouscomics == null)
+	{
+		previouscomics = [];
+	}
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(favs[0]);
 		if(favs.length === 0)
@@ -69,23 +74,47 @@ function OnLoad() {
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		
 		}
-		//previousUrl = "https://assets.amuniversal.com/".concat(favs[0], ".png");
+		
 	}
-	else{
-		//currentselectedDate = new Date();
-		//formatDate(currentselectedDate);
-		//formattedComicDate = year + "/" + month + "/" + day;
-		//previousUrl = "https://assets.amuniversal.com/".concat(formattedComicDate, ".png");
+	else
+	{
+		
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
 			document.getElementById("showfavs").disabled = true;
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
+		}
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Current").disabled = true;
 	}
+
+	if(document.getElementById("showprevious").checked) {
+		currentselectedDate = new Date(previouscomics[0]);
+		if(previouscomics.length === 0)
+		{
+			document.getElementById("showprevious").checked = false;
+			document.getElementById("showprevious").disabled = true;
+			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+		
+		}
+	}
+	else
+	{
+		if(previouscomics.length === 0)
+		{
+			document.getElementById("showprevious").checked = false;
+			document.getElementById("showprevious").disabled = true;
+			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+		}
+		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+		document.getElementById("Next").disabled = true;
+		document.getElementById("Current").disabled = true;
+	}
+
+
+
 	
 	formatDate(new Date());
 	today = year + '-' + month + '-' + day;
@@ -376,7 +405,30 @@ setStatus.onclick = function()
 
 	CompareDates();
 	showComic();
+}
 
+setStatus = document.getElementById('showprevious');
+setStatus.onclick = function()
+{
+	var previouscomics = JSON.parse(localStorage.getItem('previouscomics'));
+	if(document.getElementById('showprevious').checked)
+	{
+		localStorage.setItem('showprevious', "true");
+		if(favs.indexOf(formattedComicDate) !== -1)
+		{
+		}
+		else
+		{
+			currentselectedDate = new Date(favs[0]);	
+		}
+	} 
+	else
+	{
+		localStorage.setItem('showprevious', "false");
+	}
+
+	CompareDates();
+	showComic();
 }
 
 getStatus = localStorage.getItem('stat');
@@ -397,6 +449,16 @@ if (getStatus == "true")
 else
 {
 	document.getElementById("showfavs").checked = false;
+}
+
+getStatus = localStorage.getItem('showprevious');
+if (getStatus == "true") 
+{
+	document.getElementById("showprevious").checked = true;
+}
+else
+{
+	document.getElementById("showprevious").checked = false;
 }
 
 getStatus = localStorage.getItem('lastdate');
