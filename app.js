@@ -94,8 +94,8 @@ function OnLoad() {
 		currentselectedDate = new Date(previouscomics[0]);
 		if(previouscomics.length === 0)
 		{
-			document.getElementById("showprevious").checked = false;
-			document.getElementById("showprevious").disabled = true;
+			//document.getElementById("showprevious").checked = false;
+			//document.getElementById("showprevious").disabled = true;
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		
 		}
