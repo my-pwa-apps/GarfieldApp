@@ -69,13 +69,9 @@ function OnLoad() {
 			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 		
 		}
-		//previousUrl = "https://assets.amuniversal.com/".concat(favs[0], ".png");
 	}
-	else{
-		//currentselectedDate = new Date();
-		//formatDate(currentselectedDate);
-		//formattedComicDate = year + "/" + month + "/" + day;
-		//previousUrl = "https://assets.amuniversal.com/".concat(formattedComicDate, ".png");
+	else
+	{
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
@@ -235,9 +231,6 @@ function CompareDates() {
 	if(document.getElementById("showfavs").checked)
 	{
 		document.getElementById("DatePicker").disabled = true;
-		/*if(favs.includes(document.getElementById("DatePicker").value))
-		{}
-		else{	*/
 		startDate = new Date(favs[0])}
 	else{	
 		document.getElementById("DatePicker").disabled = false;
