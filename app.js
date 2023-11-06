@@ -54,6 +54,7 @@ async function Share()
 
 function OnLoad() {
 	previousclicked = false;
+	var fs = require('fs');
 	previousUrl = "";
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
