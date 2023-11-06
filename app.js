@@ -52,9 +52,7 @@ async function Share()
 	showComic();
 }
 
-function OnLoad() {
 	previousclicked = false;
-	var fs = require('fs');
 	previousUrl = "";
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(favs == null)
@@ -133,7 +131,7 @@ function OnLoad() {
 	CompareDates();
 	showComic();
 
-}
+
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
