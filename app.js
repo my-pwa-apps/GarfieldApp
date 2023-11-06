@@ -52,54 +52,52 @@ async function Share()
 	showComic();
 }
 
-function OnLoad() {
-	previousclicked = false;
-	previousUrl = "";
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(favs[0]);
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-		
-		}
-	}
-	else
-	{
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
-		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-		document.getElementById("Next").disabled = true;
-		document.getElementById("Current").disabled = true;
-	}
-	
-	formatDate(new Date());
-	today = year + '-' + month + '-' + day;
-	document.getElementById("DatePicker").setAttribute("max", today);
 
-	if(document.getElementById("lastdate").checked)   
-	{
-		if(localStorage.getItem('lastcomic') !== null)
-		{
-			currentselectedDate = new Date(localStorage.getItem('lastcomic'));
-		}
-		
-	}
-
-	CompareDates();
-	showComic();
-
+previousclicked = false;
+previousUrl = "";
+var favs = JSON.parse(localStorage.getItem('favs'));
+if(favs == null)
+{
+	favs = [];
 }
+if(document.getElementById("showfavs").checked) {
+	currentselectedDate = new Date(favs[0]);
+	if(favs.length === 0)
+	{
+		document.getElementById("showfavs").checked = false;
+		document.getElementById("showfavs").disabled = true;
+		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+		
+	}
+}
+else
+{
+	if(favs.length === 0)
+	{
+		document.getElementById("showfavs").checked = false;
+		document.getElementById("showfavs").disabled = true;
+		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+	}
+	currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+	document.getElementById("Next").disabled = true;
+	document.getElementById("Current").disabled = true;
+}
+	
+formatDate(new Date());
+today = year + '-' + month + '-' + day;
+document.getElementById("DatePicker").setAttribute("max", today);
+
+if(document.getElementById("lastdate").checked)   
+{
+	if(localStorage.getItem('lastcomic') !== null)
+	{
+		currentselectedDate = new Date(localStorage.getItem('lastcomic'));
+	}
+		
+}
+
+CompareDates();
+showComic();
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
