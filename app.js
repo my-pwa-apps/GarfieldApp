@@ -52,7 +52,8 @@ async function Share()
 	showComic();
 }
 
-
+function onLoad()
+{
 previousclicked = false;
 previousUrl = "";
 var favs = JSON.parse(localStorage.getItem('favs'));
@@ -98,6 +99,7 @@ if(document.getElementById("lastdate").checked)
 
 CompareDates();
 showComic();
+}
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
