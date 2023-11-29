@@ -180,8 +180,8 @@ function showComic()
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
-    
+	//siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+    siteUrl =  "https://corsproxy.io/?https://www.gocomics.com/garfield/" + formattedComicDate;
 	localStorage.setItem('lastcomic', currentselectedDate);
 	fetch(siteUrl)
     .then(function(response)
