@@ -130,6 +130,7 @@ function NextClick() {
 
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
+		var favs = JSON.parse(localStorage.getItem('favs'));
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
 	else{
 	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
@@ -140,8 +141,12 @@ function FirstClick() {
 }
 
 function CurrentClick() {
-	if(document.getElementById("showfavs").checked) {
-	}
+	if(document.getElementById("showfavs").checked)
+	 {
+		var favs = JSON.parse(localStorage.getItem('favs'));
+		favslength = favs.length - 1;
+		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[favslength]);
+	 }
 	else
 	{
 	currentselectedDate = new Date();
@@ -270,7 +275,7 @@ function CompareDates() {
 		document.getElementById("Current").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
-		document.getElementById("Current").disabled = true;
+		//document.getElementById("Current").disabled = true;
 		if(favs.length == 1) {
 			document.getElementById("Random").disabled = true;
 			document.getElementById("Previous").disabled = true;
@@ -362,10 +367,12 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
+		document.getElementById('Current').innerHTML = 'Last'
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
+		document.getElementById('Current').innerHTML = 'Today'
 	}
 
 	CompareDates();
@@ -387,10 +394,12 @@ getStatus = localStorage.getItem('showfavs');
 if (getStatus == "true") 
 {
 	document.getElementById("showfavs").checked = true;
+	document.getElementById('Current').innerHTML = 'Last'
 }
 else
 {
 	document.getElementById("showfavs").checked = false;
+	document.getElementById('Current').innerHTML = 'Today'
 }
 
 getStatus = localStorage.getItem('lastdate');
