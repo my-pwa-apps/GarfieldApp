@@ -1,5 +1,5 @@
 
-//garfieldapp.tk, garfieldapp.pages.dev
+//garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");

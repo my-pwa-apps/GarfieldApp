@@ -1,5 +1,5 @@
 User-Agent: *
 Allow: /
 
-Sitemap: https://garfieldapp.tk/sitemap.xml
+Sitemap: https://garfieldapp.pages.dev/sitemap.xml
 
