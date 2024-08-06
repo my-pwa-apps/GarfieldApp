@@ -8,7 +8,7 @@
             "name": "Launch Edge",
             "request": "launch",
             "type": "msedge",
-            "url": "c://users//bartm//repos//garfieldapp//index.html",
+            "url": "C:\\Users\\bartm\\OneDrive - Microsoft\\Documents\\Git Repos\\GarfieldApp\\index.html",
             "webRoot": "${workspaceFolder}",
             "runtimeArgs": ["--disable-web-security"]
         }     
