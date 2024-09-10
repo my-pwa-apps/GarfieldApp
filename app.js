@@ -43,7 +43,7 @@ async function Share()
 		{
 			document.getElementById("showfavs").checked = false;
 			document.getElementById("showfavs").disabled = true;
-			document.getElementById("Current").innerHTML = 'Today';
+			document.getElementById("Today").innerHTML = 'Today';
 		}
 	}
 	favs.sort();
@@ -94,7 +94,7 @@ else
 	}
 	currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
 	document.getElementById("Next").disabled = true;
-	document.getElementById("Current").disabled = true;
+	document.getElementById("Today").disabled = true;
 }
 	
 formatDate(new Date());
@@ -279,13 +279,13 @@ function CompareDates() {
 	endDate = new Date(endDate);
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
 		document.getElementById("Next").disabled = true;
-		document.getElementById("Current").disabled = true;
+		document.getElementById("Today").disabled = true;
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Next").disabled = false;
-		document.getElementById("Current").disabled = false;
+		document.getElementById("Today").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
 		//document.getElementById("Current").disabled = true;
