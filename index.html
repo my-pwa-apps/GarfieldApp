@@ -25,6 +25,7 @@
 </head>
 
 <body onload=onLoad()>
+	<script src="https://kit.fontawesome.com/f5560e36f9.js" crossorigin="anonymous"></script>
 	<h1 hidden>Daily Garfield Comics App</h1>
 		<div class="logo"> <img src="./garlogo.png" style="width:100%; margin-top: 25px;  padding-bottom: 5px" alt="Daily Garfield Comics" /> </div>	<div class="buttongrid">
 		<button class="button" cursor="pointer" id="Previous" onclick="PreviousClick()">Previous</button>
@@ -38,29 +39,27 @@
 	<br> <img id="comic" cursor="pointer" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
 	<br>
 	<br><div>
+
 		<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Please support this app', '#F09819', 'X8X811H46M');kofiwidget2.draw();</script> 
 	
 
-	<i onclick="Addfav()" aria-hidden="true" class="fa fa-heart-o favicon" style="color:'red'; font-size: 25px; right: 70px; position: absolute"></i> <i onclick="Share()" aria-hidden="true" cursor="pointer" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i> </div>
+	<i onclick="HideSettings()" aria-hidden="true" class="fa-solid fa-sliders" style="color: black; font-size: 25px; right: 125px; position: absolute" ></i><i onclick="Addfav()" aria-hidden="true" class="fa fa-heart-o favicon" style="color:'red'; font-size: 25px; right: 70px; position: absolute"></i> <i onclick="Share()" aria-hidden="true" cursor="pointer" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i> </div>
 	
 	<br>
 	<br>
-    <div>
+    
+	<div id="settingsDIV" >
 		<input type="checkbox" id="swipe" checked cursor="pointer">
     	<label for="swipe" class="labels" cursor="pointer">Swipe enabled</label>
-	</div>
 	<br>
-	<div>
 		<input type="checkbox" id="showfavs" checked cursor="pointer">
     	<label for="showfavs" class="labels" cursor="pointer">Show only my favorites</label>
-	</div> 
 	<br>
-	<div>
 		<input type="checkbox" id="lastdate" checked cursor="pointer">
     	<label for="lastdate" class="labels" cursor="pointer">Remember last comic on exit/refresh</label>
     </div>
 	
-	<script src="./app.js"></script> 
+	<script src="./app.js">	</script> 
 
 	<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2ddf2a53a724a34a7891ce4cd8f063e"}'></script><!-- End Cloudflare Web Analytics -->
 
