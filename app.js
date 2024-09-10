@@ -57,8 +57,10 @@ function HideSettings()
 var x = document.getElementById("settingsDIV");
 	if (x.style.display === "none") {
 	  x.style.display = "block";
+	  localStorage.setItem('settings', "true");
 	} else {
 	  x.style.display = "none";
+	  localStorage.setItem('settings', "false");
 	}
 }
 
@@ -422,6 +424,16 @@ else
 {
 	document.getElementById("lastdate").checked = false;
 }	
+
+getStatus = localStorage.getItem('settings');
+if (getStatus == "true")
+{
+	document.getElementById("settingsDIV").style.display = "block";
+}
+else
+{
+	document.getElementById("settingsDIV").style.display = "none";
+}
 
 	
 	   
