@@ -14,14 +14,14 @@ async function Share()
 		const file = new File([blob], "garfield.png", {type: "image/png",
         lastModified: new Date().getTime()});
 		navigator.share({
-			//url: 'https://garfieldapp.pages.dev',
-			//text: 'Shared from https://garfieldapp.pages.dev',
+			url: 'https://garfieldapp.pages.dev',
+			text: 'Shared from https://garfieldapp.pages.dev',
 			files: [file]
 		});
 	}
 }
 
- function Addfav()
+function Addfav()
 {
 	formattedComicDate = year + "/" + month + "/" + day;
 	var favs = JSON.parse(localStorage.getItem('favs'));
