@@ -14,8 +14,8 @@ async function Share()
 		const file = new File([blob], "garfield.png", {type: "image/png",
         lastModified: new Date().getTime()});
 		navigator.share({
-			url: 'https://garfieldapp.tk',
-			text: 'Shared from https://garfieldapp.tk',
+			//url: 'https://garfieldapp.pages.dev',
+			//text: 'Shared from https://garfieldapp.pages.dev',
 			files: [file]
 		});
 	}
@@ -412,7 +412,7 @@ if (getStatus == "true")
 else
 {
 	document.getElementById("showfavs").checked = false;
-	document.getElementById('Current').innerHTML = 'Today'
+	document.getElementById('Current').innerHTML = 'TDaily Garfield Comicsoday'
 }
 
 getStatus = localStorage.getItem('lastdate');
