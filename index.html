@@ -24,19 +24,19 @@
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 
-<body onload=onLoad()>
+<body onload="onLoad()">
 	<script src="https://kit.fontawesome.com/f5560e36f9.js" crossorigin="anonymous"></script>
 	<h1 hidden>Daily Garfield Comics App</h1>
 		<div class="logo"> <img src="./garlogo.png" style="width:100%; margin-top: 25px;  padding-bottom: 5px" alt="Daily Garfield Comics" /> </div>	<div class="buttongrid">
-		<button class="button" cursor="pointer" id="Previous" onclick="PreviousClick()">Previous</button>
-		<button class="button" cursor="pointer" id="Random" onclick="RandomClick()">Random</button>
-		<button class="button" cursor="pointer" id="Next" onclick="NextClick()">Next</button>
-		<button class="button" cursor="pointer" id="First" onclick="FirstClick()">First</button>
-		<input id="DatePicker" cursor="pointer" oninput="DateChange()" type="date" min="1978-06-19">
-		<button class="button" cursor="pointer" id="Today" onclick="CurrentClick()">Today</button>
+		<button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
+		<button class="button" id="Random" onclick="RandomClick()">Random</button>
+		<button class="button" id="Next" onclick="NextClick()">Next</button>
+		<button class="button" id="First" onclick="FirstClick()">First</button>
+		<input id="DatePicker"  oninput="DateChange()" type="date" min="1978-06-19">
+		<button class="button" id="Today" onclick="CurrentClick()">Today</button>
 	</div>
 	<br>
-	<br> <img id="comic" cursor="pointer" onclick="Rotate()" class="normal" z-index="100" alt="Loading comic from https://gocomics.com...">
+	<br> <img id="comic" onclick="Rotate()" class="normal" z-index="100" alt="Loading comic from https://gocomics.com...">
 	<br>
 	<br>
 	<div z-index="-1">
@@ -51,14 +51,14 @@
 	<br>
     
 	<div id="settingsDIV" >
-		<input type="checkbox" id="swipe" checked cursor="pointer">
-    	<label for="swipe" class="labels" cursor="pointer">Swipe enabled</label>
+		<input type="checkbox" id="swipe" checked>
+    	<label for="swipe" class="labels">Swipe enabled</label>
 	<br>
-		<input type="checkbox" id="showfavs" checked cursor="pointer">
-    	<label for="showfavs" class="labels" cursor="pointer">Show only my favorites</label>
+		<input type="checkbox" id="showfavs" checked>
+    	<label for="showfavs" class="labels">Show only my favorites</label>
 	<br>
-		<input type="checkbox" id="lastdate" checked cursor="pointer">
-    	<label for="lastdate" class="labels" cursor="pointer">Remember last comic on exit/refresh</label>
+		<input type="checkbox" id="lastdate" checked>
+    	<label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
 	
 	<script src="./app.js">	</script> 

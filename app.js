@@ -380,12 +380,12 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		document.getElementById('Current').innerHTML = 'Last'
+		document.getElementById('Today').innerHTML = 'Last'
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		document.getElementById('Current').innerHTML = 'Today'
+		document.getElementById('Today').innerHTML = 'Today'
 	}
 
 	CompareDates();
