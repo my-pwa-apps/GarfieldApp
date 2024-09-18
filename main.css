@@ -90,6 +90,8 @@ input
 	margin-top: -5vw;
 	width: 150%;
 	max-height: 100%;
+	position:absolute;
+	z-index: 100;
 }
 
 .normal
