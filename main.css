@@ -87,7 +87,7 @@ input
 	-webkit-transform: rotate(90deg);
 	transform: rotate(90deg);
 	margin-left: -22vw;
-	margin-top: -5vw;
+	
 	width: 140%;
 	position:absolute;
 	z-index: 100;
