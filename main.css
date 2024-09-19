@@ -88,8 +88,7 @@ input
 	transform: rotate(90deg);
 	margin-left: -24vw;
 	margin-top: -5vw;
-	margin-right: 1%;
-	width: 150%;
+	width: 100%;
 	max-height: 95%;
 	position:absolute;
 	z-index: 100;
