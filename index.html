@@ -2,69 +2,70 @@
 <html lang="en">
 
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="keywords" content="garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, platform, multi, platforms, independent">
-	<meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
-	<meta name="msapplication-TileColor" content="#eee239">
-	<meta name="theme-color" content="#eee239">
-	<meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw" />
-	<meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2" />
-	<title>Daily Garfield Comics</title>
-	<link rel="stylesheet" href="./main.css">
-	<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-	<link rel="canonical" href="https://garfieldapp.pages.dev">
-	<link rel="manifest" href="./manifest.webmanifest">
-	<link rel="preconnect" href="https://assets.amuniversal.com">
-	<link rel="preconnect" href="https://cdnjs.cloudflare.com">
-	<script src="./swiped-events.min.js"></script>
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-	<script src="https://kit.fontawesome.com/f5560e36f9.js" crossorigin="anonymous"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keywords" content="garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, platform, multi, platforms, independent">
+    <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
+    <meta name="msapplication-TileColor" content="#eee239">
+    <meta name="theme-color" content="#eee239">
+    <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
+    <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
+    <title>Daily Garfield Comics</title>
+    <link rel="stylesheet" href="./main.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
+    <link rel="canonical" href="https://garfieldapp.pages.dev">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="preconnect" href="https://assets.amuniversal.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <script src="./swiped-events.min.js" defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js" defer></script>
+    <script src="https://kit.fontawesome.com/f5560e36f9.js" crossorigin="anonymous" defer></script>
 </head>
 
 <body onload="onLoad()">
-	
-	<h1 hidden>Daily Garfield Comics App</h1>
-		<div class="logo"> <img src="./garlogo.png" style="width:100%; margin-top: 25px;  padding-bottom: 5px" alt="Daily Garfield Comics" /> </div>	<div class="buttongrid">
-		<button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-		<button class="button" id="Random" onclick="RandomClick()">Random</button>
-		<button class="button" id="Next" onclick="NextClick()">Next</button>
-		<button class="button" id="First" onclick="FirstClick()">First</button>
-		<input id="DatePicker"  oninput="DateChange()" type="date" min="1978-06-19">
-		<button class="button" id="Today" onclick="CurrentClick()">Today</button>
-	</div>
-	<br>
-	<br> <img id="comic" onclick="Rotate()" class="normal" z-index="100" alt="Loading comic from https://gocomics.com...">
-	<br>
-	<br>
-	<div z-index="-1">
-
-		<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');kofiwidget2.draw();</script> 
-	
-
-		<i onclick="HideSettings()" aria-hidden="true" class="fa-solid fa-sliders" style="color: black; font-size: 25px; right: 125px; position: absolute" ></i><i onclick="Addfav()" aria-hidden="true" class="fa fa-heart-o favicon" style="color:'red'; font-size: 25px; right: 70px; position: absolute"></i> <i onclick="Share()" aria-hidden="true" cursor="pointer" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute"></i>
- 	</div>
-	
-	<br>
-	<br>
-    
-	<div id="settingsDIV" >
-		<input type="checkbox" id="swipe" checked>
-    	<label for="swipe" class="labels">Swipe enabled</label>
-	<br>
-		<input type="checkbox" id="showfavs" checked>
-    	<label for="showfavs" class="labels">Show only my favorites</label>
-	<br>
-		<input type="checkbox" id="lastdate" checked>
-    	<label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    <h1 hidden>Daily Garfield Comics App</h1>
+    <div class="logo">
+        <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
     </div>
-	
-	<script src="./app.js">	</script> 
-
-	<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2ddf2a53a724a34a7891ce4cd8f063e"}'></script><!-- End Cloudflare Web Analytics -->
-
+    <div class="buttongrid">
+        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
+        <button class="button" id="Random" onclick="RandomClick()">Random</button>
+        <button class="button" id="Next" onclick="NextClick()">Next</button>
+        <button class="button" id="First" onclick="FirstClick()">First</button>
+        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+    </div>
+    <br>
+    <br>
+    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    <br>
+    <br>
+    <div style="z-index: -1;">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js' defer></script>
+        <script type='text/javascript'>
+            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+            kofiwidget2.draw();
+        </script>
+        <i onclick="HideSettings()" aria-hidden="true" class="fa-solid fa-sliders" style="color: black; font-size: 25px; right: 125px; position: absolute;"></i>
+        <i onclick="Addfav()" aria-hidden="true" class="fa fa-heart-o favicon" style="color: red; font-size: 25px; right: 70px; position: absolute;"></i>
+        <i onclick="Share()" aria-hidden="true" class="fa fa-share-alt" style="font-size: 25px; right: 20px; position: absolute;"></i>
+    </div>
+    <br>
+    <br>
+    <div id="settingsDIV">
+        <input type="checkbox" id="swipe" checked>
+        <label for="swipe" class="labels">Swipe enabled</label>
+        <br>
+        <input type="checkbox" id="showfavs" checked>
+        <label for="showfavs" class="labels">Show only my favorites</label>
+        <br>
+        <input type="checkbox" id="lastdate" checked>
+        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    </div>
+    <script src="./app.js" defer></script>
+    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "f2ddf2a53a724a34a7891ce4cd8f063e"}'></script>
 </body>
 
 </html>
