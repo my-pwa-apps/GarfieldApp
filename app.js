@@ -11,8 +11,21 @@ async function Share()
 		comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
 		const response = await fetch(comicurl);
 		const blob = await response.blob();
-		const file = new File([blob], "garfield.png", {type: "image/png",
-        lastModified: new Date().getTime()});
+//		const file = new File([blob], "garfield.png", {type: "image/png",
+
+        // Convert PNG to JPG using a canvas
+        const img = await createImageBitmap(blob);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+
+        const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
+
+
+//        lastModified: new Date().getTime()});
 		navigator.share({
 			url: 'https://garfieldapp.pages.dev',
 			text: 'Shared from https://garfieldapp.pages.dev',
