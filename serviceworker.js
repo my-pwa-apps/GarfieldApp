@@ -53,3 +53,18 @@ async function checkForNewComic() {
 
 // Periodically check for new comic in the background
 setInterval(checkForNewComic, 3600000); // Check every hour
+
+async function requestNotificationPermission() {
+  if ('Notification' in window && navigator.serviceWorker) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+          console.log('Notification permission granted.');
+      } else if (permission === 'denied') {
+          console.log('Notification permission denied.');
+      } else {
+          console.log('Notification permission dismissed.');
+      }
+  } else {
+      console.log('Notifications are not supported in this browser.');
+  }
+}
