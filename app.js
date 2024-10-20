@@ -11,9 +11,6 @@ async function Share()
 		comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
 		const response = await fetch(comicurl);
 		const blob = await response.blob();
-//		const file = new File([blob], "garfield.png", {type: "image/png",
-
-        // Convert PNG to JPG using a canvas
         const img = await createImageBitmap(blob);
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
@@ -23,7 +20,6 @@ async function Share()
         const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
 
         const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
-		//        lastModified: new Date().getTime()});
 		navigator.share({
 			url: 'https://garfieldapp.pages.dev',
 			text: 'Shared from https://garfieldapp.pages.dev',
@@ -199,9 +195,7 @@ function showComic()
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
 	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
-    //siteUrl =  "https://corsproxy.io/?https://www.gocomics.com/garfield/" + formattedComicDate;
-	//siteUrl = "https://corsproxy.io/?https://dirkjan.nl/cartoon/"+"20231130";
-	localStorage.setItem('lastcomic', currentselectedDate);
+    localStorage.setItem('lastcomic', currentselectedDate);
 	fetch(siteUrl)
     .then(function(response)
 	{
@@ -283,7 +277,6 @@ function CompareDates() {
 		document.getElementById("Today").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
-		//document.getElementById("Current").disabled = true;
 		if(favs.length == 1) {
 			document.getElementById("Random").disabled = true;
 			document.getElementById("Previous").disabled = true;
