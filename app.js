@@ -77,7 +77,6 @@ var x = document.getElementById("settingsDIV");
 	}
 }
 
-
 function onLoad()
 {
 previousclicked = false;
@@ -109,7 +108,6 @@ else
 	document.getElementById("Next").disabled = true;
 	document.getElementById("Today").disabled = true;
 }
-	
 formatDate(new Date());
 today = year + '-' + month + '-' + day;
 document.getElementById("DatePicker").setAttribute("max", today);
@@ -122,7 +120,6 @@ if(document.getElementById("lastdate").checked)
 	}
 		
 }
-
 CompareDates();
 showComic();
 }
@@ -138,7 +135,6 @@ function PreviousClick() {
 	previousclicked = true;
 	CompareDates();
 	showComic();
-
 }
 
 function NextClick() {
@@ -151,7 +147,6 @@ function NextClick() {
 	}
 	CompareDates();
 	showComic();
-
 }
 
 function FirstClick() {
@@ -163,7 +158,6 @@ function FirstClick() {
 	}
 	CompareDates();
 	showComic();
-
 }
 
 function CurrentClick() {
@@ -179,7 +173,6 @@ function CurrentClick() {
 	}
 	CompareDates();
 	showComic();
-
 }
 
 
@@ -192,10 +185,8 @@ function RandomClick()
 		end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
-	
 	CompareDates();
 	showComic();
-
 }
 
 function DateChange() {
@@ -234,10 +225,7 @@ function showComic()
 		{
 			PreviousClick();
 		}
-		
-		
 	  }	
-	 
 	  previousclicked = false;			
 	  previousUrl = pictureUrl;
 	  var favs = JSON.parse(localStorage.getItem('favs'));
@@ -248,7 +236,6 @@ function showComic()
 		if(favs.indexOf(formattedComicDate) == -1)
 		{
 			$(".favicon").css({"color": "red"}).removeClass('fa-heart').addClass('fa-heart-o');
-
 		}	
 		else
 		{
@@ -256,7 +243,6 @@ function showComic()
 		}
     });
 };
-
 
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
@@ -306,7 +292,6 @@ function CompareDates() {
 			document.getElementById("Random").disabled = true;
 			document.getElementById("Previous").disabled = true;
 			document.getElementById("First").disabled = true;
-		
 		}}
 	else {
 		document.getElementById("Random").disabled = false;}
@@ -400,10 +385,8 @@ setStatus.onclick = function()
 		localStorage.setItem('showfavs', "false");
 		document.getElementById('Today').innerHTML = 'Today'
 	}
-
 	CompareDates();
 	showComic();
-
 }
 
 getStatus = localStorage.getItem('stat');
