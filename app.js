@@ -23,9 +23,7 @@ async function Share()
         const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
 
         const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
-
-
-//        lastModified: new Date().getTime()});
+		//        lastModified: new Date().getTime()});
 		navigator.share({
 			url: 'https://garfieldapp.pages.dev',
 			text: 'Shared from https://garfieldapp.pages.dev',
@@ -93,7 +91,6 @@ if(document.getElementById("showfavs").checked) {
 		document.getElementById("showfavs").checked = false;
 		document.getElementById("showfavs").disabled = true;
 		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-		
 	}
 }
 else
@@ -118,7 +115,6 @@ if(document.getElementById("lastdate").checked)
 	{
 		currentselectedDate = new Date(localStorage.getItem('lastcomic'));
 	}
-		
 }
 CompareDates();
 showComic();
