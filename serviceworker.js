@@ -1,27 +1,21 @@
 
 const OFFLINE_VERSION = 2;
-const CACHE_NAME = 'offline';
-const OFFLINE_URL = 
-[
-  "./index.html",
-  "./garlogo.webp",
-  "./mail.webp",
-  "./swiped-events.min.js",    
-  "./app.js",
-  "./main.css",
-  "./serviceworker.js",
-  "./garfield.webp",    
-  "./garyellowmask.png",
-  "./garscreenshot1.png",
-  "./mstile-150x150.png",
-  "./favicon.ico",
-  "./favicon-32x32.png",
-  "./favicon-16x16.png",
-  "./favicon-32x32.webp",
-  "./favicon-16x16.webp",
-  "./apple-touch-icon.png",
-  "./android-chrome-192x192.png"
- ];
+const CACHE = "offline";
+
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+workbox.routing.registerRoute(
+  new RegExp('.*'),
+  new workbox.strategies.StaleWhileRevalidate({
+    cacheName: CACHE
+  })
+);
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
