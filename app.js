@@ -39,13 +39,15 @@ function Addfav()
 	if(favs.indexOf(formattedComicDate) == -1)
 	{
 		favs.push(formattedComicDate);
-		$(".favicon").css({"color": "red"}).removeClass('fa-heart-o').addClass('fa-heart');
+		//$(".favicon").css({"color": "red"}).removeClass('fa-heart-o').addClass('fa-heart');
+		document.getElementById("favheart").src="./heart.svg";
 		document.getElementById("showfavs").disabled = false;
 	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
-		$(".favicon").css({"color": "red"}).removeClass('fa-heart').addClass('fa-heart-o');
+	//	$(".favicon").css({"color": "red"}).removeClass('fa-heart').addClass('fa-heart-o');
+		document.getElementById("favheart").src="heartborder.svg";
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
@@ -225,11 +227,11 @@ function showComic()
 		}
 		if(favs.indexOf(formattedComicDate) == -1)
 		{
-			$(".favicon").css({"color": "red"}).removeClass('fa-heart').addClass('fa-heart-o');
+			document.getElementById("favheart").src="./heartborder.svg";
 		}	
 		else
 		{
-			$(".favicon").css({"color": "red"}).removeClass('fa-heart-o').addClass('fa-heart');
+			document.getElementById("favheart").src="./heart.svg";
 		}
     });
 };
