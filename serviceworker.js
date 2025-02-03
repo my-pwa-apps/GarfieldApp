@@ -17,6 +17,13 @@ workbox.routing.registerRoute(
   })
 );
 
+beforeinstallprompt = null;
+self.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  beforeinstallprompt = e;
+  return false;
+});
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
