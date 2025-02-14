@@ -68,16 +68,15 @@ function changeComicImage(newSrc) {
     }, 500); // Match the duration of the CSS transition
 }
 
-function HideSettings()
-{
-var x = document.getElementById("settingsDIV");
-	if (x.style.display === "none") {
-	  x.style.display = "block";
-	  localStorage.setItem('settings', "true");
-	} else {
-	  x.style.display = "none";
-	  localStorage.setItem('settings', "false");
-	}
+function HideSettings() {
+    var x = document.getElementById("settingsDIV");
+    if (x.style.visibility === "hidden") {
+        x.style.visibility = "visible";
+        localStorage.setItem('settings', "true");
+    } else {
+        x.style.visibility = "hidden";
+        localStorage.setItem('settings', "false");
+    }
 }
 
 function onLoad()
