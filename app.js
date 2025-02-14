@@ -61,11 +61,18 @@ function Addfav()
 
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
-    comic.classList.add('fade');
+    comic.classList.add('dissolve');
     setTimeout(() => {
         comic.src = newSrc;
-        comic.classList.remove('fade');
+        comic.classList.remove('dissolve');
     }, 1000); // Match the duration of the CSS transition
+}
+
+// Example usage
+function NextClick() {
+    // ...existing code...
+    changeComicImage('newImageUrl'); // Replace with the actual new image URL
+    // ...existing code...
 }
 
 function HideSettings()
