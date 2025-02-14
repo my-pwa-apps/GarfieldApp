@@ -140,3 +140,11 @@ input[type=checkbox] {
     margin-bottom: 20px;
 }
 
+#comic {
+    transition: opacity 1s ease-in-out;
+    opacity: 1;
+}
+
+#comic.fade {
+    opacity: 0;
+}

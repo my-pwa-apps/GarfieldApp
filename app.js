@@ -59,6 +59,15 @@ function Addfav()
 	showComic();
 }
 
+function changeComicImage(newSrc) {
+    const comic = document.getElementById('comic');
+    comic.classList.add('fade');
+    setTimeout(() => {
+        comic.src = newSrc;
+        comic.classList.remove('fade');
+    }, 1000); // Match the duration of the CSS transition
+}
+
 function HideSettings()
 {
 var x = document.getElementById("settingsDIV");
@@ -207,7 +216,8 @@ function showComic()
       picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
       pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
       if(pictureUrl != previousUrl) {
-		document.getElementById("comic").src = pictureUrl;
+		//document.getElementById("comic").src = pictureUrl;
+		changeComicImage(pictureUrl);
 	  }
 	  else
 	  {
