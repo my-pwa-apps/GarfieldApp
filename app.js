@@ -65,14 +65,7 @@ function changeComicImage(newSrc) {
     setTimeout(() => {
         comic.src = newSrc;
         comic.classList.remove('dissolve');
-    }, 1000); // Match the duration of the CSS transition
-}
-
-// Example usage
-function NextClick() {
-    // ...existing code...
-    changeComicImage('newImageUrl'); // Replace with the actual new image URL
-    // ...existing code...
+    }, 500); // Match the duration of the CSS transition
 }
 
 function HideSettings()
