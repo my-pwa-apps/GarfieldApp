@@ -8,10 +8,10 @@
             "name": "Launch Edge",
             "request": "launch",
             "type": "msedge",
-            "url": "C:\\Users\\bartm\\OneDrive - Microsoft\\Documents\\Git Repos\\GarfieldApp\\index.html",
+            "url": "file:///C:/Users/bartm/OneDrive%20-%20Microsoft/Documents/Git%20Repos/GarfieldApp/index.html",
             "webRoot": "${workspaceFolder}",
-            "runtimeArgs": ["--disable-web-security"]
-        }     
-        
+            "runtimeExecutable": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+            "trace": true
+        }
     ]
 }
