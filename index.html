@@ -11,6 +11,8 @@
     <meta name="theme-color" content="#F09819" media="(prefers-color-scheme: dark)">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Daily Garfield Comics</title>
     <link rel="stylesheet" href="./main.css">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
@@ -25,45 +27,65 @@
 </head>
 
 <body onload="onLoad()">
-    <h1 hidden>Daily Garfield Comics App</h1>
-    <div class="logo">
-        <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
+            </div>
+            <div class="ad-banner" id="topAd">
+                <!-- Ad Space -->
+            </div>
+        </header>
+
+        <nav class="buttongrid" role="toolbar" aria-label="Comic navigation">
+            <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
+            <button class="button" id="Random" onclick="RandomClick()">Random</button>
+            <button class="button" id="Next" onclick="NextClick()">Next</button>
+            <button class="button" id="First" onclick="FirstClick()">First</button>
+            <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+            <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+        </nav>
+
+        <main>
+            <div class="comic-container">
+                <img id="comic" onclick="Rotate()" class="normal" loading="lazy" decoding="async" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+            </div>
+            
+            <div class="ad-sidebar" id="sideAd">
+                <!-- Vertical Ad Space -->
+            </div>
+        </main>
+
+        <footer>
+            <div class="controls">
+                <button class="icon-button" onclick="HideSettings()">
+                    <img src="./tune.svg" alt="Settings">
+                </button>
+                <button class="icon-button" onclick="Addfav()">
+                    <img id="favheart" src="./heartborder.svg" alt="Favorite">
+                </button>
+                <button class="icon-button" onclick="Share()">
+                    <img src="./share.svg" alt="Share">
+                </button>
+            </div>
+            
+            <div id="settingsDIV" class="settings-panel">
+                <input type="checkbox" id="swipe" checked>
+                <label for="swipe" class="labels">Swipe enabled</label>
+                <br>
+                <input type="checkbox" id="showfavs" checked>
+                <label for="showfavs" class="labels">Show only my favorites</label>
+                <br>
+                <input type="checkbox" id="lastdate" checked>
+                <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+            </div>
+        </footer>
     </div>
-    <div class="buttongrid" role="toolbar" aria-label="Comic navigation">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
-        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
-    </div>
-    <br>
-    <br>
-    <img id="comic" onclick="Rotate()" class="normal" loading="lazy" decoding="async" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
-    <br>
-    <br>
-    <div style="z-index: -1;">
-        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-        <script type='text/javascript'>
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-        </script>
-        <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; right: 120px; position: absolute;">
-        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; right: 70px; position: absolute;">
-        <img onclick="Share()" src="./share.svg" style="width: 30px; right: 20px; position: absolute;">
-    </div>
-    <br>
-    <br>
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
-    </div>
+    <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+    <script type='text/javascript'>
+        kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+        kofiwidget2.draw();
+    </script>
     <script src="./app.js" defer></script>
 </body>
 

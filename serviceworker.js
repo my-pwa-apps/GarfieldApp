@@ -1,4 +1,3 @@
-
 const OFFLINE_VERSION = 2;
 const CACHE = "offline";
 
@@ -24,6 +23,23 @@ self.addEventListener('beforeinstallprompt', (e) => {
   return false;
 });
 
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `garfield-${CACHE_VERSION}`;
+const OFFLINE_URL = 'offline.html';
+
+const ASSETS_TO_CACHE = [
+    '/',
+    '/index.html',
+    '/main.css',
+    '/app.js',
+    '/manifest.webmanifest',
+    '/garlogo.png',
+    '/heart.svg',
+    '/heartborder.svg',
+    '/share.svg',
+    '/tune.svg'
+];
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
@@ -42,8 +58,21 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
- 
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -63,5 +92,12 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
     })());
+  } else {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match(event.request) || caches.match(OFFLINE_URL);
+        })
+    );
   }
 });

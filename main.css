@@ -1,10 +1,37 @@
+:root {
+    --primary-color: #eee239;
+    --secondary-color: #F09819;
+    --background-gradient: linear-gradient(var(--primary-color), var(--secondary-color));
+}
+
 body {
-    background: linear-gradient(#eee239, orange) no-repeat;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: black;
-    background-color: orange;
-    min-height: 100vh;
     margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: var(--background-gradient) no-repeat;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.app-container {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    min-height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    gap: 1rem;
+}
+
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.logo img {
+    max-width: 300px;
+    margin: 0 auto;
+    display: block;
 }
 
 main {
@@ -25,7 +52,7 @@ main {
     border: none;
     display: block;
     font-weight: 700;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-image: linear-gradient(45deg, var(--primary-color) 0%, var(--secondary-color) 51%, var(--primary-color) 100%);
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
@@ -46,7 +73,7 @@ main {
 }
 
 .button:disabled {
-    background-color: #f39700;
+    background-color: var(--primary-color);
     opacity: 0.5;
     color: black;
     box-shadow: none;
@@ -62,16 +89,14 @@ input {
     text-align: center;
     border-radius: 10px;
     opacity: 0.9;
-    background-color: #eee239;
+    background-color: var(--primary-color);
 }
 
 .buttongrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto auto;
-    text-align: center;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 0.5rem;
-    padding: 1rem;
+    padding: 0.5rem;
 }
 
 .rotate {
@@ -111,7 +136,7 @@ input[type=checkbox]:before {
     left: 0;
     border: 2px solid black;
     border-radius: 5px;
-    background-color: #eee239;
+    background-color: var(--primary-color);
 }
 
 input[type=checkbox]:checked:after {
@@ -136,6 +161,10 @@ input[type=checkbox] {
 }
 
 #comic {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: opacity 1s ease-in-out;
     opacity: 1;
 }
@@ -154,7 +183,7 @@ input[type="date"] {
     text-align: center;
     border-radius: 10px;
     opacity: 0.9;
-    background-color: #eee239;
+    background-color: var(--primary-color);
     border: none;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
@@ -162,6 +191,59 @@ input[type="date"] {
 input[type="date"]:focus {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
     outline: none;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.icon-button:hover {
+    transform: scale(1.1);
+}
+
+.settings-panel {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.ad-banner {
+    width: 100%;
+    min-height: 90px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.ad-sidebar {
+    display: none;
+}
+
+@media (min-width: 768px) {
+    main {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 1rem;
+    }
+
+    .ad-sidebar {
+        display: block;
+        min-height: 600px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -175,5 +257,20 @@ input[type="date"]:focus {
         display: flex;
         flex-wrap: wrap;
         justify-content: space-around;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #F09819;
+        --secondary-color: #FF512F;
+    }
+
+    body {
+        color: #fff;
+    }
+
+    .settings-panel {
+        background: rgba(0, 0, 0, 0.8);
     }
 }
