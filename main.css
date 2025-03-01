@@ -223,16 +223,26 @@ input[type="date"]:focus {
     margin-top: 1rem;
 }
 
-.ad-banner, .ad-sidebar {
-    background: var(--garfield-light);
-    border: 1px solid var(--garfield-orange);
+.ad-banner {
     width: 100%;
     min-height: 90px;
+    background: var(--garfield-light);
+    border-radius: 8px;
     margin: 1rem 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
 }
 
 .ad-sidebar {
     display: none;
+    min-height: 600px;
+    background: var(--garfield-light);
+    border-radius: 8px;
+    padding: 1rem;
+    position: sticky;
+    top: 1rem;
 }
 
 @media (min-width: 768px) {
@@ -244,7 +254,7 @@ input[type="date"]:focus {
 
     .ad-sidebar {
         display: block;
-        min-height: 600px;
+        width: 300px;
     }
 }
 
