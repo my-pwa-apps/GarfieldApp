@@ -1,5 +1,11 @@
-
 //garfieldapp.pages.dev
+
+'use strict';
+
+let previousclicked = false;
+let previousUrl = "";
+let currentselectedDate;
+let year, month, day;
 
 if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
@@ -197,52 +203,38 @@ function DateChange() {
 	showComic();
 }
 
-function showComic()
-{
-	formatDate(currentselectedDate);
-	formattedDate = year + "-" + month + "-" + day;
-	formattedComicDate = year + "/" + month + "/" + day;
-	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
-    localStorage.setItem('lastcomic', currentselectedDate);
-	fetch(siteUrl)
-    .then(function(response)
-	{
-      return response.text();
-    })
-    .then(function(text)
-	{
-      siteBody = text;
-      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl) {
-		//document.getElementById("comic").src = pictureUrl;
-		changeComicImage(pictureUrl);
-	  }
-	  else
-	  {
-		if(previousclicked == true)
-		{
-			PreviousClick();
-		}
-	  }	
-	  previousclicked = false;			
-	  previousUrl = pictureUrl;
-	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
-		{
-			favs = [];
-		}
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").src="./heartborder.svg";
-		}	
-		else
-		{
-			document.getElementById("favheart").src="./heart.svg";
-		}
-    });
-};
+async function showComic() {
+    try {
+        formatDate(currentselectedDate);
+        const formattedDate = `${year}-${month}-${day}`;
+        const formattedComicDate = `${year}/${month}/${day}`;
+        document.getElementById('DatePicker').value = formattedDate;
+        const siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/${formattedComicDate}`;
+        localStorage.setItem('lastcomic', currentselectedDate);
+        
+        const response = await fetch(siteUrl);
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        const text = await response.text();
+        const picturePosition = text.indexOf("https://assets.amuniversal.com");
+        if (picturePosition === -1) throw new Error('Comic URL not found');
+        
+        const pictureUrl = text.substring(picturePosition, picturePosition + 63);
+        if (pictureUrl !== previousUrl) {
+            changeComicImage(pictureUrl);
+        } else if (previousclicked) {
+            PreviousClick();
+        }
+        previousclicked = false;
+        previousUrl = pictureUrl;
+        
+        const favs = JSON.parse(localStorage.getItem('favs')) || [];
+        document.getElementById("favheart").src = favs.includes(formattedComicDate) ? "./heart.svg" : "./heartborder.svg";
+    } catch (error) {
+        console.error('Error loading comic:', error);
+        document.getElementById('comic').alt = 'Error loading comic. Please try again later.';
+    }
+}
 
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
@@ -465,5 +457,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+

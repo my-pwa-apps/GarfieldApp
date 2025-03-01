@@ -7,7 +7,8 @@
     <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
     <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
     <meta name="msapplication-TileColor" content="#eee239">
-    <meta name="theme-color" content="#eee239">
+    <meta name="theme-color" content="#eee239" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#F09819" media="(prefers-color-scheme: dark)">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
     <title>Daily Garfield Comics</title>
@@ -19,8 +20,8 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <script src="./swiped-events.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="./swiped-events.min.js" defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js" defer></script>
 </head>
 
 <body onload="onLoad()">
@@ -28,7 +29,7 @@
     <div class="logo">
         <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
     </div>
-    <div class="buttongrid">
+    <div class="buttongrid" role="toolbar" aria-label="Comic navigation">
         <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
         <button class="button" id="Random" onclick="RandomClick()">Random</button>
         <button class="button" id="Next" onclick="NextClick()">Next</button>
@@ -38,7 +39,7 @@
     </div>
     <br>
     <br>
-    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    <img id="comic" onclick="Rotate()" class="normal" loading="lazy" decoding="async" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
     <br>
     <br>
     <div style="z-index: -1;">
