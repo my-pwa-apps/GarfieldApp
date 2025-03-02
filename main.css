@@ -156,18 +156,26 @@ input[type=checkbox] {
 
 .comic-container {
     position: relative;
-    min-height: 300px; /* Prevents layout shift during transition */
+    width: 100%;
+    min-height: 300px;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    margin: 0 auto;
 }
 
 #comicCanvas {
     max-width: 100%;
     height: auto;
-    image-rendering: auto;
-    transform-origin: center center;
+    position: relative;
+    margin: 0 auto;
+    display: block;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#comicCanvas.dissolve {
+    opacity: 0;
 }
 
 #comicCanvas.rotate {
@@ -180,12 +188,8 @@ input[type=checkbox] {
 
 #comicCanvas.normal {
     transform: rotate(0deg);
-    width: 100vw;
-    margin-left: -50vw;
-    margin-right: -50vw;
-    position: relative;
-    right: 50%;
-    left: 50%;
+    max-width: 100%;
+    margin: 0 auto;
 }
 
 input[type="date"] {
