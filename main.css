@@ -166,7 +166,7 @@ input[type=checkbox] {
 #comicCanvas {
     max-width: 100%;
     height: auto;
-    image-rendering: pixelated;
+    image-rendering: auto;
     transform-origin: center center;
 }
 
