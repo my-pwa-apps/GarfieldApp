@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -60,12 +59,23 @@ function Addfav()
 }
 
 function changeComicImage(newSrc) {
-    const comic = document.getElementById('comic');
-    comic.classList.add('dissolve');
-    setTimeout(() => {
-        comic.src = newSrc;
-        comic.classList.remove('dissolve');
-    }, 500); // Match the duration of the CSS transition
+    const canvas = document.getElementById('comicCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const preloadImg = new Image();
+    preloadImg.onload = () => {
+        canvas.classList.add('dissolve');
+        
+        setTimeout(() => {
+            canvas.width = preloadImg.width;
+            canvas.height = preloadImg.height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(preloadImg, 0, 0);
+            canvas.classList.remove('dissolve');
+        }, 1000); // Match the duration of the CSS animation
+    };
+    
+    preloadImg.src = newSrc;
 }
 
 function HideSettings()
@@ -305,12 +315,12 @@ function formatDate(datetoFormat) {
 }
 
 function Rotate() {
-	var element = document.getElementById('comic');
-	if(element.className === "normal") {
-		element.className = "rotate";
-	} else if(element.className === "rotate") {
-		element.className = 'normal';
-	}
+    const element = document.getElementById('comicCanvas');
+    if(element.className === "normal") {
+        element.className = "rotate";
+    } else if(element.className === "rotate") {
+        element.className = 'normal';
+    }
 }
 
 document.addEventListener('swiped-down', function(e) {
@@ -465,5 +475,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+

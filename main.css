@@ -171,3 +171,35 @@ input[type="date"]:focus {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Enhanced shadow on focus */
     outline: none;
 }
+
+.comic-container {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+
+#comicCanvas {
+    max-width: 100%;
+    height: auto;
+    position: relative;
+    margin: 0 auto;
+    display: block;
+    image-rendering: pixelated;
+}
+
+#comicCanvas.dissolve {
+    animation: pixelDissolve 1s forwards;
+}
+
+@keyframes pixelDissolve {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
