@@ -142,12 +142,24 @@ input[type=checkbox] {
 }
 
 #comic {
-    transition: opacity 1s ease-in-out;
+    transition: opacity 0.3s ease-in-out;
     opacity: 1;
+    max-width: 100%;
+    height: auto;
+    backface-visibility: hidden; /* Prevents flickering in some browsers */
+    will-change: opacity; /* Optimizes the animation */
 }
 
 #comic.dissolve {
     opacity: 0;
+}
+
+.comic-container {
+    position: relative;
+    min-height: 300px; /* Prevents layout shift during transition */
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 input[type="date"] {

@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -62,10 +61,23 @@ function Addfav()
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
-    setTimeout(() => {
-        comic.src = newSrc;
+    
+    // Preload the new image
+    const preloadImg = new Image();
+    preloadImg.src = newSrc;
+    
+    preloadImg.onload = () => {
+        setTimeout(() => {
+            comic.src = newSrc;
+            comic.classList.remove('dissolve');
+        }, 300); // Match the CSS transition duration
+    };
+
+    preloadImg.onerror = () => {
+        console.error('Failed to load image:', newSrc);
         comic.classList.remove('dissolve');
-    }, 500); // Match the duration of the CSS transition
+        comic.alt = 'Failed to load comic';
+    };
 }
 
 function HideSettings()
@@ -465,5 +477,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+
