@@ -38,7 +38,10 @@
     </div>
     <br>
     <br>
-    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    <div class="comic-container">
+        <canvas id="comicCanvas" onclick="Rotate()" class="normal" style="z-index: 100;"></canvas>
+        <img id="comic" style="display: none;" alt="Loading comic from https://gocomics.com...">
+    </div>
     <br>
     <br>
     <div style="z-index: -1;">

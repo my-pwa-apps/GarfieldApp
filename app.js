@@ -58,27 +58,127 @@ function Addfav()
 	showComic();
 }
 
+let currentImage = null;
+let nextImage = null;
+let canvas = null;
+let gl = null;
+
+function initWebGL() {
+    canvas = document.getElementById('comicCanvas');
+    gl = canvas.getContext('webgl');
+    
+    // WebGL initialization code
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, `
+        attribute vec2 position;
+        varying vec2 uv;
+        void main() {
+            uv = position * 0.5 + 0.5;
+            gl_Position = vec4(position, 0.0, 1.0);
+        }
+    `);
+    gl.compileShader(vertexShader);
+
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, `
+        precision mediump float;
+        uniform sampler2D texture1;
+        uniform sampler2D texture2;
+        uniform float progress;
+        varying vec2 uv;
+        
+        float random(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+        }
+        
+        void main() {
+            vec2 block = floor(uv * vec2(50.0));
+            float r = random(block);
+            float threshold = r * 0.9;
+            
+            vec4 color1 = texture2D(texture1, uv);
+            vec4 color2 = texture2D(texture2, uv);
+            
+            gl_FragColor = mix(color1, color2, 
+                             step(threshold, progress));
+        }
+    `);
+    gl.compileShader(fragmentShader);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(fragmentShader, fragmentShader);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+
+    return program;
+}
+
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
-    comic.classList.add('dissolve');
-    
-    // Preload the new image
     const preloadImg = new Image();
     preloadImg.src = newSrc;
     
     preloadImg.onload = () => {
-        setTimeout(() => {
-            comic.src = newSrc;
-            comic.classList.remove('dissolve');
-        }, 300); // Match the CSS transition duration
+        nextImage = preloadImg;
+        if (!currentImage) {
+            currentImage = preloadImg;
+            updateCanvas();
+            return;
+        }
+        
+        animateTransition();
     };
 
     preloadImg.onerror = () => {
         console.error('Failed to load image:', newSrc);
-        comic.classList.remove('dissolve');
         comic.alt = 'Failed to load comic';
     };
 }
+
+function animateTransition() {
+    const startTime = performance.now();
+    const duration = 500; // 500ms transition
+
+    function update(currentTime) {
+        const progress = (currentTime - startTime) / duration;
+        
+        if (progress >= 1) {
+            currentImage = nextImage;
+            updateCanvas();
+            return;
+        }
+
+        updateCanvas(progress);
+        requestAnimationFrame(update);
+    }
+
+    requestAnimationFrame(update);
+}
+
+function updateCanvas(progress = null) {
+    if (!canvas) canvas = document.getElementById('comicCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size to match image
+    canvas.width = currentImage.width;
+    canvas.height = currentImage.height;
+
+    if (progress === null) {
+        // Simple draw without transition
+        ctx.drawImage(currentImage, 0, 0);
+        return;
+    }
+
+    // WebGL transition
+    gl.uniform1f(gl.getUniformLocation(program, 'progress'), progress);
+    // ... Draw with WebGL ...
+}
+
+// Initialize WebGL when page loads
+window.addEventListener('load', () => {
+    initWebGL();
+});
 
 function HideSettings()
 {

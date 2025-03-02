@@ -160,6 +160,32 @@ input[type=checkbox] {
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
+}
+
+#comicCanvas {
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    transform-origin: center center;
+}
+
+#comicCanvas.rotate {
+    transform: rotate(90deg);
+    margin-left: -22vw;
+    width: 140%;
+    position: absolute;
+    z-index: 100;
+}
+
+#comicCanvas.normal {
+    transform: rotate(0deg);
+    width: 100vw;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    position: relative;
+    right: 50%;
+    left: 50%;
 }
 
 input[type="date"] {
