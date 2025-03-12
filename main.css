@@ -39,59 +39,49 @@ body {
 
 /* Comic container and image styling */
 .comic-container {
-    width: 100vw;
+    width: 100%;
     margin: 10px 0;
     text-align: center;
     overflow: hidden;
     position: relative;
+    padding-bottom: 50px; /* Add padding at bottom to prevent overlap with buttons */
 }
 
 #comic {
-    max-width: none; /* Remove max-width constraint */
-    width: 100vw;
+    width: 100%; /* Use 100% instead of 100vw to respect container margins */
+    max-width: 100%;
     height: auto;
     object-fit: contain;
     display: block;
     transition: opacity 1s ease-in-out;
     opacity: 1;
-    margin: 0;
-    padding: 0;
-}
-
-#comic.dissolve {
-    opacity: 0;
 }
 
 .rotate {
     transform: rotate(90deg);
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
-    margin-left: -22vw;
     width: 140%;
-    position: absolute;
-    z-index: 100;
+    max-height: 100vh;
+    position: relative;
+    z-index: 90;
+    margin: 0 -20%;
 }
 
 .normal {
     transform: rotate(0deg);
     -ms-transform: rotate(0deg);
     -webkit-transform: rotate(0deg);
-    width: 100vw;
-    margin-left: -50vw;
-    margin-right: -50vw;
-    position: relative;
-    right: 50%;
-    left: 50%;
 }
 
-/* Action buttons styling - repositioned to bottom right */
+/* Action buttons styling - positioned below comic */
 .action-buttons-container {
     position: absolute;
     bottom: 10px;
     right: 10px;
     display: flex;
     gap: 10px;
-    z-index: 100;
+    z-index: 50;
 }
 
 .action-button {
@@ -122,13 +112,13 @@ body {
     color: #eee239; /* Yellow icons */
 }
 
-/* Support container - repositioned to bottom left */
+/* Support container - positioned below comic */
 .support-container {
     position: absolute;
     bottom: 10px;
     left: 10px;
-    z-index: 100;
-    transform: scale(0.8); /* Make Ko-fi button slightly smaller */
+    z-index: 50;
+    transform: scale(0.8);
     transform-origin: left bottom;
 }
 
