@@ -38,6 +38,19 @@
         <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
     </div>
     
+    <!-- Action Buttons now horizontal below the comic -->
+    <div class="action-buttons-container">
+        <button onclick="HideSettings()" class="action-button settings-button">
+            <span class="material-icons">tune</span>
+        </button>
+        <button onclick="Addfav()" class="action-button favorite-button" id="favButton">
+            <span class="material-icons" id="favIcon">favorite_border</span>
+        </button>
+        <button onclick="Share()" class="action-button share-button">
+            <span class="material-icons">share</span>
+        </button>
+    </div>
+    
     <div id="settingsDIV" class="settings-container">
         <div class="settings-item">
             <input type="checkbox" id="swipe" checked>
@@ -59,19 +72,6 @@
             kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
             kofiwidget2.draw();
         </script>
-    </div>
-    
-    <!-- Action Buttons as floating action buttons -->
-    <div class="action-fab-container">
-        <button onclick="HideSettings()" class="action-fab settings-fab">
-            <span class="material-icons">tune</span>
-        </button>
-        <button onclick="Addfav()" class="action-fab favorite-fab" id="favButton">
-            <span class="material-icons" id="favIcon">favorite_border</span>
-        </button>
-        <button onclick="Share()" class="action-fab share-fab">
-            <span class="material-icons">share</span>
-        </button>
     </div>
     
     <!-- Material Design Bottom App Bar -->
