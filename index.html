@@ -27,7 +27,7 @@
 <body onload="onLoad()">
     <h1 hidden>Daily Garfield Comics App</h1>
     <div class="logo">
-        <img src="./garlogo.png" style="width:100%; max-width: 400px; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
     
     <div class="date-picker-container">
@@ -38,15 +38,19 @@
         <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
     </div>
     
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    <div id="settingsDIV" class="settings-container">
+        <div class="settings-item">
+            <input type="checkbox" id="swipe" checked>
+            <label for="swipe" class="labels">Swipe enabled</label>
+        </div>
+        <div class="settings-item">
+            <input type="checkbox" id="showfavs" checked>
+            <label for="showfavs" class="labels">Show only my favorites</label>
+        </div>
+        <div class="settings-item">
+            <input type="checkbox" id="lastdate" checked>
+            <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+        </div>
     </div>
     
     <div class="support-container">
@@ -74,22 +78,18 @@
     <div class="bottom-app-bar">
         <button class="material-button" id="First" onclick="FirstClick()">
             <span class="material-icons">first_page</span>
-            <span class="button-label">First</span>
         </button>
         <button class="material-button" id="Previous" onclick="PreviousClick()">
             <span class="material-icons">navigate_before</span>
-            <span class="button-label">Previous</span>
         </button>
-        <button class="material-button fab" id="Random" onclick="RandomClick()">
+        <button class="material-button" id="Random" onclick="RandomClick()">
             <span class="material-icons">casino</span>
         </button>
         <button class="material-button" id="Next" onclick="NextClick()">
             <span class="material-icons">navigate_next</span>
-            <span class="button-label">Next</span>
         </button>
         <button class="material-button" id="Today" onclick="CurrentClick()">
             <span class="material-icons">today</span>
-            <span class="button-label">Today</span>
         </button>
     </div>
     

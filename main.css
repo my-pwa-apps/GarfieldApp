@@ -3,182 +3,42 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
-    padding-bottom: 80px; /* Add padding to account for the bottom app bar */
+    padding-bottom: 80px;
     min-height: 100vh;
+    margin: 0;
+    padding: 0 0 80px 0;
 }
 
-main {
-    max-width: 900px;
-    margin: auto;
-    padding: 0.5rem;
-    text-align: center;
-}
-
-/* Material Design Button Bar Styles */
-.bottom-app-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 64px;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    box-shadow: 0px -3px 10px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    border-radius: 16px 16px 0 0;
-    padding: 0 8px;
-}
-
-.material-button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: 8px 16px;
-    cursor: pointer;
-    color: #333;
-    transition: all 0.3s ease;
-}
-
-.material-button:hover {
-    color: #fff;
-    transform: translateY(-3px);
-}
-
-.material-button:active {
-    transform: scale(0.92);
-}
-
-.material-button:disabled {
-    opacity: 0.5;
-    color: rgba(0, 0, 0, 0.4);
-}
-
-.material-button .material-icons {
-    font-size: 24px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.material-button .button-label {
-    font-size: 12px;
-    margin-top: 4px;
-    font-weight: 500;
-}
-
-.material-button.fab {
-    position: relative;
-    top: -20px;
-    background-color: #fff;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
-    border-radius: 50%;
-    width: 56px;
-    height: 56px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    margin: 0 8px;
-}
-
-.material-button.fab .material-icons {
-    font-size: 24px;
-    color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.material-button.fab .button-label {
-    display: none;
-}
-
-.material-button.fab:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-    transform: translateY(-4px);
-}
-
-.material-button.disabled {
-    opacity: 0.5;
-    color: rgba(0, 0, 0, 0.4);
-    pointer-events: none;
-}
-
-/* Action Fab Container - Floating action button styling */
-.action-fab-container {
-    position: fixed;
-    bottom: 80px;
-    right: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    z-index: 990;
-    gap: 10px;
-}
-
-.action-fab {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
-    border: none;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    transition: all 0.3s ease;
-}
-
-.action-fab:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
-}
-
-.action-fab:active {
-    transform: scale(0.95);
-}
-
-.action-fab .material-icons {
-    font-size: 22px;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-/* Date picker container */
-.date-picker-container {
-    display: flex;
-    justify-content: center;
-    margin: 10px 0;
-    position: relative;
-    z-index: 5;
-}
-
-input {
-    margin: 5px;
-    padding: 10px;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    max-width: 100%;
-    font-size: 0.75rem;
-    box-sizing: border-box;
-    text-align: center;
-    border-radius: 10px;
-    opacity: 0.9;
-    background-color: #eee239;
-}
-
+/* Logo styling */
 .logo {
+    width: 100%;
+    background-color: #fff;
     text-align: center;
+    padding: 15px 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.logo img {
+    width: 100%;
     max-width: 100%;
+    height: auto;
+    padding: 0;
+    margin: 0;
+}
+
+/* Comic container and image styling */
+.comic-container {
+    width: 100%;
+    margin: 10px 0;
+    text-align: center;
     overflow: hidden;
 }
 
-/* Comic image styling */
 #comic {
     max-width: 100%;
+    width: 100vw;
     height: auto;
-    margin: 0 auto;
+    object-fit: contain;
     display: block;
     transition: opacity 1s ease-in-out;
     opacity: 1;
@@ -210,35 +70,51 @@ input {
     left: 50%;
 }
 
-/* Settings div styling */
-#settingsDIV {
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    padding: 15px;
-    margin: 10px auto;
-    max-width: 300px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+/* Settings container and items */
+.settings-container {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 320px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    clear: both;
 }
 
-input[type="checkbox"], label {
-    float: left;
-    line-height: 1.6em;
-    height: 1.6em;
-    margin: 0 2px;
-    padding: 0;
-    font-size: small;
+.settings-item {
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.settings-item:last-child {
+    margin-bottom: 0;
+}
+
+.settings-item label {
+    margin-left: 10px;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+input[type="checkbox"] {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin-right: 10px;
 }
 
 input[type=checkbox]:before {
     content: "";
     display: block;
     position: absolute;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     top: 0;
     left: 0;
-    border: 2px solid black;
-    border-radius: 5px;
+    border: 2px solid #333;
+    border-radius: 4px;
     background-color: #eee239;
 }
 
@@ -247,35 +123,36 @@ input[type=checkbox]:checked:after {
     display: block;
     width: 5px;
     height: 10px;
-    border: solid black;
+    border: solid #333;
     border-width: 0 2px 2px 0;
     -webkit-transform: rotate(45deg);
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
     position: absolute;
-    top: 2px;
-    left: 6px;
+    top: 3px;
+    left: 7px;
 }
 
-input[type=checkbox] {
-    position: relative;
-    cursor: pointer;
-    clear: left;
-    margin-right: 25px;
-    margin-bottom: 20px;
+/* Date picker container */
+.date-picker-container {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+    padding: 0 10px;
 }
 
 input[type="date"] {
+    width: 100%;
+    max-width: 280px;
     margin: 5px;
-    padding: 10px;
+    padding: 12px;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    max-width: 100%;
-    font-size: 0.75rem;
+    font-size: 16px;
     box-sizing: border-box;
     text-align: center;
-    border-radius: 10px;
+    border-radius: 8px;
     opacity: 0.9;
     background-color: #eee239;
     border: none;
@@ -287,19 +164,118 @@ input[type="date"]:focus {
     outline: none;
 }
 
+/* Updated bottom app bar with larger icons */
+.bottom-app-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0px -3px 10px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    border-radius: 16px 16px 0 0;
+    padding: 0;
+}
+
+.material-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    height: 100%;
+    flex: 1;
+    cursor: pointer;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.material-button:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.material-button:active {
+    transform: scale(0.92);
+}
+
+.material-button:disabled {
+    opacity: 0.5;
+    color: rgba(0, 0, 0, 0.4);
+}
+
+.material-button .material-icons {
+    font-size: 32px; /* Larger icons */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Action Fab Container styling */
+.action-fab-container {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 990;
+    gap: 10px;
+}
+
+.action-fab {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    border: none;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.action-fab:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.action-fab:active {
+    transform: scale(0.95);
+}
+
+.action-fab .material-icons {
+    font-size: 24px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.support-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px auto;
+    padding-bottom: 70px; /* Extra padding to account for the bottom app bar */
+}
+
 /* For small mobile screens */
 @media screen and (max-width: 360px) {
-    .button-label {
-        display: none;
+    .material-button .material-icons {
+        font-size: 28px;
     }
     
     .action-fab {
-        width: 42px;
-        height: 42px;
+        width: 45px;
+        height: 45px;
     }
      
     .action-fab .material-icons {
-        font-size: 20px;
+        font-size: 22px;
     }
      
     .action-fab-container {
@@ -309,22 +285,6 @@ input[type="date"]:focus {
     }
 
     .bottom-app-bar {
-        height: 56px;
-        padding: 0 4px;
+        height: 60px;
     }
-}
-
-.comic-container {
-    position: relative;
-    width: 100%;
-    margin: 0 auto 20px;
-    text-align: center;
-    overflow: hidden;
-}
-
-.support-container {
-    display: flex;
-    justify-content: center;
-    margin: 20px auto;
-    padding-bottom: 70px; /* Extra padding to account for the bottom app bar */
 }
