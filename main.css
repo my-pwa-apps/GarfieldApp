@@ -25,7 +25,7 @@ body {
 .logo {
     width: 100%;
     text-align: center;
-    padding: 15px 0;
+    padding: 15px 0 5px; /* Reduce bottom padding */
     background: transparent;
 }
 
@@ -200,6 +200,7 @@ body {
     padding: 8px 12px;
     border-radius: 8px;
     transition: all 0.2s ease;
+    position: relative; /* For absolute positioning of pseudo-elements */
 }
 
 .settings-item:hover {
@@ -211,59 +212,66 @@ body {
 }
 
 .settings-item label {
-    margin-left: 10px;
+    margin-left: 30px; /* Provide space for the checkbox */
     font-size: 14px;
     line-height: 1.4;
     font-weight: 500;
     color: #333;
 }
 
-/* Modern checkbox styling */
+/* Modern checkbox styling - simplified and fixed */
 input[type="checkbox"] {
-    position: relative;
+    position: absolute;
+    opacity: 0;
     width: 18px;
     height: 18px;
+    margin: 0;
     cursor: pointer;
-    margin-right: 10px;
-    opacity: 0;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
 }
 
-input[type="checkbox"] + label::before {
+/* Custom checkbox container */
+.settings-item::before {
     content: "";
-    display: block;
     position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 18px;
     height: 18px;
-    left: 12px;
     border: 2px solid rgba(0, 0, 0, 0.4);
     border-radius: 4px;
     background-color: rgba(238, 226, 57, 0.6);
     transition: all 0.2s ease;
 }
 
-input[type="checkbox"]:checked + label::before {
-    background-color: #F09819;
-    border-color: #F09819;
-}
-
-input[type="checkbox"]:checked + label::after {
+/* Custom checkbox when checked */
+input[type="checkbox"]:checked ~ label::after {
     content: "";
-    display: block;
+    position: absolute;
+    left: 17px;
+    top: 50%;
+    transform: translateY(-70%) rotate(45deg);
     width: 5px;
     height: 10px;
-    border: solid #fff;
+    border: solid #333;
     border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-    position: absolute;
-    left: 19px;
-    top: 6px;
+}
+
+/* Change checkbox background when checked */
+input[type="checkbox"]:checked ~ ::before {
+    background-color: #F09819;
+    border-color: #F09819;
 }
 
 /* Date picker styling */
 .date-picker-container {
     display: flex;
     justify-content: center;
-    margin: 10px 0;
+    margin: 5px 0; /* Reduce top margin */
     padding: 0 10px;
 }
 
