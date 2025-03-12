@@ -179,21 +179,31 @@ body {
     color: #eee239; /* Yellow icons */
 }
 
-/* Settings panel styling */
+/* Settings panel styling - modernized with transparent background */
 .settings-container {
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: transparent; /* Remove white background */
     border-radius: 12px;
-    padding: 20px;
-    margin: 20px auto;
-    max-width: 320px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    margin: 15px auto;
+    max-width: 280px; /* Smaller width */
     clear: both;
+    border: 2px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+    backdrop-filter: blur(5px); /* Modern blur effect */
+    -webkit-backdrop-filter: blur(5px);
 }
 
 .settings-item {
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
+    background-color: rgba(255, 255, 255, 0.2); /* Subtle background for each item */
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.settings-item:hover {
+    background-color: rgba(255, 255, 255, 0.3);
 }
 
 .settings-item:last-child {
@@ -202,45 +212,51 @@ body {
 
 .settings-item label {
     margin-left: 10px;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.4;
+    font-weight: 500;
+    color: #333;
 }
 
-/* Checkbox styling */
+/* Modern checkbox styling */
 input[type="checkbox"] {
     position: relative;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     cursor: pointer;
     margin-right: 10px;
+    opacity: 0;
 }
 
-input[type=checkbox]:before {
+input[type="checkbox"] + label::before {
     content: "";
     display: block;
     position: absolute;
     width: 18px;
     height: 18px;
-    top: 0;
-    left: 0;
-    border: 2px solid #333;
+    left: 12px;
+    border: 2px solid rgba(0, 0, 0, 0.4);
     border-radius: 4px;
-    background-color: #eee239;
+    background-color: rgba(238, 226, 57, 0.6);
+    transition: all 0.2s ease;
 }
 
-input[type=checkbox]:checked:after {
+input[type="checkbox"]:checked + label::before {
+    background-color: #F09819;
+    border-color: #F09819;
+}
+
+input[type="checkbox"]:checked + label::after {
     content: "";
     display: block;
     width: 5px;
     height: 10px;
-    border: solid #333;
+    border: solid #fff;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
-    -webkit-transform: rotate(45deg);
     position: absolute;
-    top: 3px;
-    left: 7px;
+    left: 19px;
+    top: 6px;
 }
 
 /* Date picker styling */
