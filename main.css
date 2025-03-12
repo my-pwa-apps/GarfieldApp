@@ -122,7 +122,7 @@ body {
     transform-origin: left bottom;
 }
 
-/* Bottom app bar styling - updated to match action buttons */
+/* Bottom app bar styling - yellow buttons with orange icons */
 .bottom-app-bar {
     position: fixed;
     bottom: 0;
@@ -141,7 +141,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #F09819; /* Orange buttons */
+    background-color: #eee239; /* Yellow buttons */
     border: none;
     height: 48px;
     width: 48px;
@@ -175,8 +175,10 @@ body {
 }
 
 .material-button .material-icons {
-    font-size: 24px;
-    color: #eee239; /* Yellow icons */
+    font-size: 28px; /* Larger for bolder appearance */
+    color: #F09819; /* Orange icons */
+    font-weight: 700; /* Make icons bolder */
+    -webkit-text-stroke: 0.5px #F09819; /* Add stroke for bolder appearance */
 }
 
 /* Settings panel styling - modernized with transparent background */
