@@ -27,16 +27,16 @@
 <body onload="onLoad()">
     <h1 hidden>Daily Garfield Comics App</h1>
     <div class="logo">
-        <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" style="width:100%; max-width: 400px; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
     </div>
     
     <div class="date-picker-container">
         <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
     </div>
     
-    <br>
-    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
-    <br>
+    <div class="comic-container">
+        <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
+    </div>
     
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
@@ -49,12 +49,25 @@
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
     
-    <div style="z-index: -1; margin-bottom: 80px;">
+    <div class="support-container">
         <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
         <script type='text/javascript'>
             kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
             kofiwidget2.draw();
         </script>
+    </div>
+    
+    <!-- Action Buttons as floating action buttons -->
+    <div class="action-fab-container">
+        <button onclick="HideSettings()" class="action-fab settings-fab">
+            <span class="material-icons">tune</span>
+        </button>
+        <button onclick="Addfav()" class="action-fab favorite-fab" id="favButton">
+            <span class="material-icons" id="favIcon">favorite_border</span>
+        </button>
+        <button onclick="Share()" class="action-fab share-fab">
+            <span class="material-icons">share</span>
+        </button>
     </div>
     
     <!-- Material Design Bottom App Bar -->
@@ -77,19 +90,6 @@
         <button class="material-button" id="Today" onclick="CurrentClick()">
             <span class="material-icons">today</span>
             <span class="button-label">Today</span>
-        </button>
-    </div>
-    
-    <!-- Action Buttons as a floating action button menu -->
-    <div class="action-fab-container">
-        <button onclick="HideSettings()" class="action-fab settings-fab">
-            <span class="material-icons">tune</span>
-        </button>
-        <button onclick="Addfav()" class="action-fab favorite-fab" id="favButton">
-            <span class="material-icons" id="favIcon">favorite_border</span>
-        </button>
-        <button onclick="Share()" class="action-fab share-fab">
-            <span class="material-icons">share</span>
         </button>
     </div>
     

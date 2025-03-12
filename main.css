@@ -4,6 +4,7 @@ body {
     color: black;
     background-color: orange;
     padding-bottom: 80px; /* Add padding to account for the bottom app bar */
+    min-height: 100vh;
 }
 
 main {
@@ -13,101 +14,21 @@ main {
     text-align: center;
 }
 
-/* Old button styles kept for reference */
-.button {
-    margin: 5px;
-    padding: 10px;
-    text-align: center;
-    transition: 0.5s;
-    background-size: 200% auto;
-    color: black;
-    border-radius: 10px;
-    border: none;
-    display: block;
-    font-weight: 700;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    touch-action: manipulation;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.button:active {
-    transform: scale(0.95);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.button:hover {
-    background-position: right center;
-    color: black;
-    text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-.button:disabled {
-    background-color: #f39700;
-    opacity: 0.5;
-    color: black;
-    box-shadow: none;
-}
-
-/* Action Fab Container - Floating action button styling */
-.action-fab-container {
-    position: fixed;
-    bottom: 80px;
-    right: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    z-index: 1000;
-    gap: 10px;
-}
-
-.action-fab {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
-    border: none;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    transition: all 0.3s ease;
-}
-
-.action-fab:hover {
-    transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
-}
-
-.action-fab:active {
-    transform: scale(0.95);
-}
-
-.action-fab .material-icons {
-    font-size: 22px;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-/* Update bottom app bar to have a more modern, cohesive look */
+/* Material Design Button Bar Styles */
 .bottom-app-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     height: 64px;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
     box-shadow: 0px -3px 10px rgba(0, 0, 0, 0.15);
-    border-radius: 20px 20px 0 0;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    padding: 0 8px;
     z-index: 1000;
     border-radius: 16px 16px 0 0;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    padding: 0 8px;
 }
 
 .material-button {
@@ -181,6 +102,48 @@ main {
     pointer-events: none;
 }
 
+/* Action Fab Container - Floating action button styling */
+.action-fab-container {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 990;
+    gap: 10px;
+}
+
+.action-fab {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    border: none;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.action-fab:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.action-fab:active {
+    transform: scale(0.95);
+}
+
+.action-fab .material-icons {
+    font-size: 22px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 /* Date picker container */
 .date-picker-container {
     display: flex;
@@ -205,27 +168,24 @@ input {
     background-color: #eee239;
 }
 
-/* Action Buttons group */
-.action-buttons {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 10px;
-    margin-right: 10px;
-}
-
-.action-icon {
-    width: 30px;
-    height: 30px;
-    margin-left: 15px;
-    cursor: pointer;
-}
-
-.buttongrid {
-    display: grid;
-    grid-template-columns: 33% 33% 33%;
-    grid-template-rows: 60% 40%;
+.logo {
     text-align: center;
-    gap: 3px;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Comic image styling */
+#comic {
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    transition: opacity 1s ease-in-out;
+    opacity: 1;
+}
+
+#comic.dissolve {
+    opacity: 0;
 }
 
 .rotate {
@@ -248,6 +208,16 @@ input {
     position: relative;
     right: 50%;
     left: 50%;
+}
+
+/* Settings div styling */
+#settingsDIV {
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px auto;
+    max-width: 300px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 input[type="checkbox"], label {
@@ -295,15 +265,6 @@ input[type=checkbox] {
     margin-bottom: 20px;
 }
 
-#comic {
-    transition: opacity 1s ease-in-out;
-    opacity: 1;
-}
-
-#comic.dissolve {
-    opacity: 0;
-}
-
 input[type="date"] {
     margin: 5px;
     padding: 10px;
@@ -328,6 +289,10 @@ input[type="date"]:focus {
 
 /* For small mobile screens */
 @media screen and (max-width: 360px) {
+    .button-label {
+        display: none;
+    }
+    
     .action-fab {
         width: 42px;
         height: 42px;
@@ -342,4 +307,24 @@ input[type="date"]:focus {
         right: 10px;
         gap: 8px;
     }
+
+    .bottom-app-bar {
+        height: 56px;
+        padding: 0 4px;
+    }
+}
+
+.comic-container {
+    position: relative;
+    width: 100%;
+    margin: 0 auto 20px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.support-container {
+    display: flex;
+    justify-content: center;
+    margin: 20px auto;
+    padding-bottom: 70px; /* Extra padding to account for the bottom app bar */
 }
