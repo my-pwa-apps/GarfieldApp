@@ -1,14 +1,27 @@
-body {
-    background: linear-gradient(#eee239, orange) no-repeat;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: black;
-    background-color: orange;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0 0 80px 0;
+/* Accessibility */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
 }
 
-/* Logo styling - removing white background */
+/* Base styles */
+body {
+    background: linear-gradient(#eee239, orange) no-repeat;
+    background-color: orange; /* Fallback */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: black;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0 0 80px 0; /* Bottom padding for the app bar */
+}
+
+/* Logo styling */
 .logo {
     width: 100%;
     text-align: center;
@@ -46,7 +59,29 @@ body {
     opacity: 0;
 }
 
-/* Action buttons now horizontal below comic */
+.rotate {
+    transform: rotate(90deg);
+    -ms-transform: rotate(90deg);
+    -webkit-transform: rotate(90deg);
+    margin-left: -22vw;
+    width: 140%;
+    position: absolute;
+    z-index: 100;
+}
+
+.normal {
+    transform: rotate(0deg);
+    -ms-transform: rotate(0deg);
+    -webkit-transform: rotate(0deg);
+    width: 100vw;
+    margin-left: -50vw;
+    margin-right: -50vw;
+    position: relative;
+    right: 50%;
+    left: 50%;
+}
+
+/* Action buttons styling */
 .action-buttons-container {
     display: flex;
     justify-content: center;
@@ -84,29 +119,7 @@ body {
     color: #333;
 }
 
-.rotate {
-    -ms-transform: rotate(90deg);
-    -webkit-transform: rotate(90deg);
-    transform: rotate(90deg);
-    margin-left: -22vw;
-    width: 140%;
-    position: absolute;
-    z-index: 100;
-}
-
-.normal {
-    -ms-transform: rotate(0deg);
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-    width: 100vw;
-    margin-left: -50vw;
-    margin-right: -50vw;
-    position: relative;
-    right: 50%;
-    left: 50%;
-}
-
-/* Settings container and items */
+/* Settings panel styling */
 .settings-container {
     background-color: rgba(255, 255, 255, 0.95);
     border-radius: 12px;
@@ -133,6 +146,7 @@ body {
     line-height: 1.4;
 }
 
+/* Checkbox styling */
 input[type="checkbox"] {
     position: relative;
     width: 20px;
@@ -161,15 +175,15 @@ input[type=checkbox]:checked:after {
     height: 10px;
     border: solid #333;
     border-width: 0 2px 2px 0;
-    -webkit-transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
     transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -webkit-transform: rotate(45deg);
     position: absolute;
     top: 3px;
     left: 7px;
 }
 
-/* Date picker container - making it smaller */
+/* Date picker styling */
 .date-picker-container {
     display: flex;
     justify-content: center;
@@ -179,28 +193,28 @@ input[type=checkbox]:checked:after {
 
 input[type="date"] {
     width: 100%;
-    max-width: 200px; /* Smaller width */
+    max-width: 200px;
     margin: 5px;
-    padding: 8px; /* Smaller padding */
+    padding: 8px;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    font-size: 14px; /* Smaller font */
+    font-size: 14px;
     box-sizing: border-box;
     text-align: center;
     border-radius: 8px;
     opacity: 0.9;
     background-color: #eee239;
     border: none;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 input[type="date"]:focus {
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     outline: none;
 }
 
-/* Updated bottom app bar - orange with yellow buttons */
+/* Bottom app bar styling */
 .bottom-app-bar {
     position: fixed;
     bottom: 0;
@@ -244,10 +258,18 @@ input[type="date"]:focus {
 .material-button:disabled {
     opacity: 0.5;
     background-color: #f0f0f0;
+    pointer-events: none;
+}
+
+.material-button.disabled {
+    opacity: 0.5;
+    color: rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    background-color: #f0f0f0;
 }
 
 .material-button .material-icons {
-    font-size: 28px; /* Larger icons */
+    font-size: 28px;
     color: #333;
 }
 
@@ -255,10 +277,10 @@ input[type="date"]:focus {
     display: flex;
     justify-content: center;
     margin: 20px auto;
-    padding-bottom: 70px; /* Extra padding to account for the bottom app bar */
+    padding-bottom: 70px; /* Extra padding for the bottom app bar */
 }
 
-/* For small mobile screens */
+/* Responsive styles */
 @media screen and (max-width: 360px) {
     .material-button {
         height: 48px;

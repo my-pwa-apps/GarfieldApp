@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
-    <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
+    <meta name="description" content="Garfield Comics App - Browse current, next, previous, random, and favorite Garfield comics with swipe navigation">
     <meta name="msapplication-TileColor" content="#eee239">
     <meta name="theme-color" content="#eee239">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
@@ -25,73 +25,81 @@
 </head>
 
 <body onload="onLoad()">
-    <h1 hidden>Daily Garfield Comics App</h1>
-    <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
-    </div>
-    
-    <div class="date-picker-container">
-        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-    </div>
-    
-    <div class="comic-container">
-        <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
-    </div>
-    
-    <!-- Action Buttons now horizontal below the comic -->
-    <div class="action-buttons-container">
-        <button onclick="HideSettings()" class="action-button settings-button">
-            <span class="material-icons">tune</span>
-        </button>
-        <button onclick="Addfav()" class="action-button favorite-button" id="favButton">
-            <span class="material-icons" id="favIcon">favorite_border</span>
-        </button>
-        <button onclick="Share()" class="action-button share-button">
-            <span class="material-icons">share</span>
-        </button>
-    </div>
-    
-    <div id="settingsDIV" class="settings-container">
-        <div class="settings-item">
-            <input type="checkbox" id="swipe" checked>
-            <label for="swipe" class="labels">Swipe enabled</label>
+    <header>
+        <h1 class="visually-hidden">Daily Garfield Comics App</h1>
+        <div class="logo">
+            <img src="./garlogo.png" alt="Daily Garfield Comics">
         </div>
-        <div class="settings-item">
-            <input type="checkbox" id="showfavs" checked>
-            <label for="showfavs" class="labels">Show only my favorites</label>
+        
+        <div class="date-picker-container">
+            <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date">
         </div>
-        <div class="settings-item">
-            <input type="checkbox" id="lastdate" checked>
-            <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
-        </div>
-    </div>
+    </header>
     
-    <div class="support-container">
-        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-        <script type='text/javascript'>
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-        </script>
-    </div>
+    <main>
+        <section class="comic-container">
+            <img id="comic" onclick="Rotate()" class="normal" alt="Garfield comic strip for the selected date" loading="lazy">
+        </section>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons-container">
+            <button onclick="HideSettings()" class="action-button settings-button" aria-label="Toggle Settings">
+                <span class="material-icons">tune</span>
+            </button>
+            <button onclick="Addfav()" class="action-button favorite-button" id="favButton" aria-label="Toggle Favorite">
+                <span class="material-icons" id="favIcon">favorite_border</span>
+            </button>
+            <button onclick="Share()" class="action-button share-button" aria-label="Share Comic">
+                <span class="material-icons">share</span>
+            </button>
+        </div>
+        
+        <!-- Settings Panel -->
+        <section id="settingsDIV" class="settings-container">
+            <h2 class="visually-hidden">Settings</h2>
+            <div class="settings-item">
+                <input type="checkbox" id="swipe" checked>
+                <label for="swipe">Swipe enabled</label>
+            </div>
+            <div class="settings-item">
+                <input type="checkbox" id="showfavs" checked>
+                <label for="showfavs">Show only my favorites</label>
+            </div>
+            <div class="settings-item">
+                <input type="checkbox" id="lastdate" checked>
+                <label for="lastdate">Remember last comic on exit/refresh</label>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="support-container">
+            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+            <script type='text/javascript'>
+                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                kofiwidget2.draw();
+            </script>
+        </div>
+    </footer>
     
     <!-- Material Design Bottom App Bar -->
-    <div class="bottom-app-bar">
-        <button class="material-button" id="First" onclick="FirstClick()">
+    <nav class="bottom-app-bar">
+        <button class="material-button" id="First" onclick="FirstClick()" aria-label="First Comic">
             <span class="material-icons">first_page</span>
         </button>
-        <button class="material-button" id="Previous" onclick="PreviousClick()">
+        <button class="material-button" id="Previous" onclick="PreviousClick()" aria-label="Previous Comic">
             <span class="material-icons">navigate_before</span>
         </button>
-        <button class="material-button" id="Random" onclick="RandomClick()">
+        <button class="material-button" id="Random" onclick="RandomClick()" aria-label="Random Comic">
             <span class="material-icons">casino</span>
         </button>
-        <button class="material-button" id="Next" onclick="NextClick()">
+        <button class="material-button" id="Next" onclick="NextClick()" aria-label="Next Comic">
             <span class="material-icons">navigate_next</span>
         </button>
-        <button class="material-button" id="Today" onclick="CurrentClick()">
+        <button class="material-button" id="Today" onclick="CurrentClick()" aria-label="Today's Comic">
             <span class="material-icons">today</span>
         </button>
-    </div>
+    </nav>
     
     <script src="./app.js" defer></script>
 </body>
