@@ -38,12 +38,6 @@
     <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
     <br>
     
-    <div class="action-buttons">
-        <img onclick="HideSettings()" src="./tune.svg" class="action-icon" alt="Settings">
-        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" class="action-icon" alt="Favorite">
-        <img onclick="Share()" src="./share.svg" class="action-icon" alt="Share">
-    </div>
-    
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
@@ -53,6 +47,14 @@
         <br>
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    </div>
+    
+    <div style="z-index: -1; margin-bottom: 80px;">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+        <script type='text/javascript'>
+            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+            kofiwidget2.draw();
+        </script>
     </div>
     
     <!-- Material Design Bottom App Bar -->
@@ -67,7 +69,6 @@
         </button>
         <button class="material-button fab" id="Random" onclick="RandomClick()">
             <span class="material-icons">casino</span>
-            <span class="button-label">Random</span>
         </button>
         <button class="material-button" id="Next" onclick="NextClick()">
             <span class="material-icons">navigate_next</span>
@@ -78,14 +79,20 @@
             <span class="button-label">Today</span>
         </button>
     </div>
-
-    <div style="z-index: -1; margin-bottom: 80px;">
-        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-        <script type='text/javascript'>
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-        </script>
+    
+    <!-- Action Buttons as a floating action button menu -->
+    <div class="action-fab-container">
+        <button onclick="HideSettings()" class="action-fab settings-fab">
+            <span class="material-icons">tune</span>
+        </button>
+        <button onclick="Addfav()" class="action-fab favorite-fab" id="favButton">
+            <span class="material-icons" id="favIcon">favorite_border</span>
+        </button>
+        <button onclick="Share()" class="action-fab share-fab">
+            <span class="material-icons">share</span>
+        </button>
     </div>
+    
     <script src="./app.js" defer></script>
 </body>
 

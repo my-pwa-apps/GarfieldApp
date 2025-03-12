@@ -53,20 +53,61 @@ main {
     box-shadow: none;
 }
 
-/* Material Design Button Bar Styles */
-.bottom-app-bar {
+/* Action Fab Container - Floating action button styling */
+.action-fab-container {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 64px;
-    background-color: #fff;
+    bottom: 80px;
+    right: 16px;
     display: flex;
-    justify-content: space-around;
+    flex-direction: column;
+    align-items: flex-end;
+    z-index: 1000;
+    gap: 10px;
+}
+
+.action-fab {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    border: none;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
     align-items: center;
-    box-shadow: 0px -2px 10px rgba(0, 0, 0, 0.1);
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.action-fab:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+.action-fab:active {
+    transform: scale(0.95);
+}
+
+.action-fab .material-icons {
+    font-size: 22px;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Update bottom app bar to have a more modern, cohesive look */
+.bottom-app-bar {
+    height: 64px;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
+    box-shadow: 0px -3px 10px rgba(0, 0, 0, 0.15);
+    border-radius: 20px 20px 0 0;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    padding: 0 8px;
     z-index: 1000;
     border-radius: 16px 16px 0 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .material-button {
@@ -83,41 +124,46 @@ main {
 }
 
 .material-button:hover {
-    color: #F09819;
+    color: #fff;
+    transform: translateY(-3px);
 }
 
 .material-button:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
 }
 
 .material-button:disabled {
     opacity: 0.5;
-    color: #999;
+    color: rgba(0, 0, 0, 0.4);
 }
 
 .material-button .material-icons {
     font-size: 24px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .material-button .button-label {
     font-size: 12px;
     margin-top: 4px;
+    font-weight: 500;
 }
 
 .material-button.fab {
     position: relative;
     top: -20px;
+    background-color: #fff;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 100%);
     border-radius: 50%;
     width: 56px;
     height: 56px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     margin: 0 8px;
 }
 
 .material-button.fab .material-icons {
     font-size: 24px;
     color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .material-button.fab .button-label {
@@ -125,8 +171,14 @@ main {
 }
 
 .material-button.fab:hover {
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: translateY(-4px);
+}
+
+.material-button.disabled {
+    opacity: 0.5;
+    color: rgba(0, 0, 0, 0.4);
+    pointer-events: none;
 }
 
 /* Date picker container */
@@ -134,6 +186,8 @@ main {
     display: flex;
     justify-content: center;
     margin: 10px 0;
+    position: relative;
+    z-index: 5;
 }
 
 input {
@@ -274,15 +328,18 @@ input[type="date"]:focus {
 
 /* For small mobile screens */
 @media screen and (max-width: 360px) {
-    .button-label {
-        display: none;
+    .action-fab {
+        width: 42px;
+        height: 42px;
     }
-
-    .bottom-app-bar {
-        height: 56px;
+     
+    .action-fab .material-icons {
+        font-size: 20px;
     }
-
-    .material-button .material-icons {
-        font-size: 22px;
+     
+    .action-fab-container {
+        bottom: 75px;
+        right: 10px;
+        gap: 8px;
     }
 }

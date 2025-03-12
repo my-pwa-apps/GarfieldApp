@@ -38,13 +38,13 @@ function Addfav()
 	if(favs.indexOf(formattedComicDate) == -1)
 	{
 		favs.push(formattedComicDate);
-		document.getElementById("favheart").src="./heart.svg";
+		document.getElementById("favIcon").innerHTML = "favorite";
 		document.getElementById("showfavs").disabled = false;
 	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
-		document.getElementById("favheart").src="./heartborder.svg";
+		document.getElementById("favIcon").innerHTML = "favorite_border";
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
@@ -234,11 +234,11 @@ function showComic()
 		}
 		if(favs.indexOf(formattedComicDate) == -1)
 		{
-			document.getElementById("favheart").src="./heartborder.svg";
+			document.getElementById("favIcon").innerHTML = "favorite_border";
 		}	
 		else
 		{
-			document.getElementById("favheart").src="./heart.svg";
+			document.getElementById("favIcon").innerHTML = "favorite";
 		}
     });
 };
