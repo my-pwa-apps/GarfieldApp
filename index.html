@@ -39,20 +39,29 @@
     <main>
         <section class="comic-container">
             <img id="comic" onclick="Rotate()" class="normal" alt="Garfield comic strip for the selected date" loading="lazy">
+            
+            <!-- Action Buttons positioned at bottom right of comic -->
+            <div class="action-buttons-container">
+                <button onclick="HideSettings()" class="action-button settings-button" aria-label="Toggle Settings">
+                    <span class="material-icons">tune</span>
+                </button>
+                <button onclick="Addfav()" class="action-button favorite-button" id="favButton" aria-label="Toggle Favorite">
+                    <span class="material-icons" id="favIcon">favorite_border</span>
+                </button>
+                <button onclick="Share()" class="action-button share-button" aria-label="Share Comic">
+                    <span class="material-icons">share</span>
+                </button>
+            </div>
+            
+            <!-- Ko-fi button positioned at bottom left of comic -->
+            <div class="support-container">
+                <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+                <script type='text/javascript'>
+                    kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                    kofiwidget2.draw();
+                </script>
+            </div>
         </section>
-        
-        <!-- Action Buttons -->
-        <div class="action-buttons-container">
-            <button onclick="HideSettings()" class="action-button settings-button" aria-label="Toggle Settings">
-                <span class="material-icons">tune</span>
-            </button>
-            <button onclick="Addfav()" class="action-button favorite-button" id="favButton" aria-label="Toggle Favorite">
-                <span class="material-icons" id="favIcon">favorite_border</span>
-            </button>
-            <button onclick="Share()" class="action-button share-button" aria-label="Share Comic">
-                <span class="material-icons">share</span>
-            </button>
-        </div>
         
         <!-- Settings Panel -->
         <section id="settingsDIV" class="settings-container">
@@ -71,16 +80,6 @@
             </div>
         </section>
     </main>
-    
-    <footer>
-        <div class="support-container">
-            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-            <script type='text/javascript'>
-                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                kofiwidget2.draw();
-            </script>
-        </div>
-    </footer>
     
     <!-- Material Design Bottom App Bar -->
     <nav class="bottom-app-bar">
