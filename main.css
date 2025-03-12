@@ -44,7 +44,7 @@ body {
     text-align: center;
     overflow: hidden;
     position: relative;
-    padding-bottom: 50px; /* Add padding at bottom to prevent overlap with buttons */
+    padding-bottom: 70px; /* Increase padding at bottom to create more space */
 }
 
 #comic {
@@ -74,10 +74,10 @@ body {
     -webkit-transform: rotate(0deg);
 }
 
-/* Action buttons styling - positioned below comic */
+/* Action buttons styling - positioned lower below comic */
 .action-buttons-container {
     position: absolute;
-    bottom: 10px;
+    bottom: 20px; /* Position lower */
     right: 10px;
     display: flex;
     gap: 10px;
@@ -112,10 +112,10 @@ body {
     color: #eee239; /* Yellow icons */
 }
 
-/* Support container - positioned below comic */
+/* Support container - positioned lower below comic */
 .support-container {
     position: absolute;
-    bottom: 10px;
+    bottom: 20px; /* Position lower */
     left: 10px;
     z-index: 50;
     transform: scale(0.8);
