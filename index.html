@@ -19,6 +19,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <script src="./swiped-events.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
@@ -28,31 +29,21 @@
     <div class="logo">
         <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
     </div>
-    <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
+    
+    <div class="date-picker-container">
         <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
     </div>
-    <br>
+    
     <br>
     <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
     <br>
-    <br>
-    <div style="z-index: -1;">
-        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-        <script type='text/javascript'>
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-        </script>
-        <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; right: 120px; position: absolute;">
-        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; right: 70px; position: absolute;">
-        <img onclick="Share()" src="./share.svg" style="width: 30px; right: 20px; position: absolute;">
+    
+    <div class="action-buttons">
+        <img onclick="HideSettings()" src="./tune.svg" class="action-icon" alt="Settings">
+        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" class="action-icon" alt="Favorite">
+        <img onclick="Share()" src="./share.svg" class="action-icon" alt="Share">
     </div>
-    <br>
-    <br>
+    
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
@@ -62,6 +53,38 @@
         <br>
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    </div>
+    
+    <!-- Material Design Bottom App Bar -->
+    <div class="bottom-app-bar">
+        <button class="material-button" id="First" onclick="FirstClick()">
+            <span class="material-icons">first_page</span>
+            <span class="button-label">First</span>
+        </button>
+        <button class="material-button" id="Previous" onclick="PreviousClick()">
+            <span class="material-icons">navigate_before</span>
+            <span class="button-label">Previous</span>
+        </button>
+        <button class="material-button fab" id="Random" onclick="RandomClick()">
+            <span class="material-icons">casino</span>
+            <span class="button-label">Random</span>
+        </button>
+        <button class="material-button" id="Next" onclick="NextClick()">
+            <span class="material-icons">navigate_next</span>
+            <span class="button-label">Next</span>
+        </button>
+        <button class="material-button" id="Today" onclick="CurrentClick()">
+            <span class="material-icons">today</span>
+            <span class="button-label">Today</span>
+        </button>
+    </div>
+
+    <div style="z-index: -1; margin-bottom: 80px;">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+        <script type='text/javascript'>
+            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+            kofiwidget2.draw();
+        </script>
     </div>
     <script src="./app.js" defer></script>
 </body>

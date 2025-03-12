@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -50,7 +49,7 @@ function Addfav()
 		{
 			document.getElementById("showfavs").checked = false;
 			document.getElementById("showfavs").disabled = true;
-			document.getElementById("Today").innerHTML = 'Today';
+			document.getElementById('Today').querySelector('.button-label').innerHTML = 'Today';
 		}
 	}
 	favs.sort();
@@ -261,12 +260,18 @@ function CompareDates() {
 	if(currentselectedDate.getTime() <= startDate.getTime()) {
 		document.getElementById("Previous").disabled = true;
 		document.getElementById("First").disabled = true;
+		// Update Material design icons styling for disabled state
+		document.getElementById("Previous").classList.add('disabled');
+		document.getElementById("First").classList.add('disabled');
 		formatDate(startDate);
 		startDate = year + '-' + month + '-' + day;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
+		// Remove disabled styling
+		document.getElementById("Previous").classList.remove('disabled');
+		document.getElementById("First").classList.remove('disabled');
 	}
 	if(document.getElementById("showfavs").checked) {
 		endDate = new Date(favs[favs.length - 1]);
@@ -279,21 +284,33 @@ function CompareDates() {
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
 		document.getElementById("Next").disabled = true;
 		document.getElementById("Today").disabled = true;
+		// Update Material design icons styling for disabled state
+		document.getElementById("Next").classList.add('disabled');
+		document.getElementById("Today").classList.add('disabled');
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Next").disabled = false;
 		document.getElementById("Today").disabled = false;
+		// Remove disabled styling
+		document.getElementById("Next").classList.remove('disabled');
+		document.getElementById("Today").classList.remove('disabled');
 	}
 	if(document.getElementById("showfavs").checked) {
 		if(favs.length == 1) {
 			document.getElementById("Random").disabled = true;
 			document.getElementById("Previous").disabled = true;
 			document.getElementById("First").disabled = true;
+			// Update Material design icons styling for disabled state
+			document.getElementById("Random").classList.add('disabled');
+			document.getElementById("Previous").classList.add('disabled');
+			document.getElementById("First").classList.add('disabled');
 		}}
 	else {
-		document.getElementById("Random").disabled = false;}
+		document.getElementById("Random").disabled = false;
+		document.getElementById("Random").classList.remove('disabled');
+	}
 }
 
 function formatDate(datetoFormat) {
@@ -377,12 +394,12 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		document.getElementById('Today').innerHTML = 'Last'
+		document.getElementById('Today').querySelector('.button-label').innerHTML = 'Last';
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		document.getElementById('Today').innerHTML = 'Today'
+		document.getElementById('Today').querySelector('.button-label').innerHTML = 'Today';
 	}
 	CompareDates();
 	showComic();
@@ -402,12 +419,12 @@ getStatus = localStorage.getItem('showfavs');
 if (getStatus == "true") 
 {
 	document.getElementById("showfavs").checked = true;
-	document.getElementById('Today').innerHTML = 'Last'
+	document.getElementById('Today').querySelector('.button-label').innerHTML = 'Last';
 }
 else
 {
 	document.getElementById("showfavs").checked = false;
-	document.getElementById('Today').innerHTML = 'Today'
+	document.getElementById('Today').querySelector('.button-label').innerHTML = 'Today';
 }
 
 getStatus = localStorage.getItem('lastdate');
@@ -465,5 +482,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+
