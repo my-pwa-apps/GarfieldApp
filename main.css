@@ -71,8 +71,8 @@ body {
     -webkit-transform: rotate(90deg);
     width: auto !important;
     height: auto !important; /* Auto height */
-    max-height: 85vw !important; /* Use viewport width as height limit */
-    max-width: 85vh !important; /* Use viewport height as width limit */
+    max-height: 90vw !important; /* Increased from 85vw */
+    max-width: 90vh !important; /* Increased from 85vh */
     position: fixed !important;
     z-index: 999 !important;
     top: 50% !important;
