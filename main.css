@@ -29,7 +29,7 @@ body {
 .logo {
     width: 100%;
     text-align: center;
-    padding: 15px 0 5px; /* Reduce bottom padding */
+    padding: 10px 0 0; /* Reduced padding more */
     background: transparent;
 }
 
@@ -198,7 +198,7 @@ body {
     max-width: 260px; /* Slightly narrower */
     border: none;
     position: absolute; /* Absolute position instead of fixed */
-    bottom: 110px; /* Position lower - increased from 90px */
+    bottom: 80px; /* Position at same level as install button (80px) */
     left: 50%;
     transform: translateX(-50%); /* Center horizontally */
     z-index: 500;
