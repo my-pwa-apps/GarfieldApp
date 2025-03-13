@@ -61,8 +61,8 @@ body {
     transform: rotate(90deg);
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
-    width: auto !important; /* Override any existing width constraints */
-    height: 150vh !important; /* Increased from 100vh to take more space */
+    width: auto !important; 
+    height: 100vh !important; /* Reduced from 150vh */
     max-width: none !important;
     max-height: none !important;
     position: fixed !important; /* Fixed position to take over the screen */
@@ -70,7 +70,7 @@ body {
     top: 50% !important;
     left: 50% !important;
     transform-origin: center !important;
-    transform: translate(-50%, -50%) rotate(90deg) scale(2) !important; /* Increased scale from 1.2 to 2 */
+    transform: translate(-50%, -50%) rotate(90deg) scale(1.2) !important; /* Reduced from 2 to 1.2 */
     margin: 0 !important;
     object-fit: contain !important;
     background-color: rgba(255, 255, 255, 0.95) !important; /* Light background for better readability */
@@ -82,54 +82,6 @@ body {
     transform: rotate(0deg);
     -ms-transform: rotate(0deg);
     -webkit-transform: rotate(0deg);
-}
-
-/* Action buttons styling - positioned lower below comic */
-.action-buttons-container {
-    position: absolute;
-    bottom: 20px; /* Position lower */
-    right: 10px;
-    display: flex;
-    gap: 10px;
-    z-index: 50;
-}
-
-.action-button {
-    width: 40px; /* Smaller buttons */
-    height: 40px;
-    border-radius: 50%;
-    background-color: #F09819; /* Orange background */
-    border: none;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s ease;
-}
-
-.action-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.action-button:active {
-    transform: scale(0.95);
-}
-
-.action-button .material-icons {
-    font-size: 20px;
-    color: #eee239; /* Yellow icons */
-}
-
-/* Support container - positioned lower below comic */
-.support-container {
-    position: absolute;
-    bottom: 20px; /* Position lower */
-    left: 10px;
-    z-index: 50;
-    transform: scale(0.8);
-    transform-origin: left bottom;
 }
 
 /* Bottom app bar styling - yellow buttons with orange icons */
@@ -171,6 +123,13 @@ body {
     transform: scale(0.92);
 }
 
+.material-button .material-icons {
+    font-size: 28px; /* Larger for bolder appearance */
+    color: #F09819; /* Orange icons */
+    font-weight: 700; /* Make icons bolder */
+    -webkit-text-stroke: 0.5px #F09819; /* Add stroke for bolder appearance */
+}
+
 .material-button:disabled, 
 .material-button.disabled {
     opacity: 0.6;
@@ -184,24 +143,60 @@ body {
     -webkit-text-stroke: 0;
 }
 
-.material-button .material-icons {
-    font-size: 28px; /* Larger for bolder appearance */
-    color: #F09819; /* Orange icons */
-    font-weight: 700; /* Make icons bolder */
-    -webkit-text-stroke: 0.5px #F09819; /* Add stroke for bolder appearance */
+/* Action buttons styling - positioned lower below comic */
+.action-buttons-container {
+    position: absolute;
+    bottom: 20px; /* Position lower */
+    right: 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 50;
 }
 
-/* Settings panel styling - modernized with transparent background */
+.action-button {
+    width: 40px; /* Smaller buttons */
+    height: 40px;
+    border-radius: 50%;
+    background-color: #F09819; /* Orange background */
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.action-button:active {
+    transform: scale(0.95);
+}
+
+.action-button .material-icons {
+    font-size: 20px;
+    color: #eee239; /* Yellow icons */
+}
+
+/* Settings panel styling - floated with no border */
 .settings-container {
-    background-color: transparent; /* Remove white background */
+    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
     border-radius: 12px;
     padding: 15px;
-    margin: 15px auto;
+    margin: 0;
     max-width: 280px; /* Smaller width */
-    clear: both;
-    border: 2px solid rgba(255, 255, 255, 0.3); /* Subtle border */
-    backdrop-filter: blur(5px); /* Modern blur effect */
-    -webkit-backdrop-filter: blur(5px);
+    border: none; /* Remove border */
+    backdrop-filter: blur(8px); /* Modern blur effect */
+    -webkit-backdrop-filter: blur(8px);
+    position: fixed; /* Float the settings */
+    top: 20%; 
+    right: 15px;
+    z-index: 900;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
+    display: none; /* Hidden by default */
 }
 
 /* Modern checkbox styling - completely rewritten for better compatibility */
@@ -292,6 +287,16 @@ input[type="date"] {
 input[type="date"]:focus {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     outline: none;
+}
+
+/* Support container - make larger and reposition */
+.support-container {
+    position: absolute;
+    bottom: 20px;
+    left: 10px;
+    z-index: 50;
+    transform: scale(0.95); /* Increased from 0.9 - make Ko-fi button larger */
+    transform-origin: left bottom;
 }
 
 /* Responsive styles */

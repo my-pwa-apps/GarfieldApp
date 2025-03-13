@@ -89,7 +89,21 @@ function HideSettings() {
     const settingsDiv = document.getElementById("settingsDIV");
     const isVisible = settingsDiv.style.display !== "none";
     
-    settingsDiv.style.display = isVisible ? "none" : "block";
+    if (isVisible) {
+        // Hide settings with fade out animation
+        settingsDiv.style.opacity = 0;
+        setTimeout(() => {
+            settingsDiv.style.display = "none";
+        }, 200);
+    } else {
+        // Show settings with fade in animation
+        settingsDiv.style.display = "block";
+        settingsDiv.style.opacity = 0;
+        setTimeout(() => {
+            settingsDiv.style.opacity = 1;
+        }, 10);
+    }
+    
     localStorage.setItem('settings', isVisible ? "false" : "true");
 }
 
