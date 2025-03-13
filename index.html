@@ -59,6 +59,25 @@
                 <script type='text/javascript'>
                     kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
                     kofiwidget2.draw();
+                    
+                    // Add custom style for Ko-fi button text
+                    setTimeout(() => {
+                        const kofiIframe = document.querySelector('.floatingchat-container-wrap iframe');
+                        if (kofiIframe) {
+                            kofiIframe.onload = function() {
+                                kofiIframe.contentDocument.head.insertAdjacentHTML(
+                                    'beforeend',
+                                    '<style>.kofitext { color: #eee239 !important; }</style>'
+                                );
+                            };
+                        }
+                        
+                        // Direct styling for Ko-fi button if available
+                        const kofiButton = document.querySelector('.btn-container a span.kofitext');
+                        if (kofiButton) {
+                            kofiButton.style.color = '#eee239';
+                        }
+                    }, 500);
                 </script>
             </div>
         </section>

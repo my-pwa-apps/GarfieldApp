@@ -298,7 +298,7 @@ input[type="date"] {
     text-align: center;
     border-radius: 20px; /* Rounded corners like buttons */
     background-color: #F09819; /* Orange background to match action buttons */
-    color: #fff; /* White text for better contrast */
+    color: #eee239; /* Yellow text to match buttons */
     border: none;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
     transition: all 0.3s ease;
