@@ -61,11 +61,13 @@ body {
     transform: rotate(90deg);
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
-    width: 140%;
-    max-height: 100vh;
+    width: auto;
+    height: 90vh; /* Use viewport height to maximize screen usage */
+    max-width: none;
     position: relative;
     z-index: 90;
-    margin: 0 -20%;
+    margin: 0 auto;
+    display: block;
 }
 
 .normal {

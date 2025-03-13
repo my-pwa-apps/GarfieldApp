@@ -345,10 +345,35 @@ function formatDate(dateToFormat) {
 
 /**
  * Toggle comic orientation (portrait/landscape)
+ * Maximizes screen usage while maintaining aspect ratio
  */
 function Rotate() {
     const element = document.getElementById('comic');
-    element.className = element.className === "normal" ? "rotate" : "normal";
+    const comicContainer = document.querySelector('.comic-container');
+    
+    if (element.className === "normal") {
+        // Switching to rotated view
+        element.className = "rotate";
+        comicContainer.style.overflow = "visible";
+        comicContainer.style.zIndex = "100";
+        
+        // Hide buttons when in rotated view to maximize screen space
+        const actionButtons = document.querySelector('.action-buttons-container');
+        const supportContainer = document.querySelector('.support-container');
+        if (actionButtons) actionButtons.style.visibility = "hidden";
+        if (supportContainer) supportContainer.style.visibility = "hidden";
+    } else {
+        // Switching back to normal view
+        element.className = "normal";
+        comicContainer.style.overflow = "hidden";
+        comicContainer.style.zIndex = "initial";
+        
+        // Show buttons again when back to normal view
+        const actionButtons = document.querySelector('.action-buttons-container');
+        const supportContainer = document.querySelector('.support-container');
+        if (actionButtons) actionButtons.style.visibility = "visible";
+        if (supportContainer) supportContainer.style.visibility = "visible";
+    }
 }
 
 // Swipe event handlers
@@ -449,16 +474,29 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 function showInstallPromotion() {
     const installButton = document.createElement('button');
-    installButton.innerText = 'Install App';
     installButton.className = 'action-button install-button';
     installButton.style.position = 'fixed';
     installButton.style.bottom = '80px';
     installButton.style.right = '10px';
+    installButton.style.width = 'auto';
+    installButton.style.height = 'auto';
+    installButton.style.padding = '8px 12px';
+    installButton.style.borderRadius = '20px';
+    installButton.style.display = 'flex';
+    installButton.style.alignItems = 'center';
+    installButton.style.gap = '4px';
     
     const icon = document.createElement('span');
     icon.className = 'material-icons';
     icon.innerText = 'download';
-    installButton.prepend(icon);
+    
+    const text = document.createElement('span');
+    text.innerText = 'Install App';
+    text.style.fontSize = '14px';
+    text.style.fontWeight = '500';
+    
+    installButton.appendChild(icon);
+    installButton.appendChild(text);
     
     document.body.appendChild(installButton);
 
