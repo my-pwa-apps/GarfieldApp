@@ -58,13 +58,89 @@ function Addfav()
 	showComic();
 }
 
+function showComic()
+{
+	formatDate(currentselectedDate);
+	formattedDate = year + "-" + month + "-" + day;
+	formattedComicDate = year + "/" + month + "/" + day;
+	document.getElementById('DatePicker').value = formattedDate;
+	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+    localStorage.setItem('lastcomic', currentselectedDate);
+	fetch(siteUrl)
+    .then(function(response)
+	{
+      return response.text();
+    })
+    .then(function(text)
+	{
+      siteBody = text;
+      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
+      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+      if(pictureUrl != previousUrl) {
+		//document.getElementById("comic").src = pictureUrl;
+		changeComicImage(pictureUrl);
+	  }
+	  else
+	  {
+		if(previousclicked == true)
+		{
+			PreviousClick();
+		}
+	  }	
+	  previousclicked = false;			
+	  previousUrl = pictureUrl;
+	  var favs = JSON.parse(localStorage.getItem('favs'));
+		if(favs == null)
+		{
+			favs = [];
+		}
+		if(favs.indexOf(formattedComicDate) == -1)
+		{
+			document.getElementById("favheart").src="./heartborder.svg";
+		}	
+		else
+		{
+			document.getElementById("favheart").src="./heart.svg";
+		}
+    });
+};
+
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
     setTimeout(() => {
         comic.src = newSrc;
         comic.classList.remove('dissolve');
+        
+        // Check comic orientation when it loads
+        comic.onload = function() {
+            checkComicOrientation(comic);
+        };
     }, 500); // Match the duration of the CSS transition
+}
+
+function checkComicOrientation(comicElement) {
+    // If it's a vertical comic (height > width)
+    if (comicElement.naturalHeight > comicElement.naturalWidth) {
+        comicElement.classList.remove('normal');
+        comicElement.classList.add('vertical');
+    } else {
+        // Horizontal comic
+        comicElement.classList.remove('vertical');
+        comicElement.classList.add('normal');
+    }
+}
+
+function Rotate() {
+	var element = document.getElementById('comic');
+	// Only rotate if it's not a vertical comic
+	if (element.naturalHeight <= element.naturalWidth) {
+		if(element.className === "normal") {
+			element.className = "rotate";
+		} else if(element.className === "rotate") {
+			element.className = 'normal';
+		}
+	}
 }
 
 function HideSettings()
@@ -196,53 +272,6 @@ function DateChange() {
 	showComic();
 }
 
-function showComic()
-{
-	formatDate(currentselectedDate);
-	formattedDate = year + "-" + month + "-" + day;
-	formattedComicDate = year + "/" + month + "/" + day;
-	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
-    localStorage.setItem('lastcomic', currentselectedDate);
-	fetch(siteUrl)
-    .then(function(response)
-	{
-      return response.text();
-    })
-    .then(function(text)
-	{
-      siteBody = text;
-      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl) {
-		//document.getElementById("comic").src = pictureUrl;
-		changeComicImage(pictureUrl);
-	  }
-	  else
-	  {
-		if(previousclicked == true)
-		{
-			PreviousClick();
-		}
-	  }	
-	  previousclicked = false;			
-	  previousUrl = pictureUrl;
-	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
-		{
-			favs = [];
-		}
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").src="./heartborder.svg";
-		}	
-		else
-		{
-			document.getElementById("favheart").src="./heart.svg";
-		}
-    });
-};
-
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked)
@@ -301,15 +330,6 @@ function formatDate(datetoFormat) {
 	year = datetoFormat.getFullYear();
 	month = ("0" + month).slice(-2);
 	day = ("0" + day).slice(-2);
-}
-
-function Rotate() {
-	var element = document.getElementById('comic');
-	if(element.className === "normal") {
-		element.className = "rotate";
-	} else if(element.className === "rotate") {
-		element.className = 'normal';
-	}
 }
 
 document.addEventListener('swiped-down', function(e) {
