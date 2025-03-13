@@ -545,11 +545,13 @@ function showInstallPromotion() {
     const icon = document.createElement('span');
     icon.className = 'material-icons';
     icon.innerText = 'download';
+    icon.style.color = '#eee239'; /* Yellow icon color */
     
     const text = document.createElement('span');
     text.innerText = 'Install App';
     text.style.fontSize = '14px';
     text.style.fontWeight = '500';
+    text.style.color = '#eee239'; /* Yellow text color */
     
     installButton.appendChild(icon);
     installButton.appendChild(text);
