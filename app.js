@@ -385,6 +385,11 @@ function Rotate() {
         if (header)
             header.style.visibility = "hidden";
         
+        // Also hide the install button if present
+        const installButton = document.querySelector('.install-button');
+        if (installButton)
+            installButton.style.visibility = "hidden";
+        
         // Add tap instruction
         const instruction = document.createElement('div');
         instruction.id = 'rotate-instruction';
@@ -420,6 +425,11 @@ function Rotate() {
             
         if (header)
             header.style.visibility = "visible";
+        
+        // Also show the install button again if present
+        const installButton = document.querySelector('.install-button');
+        if (installButton)
+            installButton.style.visibility = "visible";
         
         // Remove instruction
         const instruction = document.getElementById('rotate-instruction');

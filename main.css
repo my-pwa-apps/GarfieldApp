@@ -199,8 +199,8 @@ body {
     border: none;
     position: absolute; /* Absolute position instead of fixed */
     bottom: 80px; /* Position at same level as install button (80px) */
-    left: 50%;
-    transform: translateX(-50%); /* Center horizontally */
+    left: 10px; /* Position on the left side instead of center */
+    transform: none; /* Remove the centering transform */
     z-index: 500;
     display: none; /* Hidden by default */
 }
