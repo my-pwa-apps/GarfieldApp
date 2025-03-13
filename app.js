@@ -4,6 +4,12 @@ if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 }
 
+// Add a global variable to track fullscreen state
+let isFullscreenMode = false;
+
+// Set the global variable for favourite to track
+let favs=[];
+
 async function Share() 
 {
 	if(navigator.share) {
@@ -30,17 +36,12 @@ async function Share()
 function Addfav()
 {
 	formattedComicDate = year + "/" + month + "/" + day;
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(favs.indexOf(formattedComicDate) == -1)
+	if(favs.indexOf(formattedComicDate)==-1)
 	{
 		favs.push(formattedComicDate);
 		document.getElementById("favheart").src="./heart.svg";
 		document.getElementById("showfavs").disabled = false;
-	}
+  	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
@@ -94,6 +95,7 @@ function showComic()
 		{
 			favs = [];
 		}
+		// console.log('showcomic',formattedComicDate, favs);
 		if(favs.indexOf(formattedComicDate) == -1)
 		{
 			document.getElementById("favheart").src="./heartborder.svg";
@@ -111,11 +113,17 @@ function changeComicImage(newSrc) {
     setTimeout(() => {
         comic.src = newSrc;
         comic.classList.remove('dissolve');
-        
+
         // Check comic orientation when it loads
         comic.onload = function() {
             checkComicOrientation(comic);
-        };
+
+            // Reapply fullscreen mode if active
+            if (isFullscreenMode) {
+                const contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"], #settingsDIV, button[style*="position: fixed"]');
+                enterFullscreenMode(comic, contentElements);
+            }
+		};
     }, 500); // Match the duration of the CSS transition
 }
 
@@ -138,9 +146,11 @@ function Rotate() {
 	if (element.classList.contains('fullscreen')) {
 		// Exit fullscreen mode
 		exitFullscreenMode(element, contentElements);
+		isFullscreenMode = false;
 	} else {
 		// Enter fullscreen mode
 		enterFullscreenMode(element, contentElements);
+		isFullscreenMode = true;
 	}
 }
 
@@ -257,10 +267,10 @@ showComic();
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
 		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate)-1]);}}
 	else{
+		var f=0;
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
 	previousclicked = true;
@@ -270,9 +280,8 @@ function PreviousClick() {
 
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
+		if(favs.indexOf(formattedComicDate)<favs.length-1){
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate)+1]);} }
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
@@ -282,10 +291,10 @@ function NextClick() {
 
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
-	else{
-	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
+		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);
+		// currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
+	}
+	else { currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
 	}
 	CompareDates();
 	showComic();
@@ -295,8 +304,10 @@ function CurrentClick() {
 	if(document.getElementById("showfavs").checked)
 	 {
 		var favs = JSON.parse(localStorage.getItem('favs'));
-		favslength = favs.length - 1;
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[favslength]);
+		var f=0;
+		favslength = favs.length-1;
+		currentselectedDate = new Date(favs[favslength]);
+
 	 }
 	else
 	{
@@ -310,11 +321,30 @@ function CurrentClick() {
 function RandomClick()
 {
 	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
+		currentselectedDate = new Date(bt);
+		//console.log(currentselectedDate);
+	}
 	else{
-		start = new Date("1978-06-19");
-		end = new Date();
-		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+		var start = new Date("1978-06-19");
+		if (typeof(bt) != 'undefined')
+		{
+			start = new Date(bt);
+			getx = 0;
+		}
+		else
+		{
+			getx = favs.length;
+			var end = new Date();
+			// currentselectedDate = new Date(1374339200000);
+			if (getx > 0)
+			{
+				currentselectedDate = new Date(start.getTime()+ Math.random() * (end.getTime()-start.getTime()));	
+				if (currentselectedDate.getTime() < start.getTime() )
+				{
+					currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
+				}
+			}
+		}			
 	}
 	CompareDates();
 	showComic();
@@ -332,15 +362,18 @@ function CompareDates() {
 	if(document.getElementById("showfavs").checked)
 	{
 		document.getElementById("DatePicker").disabled = true;
-		startDate = new Date(favs[0])}
+		startDate = new Date(favs[favs.indexOf(formattedComicDate)]);
+		currentselectedDate.setHours(0,0,0,0);
+		currentselectedDate = new Date(currentselectedDate);
+	}
 	else{	
+		outputindex = document.getElementById("DatePicker").value;
 		document.getElementById("DatePicker").disabled = false;
 		startDate = new Date("1978/06/19");
+		currentselectedDate.setHours(0,0,0,0);
+		currentselectedDate = new Date(currentselectedDate);
 	}
 	startDate = startDate.setHours(0, 0, 0, 0);
-	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
-	startDate = new Date(startDate);
-	currentselectedDate = new Date(currentselectedDate);
 	if(currentselectedDate.getTime() <= startDate.getTime()) {
 		document.getElementById("Previous").disabled = true;
 		document.getElementById("First").disabled = true;
@@ -348,35 +381,11 @@ function CompareDates() {
 		startDate = year + '-' + month + '-' + day;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
-		document.getElementById("Previous").disabled = false;
-		document.getElementById("First").disabled = false;
+		document.getElementById("Previous").disabled = false;	
 	}
-	if(document.getElementById("showfavs").checked) {
-		endDate = new Date(favs[favs.length - 1]);
+	if(favs.indexOf(formattedComicDate)>-1) {	
+		document.getElementById("Next").disabled = true;	
 	}
-	else{ 
-		endDate = new Date();
-	}
-	endDate = endDate.setHours(0, 0, 0, 0);
-	endDate = new Date(endDate);
-	if(currentselectedDate.getTime() >= endDate.getTime()) {
-		document.getElementById("Next").disabled = true;
-		document.getElementById("Today").disabled = true;
-		formatDate(endDate);
-		endDate = year + '-' + month + '-' + day;
-		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
-	} else {
-		document.getElementById("Next").disabled = false;
-		document.getElementById("Today").disabled = false;
-	}
-	if(document.getElementById("showfavs").checked) {
-		if(favs.length == 1) {
-			document.getElementById("Random").disabled = true;
-			document.getElementById("Previous").disabled = true;
-			document.getElementById("First").disabled = true;
-		}}
-	else {
-		document.getElementById("Random").disabled = false;}
 }
 
 function formatDate(datetoFormat) {
@@ -389,23 +398,26 @@ function formatDate(datetoFormat) {
 
 document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
-		RandomClick()}
+		RandomClick();
+	}
 })
 
 document.addEventListener('swiped-right', function(e) {
 	if(document.getElementById("swipe").checked) {
-		PreviousClick()}
+		PreviousClick();
+	}
 })
-
 
 document.addEventListener('swiped-left', function(e) {
 	if(document.getElementById("swipe").checked) {
-		NextClick()}
+		NextClick();
+	}
 })
 
 document.addEventListener('swiped-up', function(e) {
 	if(document.getElementById("swipe").checked) {
-		CurrentClick()}
+		CurrentClick();
+	}
 })
 
 setStatus = document.getElementById('swipe');
@@ -436,72 +448,40 @@ setStatus.onclick = function()
 	}
 }
 
-
-setStatus = document.getElementById('showfavs');
-setStatus.onclick = function()
-{
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById('showfavs').checked)
-	{
-		localStorage.setItem('showfavs', "true");
-		if(favs.indexOf(formattedComicDate) !== -1)
-		{
-		}
-		else
-		{
-			currentselectedDate = new Date(favs[0]);	
-		}
-		document.getElementById('Today').innerHTML = 'Last'
-	} 
-	else
-	{
-		localStorage.setItem('showfavs', "false");
-		document.getElementById('Today').innerHTML = 'Today'
-	}
-	CompareDates();
-	showComic();
-}
-
 getStatus = localStorage.getItem('stat');
 if (getStatus == "true")
 {
 	document.getElementById("swipe").checked = true;
+	document.getElementById("swipe").addEventListener("change", function(evt) {
+		// No options to compare
+		return favs.length == 0;
+	});
+
 }
 else
 {
 	document.getElementById("swipe").checked = false;
 }
 
-getStatus = localStorage.getItem('showfavs');
-if (getStatus == "true") 
-{
-	document.getElementById("showfavs").checked = true;
-	document.getElementById('Today').innerHTML = 'Last'
-}
-else
-{
-	document.getElementById("showfavs").checked = false;
-	document.getElementById('Today').innerHTML = 'Today'
-}
-
-getStatus = localStorage.getItem('lastdate');
+getStatus = localStorage.getItem('lastcomic');
 if (getStatus == "true")
 {
-	document.getElementById("lastdate").checked = true;
+	document.getElementById("lastcomic").checked = true;
 }
 else
 {
-	document.getElementById("lastdate").checked = false;
-}	
+	document.getElementById("lastcomic").checked = false;
+}
+
 
 getStatus = localStorage.getItem('settings');
 if (getStatus == "true")
 {
-	document.getElementById("settingsDIV").style.display = "block";
+	document.getElementById("settings").checked = true;
 }
 else
 {
-	document.getElementById("settingsDIV").style.display = "none";
+	document.getElementById("settings").checked = false;
 }
 
 let deferredPrompt;
