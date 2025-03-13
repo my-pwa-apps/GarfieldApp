@@ -98,16 +98,16 @@ body {
     -webkit-transform: rotate(0deg);
 }
 
-/* Material Design Bottom App Bar */
+/* Update toolbar styling */
 .bottom-app-bar {
     position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 0;
+    left: 0;
+    width: 100%;
     display: flex;
-    gap: 12px;
+    justify-content: space-around;
     padding: 8px;
-    border-radius: 28px;
+    border-radius: 0;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -115,34 +115,12 @@ body {
 }
 
 .material-button {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: none;
-    background-color: #F09819;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.material-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    background-color: #ff9800;
-}
-
-.material-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    background-color: #fb8c00;
+    background-color: #eee239; /* Yellow background */
+    color: #F09819; /* Orange icons */
 }
 
 .material-button .material-icons {
-    font-size: 24px;
+    color: #F09819; /* Orange icons */
 }
 
 /* Action buttons styling */
