@@ -38,13 +38,13 @@ function Addfav()
 	if(favs.indexOf(formattedComicDate) == -1)
 	{
 		favs.push(formattedComicDate);
-		document.getElementById("favheart").style.fontVariationSettings = "'FILL' 1";
+		document.getElementById("favheart").src="./heart.svg";
 		document.getElementById("showfavs").disabled = false;
 	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
-		document.getElementById("favheart").style.fontVariationSettings = "'FILL' 0";
+		document.getElementById("favheart").src="./heartborder.svg";
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
@@ -231,17 +231,13 @@ function showComic()
 	  previousclicked = false;			
 	  previousUrl = pictureUrl;
 	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
+      if(favs.indexOf(formattedComicDate) == -1)
 		{
-			favs = [];
-		}
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").style.fontVariationSettings = "'FILL' 0";
+			document.getElementById("favheart").src="./heartborder.svg";
 		}	
 		else
 		{
-			document.getElementById("favheart").style.fontVariationSettings = "'FILL' 1";
+			document.getElementById("favheart").src="./heart.svg";
 		}
     });
 };
@@ -379,12 +375,12 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		document.getElementById('Today').innerHTML = 'Last'
+		document.getElementById('Today').innerHTML = 'Last';
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		document.getElementById('Today').innerHTML = 'Today'
+		document.getElementById('Today').innerHTML = 'Today';
 	}
 	CompareDates();
 	showComic();
@@ -419,12 +415,12 @@ getStatus = localStorage.getItem('showfavs');
 if (getStatus == "true") 
 {
 	document.getElementById("showfavs").checked = true;
-	document.getElementById('Today').innerHTML = 'Last'
+	document.getElementById('Today').innerHTML = 'Last';
 }
 else
 {
 	document.getElementById("showfavs").checked = false;
-	document.getElementById('Today').innerHTML = 'Today'
+	document.getElementById('Today').innerHTML = 'Today';
 }
 
 getStatus = localStorage.getItem('lastdate');

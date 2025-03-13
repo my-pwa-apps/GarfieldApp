@@ -15,17 +15,16 @@ main {
 }
 
 .button {
-    min-height: 44px;
     width: 100%;
     margin: 0;
+    padding: 10px;
+    text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
     color: black;
     border-radius: 10px;
     border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     font-weight: 700;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
@@ -33,17 +32,58 @@ main {
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    padding: 8px;
 }
 
-.material-symbols-rounded {
-    font-variation-settings:
-        'FILL' 0,
-        'wght' 500,
-        'GRAD' 0,
-        'opsz' 24;
-    font-size: 28px;
-    line-height: 1;
+.button:active {
+    transform: scale(0.95);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.button:hover {
+    background-position: right center;
+    color: black;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.button:disabled {
+    background-color: #f39700;
+    opacity: 0.5;
+    color: black;
+    box-shadow: none;
+}
+
+#settingsDIV {
+    padding-left: 12px;
+}
+
+input[type="checkbox"], label {
+    float: left;
+    line-height: 1.6em;
+    height: 1.6em;
+    margin: 0 2px;
+    padding: 0;
+    font-size: small;
+}
+
+input[type=checkbox] {
+    position: relative;
+    cursor: pointer;
+    clear: left;
+    margin-right: 25px;
+    margin-bottom: 20px;
+}
+
+.buttongrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 60% 60%;
+    text-align: center;
+    gap: 8px;
+    padding: 0 12px;
+    margin-bottom: 15px;
+    box-sizing: border-box;
 }
 
 #settingsDIV {
@@ -80,14 +120,6 @@ main {
     color: black;
     margin-left: 10px;
     opacity: 0.9;
-}
-
-input[type=checkbox] {
-    position: relative;
-    cursor: pointer;
-    clear: left;
-    margin-right: 10px;
-    margin-bottom: 15px;
 }
 
 .action-icon {
