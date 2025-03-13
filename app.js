@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -444,9 +443,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
   const installButton = document.createElement('button');
   installButton.innerText = 'Install App';
+  installButton.className = 'button';
   installButton.style.position = 'fixed';
   installButton.style.bottom = '10px';
   installButton.style.right = '10px';
+  installButton.style.zIndex = '1000';
+  installButton.style.margin = '0';
   document.body.appendChild(installButton);
 
   installButton.addEventListener('click', () => {
@@ -465,5 +467,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+
