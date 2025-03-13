@@ -4,9 +4,6 @@ if("serviceWorker" in navigator) {
 	navigator.serviceWorker.register("./serviceworker.js");
 }
 
-// Add a global variable to track fullscreen state
-let isFullscreenMode = false;
-
 // Set the global variable for favourite to track
 let favs=[];
 
@@ -112,15 +109,11 @@ function changeComicImage(newSrc) {
     comic.classList.add('dissolve');
     setTimeout(() => {
         comic.src = newSrc;
+        comic.classList.remove('dissolve');
+        
+        // Check comic orientation when it loads
         comic.onload = function() {
-            comic.classList.remove('dissolve');
             checkComicOrientation(comic);
-            
-            // Reapply fullscreen mode if active
-            if (isFullscreenMode) {
-                const contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"], #settingsDIV, button[style*="position: fixed"]');
-                enterFullscreenMode(comic, contentElements);
-            }
         };
     }, 500); // Match the duration of the CSS transition
 }
@@ -144,11 +137,9 @@ function Rotate() {
 	if (element.classList.contains('fullscreen')) {
 		// Exit fullscreen mode
 		exitFullscreenMode(element, contentElements);
-		isFullscreenMode = false;
 	} else {
 		// Enter fullscreen mode
 		enterFullscreenMode(element, contentElements);
-		isFullscreenMode = true;
 	}
 }
 
