@@ -71,14 +71,14 @@ body {
     -webkit-transform: rotate(90deg);
     width: auto !important;
     height: auto !important; /* Auto height */
-    max-height: 90vw !important; /* Increased from 85vw */
-    max-width: 90vh !important; /* Increased from 85vh */
+    max-height: 95vw !important; /* Increased from 90vw */
+    max-width: 95vh !important; /* Increased from 90vh */
     position: fixed !important;
     z-index: 999 !important;
     top: 50% !important;
     left: 50% !important;
     transform-origin: center !important;
-    transform: translate(-50%, -55%) rotate(90deg) !important; /* Shifted up 5% */
+    transform: translate(-50%, -52%) rotate(90deg) !important; /* Shifted up slightly less (from -55% to -52%) to leave room for instruction */
     margin: 0 !important;
     object-fit: contain !important;
     background-color: rgba(255, 255, 255, 0.8) !important;
