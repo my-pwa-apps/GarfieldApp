@@ -98,49 +98,29 @@ body {
     -webkit-transform: rotate(0deg);
 }
 
-/* Update toolbar styling */
+/* Update toolbar styling to remove white background and make buttons round and floating */
 .bottom-app-bar {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
     display: flex;
     justify-content: space-around;
     padding: 8px;
-    border-radius: 0;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 28px;
+    background: transparent;
+    backdrop-filter: none;
+    box-shadow: none;
     z-index: 1000;
 }
 
 .material-button {
-    background-color: #eee239; /* Yellow background */
-    color: #F09819; /* Orange icons */
-}
-
-.material-button .material-icons {
-    color: #F09819; /* Orange icons */
-}
-
-/* Action buttons styling */
-.action-buttons-container {
-    position: fixed;
-    bottom: 100px;
-    right: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 1000;
-}
-
-.action-button {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    border: none;
-    background-color: #F09819;
-    color: white;
+    background-color: #eee239; /* Yellow background */
+    color: #F09819; /* Orange icons */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -149,16 +129,18 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.action-button:hover {
+.material-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    background-color: #ff9800;
 }
 
-.action-button:active {
+.material-button:active {
     transform: translateY(0);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    background-color: #fb8c00;
+}
+
+.material-button .material-icons {
+    color: #F09819; /* Orange icons */
 }
 
 /* Settings panel styling - repositioned below comic with app style */
