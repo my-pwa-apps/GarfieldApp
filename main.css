@@ -17,12 +17,17 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     min-height: 100vh;
-    height: 100vh; /* Fixed height */
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Prevent scrolling */
     display: flex;
     flex-direction: column;
+}
+
+@media (min-width: 768px) {
+    body {
+        height: auto;
+        overflow-y: auto;
+    }
 }
 
 /* Logo styling */
@@ -92,14 +97,14 @@ body {
     -webkit-transform: rotate(0deg);
 }
 
-/* Bottom app bar styling - yellow buttons with orange icons */
+/* Bottom app bar styling */
 .bottom-app-bar {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
     height: 70px;
-    background-color: transparent; /* Remove background */
+    background-color: transparent;
     display: flex;
     justify-content: space-around;
     align-items: center;
@@ -107,48 +112,31 @@ body {
     padding: 0 10px 10px;
 }
 
-.material-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #eee239; /* Yellow buttons */
-    border: none;
-    height: 48px;
-    width: 48px;
-    border-radius: 50%;
-    margin: 0 5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+@media (min-width: 768px) {
+    .bottom-app-bar {
+        position: sticky;
+        bottom: 0;
+    }
 }
 
-.material-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+/* Install button styling */
+#installButton {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 1000;
 }
 
-.material-button:active {
-    transform: scale(0.92);
+@media (min-width: 768px) {
+    #installButton {
+        position: static;
+        margin: 20px auto;
+    }
 }
 
-.material-button .material-icons {
-    font-size: 28px; /* Larger for bolder appearance */
-    color: #F09819; /* Orange icons */
-    font-weight: 700; /* Make icons bolder */
-    -webkit-text-stroke: 0.5px #F09819; /* Add stroke for bolder appearance */
-}
-
-.material-button:disabled,
-.material-button.disabled {
-    opacity: 0.6;
-    background-color: #ddd;
-    pointer-events: none;
-}
-
-.material-button:disabled .material-icons,
-.material-button.disabled .material-icons {
-    color: #999;
-    -webkit-text-stroke: 0;
+.rotate ~ #installButton,
+#comic.rotate ~ #installButton {
+    display: none !important;
 }
 
 /* Action buttons styling - positioned lower below comic */
