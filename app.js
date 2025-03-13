@@ -107,30 +107,18 @@ function showComic()
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
-    
-    // Create a new Image object to preload the image
-    const img = new Image();
-    
-    // Set up onload handler before setting src
-    img.onload = function() {
+    setTimeout(() => {
+        comic.src = newSrc;
+        // Add an onload event handler to check orientation once the image is fully loaded
+        comic.onload = function() {
+            checkComicOrientation(this);
+            comic.classList.remove('dissolve');
+        };
+        // Fallback in case the onload doesn't trigger
         setTimeout(() => {
-            comic.src = newSrc;
-            // Check orientation after setting the src and before removing dissolve effect
-            setTimeout(() => {
-                checkComicOrientation(comic);
-                comic.classList.remove('dissolve');
-            }, 50); // Small delay to ensure image dimensions are available
-        }, 500); // Match the duration of the CSS transition
-    };
-    
-    // Handle loading errors
-    img.onerror = function() {
-        console.error("Failed to load comic image:", newSrc);
-        comic.classList.remove('dissolve');
-    };
-    
-    // Start loading the image
-    img.src = newSrc;
+            comic.classList.remove('dissolve');
+        }, 1000);
+    }, 500); // Match the duration of the CSS transition
 }
 
 function checkComicOrientation(comicElement) {
