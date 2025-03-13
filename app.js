@@ -133,8 +133,15 @@ function checkComicOrientation(comicElement) {
 
 function Rotate() {
 	var element = document.getElementById('comic');
-	// Only rotate if it's not a vertical comic
-	if (element.naturalHeight <= element.naturalWidth) {
+	if (element.naturalHeight > element.naturalWidth) {
+		// For vertical comics, toggle between vertical and fullscreen vertical
+		if(element.className === "vertical") {
+			element.className = "vertical-fullscreen";
+		} else if(element.className === "vertical-fullscreen") {
+			element.className = 'vertical';
+		}
+	} else {
+		// For horizontal comics, toggle between normal and rotate
 		if(element.className === "normal") {
 			element.className = "rotate";
 		} else if(element.className === "rotate") {
