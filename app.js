@@ -254,12 +254,6 @@ function showComic() {
             
             if(pictureUrl !== previousUrl) {
                 changeComicImage(pictureUrl);
-                
-                // Add onload handler to check size after the image loads
-                const comic = document.getElementById('comic');
-                comic.onload = function() {
-                    checkImageSize(comic);
-                };
             } else if(previousclicked) {
                 PreviousClick();
                 return;
@@ -353,13 +347,36 @@ function showAllUIElements() {
  */
 function Rotate() {
     const element = document.getElementById('comic');
+    const comicContainer = document.querySelector('.comic-container');
+    const bottomAppBar = document.querySelector('.bottom-app-bar');
+    const header = document.querySelector('header');
     
     if (element.className === "normal") {
-        // First hide ALL interface elements before showing rotated view
-        hideAllUIElements();
-            
-        // Now switch to rotated view after hiding elements
+        // Switching to rotated view - larger for better readability
         element.className = "rotate";
+        
+        // Hide interface elements to create immersive reading experience
+        if (actionButtons = document.querySelector('.action-buttons-container'))
+            actionButtons.style.visibility = "hidden";
+            
+        if (supportContainer = document.querySelector('.support-container'))
+            supportContainer.style.visibility = "hidden";
+            
+        if (bottomAppBar)
+            bottomAppBar.style.visibility = "hidden";
+            
+        if (header)
+            header.style.visibility = "hidden";
+        
+        // Also hide the settings container
+        const settingsContainer = document.getElementById("settingsDIV");
+        if (settingsContainer)
+            settingsContainer.style.visibility = "hidden";
+            
+        // Also hide the install button if present
+        const installButton = document.querySelector('.install-button');
+        if (installButton)
+            installButton.style.visibility = "hidden";
         
         // Add tap instruction
         const instruction = document.createElement('div');
@@ -384,8 +401,28 @@ function Rotate() {
         // Switching back to normal view
         element.className = "normal";
         
-        // Show all UI elements again
-        showAllUIElements();
+        // Show interface elements again
+        if (actionButtons = document.querySelector('.action-buttons-container'))
+            actionButtons.style.visibility = "visible";
+            
+        if (supportContainer = document.querySelector('.support-container'))
+            supportContainer.style.visibility = "visible";
+            
+        if (bottomAppBar)
+            bottomAppBar.style.visibility = "visible";
+            
+        if (header)
+            header.style.visibility = "visible";
+        
+        // Also show the settings container again
+        const settingsContainer = document.getElementById("settingsDIV");
+        if (settingsContainer)
+            settingsContainer.style.visibility = "visible";
+            
+        // Also show the install button again if present
+        const installButton = document.querySelector('.install-button');
+        if (installButton)
+            installButton.style.visibility = "visible";
         
         // Remove instruction
         const instruction = document.getElementById('rotate-instruction');
