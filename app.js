@@ -253,7 +253,16 @@ function showComic() {
             pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
             
             if(pictureUrl !== previousUrl) {
-                changeComicImage(pictureUrl);
+                // Create a new image object to check dimensions before setting the src
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    const comic = document.getElementById('comic');
+                    comic.src = pictureUrl;
+                    
+                    // Check if image is larger than screen and needs auto-resize
+                    checkImageSize(comic);
+                };
+                tempImg.src = pictureUrl;
             } else if(previousclicked) {
                 PreviousClick();
                 return;
@@ -274,87 +283,36 @@ function showComic() {
 }
 
 /**
- * Check date ranges and update button states accordingly
+ * Check if the loaded image is too large for the screen and
+ * enter fullscreen mode automatically if needed
  */
-function CompareDates() {
-    const favs = JSON.parse(localStorage.getItem('favs')) || [];
-    let startDate, endDate;
-    
-    // Determine start date based on mode
-    if(document.getElementById("showfavs").checked) {
-        document.getElementById("DatePicker").disabled = true;
-        startDate = new Date(favs[0]);
-    } else {
-        document.getElementById("DatePicker").disabled = false;
-        startDate = new Date("1978/06/19");
+function checkImageSize(imgElement) {
+    // Ensure the image has loaded and has dimensions
+    if (!imgElement.complete || !imgElement.naturalWidth) {
+        imgElement.onload = () => checkImageSize(imgElement);
+        return;
     }
     
-    // Normalize dates for comparison
-    startDate.setHours(0, 0, 0, 0);
-    currentselectedDate.setHours(0, 0, 0, 0);
+    // Get viewport dimensions
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     
-    // Check if at first comic and update button states
-    if(currentselectedDate.getTime() <= startDate.getTime()) {
-        document.getElementById("Previous").disabled = true;
-        document.getElementById("First").disabled = true;
-        document.getElementById("Previous").classList.add('disabled');
-        document.getElementById("First").classList.add('disabled');
-        
-        formatDate(startDate);
-        startDate = year + '-' + month + '-' + day;
-        currentselectedDate = new Date(Date.UTC(year, month-1, day, 12));
-    } else {
-        document.getElementById("Previous").disabled = false;
-        document.getElementById("First").disabled = false;
-        document.getElementById("Previous").classList.remove('disabled');
-        document.getElementById("First").classList.remove('disabled');
+    // Get image natural dimensions
+    const imgWidth = imgElement.naturalWidth;
+    const imgHeight = imgElement.naturalHeight;
+    
+    // Calculate how much of the viewport the image fills
+    const widthRatio = imgWidth / viewportWidth;
+    const heightRatio = imgHeight / viewportHeight;
+    
+    // If image is larger than 90% of viewport in either dimension,
+    // automatically enter immersive view
+    if (widthRatio > 0.9 || heightRatio > 0.9) {
+        // Only auto-rotate if we're not already in rotated mode
+        if (imgElement.className === "normal") {
+            Rotate();
+        }
     }
-    
-    // Determine end date based on mode
-    endDate = document.getElementById("showfavs").checked ? 
-        new Date(favs[favs.length - 1]) : new Date();
-    endDate.setHours(0, 0, 0, 0);
-    
-    // Check if at latest comic and update button states
-    if(currentselectedDate.getTime() >= endDate.getTime()) {
-        document.getElementById("Next").disabled = true;
-        document.getElementById("Today").disabled = true;
-        document.getElementById("Next").classList.add('disabled');
-        document.getElementById("Today").classList.add('disabled');
-        
-        formatDate(endDate);
-        endDate = year + '-' + month + '-' + day;
-        currentselectedDate = new Date(Date.UTC(year, month-1, day, 12));
-    } else {
-        document.getElementById("Next").disabled = false;
-        document.getElementById("Today").disabled = false;
-        document.getElementById("Next").classList.remove('disabled');
-        document.getElementById("Today").classList.remove('disabled');
-    }
-    
-    // Special case for favorites mode with only one favorite
-    if(document.getElementById("showfavs").checked && favs.length === 1) {
-        document.getElementById("Random").disabled = true;
-        document.getElementById("Previous").disabled = true;
-        document.getElementById("First").disabled = true;
-        document.getElementById("Random").classList.add('disabled');
-        document.getElementById("Previous").classList.add('disabled');
-        document.getElementById("First").classList.add('disabled');
-    } else {
-        document.getElementById("Random").disabled = false;
-        document.getElementById("Random").classList.remove('disabled');
-    }
-}
-
-/**
- * Format a date into year, month, and day variables
- */
-function formatDate(dateToFormat) {
-    day = dateToFormat.getDate();
-    month = dateToFormat.getMonth() + 1;
-    year = dateToFormat.getFullYear();
-    month = ("0" + month).slice(-2);
-    day = ("0" + day).slice(-2);
 }
 
 /**
@@ -364,33 +322,10 @@ function formatDate(dateToFormat) {
  */
 function Rotate() {
     const element = document.getElementById('comic');
-    const comicContainer = document.querySelector('.comic-container');
-    const bottomAppBar = document.querySelector('.bottom-app-bar');
-    const header = document.querySelector('header');
     
     if (element.className === "normal") {
-        // First hide interface elements before showing rotated view
-        if (actionButtons = document.querySelector('.action-buttons-container'))
-            actionButtons.style.visibility = "hidden";
-            
-        if (supportContainer = document.querySelector('.support-container'))
-            supportContainer.style.visibility = "hidden";
-            
-        if (bottomAppBar)
-            bottomAppBar.style.visibility = "hidden";
-            
-        if (header)
-            header.style.visibility = "hidden";
-        
-        // Also hide the settings container
-        const settingsContainer = document.getElementById("settingsDIV");
-        if (settingsContainer)
-            settingsContainer.style.visibility = "hidden";
-            
-        // Also hide the install button if present
-        const installButton = document.querySelector('.install-button');
-        if (installButton)
-            installButton.style.visibility = "hidden";
+        // First hide ALL interface elements before showing rotated view
+        hideAllUIElements();
             
         // Now switch to rotated view after hiding elements
         element.className = "rotate";
@@ -418,28 +353,8 @@ function Rotate() {
         // Switching back to normal view
         element.className = "normal";
         
-        // Show interface elements again
-        if (actionButtons = document.querySelector('.action-buttons-container'))
-            actionButtons.style.visibility = "visible";
-            
-        if (supportContainer = document.querySelector('.support-container'))
-            supportContainer.style.visibility = "visible";
-            
-        if (bottomAppBar)
-            bottomAppBar.style.visibility = "visible";
-            
-        if (header)
-            header.style.visibility = "visible";
-        
-        // Also show the settings container again
-        const settingsContainer = document.getElementById("settingsDIV");
-        if (settingsContainer)
-            settingsContainer.style.visibility = "visible";
-            
-        // Also show the install button again if present
-        const installButton = document.querySelector('.install-button');
-        if (installButton)
-            installButton.style.visibility = "visible";
+        // Show all UI elements again
+        showAllUIElements();
         
         // Remove instruction
         const instruction = document.getElementById('rotate-instruction');
@@ -450,6 +365,46 @@ function Rotate() {
         // Re-enable scrolling
         document.body.style.overflow = 'auto';
     }
+}
+
+/**
+ * Hide all UI elements for immersive comic viewing
+ */
+function hideAllUIElements() {
+    // Hide navigation and UI elements
+    const elementsToHide = [
+        '.action-buttons-container',
+        '.support-container',
+        '.bottom-app-bar',
+        'header',
+        '#settingsDIV',
+        '.install-button'
+    ];
+    
+    elementsToHide.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) element.style.visibility = "hidden";
+    });
+}
+
+/**
+ * Show all UI elements when exiting immersive comic viewing
+ */
+function showAllUIElements() {
+    // Show navigation and UI elements
+    const elementsToShow = [
+        '.action-buttons-container',
+        '.support-container',
+        '.bottom-app-bar',
+        'header',
+        '#settingsDIV',
+        '.install-button'
+    ];
+    
+    elementsToShow.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) element.style.visibility = "visible";
+    });
 }
 
 // Swipe event handlers
