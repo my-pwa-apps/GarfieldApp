@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -444,10 +443,9 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
   const installButton = document.createElement('button');
   installButton.innerText = 'Install App';
-  installButton.style.position = 'fixed';
-  installButton.style.bottom = '10px';
-  installButton.style.right = '10px';
-  document.body.appendChild(installButton);
+  installButton.classList.add('floating-button');
+  installButton.style.margin = '5px 0';
+  document.querySelector('.floating-container').insertBefore(installButton, document.querySelector('.control-icons'));
 
   installButton.addEventListener('click', () => {
 	// Hide the app provided install promotion
@@ -465,5 +463,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+
