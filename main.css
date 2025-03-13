@@ -1,5 +1,7 @@
 body {
-    background: linear-gradient(#eee239, orange) no-repeat;
+    background: linear-gradient(#eee239, orange) fixed;
+    min-height: 100vh;
+    margin: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
