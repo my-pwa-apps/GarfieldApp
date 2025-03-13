@@ -1,90 +1,83 @@
-:root {
-    --primary-color: #ff6b2b;
-    --secondary-color: #ffd426;
-    --background-start: #fff8e7;
-    --background-end: #fff1d6;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-}
-
 body {
-    background: linear-gradient(135deg, var(--background-start), var(--background-end)) fixed;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    color: #2d2d2d;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
+    background: linear-gradient(#eee239, orange) no-repeat;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: black;
+    background-color: orange;
 }
 
 main {
-    max-width: 1000px;
+    max-width: 900px;
     margin: auto;
-    padding: 1rem;
+    padding: 0.5rem;
     text-align: center;
 }
 
 .button {
-    margin: 8px;
-    padding: 12px 20px;
+    margin: 5px;
+    padding: 10px;
     text-align: center;
-    transition: all 0.3s ease;
-    color: #2d2d2d;
-    border-radius: 12px;
+    transition: 0.5s;
+    background-size: 200% auto;
+    color: black;
+    border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 600;
-    font-size: 0.95rem;
-    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    font-weight: 700;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
-    box-shadow: 0 4px 15px var(--shadow-color);
-    width: 100%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .button:active {
-    transform: scale(0.98);
+    transform: scale(0.95);
 }
 
 .button:hover {
+    background-position: right center;
+    color: black;
+    text-decoration: none;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--shadow-color);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
 .button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
+    background-color: #f39700;
+    opacity: 0.5;
+    color: black;
     box-shadow: none;
 }
 
 input[type="date"] {
-    margin: 8px;
-    padding: 12px 20px;
+    margin: 5px;
+    padding: 10px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     appearance: none;
-    width: 100%;
-    font-size: 0.95rem;
+    max-width: 100%;
+    font-size: 0.75rem;
     box-sizing: border-box;
     text-align: center;
-    border-radius: 12px;
-    border: 2px solid transparent;
-    background: white;
-    box-shadow: 0 4px 15px var(--shadow-color);
-    transition: all 0.3s ease;
+    border-radius: 10px;
+    opacity: 0.9;
+    background-color: #eee239;
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 input[type="date"]:focus {
-    border-color: var(--primary-color);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
     outline: none;
-    box-shadow: 0 6px 20px var(--shadow-color);
 }
 
 .buttongrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding: 15px;
-    max-width: 600px;
-    margin: 0 auto;
+    grid-template-columns: 33% 33% 33%;
+    grid-template-rows: 60% 60%;
+    text-align: center;
+    gap: 3px;
 }
 
 .rotate {
@@ -155,53 +148,14 @@ input[type=checkbox] {
 }
 
 #comic {
-    transition: all 0.5s ease;
-    max-width: 100%;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px var(--shadow-color);
+    transition: opacity 1s ease-in-out;
+    opacity: 1;
 }
 
 #comic.dissolve {
     opacity: 0;
-    transform: scale(0.98);
 }
 
 #settingsDIV {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px var(--shadow-color);
-    max-width: 300px;
-    margin: 20px auto;
-}
-
-.logo img {
-    max-width: 300px;
-    margin: 25px auto;
-    display: block;
-    filter: drop-shadow(0 4px 10px var(--shadow-color));
-}
-
-.control-icons {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    display: flex;
-    gap: 15px;
-    background: white;
-    padding: 10px;
-    border-radius: 25px;
-    box-shadow: 0 4px 15px var(--shadow-color);
-}
-
-.control-icons img {
-    width: 24px;
-    height: 24px;
-    padding: 8px;
-    cursor: pointer;
-    transition: transform 0.3s ease;
-}
-
-.control-icons img:hover {
-    transform: scale(1.1);
+    margin-top: 20px;
 }
