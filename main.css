@@ -215,6 +215,11 @@ body {
     transition: all 0.2s ease;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    min-height: 40px; /* Make items suitable for click target */
+    white-space: nowrap; /* Ensure text stays on one line */
+    overflow: hidden; /* Hide overflow */
+    text-overflow: ellipsis; /* Add ellipsis for overflow text */
+    min-width: 0; /* Allow flex item to shrink below content size */
 }
 
 .settings-item:hover {
@@ -259,14 +264,18 @@ body {
 }
 
 .settings-item label {
-    font-size: 14px;
+    font-size: 13px; /* Slightly smaller font for mobile */
     font-weight: 500;
     color: #fff; /* White text for better contrast */
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
     cursor: pointer;
+    max-width: calc(100% - 30px); /* Ensure label doesn't push outside container */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* Date picker styling - improved aesthetics */
+/* Date picker styling - improved sizing for mobile */
 .date-picker-container {
     display: flex;
     justify-content: center;
@@ -275,8 +284,9 @@ body {
 }
 
 input[type="date"] {
-    width: 100%;
-    max-width: 200px;
+    width: auto; /* Allow date input to size to content */
+    min-width: 140px; /* Minimum width */
+    max-width: 180px;
     margin: 5px;
     padding: 8px 12px;
     -webkit-appearance: none;
@@ -339,5 +349,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
     .bottom-app-bar {
         height: 60px;
+    }
+
+    input[type="date"] {
+        min-width: 120px; /* Even smaller on tiny screens */
+        padding: 8px 8px;
+        font-size: 13px;
+    }
+
+    .date-picker-container {
+        margin: 2px 0;
+    }
+}
+
+/* Additional optimizations for date input on iOS */
+@supports (-webkit-touch-callout: none) {
+    input[type="date"] {
+        min-width: 130px; /* iOS needs slightly different sizing */
+        padding-right: 8px; /* Adjust padding for iOS date picker */
     }
 }
