@@ -38,13 +38,13 @@ function Addfav()
 	if(favs.indexOf(formattedComicDate) == -1)
 	{
 		favs.push(formattedComicDate);
-		document.getElementById("favheart").src="./heart.svg";
+		document.getElementById("favheart").style.fontVariationSettings = "'FILL' 1";
 		document.getElementById("showfavs").disabled = false;
 	}
 	else
 	{
 		favs.splice(favs.indexOf(formattedComicDate), 1);
-		document.getElementById("favheart").src="./heartborder.svg";
+		document.getElementById("favheart").style.fontVariationSettings = "'FILL' 0";
 		if(favs.length === 0)
 		{
 			document.getElementById("showfavs").checked = false;
@@ -69,14 +69,17 @@ function changeComicImage(newSrc) {
 
 function HideSettings()
 {
-var x = document.getElementById("settingsDIV");
-	if (x.style.display === "none") {
-	  x.style.display = "block";
-	  localStorage.setItem('settings', "true");
-	} else {
-	  x.style.display = "none";
-	  localStorage.setItem('settings', "false");
-	}
+    var x = document.getElementById("settingsDIV");
+    var settingsIcon = document.querySelector('[onclick="HideSettings()"]');
+    if (x.style.display === "none") {
+        x.style.display = "block";
+        settingsIcon.style.fontVariationSettings = "'FILL' 1";
+        localStorage.setItem('settings', "true");
+    } else {
+        x.style.display = "none";
+        settingsIcon.style.fontVariationSettings = "'FILL' 0";
+        localStorage.setItem('settings', "false");
+    }
 }
 
 function onLoad()
@@ -234,11 +237,11 @@ function showComic()
 		}
 		if(favs.indexOf(formattedComicDate) == -1)
 		{
-			document.getElementById("favheart").src="./heartborder.svg";
+			document.getElementById("favheart").style.fontVariationSettings = "'FILL' 0";
 		}	
 		else
 		{
-			document.getElementById("favheart").src="./heart.svg";
+			document.getElementById("favheart").style.fontVariationSettings = "'FILL' 1";
 		}
     });
 };
@@ -387,6 +390,21 @@ setStatus.onclick = function()
 	showComic();
 }
 
+
+
+// Update the settings icon state on load
+getStatus = localStorage.getItem('settings');
+if (getStatus == "true")
+{
+    document.getElementById("settingsDIV").style.display = "block";
+    document.querySelector('[onclick="HideSettings()"]').style.fontVariationSettings = "'FILL' 1";
+}
+else
+{
+    document.getElementById("settingsDIV").style.display = "none";
+    document.querySelector('[onclick="HideSettings()"]').style.fontVariationSettings = "'FILL' 0";
+}
+
 getStatus = localStorage.getItem('stat');
 if (getStatus == "true")
 {
@@ -418,6 +436,7 @@ else
 {
 	document.getElementById("lastdate").checked = false;
 }	
+
 
 getStatus = localStorage.getItem('settings');
 if (getStatus == "true")
