@@ -110,11 +110,6 @@ function changeComicImage(newSrc) {
     setTimeout(() => {
         comic.src = newSrc;
         comic.classList.remove('dissolve');
-        
-        // Check comic orientation when it loads
-        comic.onload = function() {
-            checkComicOrientation(comic);
-        };
     }, 500); // Match the duration of the CSS transition
 }
 
