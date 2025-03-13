@@ -39,17 +39,15 @@
     <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
     <br>
     <br>
-    <div class="floating-container">
-        <div id="kofi-container">
-            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-            <script type='text/javascript'>kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');kofiwidget2.draw();</script>
-        </div>
-        <div class="control-icons">
-            <img onclick="HideSettings()" src="./tune.svg" style="width: 30px;" alt="Settings">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px;" alt="Add to favorites">
-            <img onclick="Share()" src="./share.svg" style="width: 30px;" alt="Share">
-        </div>
+    <div style="z-index: -1;">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+        <script type='text/javascript'>kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');kofiwidget2.draw();</script>
+        <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; right: 120px; position: absolute;">
+        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; right: 70px; position: absolute;">
+        <img onclick="Share()" src="./share.svg" style="width: 30px; right: 20px; position: absolute;">
     </div>
+    <br>
+    <br>
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>

@@ -443,24 +443,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
   const installButton = document.createElement('button');
   installButton.innerText = 'Install App';
-  installButton.classList.add('floating-button');
-  installButton.style.margin = '5px 0';
-  document.querySelector('.floating-container').insertBefore(installButton, document.querySelector('.control-icons'));
+  installButton.style.position = 'fixed';
+  installButton.style.bottom = '10px';
+  installButton.style.right = '10px';
+  document.body.appendChild(installButton);
 
   installButton.addEventListener('click', () => {
-	// Hide the app provided install promotion
-	installButton.style.display = 'none';
-	// Show the install prompt
-	deferredPrompt.prompt();
-	// Wait for the user to respond to the prompt
-	deferredPrompt.userChoice.then((choiceResult) => {
-	  if (choiceResult.outcome === 'accepted') {
-		console.log('User accepted the install prompt');
-	  } else {
-		console.log('User dismissed the install prompt');
-	  }
-	  deferredPrompt = null;
-	});
+    installButton.style.display = 'none';
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      deferredPrompt = null;
+    });
   });
 }
 
