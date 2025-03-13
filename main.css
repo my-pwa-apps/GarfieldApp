@@ -17,8 +17,12 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     min-height: 100vh;
+    height: 100vh; /* Fixed height */
     margin: 0;
-    padding: 0 0 80px 0; /* Bottom padding for the app bar */
+    padding: 0;
+    overflow: hidden; /* Prevent scrolling */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Logo styling */
@@ -39,12 +43,16 @@ body {
 
 /* Comic container and image styling */
 .comic-container {
+    flex: 1; /* Take available space */
     width: 100%;
-    margin: 10px 0;
+    margin: 0;
     text-align: center;
     overflow: hidden;
     position: relative;
-    padding-bottom: 70px; /* Increase padding at bottom to create more space */
+    padding-bottom: 70px; /* Space for buttons */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #comic {
@@ -61,21 +69,21 @@ body {
     transform: rotate(90deg);
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
-    width: auto !important; 
-    height: 100vh !important; /* Reduced from 150vh */
-    max-width: none !important;
-    max-height: none !important;
-    position: fixed !important; /* Fixed position to take over the screen */
-    z-index: 999 !important; /* Higher z-index to ensure it's on top */
+    width: auto !important;
+    height: auto !important; /* Auto height */
+    max-height: 85vw !important; /* Use viewport width as height limit */
+    max-width: 85vh !important; /* Use viewport height as width limit */
+    position: fixed !important;
+    z-index: 999 !important;
     top: 50% !important;
     left: 50% !important;
     transform-origin: center !important;
-    transform: translate(-50%, -50%) rotate(90deg) scale(1.2) !important; /* Reduced from 2 to 1.2 */
+    transform: translate(-50%, -50%) rotate(90deg) !important; /* Remove scaling */
     margin: 0 !important;
     object-fit: contain !important;
-    background-color: rgba(255, 255, 255, 0.95) !important; /* Light background for better readability */
-    padding: 10px !important;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.4) !important;
+    background-color: rgba(255, 255, 255, 0.8) !important;
+    padding: 5px !important;
+    box-shadow: 0 0 25px rgba(0, 0, 0, 0.3) !important;
 }
 
 .normal {
@@ -130,7 +138,7 @@ body {
     -webkit-text-stroke: 0.5px #F09819; /* Add stroke for bolder appearance */
 }
 
-.material-button:disabled, 
+.material-button:disabled,
 .material-button.disabled {
     opacity: 0.6;
     background-color: #ddd;
@@ -181,38 +189,37 @@ body {
     color: #eee239; /* Yellow icons */
 }
 
-/* Settings panel styling - floated with no border */
+/* Settings panel styling - repositioned below comic with app style */
 .settings-container {
-    background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent background */
+    background-color: transparent; /* Remove white background */
     border-radius: 12px;
     padding: 15px;
     margin: 0;
-    max-width: 280px; /* Smaller width */
-    border: none; /* Remove border */
-    backdrop-filter: blur(8px); /* Modern blur effect */
-    -webkit-backdrop-filter: blur(8px);
-    position: fixed; /* Float the settings */
-    top: 20%; 
-    right: 15px;
-    z-index: 900;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
+    max-width: 280px;
+    border: none;
+    position: absolute; /* Absolute position instead of fixed */
+    bottom: 90px; /* Position below comic but above bottom bar */
+    left: 50%;
+    transform: translateX(-50%); /* Center horizontally */
+    z-index: 500;
     display: none; /* Hidden by default */
 }
 
-/* Modern checkbox styling - completely rewritten for better compatibility */
 .settings-item {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: #F09819; /* Orange background to match app theme */
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 20px;
     transition: all 0.2s ease;
     position: relative;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .settings-item:hover {
-    background-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
 }
 
 .settings-item:last-child {
@@ -224,29 +231,29 @@ body {
     -webkit-appearance: none;
     width: 20px;
     height: 20px;
-    background-color: rgba(238, 226, 57, 0.6);
-    border: 2px solid rgba(0, 0, 0, 0.4);
-    border-radius: 4px;
+    background-color: #eee239; /* Yellow to match buttons */
+    border: none;
+    border-radius: 50%;
     margin-right: 10px;
     position: relative;
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .settings-item input[type="checkbox"]:checked {
-    background-color: #F09819;
-    border-color: #F09819;
+    background-color: #eee239;
 }
 
 .settings-item input[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
-    left: 6px;
-    top: 2px;
-    width: 5px;
+    left: 7px;
+    top: 3px;
+    width: 6px;
     height: 10px;
-    border: solid white;
+    border: solid #F09819; /* Orange checkmark */
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
@@ -254,15 +261,16 @@ body {
 .settings-item label {
     font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: #fff; /* White text for better contrast */
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
     cursor: pointer;
 }
 
-/* Date picker styling */
+/* Date picker styling - improved aesthetics */
 .date-picker-container {
     display: flex;
     justify-content: center;
-    margin: 5px 0; /* Reduce top margin */
+    margin: 5px 0;
     padding: 0 10px;
 }
 
@@ -270,23 +278,33 @@ input[type="date"] {
     width: 100%;
     max-width: 200px;
     margin: 5px;
-    padding: 8px;
+    padding: 8px 12px;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
     font-size: 14px;
+    font-weight: 500;
     box-sizing: border-box;
     text-align: center;
-    border-radius: 8px;
-    opacity: 0.9;
-    background-color: #eee239;
+    border-radius: 20px; /* Rounded corners like buttons */
+    background-color: #F09819; /* Orange background to match action buttons */
+    color: #fff; /* White text for better contrast */
     border: none;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
 }
 
 input[type="date"]:focus {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
     outline: none;
+    transform: translateY(-2px);
+}
+
+/* Change date picker calendar icon color */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1); /* Make calendar icon white */
+    opacity: 0.8;
+    cursor: pointer;
 }
 
 /* Support container - make larger and reposition */
@@ -305,20 +323,20 @@ input[type="date"]:focus {
         height: 48px;
         width: 48px;
     }
-    
+
     .material-button .material-icons {
         font-size: 24px;
     }
-    
+
     .action-button {
         width: 40px;
         height: 40px;
     }
-     
+
     .action-button .material-icons {
         font-size: 20px;
     }
-    
+
     .bottom-app-bar {
         height: 60px;
     }
