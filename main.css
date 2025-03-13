@@ -14,17 +14,33 @@ main {
     text-align: center;
 }
 
+.button svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+    margin: 0 auto;
+    fill: currentColor;
+}
+
+.button object {
+    width: 24px;
+    height: 24px;
+    pointer-events: none;
+}
+
 .button {
+    min-height: 44px;
     width: 100%;
     margin: 0;
     padding: 10px;
-    text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
     color: black;
     border-radius: 10px;
     border: none;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-weight: 700;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
@@ -175,11 +191,18 @@ input[type=checkbox] {
 }
 
 #settingsDIV {
-    padding-left: 12px;
+    padding: 15px;
+    margin: 0 12px;
+    background-image: linear-gradient(45deg, rgba(238, 226, 57, 0.9) 0%, rgba(240, 152, 25, 0.9) 51%, rgba(238, 226, 57, 0.9) 100%);
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-#kofi-iframe {
-    margin-left: 12px !important;
+.settings-label {
+    font-weight: 500;
+    color: black;
+    margin-left: 30px;
+    opacity: 0.9;
 }
 
 .kofi-button {
@@ -194,7 +217,6 @@ input[type=checkbox] {
 .install-button {
     margin: 5px;
     padding: 10px;
-    text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
     color: black;
