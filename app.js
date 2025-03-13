@@ -253,16 +253,13 @@ function showComic() {
             pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
             
             if(pictureUrl !== previousUrl) {
-                // Create a new image object to check dimensions before setting the src
-                const tempImg = new Image();
-                tempImg.onload = function() {
-                    const comic = document.getElementById('comic');
-                    comic.src = pictureUrl;
-                    
-                    // Check if image is larger than screen and needs auto-resize
+                changeComicImage(pictureUrl);
+                
+                // Add onload handler to check size after the image loads
+                const comic = document.getElementById('comic');
+                comic.onload = function() {
                     checkImageSize(comic);
                 };
-                tempImg.src = pictureUrl;
             } else if(previousclicked) {
                 PreviousClick();
                 return;
@@ -287,12 +284,6 @@ function showComic() {
  * enter fullscreen mode automatically if needed
  */
 function checkImageSize(imgElement) {
-    // Ensure the image has loaded and has dimensions
-    if (!imgElement.complete || !imgElement.naturalWidth) {
-        imgElement.onload = () => checkImageSize(imgElement);
-        return;
-    }
-    
     // Get viewport dimensions
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -313,6 +304,46 @@ function checkImageSize(imgElement) {
             Rotate();
         }
     }
+}
+
+/**
+ * Hide all UI elements for immersive comic viewing
+ */
+function hideAllUIElements() {
+    // Hide navigation and UI elements
+    const elementsToHide = [
+        '.action-buttons-container',
+        '.support-container',
+        '.bottom-app-bar',
+        'header',
+        '#settingsDIV',
+        '.install-button'
+    ];
+    
+    elementsToHide.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) element.style.visibility = "hidden";
+    });
+}
+
+/**
+ * Show all UI elements when exiting immersive comic viewing
+ */
+function showAllUIElements() {
+    // Show navigation and UI elements
+    const elementsToShow = [
+        '.action-buttons-container',
+        '.support-container',
+        '.bottom-app-bar',
+        'header',
+        '#settingsDIV',
+        '.install-button'
+    ];
+    
+    elementsToShow.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) element.style.visibility = "visible";
+    });
 }
 
 /**
@@ -365,46 +396,6 @@ function Rotate() {
         // Re-enable scrolling
         document.body.style.overflow = 'auto';
     }
-}
-
-/**
- * Hide all UI elements for immersive comic viewing
- */
-function hideAllUIElements() {
-    // Hide navigation and UI elements
-    const elementsToHide = [
-        '.action-buttons-container',
-        '.support-container',
-        '.bottom-app-bar',
-        'header',
-        '#settingsDIV',
-        '.install-button'
-    ];
-    
-    elementsToHide.forEach(selector => {
-        const element = document.querySelector(selector);
-        if (element) element.style.visibility = "hidden";
-    });
-}
-
-/**
- * Show all UI elements when exiting immersive comic viewing
- */
-function showAllUIElements() {
-    // Show navigation and UI elements
-    const elementsToShow = [
-        '.action-buttons-container',
-        '.support-container',
-        '.bottom-app-bar',
-        'header',
-        '#settingsDIV',
-        '.install-button'
-    ];
-    
-    elementsToShow.forEach(selector => {
-        const element = document.querySelector(selector);
-        if (element) element.style.visibility = "visible";
-    });
 }
 
 // Swipe event handlers
