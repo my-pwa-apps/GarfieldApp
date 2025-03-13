@@ -61,20 +61,21 @@ body {
     transform: rotate(90deg);
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
-    width: auto;
-    height: 95vh; /* Use more viewport height */
-    max-width: none;
-    position: fixed; /* Fixed position to take over the screen */
-    z-index: 999; /* Higher z-index to ensure it's on top */
-    top: 50%;
-    left: 50%;
-    transform-origin: center;
-    transform: translate(-50%, -50%) rotate(90deg); /* Center and rotate */
-    margin: 0;
-    object-fit: contain;
-    background-color: rgba(255, 255, 255, 0.9); /* Light background for better readability */
-    padding: 10px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    width: auto !important; /* Override any existing width constraints */
+    height: 150vh !important; /* Increased from 100vh to take more space */
+    max-width: none !important;
+    max-height: none !important;
+    position: fixed !important; /* Fixed position to take over the screen */
+    z-index: 999 !important; /* Higher z-index to ensure it's on top */
+    top: 50% !important;
+    left: 50% !important;
+    transform-origin: center !important;
+    transform: translate(-50%, -50%) rotate(90deg) scale(2) !important; /* Increased scale from 1.2 to 2 */
+    margin: 0 !important;
+    object-fit: contain !important;
+    background-color: rgba(255, 255, 255, 0.95) !important; /* Light background for better readability */
+    padding: 10px !important;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.4) !important;
 }
 
 .normal {
