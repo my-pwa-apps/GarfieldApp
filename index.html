@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,48 +21,51 @@
     <script src="./swiped-events.min.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
-
 <body onload="onLoad()">
-    <h1 hidden>Daily Garfield Comics App</h1>
-    <div class="logo">
-        <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
-    </div>
-    <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
-        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
-    </div>
-    <br>
-    <br>
-    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
-    <br>
-    <br>
-    <div style="z-index: -1;">
-        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-        <script type='text/javascript'>
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-        </script>
-        <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; right: 120px; position: absolute;">
-        <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; right: 70px; position: absolute;">
-        <img onclick="Share()" src="./share.svg" style="width: 30px; right: 20px; position: absolute;">
-    </div>
-    <br>
-    <br>
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
-    </div>
+    <main>
+        <h1 hidden>Daily Garfield Comics App</h1>
+        <div class="logo">
+            <img src="./garlogo.webp" alt="Daily Garfield Comics">
+        </div>
+        
+        <div class="buttongrid">
+            <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
+            <button class="button" id="Random" onclick="RandomClick()">Random</button>
+            <button class="button" id="Next" onclick="NextClick()">Next</button>
+            <button class="button" id="First" onclick="FirstClick()">First</button>
+            <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+            <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+        </div>
+
+        <div class="comic-container">
+            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from gocomics.com...">
+        </div>
+
+        <div class="control-icons">
+            <img onclick="HideSettings()" src="./tune.svg" alt="Settings">
+            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites">
+            <img onclick="Share()" src="./share.svg" alt="Share">
+        </div>
+
+        <div id="settingsDIV">
+            <input type="checkbox" id="swipe" checked>
+            <label for="swipe">Swipe enabled</label>
+            <br>
+            <input type="checkbox" id="showfavs" checked>
+            <label for="showfavs">Show only my favorites</label>
+            <br>
+            <input type="checkbox" id="lastdate" checked>
+            <label for="lastdate">Remember last comic on exit/refresh</label>
+        </div>
+
+        <div class="kofi-container">
+            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+            <script type='text/javascript'>
+                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                kofiwidget2.draw();
+            </script>
+        </div>
+    </main>
     <script src="./app.js" defer></script>
 </body>
-
 </html>
