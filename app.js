@@ -133,21 +133,58 @@ function checkComicOrientation(comicElement) {
 
 function Rotate() {
 	var element = document.getElementById('comic');
-	if (element.naturalHeight > element.naturalWidth) {
-		// For vertical comics, toggle between vertical and fullscreen vertical
-		if(element.className === "vertical") {
-			element.className = "vertical-fullscreen";
-		} else if(element.className === "vertical-fullscreen") {
-			element.className = 'vertical';
-		}
+	var contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"]');
+	
+	if (element.classList.contains('fullscreen')) {
+		// Exit fullscreen mode
+		exitFullscreenMode(element, contentElements);
 	} else {
-		// For horizontal comics, toggle between normal and rotate
-		if(element.className === "normal") {
-			element.className = "rotate";
-		} else if(element.className === "rotate") {
-			element.className = 'normal';
+		// Enter fullscreen mode
+		enterFullscreenMode(element, contentElements);
+	}
+}
+
+function enterFullscreenMode(element, contentElements) {
+	// Hide UI elements
+	contentElements.forEach(el => el.style.display = 'none');
+	
+	// Remember original class to restore later
+	element.dataset.originalClass = element.className;
+	
+	// Add fullscreen class
+	element.classList.add('fullscreen');
+	
+	if (element.naturalHeight > element.naturalWidth) {
+		element.classList.add('vertical-fullscreen');
+		element.classList.remove('normal', 'vertical', 'rotate');
+	} else {
+		if (window.innerWidth < window.innerHeight) {
+			// On portrait screens, rotate horizontal comics
+			element.classList.add('rotate-fullscreen');
+			element.classList.remove('normal', 'vertical', 'rotate');
+		} else {
+			// On landscape screens, don't rotate
+			element.classList.add('horizontal-fullscreen');
+			element.classList.remove('normal', 'vertical', 'rotate');
 		}
 	}
+	
+	document.body.classList.add('comic-fullscreen');
+}
+
+function exitFullscreenMode(element, contentElements) {
+	// Show UI elements
+	contentElements.forEach(el => el.style.display = '');
+	
+	// Restore original class
+	if (element.dataset.originalClass) {
+		element.className = element.dataset.originalClass;
+	} else {
+		element.className = 'normal';
+	}
+	
+	element.classList.remove('fullscreen', 'vertical-fullscreen', 'horizontal-fullscreen', 'rotate-fullscreen');
+	document.body.classList.remove('comic-fullscreen');
 }
 
 function HideSettings()

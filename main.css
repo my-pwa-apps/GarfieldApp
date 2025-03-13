@@ -109,30 +109,20 @@ input {
     object-fit: contain;
 }
 
-.vertical-fullscreen {
-    -ms-transform: rotate(0deg);
-    -webkit-transform: rotate(0deg);
-    transform: rotate(0deg);
-    height: 90vh;
-    max-width: 100%;
-    margin: 0 auto;
-    display: block;
-    object-fit: contain;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-}
-
 .rotate {
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
     transform: rotate(90deg);
-    margin-left: -22vw;
-    width: 140%;
-    position: absolute;
+    height: 90vw; /* Use viewport width as height for maximum size */
+    width: auto; /* Auto width to maintain aspect ratio */
+    margin: 0;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform-origin: center;
+    transform: rotate(90deg) translate(-50%, -50%);
     z-index: 100;
+    max-height: none; /* Remove max-height constraint */
 }
 
 normal {
@@ -229,4 +219,51 @@ input[type="date"] {
 input[type="date"]:focus {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Enhanced shadow on focus */
     outline: none;
+}
+
+body.comic-fullscreen {
+    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    background-size: 100% 100vh;
+}
+
+.fullscreen {
+    cursor: zoom-out;
+    z-index: 1000 !important;
+}
+
+.vertical-fullscreen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-height: 90vh;
+    max-width: 90vw;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.horizontal-fullscreen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-height: 90vh;
+    max-width: 90vw;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.rotate-fullscreen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+    max-height: 90vw;
+    max-width: 90vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
 }
