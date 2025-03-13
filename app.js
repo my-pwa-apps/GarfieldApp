@@ -346,33 +346,75 @@ function formatDate(dateToFormat) {
 /**
  * Toggle comic orientation (portrait/landscape)
  * Maximizes screen usage while maintaining aspect ratio
+ * Creates an immersive reading experience on small screens
  */
 function Rotate() {
     const element = document.getElementById('comic');
     const comicContainer = document.querySelector('.comic-container');
+    const bottomAppBar = document.querySelector('.bottom-app-bar');
+    const header = document.querySelector('header');
     
     if (element.className === "normal") {
-        // Switching to rotated view
+        // Switching to rotated view - larger for better readability
         element.className = "rotate";
-        comicContainer.style.overflow = "visible";
-        comicContainer.style.zIndex = "100";
         
-        // Hide buttons when in rotated view to maximize screen space
-        const actionButtons = document.querySelector('.action-buttons-container');
-        const supportContainer = document.querySelector('.support-container');
-        if (actionButtons) actionButtons.style.visibility = "hidden";
-        if (supportContainer) supportContainer.style.visibility = "hidden";
+        // Hide interface elements to create immersive reading experience
+        if (actionButtons = document.querySelector('.action-buttons-container'))
+            actionButtons.style.visibility = "hidden";
+            
+        if (supportContainer = document.querySelector('.support-container'))
+            supportContainer.style.visibility = "hidden";
+            
+        if (bottomAppBar)
+            bottomAppBar.style.visibility = "hidden";
+            
+        if (header)
+            header.style.visibility = "hidden";
+        
+        // Add tap instruction
+        const instruction = document.createElement('div');
+        instruction.id = 'rotate-instruction';
+        instruction.textContent = 'Tap comic to exit fullscreen';
+        instruction.style.position = 'fixed';
+        instruction.style.bottom = '10px';
+        instruction.style.left = '0';
+        instruction.style.right = '0';
+        instruction.style.textAlign = 'center';
+        instruction.style.backgroundColor = 'rgba(0,0,0,0.5)';
+        instruction.style.color = 'white';
+        instruction.style.padding = '5px';
+        instruction.style.fontSize = '14px';
+        instruction.style.zIndex = '1000';
+        document.body.appendChild(instruction);
+        
+        // Prevent scrolling
+        document.body.style.overflow = 'hidden';
+        
     } else {
         // Switching back to normal view
         element.className = "normal";
-        comicContainer.style.overflow = "hidden";
-        comicContainer.style.zIndex = "initial";
         
-        // Show buttons again when back to normal view
-        const actionButtons = document.querySelector('.action-buttons-container');
-        const supportContainer = document.querySelector('.support-container');
-        if (actionButtons) actionButtons.style.visibility = "visible";
-        if (supportContainer) supportContainer.style.visibility = "visible";
+        // Show interface elements again
+        if (actionButtons = document.querySelector('.action-buttons-container'))
+            actionButtons.style.visibility = "visible";
+            
+        if (supportContainer = document.querySelector('.support-container'))
+            supportContainer.style.visibility = "visible";
+            
+        if (bottomAppBar)
+            bottomAppBar.style.visibility = "visible";
+            
+        if (header)
+            header.style.visibility = "visible";
+        
+        // Remove instruction
+        const instruction = document.getElementById('rotate-instruction');
+        if (instruction) {
+            instruction.parentNode.removeChild(instruction);
+        }
+        
+        // Re-enable scrolling
+        document.body.style.overflow = 'auto';
     }
 }
 
