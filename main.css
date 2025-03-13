@@ -15,7 +15,8 @@ main {
 }
 
 .button {
-    margin: 5px;
+    width: 100%;
+    margin: 0;
     padding: 10px;
     text-align: center;
     transition: 0.5s;
@@ -65,14 +66,14 @@ main {
 }
 
 input[type="date"] {
-    margin: 5px;
+    width: 100%;
+    margin: 0;
     padding: 10px;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    max-width: 100%;
-    font-size: 0.75rem;
     box-sizing: border-box;
+    font-size: 0.75rem;
     text-align: center;
     border-radius: 10px;
     opacity: 0.9;
@@ -88,12 +89,13 @@ input[type="date"]:focus {
 
 .buttongrid {
     display: grid;
-    grid-template-columns: 33% 33% 33%;
+    grid-template-columns: repeat(3, 1fr);
     grid-template-rows: 60% 60%;
     text-align: center;
     gap: 8px;
     padding: 0 12px;
     margin-bottom: 15px;
+    box-sizing: border-box;
 }
 
 .rotate {
