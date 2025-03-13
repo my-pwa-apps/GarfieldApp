@@ -145,6 +145,10 @@ function Rotate() {
 }
 
 function enterFullscreenMode(element, contentElements) {
+	// Store settings visibility state before hiding
+	const settingsDiv = document.getElementById("settingsDIV");
+	element.dataset.settingsVisible = settingsDiv ? settingsDiv.style.display : 'none';
+	
 	// Hide UI elements
 	contentElements.forEach(el => el.style.display = 'none');
 	
@@ -173,8 +177,15 @@ function enterFullscreenMode(element, contentElements) {
 }
 
 function exitFullscreenMode(element, contentElements) {
-	// Show UI elements
-	contentElements.forEach(el => el.style.display = '');
+	// Show UI elements except settings which should restore to previous state
+	contentElements.forEach(el => {
+		if (el.id === "settingsDIV") {
+			// Restore previous visibility state
+			el.style.display = element.dataset.settingsVisible || 'none';
+		} else {
+			el.style.display = '';
+		}
+	});
 	
 	// Restore original class
 	if (element.dataset.originalClass) {
