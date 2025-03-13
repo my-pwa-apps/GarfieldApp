@@ -16,17 +16,18 @@ body {
     background-color: orange; /* Fallback */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
-    min-height: 100vh;
+    height: 100vh;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;  /* Prevent scrolling on mobile */
 }
 
 @media (min-width: 768px) {
     body {
         height: auto;
-        overflow-y: auto;
+        overflow-y: auto;  /* Allow scrolling on desktop */
     }
 }
 
@@ -99,23 +100,29 @@ body {
 
 /* Bottom app bar styling */
 .bottom-app-bar {
-    position: fixed;
+    position: absolute;  /* Absolute on mobile */
     bottom: 0;
     left: 0;
     width: 100%;
     height: 70px;
-    background-color: transparent;
+    background-color: rgba(238, 226, 57, 0.8);  /* Restore previous theme */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 1000;
     padding: 0 10px 10px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
 @media (min-width: 768px) {
     .bottom-app-bar {
-        position: sticky;
-        bottom: 0;
+        position: relative;  /* Relative on desktop */
+        background-color: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        box-shadow: none;
     }
 }
 
