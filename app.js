@@ -109,15 +109,7 @@ function changeComicImage(newSrc) {
     comic.classList.add('dissolve');
     setTimeout(() => {
         comic.src = newSrc;
-        // Add an onload event handler to check orientation once the image is fully loaded
-        comic.onload = function() {
-            checkComicOrientation(this);
-            comic.classList.remove('dissolve');
-        };
-        // Fallback in case the onload doesn't trigger
-        setTimeout(() => {
-            comic.classList.remove('dissolve');
-        }, 1000);
+        comic.classList.remove('dissolve');
     }, 500); // Match the duration of the CSS transition
 }
 
