@@ -161,17 +161,17 @@ body {
     transform: scale(0.92);
 }
 
-.material-button:disabled {
-    opacity: 0.5;
-    background-color: #f0f0f0;
+.material-button:disabled, 
+.material-button.disabled {
+    opacity: 0.6;
+    background-color: #ddd;
     pointer-events: none;
 }
 
-.material-button.disabled {
-    opacity: 0.5;
-    color: rgba(0, 0, 0, 0.4);
-    pointer-events: none;
-    background-color: #f0f0f0;
+.material-button:disabled .material-icons,
+.material-button.disabled .material-icons {
+    color: #999;
+    -webkit-text-stroke: 0;
 }
 
 .material-button .material-icons {
@@ -194,15 +194,16 @@ body {
     -webkit-backdrop-filter: blur(5px);
 }
 
+/* Modern checkbox styling - completely rewritten for better compatibility */
 .settings-item {
     margin-bottom: 12px;
     display: flex;
     align-items: center;
-    background-color: rgba(255, 255, 255, 0.2); /* Subtle background for each item */
+    background-color: rgba(255, 255, 255, 0.2);
     padding: 8px 12px;
     border-radius: 8px;
     transition: all 0.2s ease;
-    position: relative; /* For absolute positioning of pseudo-elements */
+    position: relative;
 }
 
 .settings-item:hover {
@@ -213,60 +214,43 @@ body {
     margin-bottom: 0;
 }
 
-.settings-item label {
-    margin-left: 30px; /* Provide space for the checkbox */
-    font-size: 14px;
-    line-height: 1.4;
-    font-weight: 500;
-    color: #333;
-}
-
-/* Modern checkbox styling - simplified and fixed */
-input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    cursor: pointer;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
-}
-
-/* Custom checkbox container */
-.settings-item::before {
-    content: "";
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
+.settings-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    background-color: rgba(238, 226, 57, 0.6);
     border: 2px solid rgba(0, 0, 0, 0.4);
     border-radius: 4px;
-    background-color: rgba(238, 226, 57, 0.6);
+    margin-right: 10px;
+    position: relative;
+    cursor: pointer;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
-/* Custom checkbox when checked */
-input[type="checkbox"]:checked ~ label::after {
-    content: "";
-    position: absolute;
-    left: 17px;
-    top: 50%;
-    transform: translateY(-70%) rotate(45deg);
-    width: 5px;
-    height: 10px;
-    border: solid #333;
-    border-width: 0 2px 2px 0;
-}
-
-/* Change checkbox background when checked */
-input[type="checkbox"]:checked ~ ::before {
+.settings-item input[type="checkbox"]:checked {
     background-color: #F09819;
     border-color: #F09819;
+}
+
+.settings-item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.settings-item label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    cursor: pointer;
 }
 
 /* Date picker styling */

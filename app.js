@@ -61,8 +61,6 @@ function Addfav() {
         if(favs.length === 0) {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
-            document.getElementById("Today").querySelector('.button-label') ? 
-                document.getElementById("Today").querySelector('.button-label').innerHTML = 'Today' : null;
         }
     }
     
