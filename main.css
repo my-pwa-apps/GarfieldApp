@@ -229,6 +229,7 @@ body.comic-fullscreen {
 .fullscreen {
     cursor: zoom-out;
     z-index: 1000 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .vertical-fullscreen {
@@ -241,6 +242,7 @@ body.comic-fullscreen {
     width: auto;
     height: auto;
     object-fit: contain;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .horizontal-fullscreen {
@@ -253,6 +255,7 @@ body.comic-fullscreen {
     width: auto;
     height: auto;
     object-fit: contain;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
 .rotate-fullscreen {
@@ -266,4 +269,5 @@ body.comic-fullscreen {
     width: auto;
     height: auto;
     object-fit: contain;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }

@@ -133,7 +133,7 @@ function checkComicOrientation(comicElement) {
 
 function Rotate() {
 	var element = document.getElementById('comic');
-	var contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"]');
+	var contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"], #settingsDIV, button[style*="position: fixed"]');
 	
 	if (element.classList.contains('fullscreen')) {
 		// Exit fullscreen mode
