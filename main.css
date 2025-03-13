@@ -53,6 +53,17 @@ main {
     box-shadow: none;
 }
 
+.logo {
+    padding: 0 12px;
+    margin-bottom: 15px;
+}
+
+.logo img {
+    width: 100%;
+    margin-top: 15px;
+    padding-bottom: 5px;
+}
+
 input[type="date"] {
     margin: 5px;
     padding: 10px;
@@ -80,7 +91,9 @@ input[type="date"]:focus {
     grid-template-columns: 33% 33% 33%;
     grid-template-rows: 60% 60%;
     text-align: center;
-    gap: 3px;
+    gap: 8px;
+    padding: 0 12px;
+    margin-bottom: 15px;
 }
 
 .rotate {
