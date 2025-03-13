@@ -71,8 +71,8 @@ body {
     -webkit-transform: rotate(90deg);
     width: auto !important;
     height: auto !important; /* Auto height */
-    max-height: 90vw !important; /* Increased from 85vw */
-    max-width: 90vh !important; /* Increased from 85vh */
+    max-height: 87vw !important; /* Adjusted between 85vw and 90vw */
+    max-width: 87vh !important; /* Adjusted between 85vh and 90vh */
     position: fixed !important;
     z-index: 999 !important;
     top: 50% !important;
@@ -327,6 +327,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     z-index: 50;
     transform: scale(0.95); /* Increased from 0.9 - make Ko-fi button larger */
     transform-origin: left bottom;
+}
+
+/* Hide settings when in rotated mode */
+body.fullscreen-mode .settings-container {
+    display: none !important;
 }
 
 /* Responsive styles */

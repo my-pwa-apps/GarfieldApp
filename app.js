@@ -372,6 +372,9 @@ function Rotate() {
         // Switching to rotated view - larger for better readability
         element.className = "rotate";
         
+        // Add fullscreen mode class to body to help with CSS selectors
+        document.body.classList.add('fullscreen-mode');
+        
         // Hide interface elements to create immersive reading experience
         if (actionButtons = document.querySelector('.action-buttons-container'))
             actionButtons.style.visibility = "hidden";
@@ -407,6 +410,9 @@ function Rotate() {
     } else {
         // Switching back to normal view
         element.className = "normal";
+        
+        // Remove fullscreen mode class from body
+        document.body.classList.remove('fullscreen-mode');
         
         // Show interface elements again
         if (actionButtons = document.querySelector('.action-buttons-container'))
