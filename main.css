@@ -1,3 +1,8 @@
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
     background: linear-gradient(#eee239, orange) no-repeat fixed;
     background-size: 100% 100vh;
@@ -5,17 +10,9 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    margin: 0;
+    /* Keep original body padding and margins */
+    margin: 8px;
     padding: 0;
-}
-
-html {
-    height: 100%;
-    overflow: hidden;
 }
 
 main {
