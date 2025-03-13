@@ -443,9 +443,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
   const installButton = document.createElement('button');
   installButton.innerText = 'Install App';
+  installButton.classList.add('install-button');
   installButton.style.position = 'fixed';
   installButton.style.bottom = '10px';
   installButton.style.right = '10px';
+  installButton.style.padding = '10px 20px';
   document.body.appendChild(installButton);
 
   installButton.addEventListener('click', () => {
