@@ -112,18 +112,16 @@ function changeComicImage(newSrc) {
     comic.classList.add('dissolve');
     setTimeout(() => {
         comic.src = newSrc;
-        comic.classList.remove('dissolve');
-
-        // Check comic orientation when it loads
         comic.onload = function() {
+            comic.classList.remove('dissolve');
             checkComicOrientation(comic);
-
+            
             // Reapply fullscreen mode if active
             if (isFullscreenMode) {
                 const contentElements = document.querySelectorAll('.buttongrid, .logo, div[style*="z-index: -1"], #settingsDIV, button[style*="position: fixed"]');
                 enterFullscreenMode(comic, contentElements);
             }
-		};
+        };
     }, 500); // Match the duration of the CSS transition
 }
 
@@ -268,7 +266,7 @@ showComic();
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
 		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate)-1]);}}
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate)-1]);} }
 	else{
 		var f=0;
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
@@ -468,7 +466,7 @@ if (getStatus == "true")
 {
 	document.getElementById("lastcomic").checked = true;
 }
-else
+	else
 {
 	document.getElementById("lastcomic").checked = false;
 }
