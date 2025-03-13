@@ -369,10 +369,7 @@ function Rotate() {
     const header = document.querySelector('header');
     
     if (element.className === "normal") {
-        // Switching to rotated view - larger for better readability
-        element.className = "rotate";
-        
-        // Hide interface elements to create immersive reading experience
+        // First hide interface elements before showing rotated view
         if (actionButtons = document.querySelector('.action-buttons-container'))
             actionButtons.style.visibility = "hidden";
             
@@ -385,10 +382,18 @@ function Rotate() {
         if (header)
             header.style.visibility = "hidden";
         
+        // Also hide the settings container
+        const settingsContainer = document.getElementById("settingsDIV");
+        if (settingsContainer)
+            settingsContainer.style.visibility = "hidden";
+            
         // Also hide the install button if present
         const installButton = document.querySelector('.install-button');
         if (installButton)
             installButton.style.visibility = "hidden";
+            
+        // Now switch to rotated view after hiding elements
+        element.className = "rotate";
         
         // Add tap instruction
         const instruction = document.createElement('div');
@@ -426,6 +431,11 @@ function Rotate() {
         if (header)
             header.style.visibility = "visible";
         
+        // Also show the settings container again
+        const settingsContainer = document.getElementById("settingsDIV");
+        if (settingsContainer)
+            settingsContainer.style.visibility = "visible";
+            
         // Also show the install button again if present
         const installButton = document.querySelector('.install-button');
         if (installButton)
