@@ -193,12 +193,12 @@ body {
 .settings-container {
     background-color: transparent; /* Remove white background */
     border-radius: 12px;
-    padding: 15px;
+    padding: 10px; /* Reduced padding */
     margin: 0;
-    max-width: 280px;
+    max-width: 260px; /* Slightly narrower */
     border: none;
     position: absolute; /* Absolute position instead of fixed */
-    bottom: 90px; /* Position below comic but above bottom bar */
+    bottom: 110px; /* Position lower - increased from 90px */
     left: 50%;
     transform: translateX(-50%); /* Center horizontally */
     z-index: 500;
@@ -206,16 +206,16 @@ body {
 }
 
 .settings-item {
-    margin-bottom: 10px;
+    margin-bottom: 8px; /* Reduced from 10px */
     display: flex;
     align-items: center;
     background-color: #F09819; /* Orange background to match app theme */
-    padding: 8px 12px;
+    padding: 6px 10px; /* Reduced padding */
     border-radius: 20px;
     transition: all 0.2s ease;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    min-height: 40px; /* Make items suitable for click target */
+    min-height: 36px; /* Reduced from 40px */
     white-space: nowrap; /* Ensure text stays on one line */
     overflow: hidden; /* Hide overflow */
     text-overflow: ellipsis; /* Add ellipsis for overflow text */
@@ -234,8 +234,8 @@ body {
 .settings-item input[type="checkbox"] {
     appearance: none;
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 18px; /* Slightly smaller */
+    height: 18px; /* Slightly smaller */
     background-color: #eee239; /* Yellow to match buttons */
     border: none;
     border-radius: 50%;
@@ -254,17 +254,17 @@ body {
 .settings-item input[type="checkbox"]:checked::after {
     content: '';
     position: absolute;
-    left: 7px;
+    left: 6px; /* Adjusted for smaller checkbox */
     top: 3px;
-    width: 6px;
-    height: 10px;
+    width: 5px; /* Adjusted for smaller checkbox */
+    height: 9px; /* Adjusted for smaller checkbox */
     border: solid #F09819; /* Orange checkmark */
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
 
 .settings-item label {
-    font-size: 13px; /* Slightly smaller font for mobile */
+    font-size: 12px; /* Reduced from 13px */
     font-weight: 500;
     color: #eee239; /* Yellow text to match buttons */
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
