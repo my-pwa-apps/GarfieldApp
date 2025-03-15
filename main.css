@@ -202,9 +202,9 @@ input[type="date"]:focus {
 }
 
 .logo img {
-    max-width: 95%; /* Adjust width to be smaller than 100% */
-    margin: 25px auto 5px; /* Top, horizontal (auto centers), bottom margins */
-    display: block; /* Block display ensures margins work properly */
+    max-width: 90%;
+    margin: 25px auto 5px;
+    display: block;
 }
 
 #comic-container {
