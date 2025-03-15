@@ -98,8 +98,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-height: 85vw; /* Changed from vh to vw to better handle landscape orientation */
-    max-width: 85vh; /* Changed from vh to vh to better handle landscape orientation */
+    max-width: 90vmin; /* Adjusted from 95vmin to 90vmin */
+    max-height: 90vmin; /* Adjusted from 95vmin to 90vmin */
     object-fit: contain;
     margin: 0;
     padding: 0;
