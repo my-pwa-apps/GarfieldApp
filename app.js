@@ -69,8 +69,10 @@ function changeComicImage(newSrc) {
 
 function HideSettings()
 {
+    // Set the minimum height before toggling to prevent layout shift
+    document.body.style.minHeight = document.documentElement.scrollHeight + "px";
+    
     var x = document.getElementById("settingsDIV");
-    // Revert back to using display which works with the existing code
     if (x.style.display === "none" || x.style.display === "") {
         x.style.display = "block";
         localStorage.setItem('settings', "true");
@@ -78,9 +80,6 @@ function HideSettings()
         x.style.display = "none";
         localStorage.setItem('settings', "false");
     }
-    
-    // Prevent gradient shift by maintaining body height
-    document.body.style.minHeight = document.body.scrollHeight + "px";
 }
 
 function onLoad()
