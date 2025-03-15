@@ -69,14 +69,18 @@ function changeComicImage(newSrc) {
 
 function HideSettings()
 {
-var x = document.getElementById("settingsDIV");
-	if (x.style.display === "none") {
-	  x.style.display = "block";
-	  localStorage.setItem('settings', "true");
-	} else {
-	  x.style.display = "none";
-	  localStorage.setItem('settings', "false");
-	}
+    var x = document.getElementById("settingsDIV");
+    if (x.style.display === "none") {
+        x.style.display = "block";
+        localStorage.setItem('settings', "true");
+    } else {
+        x.style.display = "none";
+        localStorage.setItem('settings', "false");
+    }
+    
+    // Prevent background shift by maintaining the document height
+    // Force recalculation of the background gradient
+    document.body.style.minHeight = "100vh";
 }
 
 function onLoad()
@@ -456,6 +460,11 @@ function showInstallPromotion() {
   installButton.style.backgroundImage = 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)';
   installButton.style.backgroundSize = '200% auto';
   installButton.style.animation = 'pulse 2s infinite';
+  installButton.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+  installButton.style.color = "black";
+  installButton.style.fontSize = '0.9rem';
+  installButton.style.fontWeight = '700';
+  installButton.style.textAlign = 'center';
   
   // Add pulse animation style
   const style = document.createElement('style');
