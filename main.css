@@ -98,13 +98,15 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-height: 80vh;
-    max-width: 80vh;
+    max-height: 90vh;
+    max-width: 90vh;
     object-fit: contain;
     margin: 0;
     padding: 0;
     z-index: 1000;
     transition: transform 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
 }
 
 .normal {
