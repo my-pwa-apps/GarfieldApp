@@ -98,8 +98,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 90vh; /* Decreased from 98vh to prevent top/bottom cutoff */
-    max-height: 85vw; /* Decreased from 94vw to prevent top/bottom cutoff */
+    max-width: 90vh;
+    max-height: 85vw;
     object-fit: contain;
     margin: 0;
     padding: 0;
@@ -171,69 +171,6 @@ input[type=checkbox] {
     opacity: 0;
 }
 
-input[type="date"] {
-    margin: 5px;
-    padding: 12px; /* Match button padding exactly */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    font-size: 0.9rem;
-    box-sizing: border-box;
-    text-align: center;
-    border-radius: 10px;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
-    background-size: 200% auto;
-    border: none;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    color: black;
-    font-weight: 700;
-    height: auto;
-    width: 100%;
-}
-
-/* Make the default calendar picker visible with higher contrast */
-input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0); /* Make sure it's not inverted */
-    opacity: 0.8;
-    cursor: pointer;
-    margin-left: 5px; /* Add space between text and icon */
-}
-
-/* Safari-specific fix */
-@media screen and (-webkit-min-device-pixel-ratio:0) {
-    input[type="date"] {
-        position: relative;
-    }
-    
-    input[type="date"]::-webkit-inner-spin-button {
-        display: none;
-    }
-    
-    input[type="date"]::-webkit-clear-button {
-        display: none;
-    }
-}
-
-/* Firefox specific styles */
-@-moz-document url-prefix() {
-    input[type="date"] {
-        padding-right: 12px; /* Ensure consistent padding */
-        text-align: center;
-    }
-}
-
-input[type="date"]:focus {
-    background-position: right center;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    outline: none;
-}
-
-/* Ensure consistent sizing with buttons in the grid */
-.buttongrid input[type="date"] {
-    width: 100%;
-    height: calc(100% - 10px); /* Account for margin */
-}
-
 .date-input-container {
     position: relative;
     margin: 5px;
@@ -270,8 +207,8 @@ input[type="date"]:focus {
 input[type="date"] {
     width: 100%;
     margin: 0;
-    padding: 12px 35px 12px 12px; /* Increased right padding to ensure date isn't cut off */
-    font-size: 0.85rem; /* Slightly smaller font to ensure date fits */
+    padding: 12px;
+    font-size: 0.85rem;
     font-weight: 700;
     background: transparent;
     border: none;
@@ -336,9 +273,7 @@ input[type="date"]:focus {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 20px; /* Add padding to prevent comics from touching the edges */
-    box-sizing: border-box;
-    overflow: hidden; /* Ensure nothing extends beyond the container */
+    overflow: hidden;
 }
 
 #comic-wrapper {
@@ -404,6 +339,6 @@ input[type="date"]:focus {
 
 .kofi-button-styled {
     position: relative;
-    top: 2px; /* Changed from 3px to 2px to move up 1px */
-    margin-left: 3px; /* Changed from 5px to 3px to move left 2px */
+    top: 2px;
+    margin-left: 3px;
 }
