@@ -222,7 +222,6 @@ input[type="date"]:focus {
     padding: 0;
     box-sizing: border-box;
     /* This negative margin compensates for any parent padding */
-    margin-left: calc(0px - (100vw - 100%) / 2);
     position: relative;
     left: 50%;
     transform: translateX(-50%);
@@ -237,6 +236,9 @@ input[type="date"]:focus {
     height: 100vh;
     background-color: rgba(238, 226, 57, 0.95);
     z-index: 999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #comic-wrapper {
