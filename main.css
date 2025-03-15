@@ -26,7 +26,7 @@ main {
 
 .button {
     margin: 5px;
-    padding: 10px;
+    padding: 15px; /* Increased from 10px to make buttons larger */
     text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
@@ -35,12 +35,15 @@ main {
     border: none; /* Remove the outline */
     display: block;
     font-weight: 700;
+    font-size: 1rem; /* Increased font size */
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* More prominent shadow */
+    min-width: 80px; /* Ensures buttons maintain a minimum width */
+    height: auto; /* Allows buttons to size naturally based on content */
 }
 
 .button:active {
@@ -83,7 +86,7 @@ input {
     grid-template-columns: 1fr 1fr 1fr;
     grid-template-rows: auto auto;
     text-align: center;
-    gap: 3px;
+    gap: 5px; /* Slightly increased from 3px for better spacing */
     padding: 0; /* Remove horizontal padding to use full width */
     box-sizing: border-box;
     width: 100%; /* Ensure full width */
