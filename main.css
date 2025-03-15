@@ -296,6 +296,6 @@ input[type="date"]:focus {
 
 .kofi-button-styled {
     position: relative;
-    top: 3px;
-    margin-left: 5px;
+    top: 2px; /* Changed from 3px to 2px to move up 1px */
+    margin-left: 3px; /* Changed from 5px to 3px to move left 2px */
 }
