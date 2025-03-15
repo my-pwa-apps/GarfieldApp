@@ -201,7 +201,7 @@ input[type="date"]:focus {
 }
 
 .logo img {
-    max-width: 100%;
+    max-width: 95%;
     margin: 25px auto 5px;
     display: block;
 }
