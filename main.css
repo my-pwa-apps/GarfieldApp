@@ -101,8 +101,9 @@ input {
     transform: translate(-50%, -50%) rotate(90deg);
     transform-origin: center center;
     width: auto;
-    height: 80vh; /* Set explicit height based on viewport height */
-    max-width: none; /* Remove max-width constraint */
+    height: auto;
+    max-height: 70vw; /* Use viewport width for height constraint when rotated */
+    max-width: 80vh; /* Use viewport height for width constraint when rotated */
     object-fit: contain; /* Ensure image maintains aspect ratio */
     margin: 0;
     padding: 0;
