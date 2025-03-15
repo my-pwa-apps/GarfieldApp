@@ -69,14 +69,6 @@ function changeComicImage(newSrc) {
 
 function HideSettings()
 {
-    // Force the body to maintain its height before toggling
-    const currentHeight = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-        window.innerHeight
-    ) + "px";
-    document.body.style.minHeight = currentHeight;
-    
     var x = document.getElementById("settingsDIV");
     if (x.style.display === "none" || x.style.display === "") {
         x.style.display = "block";
@@ -85,6 +77,9 @@ function HideSettings()
         x.style.display = "none";
         localStorage.setItem('settings', "false");
     }
+    
+    // Remove the fixed height that was causing scrolling
+    document.body.style.minHeight = "";
 }
 
 function onLoad()
@@ -95,6 +90,12 @@ function onLoad()
     
     // Set minimum body height at load time to prevent gradient shift
     document.body.style.minHeight = "100vh";
+    
+    // Set proper body overflow to prevent scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
     
     if(favs == null)
     {

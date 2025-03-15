@@ -1,8 +1,20 @@
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
-    background: linear-gradient(#eee239, orange) no-repeat;
+    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    background-size: 100% 100vh;
+    height: 100%;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
+    margin: 8px;
+    padding: 0;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
 }
 
 main {
