@@ -46,6 +46,18 @@
         <script type='text/javascript'>
             kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
             kofiwidget2.draw();
+            // Position ko-fi button to align with other action buttons
+            setTimeout(() => {
+                const kofiBtn = document.querySelector('.kofi-button');
+                if (kofiBtn) {
+                    kofiBtn.style.position = 'absolute';
+                    kofiBtn.style.left = '20px';
+                    kofiBtn.style.top = '0px';
+                    kofiBtn.style.height = '30px';
+                    kofiBtn.style.display = 'flex';
+                    kofiBtn.style.alignItems = 'center';
+                }
+            }, 100);
         </script>
         <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; right: 120px; position: absolute;">
         <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; right: 70px; position: absolute;">
