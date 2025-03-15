@@ -10,12 +10,11 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
-    /* Keep original body padding and margins */
-    margin: 8px;
+    margin: 0; /* Remove all margins */
     padding: 0;
     overflow: hidden;
     box-sizing: border-box;
-    width: calc(100% - 16px); /* Account for the 8px margin on both sides */
+    width: 100%; /* Use full width */
 }
 
 main {
@@ -111,7 +110,7 @@ input {
     -webkit-transform: rotate(0deg);
     transform: rotate(0deg);
     width: 100%;
-    max-width: 100%; /* Use full width available in container */
+    max-width: 100vw; /* Use viewport width for maximum sizing */
     height: auto;
     display: block;
     margin: 0 auto; /* Center the image */
@@ -211,8 +210,13 @@ input[type="date"]:focus {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 100%;
-    padding: 0; /* Remove horizontal padding to use full screen width */
+    width: 100vw; /* Use viewport width instead of % */
     margin: 0;
+    padding: 0;
     box-sizing: border-box;
+    /* This negative margin compensates for any parent padding */
+    margin-left: calc(0px - (100vw - 100%) / 2);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
 }
