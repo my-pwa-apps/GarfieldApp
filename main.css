@@ -174,14 +174,13 @@ input[type=checkbox] {
 .date-input-container {
     position: relative;
     margin: 5px;
-    display: block;
-    height: auto;
     border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     background-size: 200% auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transition: 0.5s;
+    display: flex;
+    align-items: center;
 }
 
 .date-input-container:hover {
@@ -192,45 +191,49 @@ input[type=checkbox] {
 
 .calendar-icon {
     position: absolute;
-    right: 10px;
+    right: 2px;
     top: 50%;
     transform: translateY(-50%);
-    pointer-events: none;
-    width: 18px;
-    height: 18px;
+    width: 10px;
+    height: 10px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23000000' d='M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+    opacity: 0.8;
+    pointer-events: none;
     z-index: 1;
 }
 
 input[type="date"] {
     width: 100%;
     margin: 0;
-    padding: 12px 35px 12px 12px;
-    font-size: 0.9rem;
+    padding: 12px 14px 12px 0;
+    font-size: 0.75rem;
     font-weight: 700;
     background: transparent;
     border: none;
-    box-shadow: none;
     color: black;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
     text-align: center;
 }
 
+/* Hide webkit date input default styling */
+input[type="date"]::-webkit-datetime-edit { 
+    padding: 0;
+}
+
+input[type="date"]::-webkit-inner-spin-button,
 input[type="date"]::-webkit-calendar-picker-indicator {
-    opacity: 0;
     position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
     width: 100%;
     height: 100%;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
+    opacity: 0;
     cursor: pointer;
+    color: transparent;
+    background: transparent;
 }
 
 input[type="date"]:focus {
