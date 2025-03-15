@@ -67,20 +67,22 @@ function changeComicImage(newSrc) {
     }, 500); // Match the duration of the CSS transition
 }
 
-function HideSettings()
-{
+function HideSettings() {
     var x = document.getElementById("settingsDIV");
-    if (x.style.display === "none") {
-        x.style.display = "block";
+    
+    // Instead of changing display which causes layout shifts,
+    // use visibility which maintains the element's space
+    if (x.style.visibility === "hidden" || x.style.visibility === "") {
+        x.style.visibility = "visible";
+        x.style.height = "auto";
+        x.style.opacity = "1";
         localStorage.setItem('settings', "true");
     } else {
-        x.style.display = "none";
+        x.style.visibility = "hidden";
+        x.style.height = "0";
+        x.style.opacity = "0";
         localStorage.setItem('settings', "false");
     }
-    
-    // Prevent background shift by maintaining the document height
-    // Force recalculation of the background gradient
-    document.body.style.minHeight = "100vh";
 }
 
 function onLoad()
@@ -445,41 +447,47 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 function showInstallPromotion() {
-  const installButton = document.createElement('button');
-  installButton.innerText = 'Install App';
-  installButton.className = 'button';
-  installButton.style.position = 'fixed';
-  installButton.style.bottom = '20px';
-  installButton.style.right = '20px';
-  installButton.style.zIndex = '1000';
-  installButton.style.margin = '0';
-  installButton.style.padding = '12px 20px';
-  installButton.style.fontSize = '0.9rem';
-  installButton.style.fontWeight = '700';
-  installButton.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
-  installButton.style.backgroundImage = 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)';
-  installButton.style.backgroundSize = '200% auto';
-  installButton.style.animation = 'pulse 2s infinite';
-  installButton.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
-  installButton.style.color = "black";
-  installButton.style.fontSize = '0.9rem';
-  installButton.style.fontWeight = '700';
-  installButton.style.textAlign = 'center';
-  
-  // Add pulse animation style
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-  `;
-  document.head.appendChild(style);
-  
-  document.body.appendChild(installButton);
-
-  installButton.addEventListener('click', () => {
+    const installButton = document.createElement('button');
+    installButton.innerText = 'Install App';
+    installButton.className = 'button';
+    
+    // Match exact button styling from the app
+    Object.assign(installButton.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: '1000',
+        margin: '0',
+        padding: '10px 20px',
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontSize: '0.75rem',
+        fontWeight: '700',
+        color: 'black',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundImage: 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)',
+        backgroundSize: '200% auto',
+        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
+        cursor: 'pointer',
+        transition: '0.5s',
+        userSelect: 'none',
+        animation: 'pulse 2s infinite'
+    });
+    
+    // Add pulse animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(installButton);
+    
+    installButton.addEventListener('click', () => {
 	// Hide the app provided install promotion
 	installButton.style.display = 'none';
 	// Show the install prompt
