@@ -98,8 +98,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 92vmin; /* Increased from 90vmin to 92vmin */
-    max-height: 92vmin; /* Increased from 90vmin to 92vmin */
+    max-width: 98vh; /* Using vh to maximize use of the screen height */
+    max-height: 94vw; /* Using vw to maximize use of the screen width */
     object-fit: contain;
     margin: 0;
     padding: 0;
