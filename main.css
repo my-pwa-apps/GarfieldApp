@@ -173,60 +173,52 @@ input[type=checkbox] {
 
 input[type="date"] {
     margin: 5px;
-    padding: 12px 34px 12px 12px; /* Add right padding for icon */
-    appearance: none;
+    padding: 12px; /* Match button padding exactly */
     -webkit-appearance: none;
     -moz-appearance: none;
-    max-width: 100%;
-    font-size: 0.9rem; /* Match button font size */
+    appearance: none;
+    font-size: 0.9rem;
     box-sizing: border-box;
     text-align: center;
     border-radius: 10px;
-    opacity: 1;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     background-size: 200% auto;
     border: none;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     color: black;
-    font-weight: 700; /* Match button font weight */
-    position: relative;
-    min-height: 42px; /* Match button height */
-    display: block; /* Changed from flex to block */
+    font-weight: 700;
+    height: auto;
+    width: 100%;
 }
 
-/* Better solution for all devices */
+/* Make the default calendar picker visible with higher contrast */
 input[type="date"]::-webkit-calendar-picker-indicator {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
-    margin: 0;
-    padding: 0;
-    cursor: pointer;
+    filter: invert(0); /* Make sure it's not inverted */
     opacity: 0.8;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23000000" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
+    cursor: pointer;
+    margin-left: 5px; /* Add space between text and icon */
 }
 
-/* Add a fallback background calendar icon for browsers that don't support the picker */
-@supports (-moz-appearance:none) {
+/* Safari-specific fix */
+@media screen and (-webkit-min-device-pixel-ratio:0) {
     input[type="date"] {
-        background-image: 
-            url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23000000" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>'),
-            linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
-        background-position: 
-            right 8px center,
-            0 0;
-        background-repeat: 
-            no-repeat,
-            no-repeat;
-        background-size: 
-            20px 20px,
-            200% auto;
+        position: relative;
+    }
+    
+    input[type="date"]::-webkit-inner-spin-button {
+        display: none;
+    }
+    
+    input[type="date"]::-webkit-clear-button {
+        display: none;
+    }
+}
+
+/* Firefox specific styles */
+@-moz-document url-prefix() {
+    input[type="date"] {
+        padding-right: 12px; /* Ensure consistent padding */
+        text-align: center;
     }
 }
 
@@ -239,7 +231,65 @@ input[type="date"]:focus {
 /* Ensure consistent sizing with buttons in the grid */
 .buttongrid input[type="date"] {
     width: 100%;
+    height: calc(100% - 10px); /* Account for margin */
+}
+
+.date-input-container {
+    position: relative;
+    margin: 5px;
+    display: block;
+    height: auto;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-size: 200% auto;
+}
+
+.date-input-container:hover {
+    background-position: right center;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px);
+}
+
+.calendar-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    pointer-events: none;
+}
+
+input[type="date"] {
+    width: 100%;
+    margin: 0;
+    padding: 12px 30px 12px 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: black;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    width: 100%;
     height: 100%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    position: absolute;
+    cursor: pointer;
+}
+
+input[type="date"]:focus {
+    outline: none;
 }
 
 .logo {
