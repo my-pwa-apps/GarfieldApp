@@ -67,22 +67,20 @@ function changeComicImage(newSrc) {
     }, 500); // Match the duration of the CSS transition
 }
 
-function HideSettings() {
+function HideSettings()
+{
     var x = document.getElementById("settingsDIV");
-    
-    // Instead of changing display which causes layout shifts,
-    // use visibility which maintains the element's space
-    if (x.style.visibility === "hidden" || x.style.visibility === "") {
-        x.style.visibility = "visible";
-        x.style.height = "auto";
-        x.style.opacity = "1";
+    // Revert back to using display which works with the existing code
+    if (x.style.display === "none" || x.style.display === "") {
+        x.style.display = "block";
         localStorage.setItem('settings', "true");
     } else {
-        x.style.visibility = "hidden";
-        x.style.height = "0";
-        x.style.opacity = "0";
+        x.style.display = "none";
         localStorage.setItem('settings', "false");
     }
+    
+    // Prevent gradient shift by maintaining body height
+    document.body.style.minHeight = document.body.scrollHeight + "px";
 }
 
 function onLoad()
