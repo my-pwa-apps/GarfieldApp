@@ -85,7 +85,7 @@ input {
     grid-template-rows: auto auto;
     text-align: center;
     gap: 3px;
-    padding: 0 8px; /* Add consistent horizontal padding */
+    padding: 0; /* Remove horizontal padding to use full width */
     box-sizing: border-box;
     width: 100%; /* Ensure full width */
     margin: 0 auto; /* Center the grid */
@@ -197,7 +197,7 @@ input[type="date"]:focus {
     width: 100%;
     box-sizing: border-box;
     text-align: center; /* Center the logo */
-    padding: 0 8px; /* Add consistent horizontal padding */
+    padding: 0; /* Remove horizontal padding to use full width */
     margin: 0 auto; /* Center the logo container */
 }
 
@@ -205,8 +205,7 @@ input[type="date"]:focus {
     max-width: 100%;
     margin-top: 25px;
     padding-bottom: 5px;
-    padding-left: 0;
-    padding-right: 0;
+    /* Remove padding-left and padding-right settings to ensure consistency */
 }
 
 #comic-container {
@@ -214,7 +213,7 @@ input[type="date"]:focus {
     justify-content: center;
     align-items: center;
     width: 100%;
-    padding: 0 8px; /* Add consistent horizontal padding */
+    padding: 0; /* Remove horizontal padding to use full screen width */
     margin: 0;
     box-sizing: border-box;
 }
