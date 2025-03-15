@@ -1,4 +1,3 @@
-
 //garfieldapp.pages.dev
 
 if("serviceWorker" in navigator) {
@@ -444,9 +443,31 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
   const installButton = document.createElement('button');
   installButton.innerText = 'Install App';
+  installButton.className = 'button';
   installButton.style.position = 'fixed';
-  installButton.style.bottom = '10px';
-  installButton.style.right = '10px';
+  installButton.style.bottom = '20px';
+  installButton.style.right = '20px';
+  installButton.style.zIndex = '1000';
+  installButton.style.margin = '0';
+  installButton.style.padding = '12px 20px';
+  installButton.style.fontSize = '0.9rem';
+  installButton.style.fontWeight = '700';
+  installButton.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
+  installButton.style.backgroundImage = 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)';
+  installButton.style.backgroundSize = '200% auto';
+  installButton.style.animation = 'pulse 2s infinite';
+  
+  // Add pulse animation style
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
+  
   document.body.appendChild(installButton);
 
   installButton.addEventListener('click', () => {
@@ -465,5 +486,4 @@ function showInstallPromotion() {
 	});
   });
 }
-	
-	   
+
