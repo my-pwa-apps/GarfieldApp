@@ -108,6 +108,7 @@ input {
     margin: 0;
     padding: 0;
     z-index: 1000;
+    transition: all 0.3s ease;
 }
 
 .normal {
@@ -119,6 +120,7 @@ input {
     height: auto;
     display: block;
     margin: 0 auto; /* Center the image */
+    transition: all 0.3s ease;
 }
 
 input[type="checkbox"], label {
@@ -224,6 +226,32 @@ input[type="date"]:focus {
     position: relative;
     left: 50%;
     transform: translateX(-50%);
+    overflow: hidden;
+}
+
+#comic-container.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(238, 226, 57, 0.95);
+    z-index: 999;
+}
+
+#comic-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+#comic-container.fullscreen #comic-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 #settingsDIV {
@@ -260,4 +288,9 @@ input[type="date"]:focus {
     justify-content: center;
     align-items: center;
     z-index: 900;
+}
+
+/* Hide elements when in fullscreen mode */
+.hidden-during-fullscreen {
+    display: none !important;
 }

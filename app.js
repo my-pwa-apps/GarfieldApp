@@ -300,33 +300,46 @@ function formatDate(datetoFormat) {
 }
 
 function Rotate() {
-    var element = document.getElementById('comic');
-    var body = document.body;
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
     
-    if(element.className === "normal") {
-        element.className = "rotate";
-        body.classList.add("fullscreen-mode");
+    if (comic.className === "normal") {
+        // Switch to rotated view
+        comic.className = "rotate";
+        container.classList.add('fullscreen');
+        
+        // Hide other UI elements
+        elementsToHide.forEach(el => {
+            el.classList.add('hidden-during-fullscreen');
+        });
         
         // Create exit button
-        var exitBtn = document.createElement('button');
-        exitBtn.innerHTML = "Exit Fullscreen";
-        exitBtn.id = "exit-fullscreen";
-        exitBtn.className = "button";
-        exitBtn.style.position = "fixed";
-        exitBtn.style.top = "10px";
-        exitBtn.style.right = "10px";
-        exitBtn.style.zIndex = "1100";
-        exitBtn.onclick = function() { Rotate(); };
-        document.body.appendChild(exitBtn);
-    } else if(element.className === "rotate") {
-        element.className = 'normal';
-        body.classList.remove("fullscreen-mode");
-        
-        // Remove exit button if it exists
-        var exitBtn = document.getElementById("exit-fullscreen");
-        if(exitBtn) {
-            exitBtn.parentNode.removeChild(exitBtn);
+        if (!document.getElementById('exit-fullscreen')) {
+            const exitBtn = document.createElement('button');
+            exitBtn.id = 'exit-fullscreen';
+            exitBtn.className = 'button';
+            exitBtn.innerText = 'Exit Fullscreen';
+            exitBtn.style.position = 'fixed';
+            exitBtn.style.top = '10px';
+            exitBtn.style.right = '10px';
+            exitBtn.style.zIndex = '1100';
+            exitBtn.onclick = Rotate;
+            document.body.appendChild(exitBtn);
         }
+    } else {
+        // Switch back to normal view
+        comic.className = 'normal';
+        container.classList.remove('fullscreen');
+        
+        // Show UI elements again
+        elementsToHide.forEach(el => {
+            el.classList.remove('hidden-during-fullscreen');
+        });
+        
+        // Remove exit button
+        const exitBtn = document.getElementById('exit-fullscreen');
+        if (exitBtn) exitBtn.remove();
     }
 }
 
