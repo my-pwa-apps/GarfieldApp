@@ -69,8 +69,13 @@ function changeComicImage(newSrc) {
 
 function HideSettings()
 {
-    // Set the minimum height before toggling to prevent layout shift
-    document.body.style.minHeight = document.documentElement.scrollHeight + "px";
+    // Force the body to maintain its height before toggling
+    const currentHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        window.innerHeight
+    ) + "px";
+    document.body.style.minHeight = currentHeight;
     
     var x = document.getElementById("settingsDIV");
     if (x.style.display === "none" || x.style.display === "") {
@@ -84,47 +89,51 @@ function HideSettings()
 
 function onLoad()
 {
-previousclicked = false;
-previousUrl = "";
-var favs = JSON.parse(localStorage.getItem('favs'));
-if(favs == null)
-{
-	favs = [];
-}
-if(document.getElementById("showfavs").checked) {
-	currentselectedDate = new Date(favs[0]);
-	if(favs.length === 0)
-	{
-		document.getElementById("showfavs").checked = false;
-		document.getElementById("showfavs").disabled = true;
-		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
-}
-else
-{
-	if(favs.length === 0)
-	{
-		document.getElementById("showfavs").checked = false;
-		document.getElementById("showfavs").disabled = true;
-		currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	}
-	currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
-	document.getElementById("Next").disabled = true;
-	document.getElementById("Today").disabled = true;
-}
-formatDate(new Date());
-today = year + '-' + month + '-' + day;
-document.getElementById("DatePicker").setAttribute("max", today);
+    previousclicked = false;
+    previousUrl = "";
+    var favs = JSON.parse(localStorage.getItem('favs'));
+    
+    // Set minimum body height at load time to prevent gradient shift
+    document.body.style.minHeight = "100vh";
+    
+    if(favs == null)
+    {
+        favs = [];
+    }
+    if(document.getElementById("showfavs").checked) {
+        currentselectedDate = new Date(favs[0]);
+        if(favs.length === 0)
+        {
+            document.getElementById("showfavs").checked = false;
+            document.getElementById("showfavs").disabled = true;
+            currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+        }
+    }
+    else
+    {
+        if(favs.length === 0)
+        {
+            document.getElementById("showfavs").checked = false;
+            document.getElementById("showfavs").disabled = true;
+            currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+        }
+        currentselectedDate = document.getElementById("DatePicker").valueAsDate = new Date();
+        document.getElementById("Next").disabled = true;
+        document.getElementById("Today").disabled = true;
+    }
+    formatDate(new Date());
+    today = year + '-' + month + '-' + day;
+    document.getElementById("DatePicker").setAttribute("max", today);
 
-if(document.getElementById("lastdate").checked)   
-{
-	if(localStorage.getItem('lastcomic') !== null)
-	{
-		currentselectedDate = new Date(localStorage.getItem('lastcomic'));
-	}
-}
-CompareDates();
-showComic();
+    if(document.getElementById("lastdate").checked)   
+    {
+        if(localStorage.getItem('lastcomic') !== null)
+        {
+            currentselectedDate = new Date(localStorage.getItem('lastcomic'));
+        }
+    }
+    CompareDates();
+    showComic();
 }
 
 function PreviousClick() {
