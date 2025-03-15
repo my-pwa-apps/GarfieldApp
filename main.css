@@ -6,15 +6,16 @@ html {
 body {
     background: linear-gradient(#eee239, orange) no-repeat fixed;
     background-size: 100% 100vh;
-    height: 100%;
+    min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
     background-color: orange;
+    /* Keep original body padding and margins */
     margin: 8px;
     padding: 0;
     overflow: hidden;
-    position: fixed;
-    width: 100%;
+    box-sizing: border-box;
+    width: calc(100% - 16px); /* Account for the 8px margin on both sides */
 }
 
 main {
@@ -182,4 +183,10 @@ input[type="date"] {
 input[type="date"]:focus {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); /* Enhanced shadow on focus */
     outline: none;
+}
+
+.logo {
+    width: 100%;
+    padding-right: 8px;
+    box-sizing: border-box;
 }
