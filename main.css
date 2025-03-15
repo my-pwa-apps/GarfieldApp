@@ -180,13 +180,26 @@ input[type="date"] {
     box-sizing: border-box;
     text-align: center;
     border-radius: 10px;
-    opacity: 0.9;
-    background-color: #eee239;
+    opacity: 1;
+    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-size: 200% auto;
     border: none;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    color: black;
+    font-weight: 500;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    color: black;
+    opacity: 1;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="15" viewBox="0 0 24 24"><path fill="%23000000" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
 }
 
 input[type="date"]:focus {
+    background-position: right center;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
     outline: none;
 }
