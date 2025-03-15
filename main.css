@@ -99,8 +99,8 @@ input {
     transform: rotate(90deg);
     width: auto;
     height: auto;
-    max-height: 100vh; /* Use full viewport height */
-    max-width: 100vw; /* Use full viewport width */
+    max-height: 85vh; /* Use slightly less than full height to ensure visibility */
+    max-width: 85vh; /* Match height for proper aspect ratio when rotated */
     display: block;
     margin: 0 auto;
     position: fixed; /* Position fixed to take up full screen */
@@ -108,7 +108,7 @@ input {
     left: 50%;
     transform-origin: center center;
     transform: translate(-50%, -50%) rotate(90deg); /* Center and rotate */
-    z-index: 1000;
+    z-index: 100;
 }
 
 .normal {
@@ -228,7 +228,7 @@ input[type="date"]:focus {
 }
 
 #settingsDIV {
-    margin-top: 15px; /* Add space above settings menu */
+    margin-top: 25px; /* Increased top margin for more space */
     padding: 0 8px;
 }
 
