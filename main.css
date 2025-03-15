@@ -98,8 +98,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 98vh; /* Using vh to maximize use of the screen height */
-    max-height: 94vw; /* Using vw to maximize use of the screen width */
+    max-width: 90vh; /* Decreased from 98vh to prevent top/bottom cutoff */
+    max-height: 85vw; /* Decreased from 94vw to prevent top/bottom cutoff */
     object-fit: contain;
     margin: 0;
     padding: 0;
@@ -230,7 +230,7 @@ input[type="date"]:focus {
     align-items: center;
     padding: 20px; /* Add padding to prevent comics from touching the edges */
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: hidden; /* Ensure nothing extends beyond the container */
 }
 
 #comic-wrapper {
