@@ -26,7 +26,7 @@
 <body onload="onLoad()">
     <h1 hidden>Daily Garfield Comics App</h1>
     <div class="logo">
-        <img src="./garlogo.png" style="width:100%; margin-top: 25px; padding-bottom: 5px" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
     <div class="buttongrid">
         <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
@@ -38,10 +38,12 @@
     </div>
     <br>
     <br>
-    <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    <div style="text-align: center; width: 100%; box-sizing: border-box;">
+        <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    </div>
     <br>
     <br>
-    <div style="z-index: -1; display: flex; justify-content: space-between; align-items: center; margin-top: -10px;">
+    <div style="z-index: -1; display: flex; justify-content: space-between; align-items: center; margin-top: -10px; padding: 0 8px; box-sizing: border-box; width: 100%;">
         <div style="flex: 1;">
             <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
             <script type='text/javascript'>
@@ -59,14 +61,14 @@
             </script>
         </div>
         <div style="display: flex; align-items: center;">
-            <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; margin-right: 20px; cursor: pointer;">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; margin-right: 20px; cursor: pointer;">
-            <img onclick="Share()" src="./share.svg" style="width: 30px; margin-right: 20px; cursor: pointer;">
+            <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; margin-right: 15px; cursor: pointer;">
+            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; margin-right: 15px; cursor: pointer;">
+            <img onclick="Share()" src="./share.svg" style="width: 30px; cursor: pointer;">
         </div>
     </div>
     <br>
     <br>
-    <div id="settingsDIV">
+    <div id="settingsDIV" style="padding: 0 8px; box-sizing: border-box;">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
         <br>
