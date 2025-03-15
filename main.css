@@ -98,8 +98,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-height: 90vh;
-    max-width: 90vh;
+    max-height: 85vw; /* Changed from vh to vw to better handle landscape orientation */
+    max-width: 85vh; /* Changed from vh to vh to better handle landscape orientation */
     object-fit: contain;
     margin: 0;
     padding: 0;
@@ -228,6 +228,9 @@ input[type="date"]:focus {
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 20px; /* Add padding to prevent comics from touching the edges */
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 #comic-wrapper {
