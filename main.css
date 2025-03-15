@@ -26,7 +26,7 @@ main {
 
 .button {
     margin: 5px;
-    padding: 15px; /* Increased from 10px to make buttons larger */
+    padding: 12px; /* Adjusted from 15px to be between original 10px and larger 15px */
     text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
@@ -35,14 +35,14 @@ main {
     border: none; /* Remove the outline */
     display: block;
     font-weight: 700;
-    font-size: 1rem; /* Increased font size */
+    font-size: 0.9rem; /* Slightly smaller than 1rem but larger than default */
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* More prominent shadow */
-    min-width: 80px; /* Ensures buttons maintain a minimum width */
+    min-width: 70px; /* Reduced from 80px */
     height: auto; /* Allows buttons to size naturally based on content */
 }
 
