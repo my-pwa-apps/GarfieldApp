@@ -300,12 +300,34 @@ function formatDate(datetoFormat) {
 }
 
 function Rotate() {
-	var element = document.getElementById('comic');
-	if(element.className === "normal") {
-		element.className = "rotate";
-	} else if(element.className === "rotate") {
-		element.className = 'normal';
-	}
+    var element = document.getElementById('comic');
+    var body = document.body;
+    
+    if(element.className === "normal") {
+        element.className = "rotate";
+        body.classList.add("fullscreen-mode");
+        
+        // Create exit button
+        var exitBtn = document.createElement('button');
+        exitBtn.innerHTML = "Exit Fullscreen";
+        exitBtn.id = "exit-fullscreen";
+        exitBtn.className = "button";
+        exitBtn.style.position = "fixed";
+        exitBtn.style.top = "10px";
+        exitBtn.style.right = "10px";
+        exitBtn.style.zIndex = "1100";
+        exitBtn.onclick = function() { Rotate(); };
+        document.body.appendChild(exitBtn);
+    } else if(element.className === "rotate") {
+        element.className = 'normal';
+        body.classList.remove("fullscreen-mode");
+        
+        // Remove exit button if it exists
+        var exitBtn = document.getElementById("exit-fullscreen");
+        if(exitBtn) {
+            exitBtn.parentNode.removeChild(exitBtn);
+        }
+    }
 }
 
 document.addEventListener('swiped-down', function(e) {
