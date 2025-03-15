@@ -85,6 +85,9 @@ input {
     grid-template-rows: 60% 60%; /* Corrected '60% 60%' to '60% 40%' */
     text-align: center;
     gap: 3px;
+    padding-left: 8px;
+    padding-right: 8px;
+    box-sizing: border-box;
 }
 
 .rotate {
@@ -187,6 +190,13 @@ input[type="date"]:focus {
 
 .logo {
     width: 100%;
+    padding-left: 8px;
     padding-right: 8px;
     box-sizing: border-box;
+}
+
+.logo img {
+    width: 100%;
+    margin-top: 25px;
+    padding-bottom: 5px;
 }
