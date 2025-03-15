@@ -221,7 +221,7 @@ input[type="date"]:focus {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(238, 226, 57, 0.95);
+    background: linear-gradient(#eee239, orange) no-repeat fixed;
     z-index: 999;
     display: flex;
     justify-content: center;

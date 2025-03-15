@@ -303,7 +303,7 @@ function Rotate() {
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
-    const controlsDiv = document.querySelector('div[style*="display: flex; justify-content: space-between"]');
+    const controlsDiv = document.querySelector('#controls-container');
     
     if (comic.className === "normal") {
         // Switch to rotated view
@@ -317,16 +317,6 @@ function Rotate() {
         
         if (controlsDiv) {
             controlsDiv.classList.add('hidden-during-fullscreen');
-        }
-        
-        // Create exit button if it doesn't exist
-        if (!document.getElementById('exit-fullscreen')) {
-            const exitBtn = document.createElement('button');
-            exitBtn.id = 'exit-fullscreen';
-            exitBtn.className = 'button';
-            exitBtn.innerText = 'Exit Fullscreen';
-            exitBtn.onclick = Rotate;
-            document.body.appendChild(exitBtn);
         }
         
         // Force recalculation of position for better centering
@@ -346,10 +336,6 @@ function Rotate() {
         if (controlsDiv) {
             controlsDiv.classList.remove('hidden-during-fullscreen');
         }
-        
-        // Remove exit button
-        const exitBtn = document.getElementById('exit-fullscreen');
-        if (exitBtn) exitBtn.remove();
     }
 }
 
