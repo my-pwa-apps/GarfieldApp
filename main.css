@@ -202,13 +202,14 @@ input[type=checkbox] {
     background-repeat: no-repeat;
     background-position: center;
     background-size: contain;
+    z-index: 1;
 }
 
 input[type="date"] {
     width: 100%;
     margin: 0;
-    padding: 12px;
-    font-size: 0.85rem;
+    padding: 12px 35px 12px 12px;
+    font-size: 0.9rem;
     font-weight: 700;
     background: transparent;
     border: none;
@@ -222,13 +223,13 @@ input[type="date"] {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0;
+    position: absolute;
     width: 100%;
     height: 100%;
     top: 0;
     left: 0;
-    right: 0;
     bottom: 0;
-    position: absolute;
+    right: 0;
     cursor: pointer;
 }
 
