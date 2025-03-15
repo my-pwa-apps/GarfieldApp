@@ -25,9 +25,13 @@
 
 <body onload="onLoad()">
     <h1 hidden>Daily Garfield Comics App</h1>
+    
+    <!-- Logo with no inline styles, using CSS class only -->
     <div class="logo">
         <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
+    
+    <!-- Button grid with consistent spacing -->
     <div class="buttongrid">
         <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
         <button class="button" id="Random" onclick="RandomClick()">Random</button>
@@ -36,14 +40,18 @@
         <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>
     </div>
+    
     <br>
-    <br>
-    <div style="text-align: center; width: 100%; box-sizing: border-box;">
-        <img id="comic" onclick="Rotate()" class="normal" style="z-index: 100;" alt="Loading comic from https://gocomics.com...">
+    
+    <!-- Comic container to properly position and size the comic -->
+    <div id="comic-container">
+        <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
     </div>
+    
     <br>
-    <br>
-    <div style="z-index: -1; display: flex; justify-content: space-between; align-items: center; margin-top: -10px; padding: 0 8px; box-sizing: border-box; width: 100%;">
+    
+    <!-- Bottom controls with consistent padding -->
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box;">
         <div style="flex: 1;">
             <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
             <script type='text/javascript'>
@@ -61,14 +69,16 @@
             </script>
         </div>
         <div style="display: flex; align-items: center;">
-            <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; margin-right: 15px; cursor: pointer;">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; margin-right: 15px; cursor: pointer;">
-            <img onclick="Share()" src="./share.svg" style="width: 30px; cursor: pointer;">
+            <img onclick="HideSettings()" src="./tune.svg" style="width: 30px; margin-right: 20px; cursor: pointer;">
+            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" style="width: 30px; margin-right: 20px; cursor: pointer;">
+            <img onclick="Share()" src="./share.svg" style="width: 30px; margin-right: 8px; cursor: pointer;">
         </div>
     </div>
+    
     <br>
-    <br>
-    <div id="settingsDIV" style="padding: 0 8px; box-sizing: border-box;">
+    
+    <!-- Settings with consistent padding -->
+    <div id="settingsDIV" style="padding: 0 8px;">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
         <br>
@@ -78,6 +88,7 @@
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
+    
     <script src="./app.js" defer></script>
 </body>
 

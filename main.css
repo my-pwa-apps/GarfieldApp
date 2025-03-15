@@ -81,12 +81,11 @@ input {
 
 .buttongrid {
     display: grid;
-    grid-template-columns: 33% 33% 33%;
-    grid-template-rows: 60% 60%; /* Corrected '60% 60%' to '60% 40%' */
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto;
     text-align: center;
     gap: 3px;
-    padding-left: 8px;
-    padding-right: 8px;
+    padding: 0;
     box-sizing: border-box;
     width: 100%; /* Ensure full width */
     margin: 0 auto; /* Center the grid */
@@ -96,26 +95,26 @@ input {
     -ms-transform: rotate(90deg);
     -webkit-transform: rotate(90deg);
     transform: rotate(90deg);
-    max-width: 150%;
-    width: 150%;
+    width: auto;
+    height: auto;
+    max-height: calc(100vw - 16px);
+    max-width: 100vh;
     display: block;
     margin: 0 auto;
     position: relative;
     z-index: 100;
     transform-origin: center center;
-    margin-top: 25%;
 }
 
 .normal {
     -ms-transform: rotate(0deg);
     -webkit-transform: rotate(0deg);
     transform: rotate(0deg);
-    max-width: 100%;
     width: 100%;
-    box-sizing: border-box;
+    max-width: calc(100vw - 16px); /* Account for body margins */
+    height: auto;
     display: block;
     margin: 0 auto; /* Center the image */
-    padding: 0 8px; /* Add padding to keep image within visible area */
 }
 
 input[type="checkbox"], label {
@@ -196,14 +195,25 @@ input[type="date"]:focus {
 
 .logo {
     width: 100%;
-    padding-left: 8px;
-    padding-right: 8px;
     box-sizing: border-box;
     text-align: center; /* Center the logo */
+    padding: 0;
 }
 
 .logo img {
     max-width: 100%;
     margin-top: 25px;
     padding-bottom: 5px;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+#comic-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
 }
