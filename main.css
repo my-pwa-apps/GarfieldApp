@@ -196,16 +196,15 @@ input[type="date"]:focus {
 .logo {
     width: 100%;
     box-sizing: border-box;
-    text-align: center; /* Center the logo */
-    padding: 0; /* Remove horizontal padding to use full width */
-    margin: 0 auto; /* Center the logo container */
+    text-align: center;
+    padding: 0;
+    margin: 0 auto;
 }
 
 .logo img {
-    max-width: 100%;
-    margin-top: 25px;
-    padding-bottom: 5px;
-    /* Remove padding-left and padding-right settings to ensure consistency */
+    max-width: 80%; /* Adjust width to be smaller than 100% */
+    margin: 25px auto 5px; /* Top, horizontal (auto centers), bottom margins */
+    display: block; /* Block display ensures margins work properly */
 }
 
 #comic-container {
