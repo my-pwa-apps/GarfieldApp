@@ -85,7 +85,7 @@ input {
     grid-template-rows: auto auto;
     text-align: center;
     gap: 3px;
-    padding: 0;
+    padding: 0 8px; /* Add consistent horizontal padding */
     box-sizing: border-box;
     width: 100%; /* Ensure full width */
     margin: 0 auto; /* Center the grid */
@@ -111,7 +111,7 @@ input {
     -webkit-transform: rotate(0deg);
     transform: rotate(0deg);
     width: 100%;
-    max-width: calc(100vw - 16px); /* Account for body margins */
+    max-width: 100%; /* Use full width available in container */
     height: auto;
     display: block;
     margin: 0 auto; /* Center the image */
@@ -197,7 +197,8 @@ input[type="date"]:focus {
     width: 100%;
     box-sizing: border-box;
     text-align: center; /* Center the logo */
-    padding: 0;
+    padding: 0 8px; /* Add consistent horizontal padding */
+    margin: 0 auto; /* Center the logo container */
 }
 
 .logo img {
@@ -213,7 +214,7 @@ input[type="date"]:focus {
     justify-content: center;
     align-items: center;
     width: 100%;
-    padding: 0;
+    padding: 0 8px; /* Add consistent horizontal padding */
     margin: 0;
     box-sizing: border-box;
 }
