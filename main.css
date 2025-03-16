@@ -179,8 +179,8 @@ input[type=checkbox] {
     background-size: 200% auto;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transition: 0.5s;
-    display: flex;
-    align-items: center;
+    text-align: center;
+    overflow: hidden;
 }
 
 .date-input-container:hover {
@@ -191,30 +191,37 @@ input[type=checkbox] {
 
 input[type="date"] {
     width: 100%;
+    height: 42px;
     margin: 0;
-    padding: 12px;
+    padding: 0;
     font-size: 0.9rem;
     font-weight: 700;
     background: transparent;
     border: none;
     color: black;
     text-align: center;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    position: relative;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0;
-    position: absolute;
     width: 100%;
     height: 100%;
+    position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
     cursor: pointer;
 }
 
-input[type="date"]:focus {
-    outline: none;
+/* Specific styles for mobile date centering */
+@media (max-width: 768px) {
+    input[type="date"] {
+        text-align: center;
+        letter-spacing: -0.5px;
+    }
 }
 
 .logo {
