@@ -539,28 +539,6 @@ function Rotate() {
     }
 }
 
-// Add this function to handle image loading and detect vertical comics
-function handleImageLoad() {
-    const comic = document.getElementById('comic');
-    
-    // Check if the image is loaded
-    if (!comic.complete) {
-        comic.addEventListener('load', () => {
-            checkImageOrientation();
-            // Try to translate if enabled
-            if (translationEnabled) {
-                translateComic();
-            }
-        });
-    } else {
-        checkImageOrientation();
-        // Try to translate if enabled
-        if (translationEnabled) {
-            translateComic();
-        }
-    }
-}
-
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
     const comic = document.getElementById('comic');
