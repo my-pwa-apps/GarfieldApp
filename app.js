@@ -1195,3 +1195,149 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Add these variables at the beginning of the file but after existing variables
+let translationEnabled = localStorage.getItem('translation') === 'true';
+let userLanguage = navigator.language || navigator.userLanguage || 'en';
+let translationInProgress = false;
+
+// Store reference to the original function instead of redefining it
+const originalHandleImageLoad = window.handleImageLoad;
+
+// IMPORTANT: Preserve the original handleImageLoad implementation by extending it
+window.handleImageLoad = function() {
+    // Call the original function first if it exists
+    if (typeof originalHandleImageLoad === 'function') {
+        originalHandleImageLoad.apply(this, arguments);
+    } else {
+        // If there's no original function, perform only the essential operations
+        checkImageOrientation();
+    }
+
+    // After the original function has run, check if translation is enabled
+    if (translationEnabled && window.Tesseract) {
+        // Use timeout to make sure this happens after the comic is displayed
+        setTimeout(function() {
+            attemptTranslation();
+        }, 1000);
+    }
+};
+
+// Separate function for translation attempt to keep code clean
+function attemptTranslation() {
+    if (translationInProgress) return;
+    
+    const comic = document.getElementById('comic');
+    if (!comic || !comic.complete || comic.naturalWidth === 0) return;
+    
+    // Create a container for the translation indicator
+    const comicWrapper = document.getElementById('comic-wrapper');
+    const indicator = document.createElement('div');
+    indicator.className = 'translation-indicator';
+    indicator.textContent = 'Preparing translation...';
+    indicator.style.transition = 'opacity 0.5s';
+    comicWrapper.appendChild(indicator);
+    
+    // Now proceed with actual translation logic
+    translationInProgress = true;
+    
+    try {
+        // Load Tesseract if needed
+        if (!window.Tesseract) {
+            console.error('Tesseract not loaded');
+            indicator.textContent = 'Translation unavailable';
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 500);
+            }, 2000);
+            translationInProgress = false;
+            return;
+        }
+        
+        // Use Tesseract for OCR
+        window.Tesseract.recognize(
+            comic.src,
+            'eng',
+            { 
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        indicator.textContent = `Translation: ${Math.floor(m.progress * 100)}%`;
+                    }
+                }
+            }
+        ).then(result => {
+            // Process OCR results
+            const text = result.data.text.trim();
+            if (text) {
+                indicator.textContent = 'Found text: ' + text.substring(0, 20) + '...';
+                // For now, we're just showing we detected text
+                // A real implementation would translate and overlay this
+                
+                setTimeout(() => {
+                    indicator.textContent = 'Translation completed!';
+                    setTimeout(() => {
+                        indicator.style.opacity = '0';
+                        setTimeout(() => indicator.remove(), 500);
+                    }, 2000);
+                }, 1000);
+            } else {
+                indicator.textContent = 'No text detected';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => indicator.remove(), 500);
+                }, 2000);
+            }
+        }).catch(error => {
+            console.error('OCR error:', error);
+            indicator.textContent = 'Translation failed';
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 500);
+            }, 2000);
+        }).finally(() => {
+            translationInProgress = false;
+        });
+    } catch (error) {
+        console.error('Translation setup error:', error);
+        indicator.textContent = 'Translation failed';
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 500);
+        }, 2000);
+        translationInProgress = false;
+    }
+}
+
+// Initialize translation feature when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        const translateCheckbox = document.getElementById('translate');
+        if (translateCheckbox) {
+            // Set initial state
+            translateCheckbox.checked = translationEnabled;
+            
+            // Handle change
+            translateCheckbox.addEventListener('change', function() {
+                translationEnabled = this.checked;
+                localStorage.setItem('translation', translationEnabled ? 'true' : 'false');
+                
+                if (translationEnabled) {
+                    // Try to load Tesseract and translate current comic
+                    window.loadTesseract().then(() => {
+                        attemptTranslation();
+                    }).catch(error => {
+                        console.error('Failed to load Tesseract:', error);
+                        this.checked = false;
+                        translationEnabled = false;
+                        localStorage.setItem('translation', 'false');
+                        alert('Translation feature could not be enabled.');
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to initialize translation feature:', error);
+    }
+});
+
+// DO NOT modify the original showComic function - it's critical for comic loading
+

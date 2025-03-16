@@ -155,7 +155,7 @@
     </div>
     
     <script>
-    // Add this script before the main app.js to prevent date clearing
+    // Add this script before the main app.js to prevent date clearing and handle translation init
     document.addEventListener('DOMContentLoaded', function() {
         const dateInput = document.getElementById('DatePicker');
         
@@ -172,19 +172,23 @@
             }
         });
         
-        // Initialize translation toggle
+        // Make sure translation toggle doesn't block comic loading
         const translateCheckbox = document.getElementById('translate');
         if (translateCheckbox) {
-            // Make sure translation option doesn't break main functionality
-            translateCheckbox.addEventListener('change', function() {
+            // Remove any existing listeners to prevent duplicates
+            const newCheckbox = translateCheckbox.cloneNode(true);
+            translateCheckbox.parentNode.replaceChild(newCheckbox, translateCheckbox);
+            
+            // Re-add event listener with safe implementation
+            newCheckbox.addEventListener('change', function() {
                 if (this.checked) {
-                    // Load Tesseract only when user enables translation
-                    loadTesseract().catch(error => {
-                        console.error('Failed to load Tesseract:', error);
+                    window.loadTesseract().catch(err => {
+                        console.error('Failed to load Tesseract:', err);
                         this.checked = false;
-                        alert('Translation feature could not be enabled. Please try again later.');
+                        alert('Translation feature is not available at this time.');
                     });
                 }
+                // Translation feature will be fully initialized by app.js
             });
         }
     });
