@@ -80,14 +80,40 @@ function HideSettings() {
     document.body.style.minHeight = "";
 }
 
-// Add this function to update the date display for mobile
+// Update the date display function to use regional date settings
 function updateDateDisplay() {
     const dateInput = document.getElementById('DatePicker');
     const wrapper = document.querySelector('.date-center-wrapper');
     
     if (dateInput && wrapper) {
-        const formattedDate = dateInput.value;
-        wrapper.setAttribute('data-display-date', formattedDate);
+        // Parse the date value from the input
+        const dateValue = dateInput.value; // Format: YYYY-MM-DD
+        if (dateValue) {
+            const dateParts = dateValue.split('-');
+            if (dateParts.length === 3) {
+                const year = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]) - 1; // JS months are 0-based
+                const day = parseInt(dateParts[2]);
+                
+                // Create a date object
+                const date = new Date(year, month, day);
+                
+                // Format the date according to user's locale
+                const localizedDate = date.toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric'
+                });
+                
+                // Set the localized date as the display value
+                wrapper.setAttribute('data-display-date', localizedDate);
+            } else {
+                // Fallback if date format is unexpected
+                wrapper.setAttribute('data-display-date', dateValue);
+            }
+        } else {
+            wrapper.setAttribute('data-display-date', '');
+        }
     }
 }
 
