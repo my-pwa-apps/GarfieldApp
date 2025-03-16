@@ -245,8 +245,7 @@ input[type="date"]::-webkit-datetime-edit {
         -moz-appearance: none !important;
         appearance: none !important;
         position: relative;
-        left: 0;
-        opacity: 1;
+        left: 8px; /* Add left offset to center the text better on mobile */
         text-align: center;
     }
     
@@ -256,6 +255,7 @@ input[type="date"]::-webkit-datetime-edit {
         padding: 0;
         margin: 0 auto;
         width: 100%;
+        display: block;
     }
     
     /* Ensure the native picker is on top but invisible */
