@@ -488,13 +488,21 @@ function checkImageOrientation() {
         thumbnailContainer.appendChild(comic);
         thumbnailContainer.appendChild(notice);
         
-        // Add click handler
-        thumbnailContainer.addEventListener('click', showFullsizeVertical);
+        // Add click handler to the thumbnail container
+        thumbnailContainer.onclick = function(event) {
+            showFullsizeVertical(event);
+        };
     }
 }
 
 // Function to show fullsize vertical comic
-function showFullsizeVertical() {
+function showFullsizeVertical(event) {
+    // Prevent default behavior to ensure our handler works
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
@@ -509,11 +517,13 @@ function showFullsizeVertical() {
     container.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
     container.style.backgroundSize = '100% 100vh';
     
-    // Hide install button if present
-    const installButton = document.querySelector('button[innerText="Install App"]');
-    if (installButton) {
-        installButton.style.display = 'none';
-    }
+    // Hide install button if present - use a more generic selector that will work
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = 'none';
+        }
+    });
     
     // Hide other UI elements
     elementsToHide.forEach(el => {
@@ -530,7 +540,13 @@ function showFullsizeVertical() {
 }
 
 // Function to exit fullsize vertical comic view
-function exitFullsizeVertical() {
+function exitFullsizeVertical(event) {
+    // Prevent default behavior
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
@@ -541,10 +557,12 @@ function exitFullsizeVertical() {
     container.style.backgroundSize = '';
     
     // Show install button again if present
-    const installButton = document.querySelector('button[innerText="Install App"]');
-    if (installButton) {
-        installButton.style.display = '';
-    }
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = '';
+        }
+    });
     
     // Switch back to thumbnail view
     comic.classList.remove('fullscreen-vertical');
