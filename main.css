@@ -189,27 +189,11 @@ input[type=checkbox] {
     transform: translateY(-2px);
 }
 
-.calendar-icon {
-    position: absolute;
-    right: 2px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 10px;
-    height: 10px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23000000' d='M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-    opacity: 0.8;
-    pointer-events: none;
-    z-index: 1;
-}
-
 input[type="date"] {
     width: 100%;
     margin: 0;
-    padding: 12px 14px 12px 0;
-    font-size: 0.75rem;
+    padding: 12px;
+    font-size: 0.9rem;
     font-weight: 700;
     background: transparent;
     border: none;
@@ -217,23 +201,16 @@ input[type="date"] {
     text-align: center;
 }
 
-/* Hide webkit date input default styling */
-input[type="date"]::-webkit-datetime-edit { 
-    padding: 0;
-}
-
-input[type="date"]::-webkit-inner-spin-button,
 input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0;
     position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
     width: 100%;
     height: 100%;
-    opacity: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     cursor: pointer;
-    color: transparent;
-    background: transparent;
 }
 
 input[type="date"]:focus {
