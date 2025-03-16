@@ -407,3 +407,57 @@ input[type="date"]::-webkit-datetime-edit {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border-radius: 5px;
 }
+
+/* Add this to your existing CSS file */
+.translated {
+  /* Add a subtle indicator that the comic is translated */
+  border-bottom: 2px solid #4285f4;
+}
+
+/* Translation loading indicator */
+.translating::after {
+  content: "Translating...";
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Add styling for translation features */
+.translating:after {
+    content: "Translating...";
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 2;
+}
+
+.translated {
+    position: relative;
+}
+
+.translated:after {
+    content: "🌐";
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    padding: 3px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}

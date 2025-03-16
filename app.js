@@ -234,6 +234,126 @@ function showComic()
     });
 };
 
+// Translation feature using AI image translation services
+let translationEnabled = localStorage.getItem('translation') === 'true';
+let userLanguage = navigator.language || navigator.userLanguage || 'en';
+
+// Function to translate the comic image using cloud AI services
+async function translateComic() {
+    if (!translationEnabled) return;
+    
+    const comic = document.getElementById('comic');
+    if (!comic.complete) return;
+    
+    try {
+        // Show translation in progress
+        comic.classList.add('translating');
+        
+        // Get the image URL
+        const imageUrl = comic.src;
+        
+        // Use a cloud translation service that can handle image text translation
+        // Options include Google Cloud Vision API + Translation, Microsoft Azure, or specialized services
+        const translatedImageUrl = await getTranslatedImage(imageUrl, userLanguage);
+        
+        if (translatedImageUrl) {
+            // Replace the image with the translated version
+            comic.src = translatedImageUrl;
+            comic.classList.add('translated');
+        }
+    } catch (error) {
+        console.error('Translation failed:', error);
+    } finally {
+        comic.classList.remove('translating');
+    }
+}
+
+// Function to call a cloud service for image text translation
+async function getTranslatedImage(imageUrl, targetLanguage) {
+    // We'll use a service like Google Cloud Vision + Translation API or Azure Computer Vision
+    
+    // Example implementation using an external service
+    // Replace this with actual implementation using your preferred API
+    
+    // For demonstration, this is a simulated API call
+    // In production, you would:
+    // 1. Use a proxy server to avoid exposing API keys in client-side code
+    // 2. Call an actual image text translation service
+    
+    try {
+        // This URL should be replaced with your actual backend service that handles the API call
+        const serviceUrl = 'https://your-translation-proxy.example/translate-image';
+        
+        const response = await fetch(serviceUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                imageUrl: imageUrl,
+                targetLanguage: targetLanguage.split('-')[0], // Get language code without region
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Translation service error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // The service should return a URL to the translated image
+        return data.translatedImageUrl;
+    } catch (error) {
+        console.error('Error calling translation service:', error);
+        return null;
+    }
+}
+
+// Modify handleImageLoad to use the new translation function
+function handleImageLoad() {
+    const comic = document.getElementById('comic');
+    
+    // Check if the image is loaded
+    if (!comic.complete) {
+        comic.addEventListener('load', () => {
+            checkImageOrientation();
+            // Try to translate if enabled
+            if (translationEnabled) {
+                translateComic();
+            }
+        });
+    } else {
+        checkImageOrientation();
+        // Try to translate if enabled
+        if (translationEnabled) {
+            translateComic();
+        }
+    }
+}
+
+// Make sure translation settings are initialized on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize translation checkbox
+    const translateCheckbox = document.getElementById('translate');
+    if (translateCheckbox) {
+        translateCheckbox.checked = translationEnabled;
+        
+        // Set up event listener
+        translateCheckbox.addEventListener('change', function() {
+            translationEnabled = this.checked;
+            localStorage.setItem('translation', translationEnabled);
+            
+            // If enabling translation, try to translate the current comic
+            if (translationEnabled) {
+                translateComic();
+            } else {
+                // If disabling, reload the original comic
+                showComic();
+            }
+        });
+    }
+});
+
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
@@ -421,9 +541,19 @@ function handleImageLoad() {
     
     // Check if the image is loaded
     if (!comic.complete) {
-        comic.addEventListener('load', checkImageOrientation);
+        comic.addEventListener('load', () => {
+            checkImageOrientation();
+            // Try to translate if enabled
+            if (translationEnabled) {
+                translateComic();
+            }
+        });
     } else {
         checkImageOrientation();
+        // Try to translate if enabled
+        if (translationEnabled) {
+            translateComic();
+        }
     }
 }
 
@@ -675,6 +805,16 @@ else
 	document.getElementById("settingsDIV").style.display = "none";
 }
 
+setStatus = document.getElementById('translate');
+if (setStatus) {
+    setStatus.checked = translationEnabled;
+    setStatus.onclick = function() {
+        translationEnabled = document.getElementById('translate').checked;
+        localStorage.setItem('translation', translationEnabled);
+        showComic(); // Reload comic with translation if enabled
+    }
+}
+
 let deferredPrompt;
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -743,4 +883,310 @@ function showInstallPromotion() {
 	});
   });
 }
+
+// Translation feature - Free proof of concept implementation
+let translationEnabled = localStorage.getItem('translation') === 'true';
+let userLanguage = navigator.language || navigator.userLanguage || 'en';
+let translationInProgress = false;
+
+// Function to translate comic using browser-based OCR and free translation
+async function translateComic() {
+    if (!translationEnabled || translationInProgress) return;
+    
+    const comic = document.getElementById('comic');
+    const comicWrapper = document.getElementById('comic-wrapper');
+    
+    if (!comic.complete) return;
+    
+    try {
+        // Mark translation as in progress
+        translationInProgress = true;
+        
+        // Add indicator that translation is in progress
+        const indicator = document.createElement('div');
+        indicator.className = 'translation-indicator';
+        indicator.textContent = 'Detecting text...';
+        comicWrapper.appendChild(indicator);
+        
+        // Use Tesseract.js to detect text in the image
+        const result = await Tesseract.recognize(
+            comic.src,
+            'eng', // Start with English detection
+            { 
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        indicator.textContent = `Processing: ${Math.floor(m.progress * 100)}%`;
+                    }
+                }
+            }
+        );
+        
+        // Update indicator
+        indicator.textContent = 'Translating...';
+        
+        // Get detected text
+        const detectedText = result.data.text;
+        
+        if (detectedText.trim()) {
+            // Split into paragraphs/speech bubbles
+            const textBlocks = detectedText
+                .split('\n\n')
+                .filter(block => block.trim().length > 5); // Filter out very short blocks
+            
+            // Get target language (first 2 chars of locale)
+            const targetLang = userLanguage.substring(0, 2);
+            
+            // Only proceed if we're not translating to English (source lang)
+            if (targetLang !== 'en' && textBlocks.length > 0) {
+                // Translate text blocks using a free translation service
+                const translatedBlocks = await translateTextBlocks(textBlocks, targetLang);
+                
+                // Create overlay for translated text
+                createTranslationOverlay(comic, result.data.words, translatedBlocks);
+                
+                indicator.textContent = 'Translated!';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => indicator.remove(), 500);
+                }, 2000);
+            } else {
+                indicator.textContent = 'No translation needed';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => indicator.remove(), 500);
+                }, 1500);
+            }
+        } else {
+            indicator.textContent = 'No text detected';
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 500);
+            }, 1500);
+        }
+    } catch (error) {
+        console.error('Translation error:', error);
+        const indicator = document.querySelector('.translation-indicator') || 
+                         document.createElement('div');
+        indicator.className = 'translation-indicator';
+        indicator.textContent = 'Translation failed';
+        if (!indicator.parentNode) comicWrapper.appendChild(indicator);
+        
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 500);
+        }, 2000);
+    } finally {
+        translationInProgress = false;
+    }
+}
+
+// Free translation API using LibreTranslate
+async function translateTextBlocks(textBlocks, targetLang) {
+    // For proof of concept, let's use a mock translation to avoid rate limits
+    // In production, use a proper API
+    
+    return textBlocks.map(text => {
+        // This is just a mock "translation" for testing purposes
+        // In production, use a real translation service API
+        return `[${targetLang}] ${text}`;
+    });
+    
+    /* Uncomment and configure with an actual free translation API
+    const translations = [];
+    
+    for (const text of textBlocks) {
+        try {
+            // Example with LibreTranslate API - replace URL with a working instance
+            const response = await fetch('https://libretranslate.com/translate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    q: text,
+                    source: 'en',
+                    target: targetLang,
+                    format: 'text'
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            translations.push(data.translatedText || text);
+        } catch (error) {
+            console.error('Error translating block:', error);
+            translations.push(text); // Fall back to original
+        }
+    }
+    
+    return translations;
+    */
+}
+
+// Create visual overlay with translations
+function createTranslationOverlay(comic, words, translatedBlocks) {
+    const comicWrapper = document.getElementById('comic-wrapper');
+    
+    // Remove any existing translation overlays
+    const existingOverlay = document.querySelector('.translation-overlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    // Create canvas overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'translation-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = `${comic.offsetWidth}px`;
+    overlay.style.height = `${comic.offsetHeight}px`;
+    
+    // Group words into likely speech bubbles
+    const bubbles = groupWordsIntoBubbles(words);
+    
+    // Create translation bubbles
+    let blockIndex = 0;
+    
+    for (const bubble of bubbles) {
+        if (blockIndex >= translatedBlocks.length) break;
+        
+        // Create translated speech bubble
+        const translationBubble = document.createElement('div');
+        translationBubble.style.position = 'absolute';
+        translationBubble.style.left = `${bubble.x}px`;
+        translationBubble.style.top = `${bubble.y}px`;
+        translationBubble.style.width = `${bubble.width}px`;
+        translationBubble.style.maxWidth = '200px';
+        translationBubble.style.backgroundColor = 'white';
+        translationBubble.style.padding = '5px';
+        translationBubble.style.border = '1px solid black';
+        translationBubble.style.borderRadius = '5px';
+        translationBubble.style.fontSize = '12px';
+        translationBubble.style.zIndex = '5';
+        translationBubble.textContent = translatedBlocks[blockIndex];
+        
+        overlay.appendChild(translationBubble);
+        blockIndex++;
+    }
+    
+    comicWrapper.appendChild(overlay);
+}
+
+// Group OCR words into likely speech bubbles
+function groupWordsIntoBubbles(words) {
+    if (!words || words.length === 0) return [];
+    
+    // This is a simplified algorithm for grouping
+    // In a real implementation, this would be more sophisticated
+    const bubbles = [];
+    let currentBubble = null;
+    
+    for (const word of words) {
+        // Filter out confidence
+        if (word.confidence < 60) continue;
+        
+        // Get bounding box
+        const { x0, y0, x1, y1 } = word.bbox;
+        
+        if (!currentBubble) {
+            currentBubble = {
+                x: x0,
+                y: y0,
+                width: x1 - x0,
+                height: y1 - y0,
+                words: [word]
+            };
+        } else {
+            // Check if this word is close to current bubble
+            const distX = Math.min(
+                Math.abs(x0 - (currentBubble.x + currentBubble.width)),
+                Math.abs(x1 - currentBubble.x)
+            );
+            const distY = Math.min(
+                Math.abs(y0 - (currentBubble.y + currentBubble.height)),
+                Math.abs(y1 - currentBubble.y)
+            );
+            
+            if (distX < 50 && distY < 20) {
+                // Expand current bubble
+                currentBubble.x = Math.min(currentBubble.x, x0);
+                currentBubble.y = Math.min(currentBubble.y, y0);
+                currentBubble.width = Math.max(currentBubble.x + currentBubble.width, x1) - currentBubble.x;
+                currentBubble.height = Math.max(currentBubble.y + currentBubble.height, y1) - currentBubble.y;
+                currentBubble.words.push(word);
+            } else {
+                // Start a new bubble
+                bubbles.push(currentBubble);
+                currentBubble = {
+                    x: x0,
+                    y: y0,
+                    width: x1 - x0,
+                    height: y1 - y0,
+                    words: [word]
+                };
+            }
+        }
+    }
+    
+    if (currentBubble) {
+        bubbles.push(currentBubble);
+    }
+    
+    // Convert to screen coordinates
+    const comic = document.getElementById('comic');
+    const scaleX = comic.offsetWidth / comic.naturalWidth;
+    const scaleY = comic.offsetHeight / comic.naturalHeight;
+    
+    return bubbles.map(bubble => ({
+        x: bubble.x * scaleX,
+        y: bubble.y * scaleY,
+        width: bubble.width * scaleX,
+        height: bubble.height * scaleY,
+        words: bubble.words
+    }));
+}
+
+// Modify handleImageLoad to use the free proof of concept
+function handleImageLoad() {
+    const comic = document.getElementById('comic');
+    
+    // Check if the image is loaded
+    if (!comic.complete) {
+        comic.addEventListener('load', () => {
+            checkImageOrientation();
+            // Try to translate if enabled
+            if (translationEnabled) {
+                setTimeout(translateComic, 500); // Give the image time to render properly
+            }
+        });
+    } else {
+        checkImageOrientation();
+        // Try to translate if enabled
+        if (translationEnabled) {
+            setTimeout(translateComic, 500); // Give the image time to render properly
+        }
+    }
+}
+
+// Make sure translation settings are initialized on load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize translation checkbox
+    const translateCheckbox = document.getElementById('translate');
+    if (translateCheckbox) {
+        translateCheckbox.checked = translationEnabled;
+        
+        // Set up event listener
+        translateCheckbox.addEventListener('change', function() {
+            translationEnabled = this.checked;
+            localStorage.setItem('translation', translationEnabled);
+            
+            // Clear any existing translation overlay
+            const existingOverlay = document.querySelector('.translation-overlay');
+            if (existingOverlay) existingOverlay.remove();
+            
+            // If enabling translation, try to translate the current comic
+            if (translationEnabled) {
+                translateComic();
+            }
+        });
+    }
+});
 

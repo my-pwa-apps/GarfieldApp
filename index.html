@@ -20,6 +20,7 @@
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <script src="./swiped-events.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
     <!-- Removed jQuery as it doesn't appear to be used -->
     <style>
         /* Normalize date input styling to match button appearance */
@@ -45,6 +46,25 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+        
+        /* Add styling for translation elements */
+        .translation-overlay {
+            position: absolute;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .translation-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 10;
         }
     </style>
 </head>
@@ -113,6 +133,9 @@
         <br>
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+        <br>
+        <input type="checkbox" id="translate">
+        <label for="translate" class="labels">Translate comic text</label>
     </div>
     
     <script>
