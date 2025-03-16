@@ -231,8 +231,15 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Specific styles for mobile date centering */
 @media (max-width: 768px) {
+    .date-input-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
     input[type="date"] {
-        width: 100%;
+        width: auto;
         height: 42px;
         margin: 0;
         padding: 0;
@@ -245,36 +252,34 @@ input[type="date"]::-webkit-datetime-edit {
         -moz-appearance: none !important;
         appearance: none !important;
         position: relative;
-        left: 8px; /* Add left offset to center the text better on mobile */
+        left: 0; /* Remove the offset that caused the overlay issue */
         text-align: center;
     }
     
-    /* Prevent the secondary picker overlay */
+    /* Reset any mobile browser specific styling that might cause issues */
     input[type="date"]::-webkit-datetime-edit {
         text-align: center;
         padding: 0;
         margin: 0 auto;
-        width: 100%;
-        display: block;
     }
     
-    /* Ensure the native picker is on top but invisible */
+    /* Make the hidden picker cover the entire button */
     input[type="date"]::-webkit-calendar-picker-indicator {
         position: absolute;
         width: 100%;
         height: 100%;
         top: 0;
         left: 0;
-        right: 0;
-        bottom: 0;
         opacity: 0;
         cursor: pointer;
         z-index: 2;
     }
     
-    /* Remove any extra elements that might cause overlay issues */
+    /* Remove any elements that might cause overlay issues */
     input[type="date"]::after,
-    input[type="date"]::before {
+    input[type="date"]::before,
+    input[type="date"]::-webkit-clear-button,
+    input[type="date"]::-webkit-inner-spin-button {
         display: none !important;
     }
 }
