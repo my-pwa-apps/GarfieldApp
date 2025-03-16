@@ -412,6 +412,14 @@ function Rotate() {
         comic.className = "rotate";
         container.classList.add('fullscreen');
         
+        // Hide install button if present
+        const installButtons = document.querySelectorAll('button');
+        installButtons.forEach(button => {
+            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+                button.style.display = 'none';
+            }
+        });
+        
         // Hide other UI elements
         elementsToHide.forEach(el => {
             el.classList.add('hidden-during-fullscreen');
@@ -429,6 +437,14 @@ function Rotate() {
         // Switch back to normal view
         comic.className = 'normal';
         container.classList.remove('fullscreen');
+        
+        // Show install button again if present
+        const installButtons = document.querySelectorAll('button');
+        installButtons.forEach(button => {
+            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+                button.style.display = '';
+            }
+        });
         
         // Show UI elements again
         elementsToHide.forEach(el => {
