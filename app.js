@@ -190,6 +190,8 @@ function showComic()
       if(pictureUrl != previousUrl) {
 		//document.getElementById("comic").src = pictureUrl;
 		changeComicImage(pictureUrl);
+        const comicImg = document.getElementById('comic');
+        comicImg.addEventListener('load', handleImageLoad);
 	  }
 	  else
 	  {
@@ -311,6 +313,8 @@ function showComic()
       if(pictureUrl != previousUrl) {
 		//document.getElementById("comic").src = pictureUrl;
 		changeComicImage(pictureUrl);
+        const comicImg = document.getElementById('comic');
+        comicImg.addEventListener('load', handleImageLoad);
 	  }
 	  else
 	  {
@@ -435,6 +439,131 @@ function Rotate() {
             controlsDiv.classList.remove('hidden-during-fullscreen');
         }
     }
+}
+
+// Add this function to handle image loading and detect vertical comics
+function handleImageLoad() {
+    const comic = document.getElementById('comic');
+    
+    // Check if the image is loaded
+    if (!comic.complete) {
+        comic.addEventListener('load', checkImageOrientation);
+    } else {
+        checkImageOrientation();
+    }
+}
+
+// Function to check if the comic is vertical and show thumbnail if needed
+function checkImageOrientation() {
+    const comic = document.getElementById('comic');
+    const comicWrapper = document.getElementById('comic-wrapper');
+    
+    // Reset any previous thumbnail setup
+    comic.classList.remove('vertical', 'fullscreen-vertical');
+    comic.classList.add('normal');
+    
+    // Remove any existing thumbnail container
+    const existingThumbnail = document.querySelector('.thumbnail-container');
+    if (existingThumbnail) {
+        existingThumbnail.parentNode.replaceChild(comic, existingThumbnail);
+    }
+    
+    // Check if image is vertical (height > width)
+    if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+        // It's a vertical comic, create thumbnail view
+        comic.classList.remove('normal');
+        comic.classList.add('vertical');
+        
+        // Create thumbnail container
+        const thumbnailContainer = document.createElement('div');
+        thumbnailContainer.className = 'thumbnail-container';
+        
+        // Create notice
+        const notice = document.createElement('div');
+        notice.className = 'thumbnail-notice';
+        notice.textContent = 'Click to view full size';
+        
+        // Set up the thumbnail display
+        comicWrapper.replaceChild(thumbnailContainer, comic);
+        thumbnailContainer.appendChild(comic);
+        thumbnailContainer.appendChild(notice);
+        
+        // Add click handler
+        thumbnailContainer.addEventListener('click', showFullsizeVertical);
+    }
+}
+
+// Function to show fullsize vertical comic
+function showFullsizeVertical() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Switch to fullscreen view
+    comic.classList.remove('vertical');
+    comic.classList.add('fullscreen-vertical');
+    container.classList.add('fullscreen');
+    
+    // Create overlay background
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.backgroundColor = 'rgba(0,0,0,0.75)';
+    overlay.style.zIndex = '999';
+    overlay.id = 'fullscreen-overlay';
+    document.body.appendChild(overlay);
+    
+    // Move comic in front of overlay
+    comic.style.zIndex = '1000';
+    
+    // Hide other UI elements
+    elementsToHide.forEach(el => {
+        el.classList.add('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.add('hidden-during-fullscreen');
+    }
+    
+    // Add click handler to exit fullscreen
+    comic.addEventListener('click', exitFullsizeVertical);
+    overlay.addEventListener('click', exitFullsizeVertical);
+}
+
+// Function to exit fullsize vertical comic view
+function exitFullsizeVertical() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Remove overlay
+    const overlay = document.getElementById('fullscreen-overlay');
+    if (overlay) {
+        document.body.removeChild(overlay);
+    }
+    
+    // Switch back to thumbnail view
+    comic.classList.remove('fullscreen-vertical');
+    comic.classList.add('vertical');
+    container.classList.remove('fullscreen');
+    comic.style.zIndex = '';
+    
+    // Show UI elements again
+    elementsToHide.forEach(el => {
+        el.classList.remove('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.remove('hidden-during-fullscreen');
+    }
+    
+    // Remove this click handler
+    comic.removeEventListener('click', exitFullsizeVertical);
 }
 
 document.addEventListener('swiped-down', function(e) {

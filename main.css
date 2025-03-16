@@ -362,3 +362,49 @@ input[type="date"]::-webkit-datetime-edit {
     top: 2px;
     margin-left: 3px;
 }
+
+.vertical {
+    max-height: 300px;
+    width: auto;
+    margin: 0 auto;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.thumbnail-container {
+    position: relative;
+    display: inline-block;
+    margin: 0 auto;
+}
+
+.thumbnail-notice {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(238, 226, 57, 0.8);
+    color: black;
+    padding: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 0 0 10px 10px;
+}
+
+.fullscreen-vertical {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    height: auto;
+    max-width: 95vw;
+    max-height: 90vh;
+    object-fit: contain;
+    margin: 0;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
