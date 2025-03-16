@@ -20,7 +20,23 @@
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <script src="./swiped-events.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    
+    <!-- Load Tesseract.js asynchronously so it doesn't block rendering -->
+    <script>
+        // Load Tesseract.js only when needed
+        function loadTesseract() {
+            if (window.Tesseract) return Promise.resolve();
+            
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load Tesseract.js'));
+                document.head.appendChild(script);
+            });
+        }
+    </script>
+    
     <!-- Removed jQuery as it doesn't appear to be used -->
     <style>
         /* Normalize date input styling to match button appearance */
@@ -155,6 +171,22 @@
                 lastValidValue = this.value;
             }
         });
+        
+        // Initialize translation toggle
+        const translateCheckbox = document.getElementById('translate');
+        if (translateCheckbox) {
+            // Make sure translation option doesn't break main functionality
+            translateCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Load Tesseract only when user enables translation
+                    loadTesseract().catch(error => {
+                        console.error('Failed to load Tesseract:', error);
+                        this.checked = false;
+                        alert('Translation feature could not be enabled. Please try again later.');
+                    });
+                }
+            });
+        }
     });
     </script>
     <script src="./app.js" defer></script>

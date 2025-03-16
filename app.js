@@ -231,6 +231,10 @@ function showComic()
 		{
 			document.getElementById("favheart").src="./heart.svg";
 		}
+    }).catch(function(error) {
+        console.error("Error loading comic:", error);
+        // Try to recover by showing an error message
+        document.getElementById('comic').alt = "Failed to load comic. Please try again.";
     });
 };
 
@@ -896,7 +900,8 @@ async function translateComic() {
     const comic = document.getElementById('comic');
     const comicWrapper = document.getElementById('comic-wrapper');
     
-    if (!comic.complete) return;
+    // Ensure the comic is fully loaded and visible
+    if (!comic.complete || comic.naturalWidth === 0) return;
     
     try {
         // Mark translation as in progress
