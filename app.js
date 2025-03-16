@@ -1,11 +1,16 @@
 //garfieldapp.pages.dev
 
-// Global variables for translation functionality
+// Global variables for app functionality
 let translationEnabled = localStorage.getItem('translation') === 'true';
 let userLanguage = navigator.language || navigator.userLanguage || 'en';
 let translationInProgress = false;
 let previousclicked = false;
 let previousUrl = "";
+let currentselectedDate;
+let day, month, year;
+let pictureUrl;
+let formattedComicDate;
+let formattedDate;
 
 if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
@@ -739,7 +744,6 @@ setStatus.onclick = function()
 	}
 }
 
-
 setStatus = document.getElementById('showfavs');
 setStatus.onclick = function()
 {
@@ -763,17 +767,6 @@ setStatus.onclick = function()
 	}
 	CompareDates();
 	showComic();
-}
-        
-        // Show UI elements again
-        elementsToHide.forEach(el => {
-            el.classList.remove('hidden-during-fullscreen');
-        });
-        
-        if (controlsDiv) {
-            controlsDiv.classList.remove('hidden-during-fullscreen');
-        }
-    }
 }
 
 // Function to check if the comic is vertical and show thumbnail if needed
@@ -903,5 +896,174 @@ function exitFullsizeVertical(event) {
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
     container.removeEventListener('click', exitFullsizeVertical);
+}
+
+getStatus = localStorage.getItem('stat');
+if (getStatus == "true")
+{
+	document.getElementById("swipe").checked = true;
+}
+else
+{
+	document.getElementById("swipe").checked = false;
+}
+
+getStatus = localStorage.getItem('showfavs');
+if (getStatus == "true") 
+{
+	document.getElementById("showfavs").checked = true;
+	document.getElementById('Today').innerHTML = 'Last'
+}
+else
+{
+	document.getElementById("showfavs").checked = false;
+	document.getElementById('Today').innerHTML = 'Today'
+}
+
+getStatus = localStorage.getItem('lastdate');
+if (getStatus == "true")
+{
+	document.getElementById("lastdate").checked = true;
+}
+else
+{
+	document.getElementById("lastdate").checked = false;
+}	
+
+getStatus = localStorage.getItem('settings');
+if (getStatus == "true")
+{
+	document.getElementById("settingsDIV").style.display = "block";
+}
+else
+{
+	document.getElementById("settingsDIV").style.display = "none";
+}
+
+// Set up app install prompt
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // Prevent the mini-infobar from appearing on mobile
+  e.preventDefault();
+  // Stash the event so it can be triggered later.
+  deferredPrompt = e;
+  // Update UI notify the user they can install the PWA
+  showInstallPromotion();
+});
+
+function showInstallPromotion() {
+    const installButton = document.createElement('button');
+    installButton.innerText = 'Install App';
+    installButton.className = 'button';
+    
+    // Match button styling from the app, with more subtle font
+    Object.assign(installButton.style, {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        zIndex: '1000',
+        margin: '0',
+        padding: '10px 20px',
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        fontSize: '0.85rem',
+        fontWeight: '500',
+        color: 'black',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundImage: 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)',
+        backgroundSize: '200% auto',
+        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
+        cursor: 'pointer',
+        transition: '0.5s',
+        userSelect: 'none',
+        animation: 'pulse 2s infinite'
+    });
+    
+    // Add pulse animation style
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(installButton);
+    
+    installButton.addEventListener('click', () => {
+        // Hide the app provided install promotion
+        installButton.style.display = 'none';
+        // Show the install prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          } else {
+            console.log('User dismissed the install prompt');
+          }
+          deferredPrompt = null;
+        });
+    });
+}
+
+// Clean up the Rotate function to prevent duplicate code
+function Rotate() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    if (comic.className === "normal") {
+        // Switch to rotated view
+        comic.className = "rotate";
+        container.classList.add('fullscreen');
+        
+        // Hide install button if present
+        const installButtons = document.querySelectorAll('button');
+        installButtons.forEach(button => {
+            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+                button.style.display = 'none';
+            }
+        });
+        
+        // Hide other UI elements
+        elementsToHide.forEach(el => {
+            el.classList.add('hidden-during-fullscreen');
+        });
+        
+        if (controlsDiv) {
+            controlsDiv.classList.add('hidden-during-fullscreen');
+        }
+        
+        // Force recalculation of position for better centering
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 50);
+    } else {
+        // Switch back to normal view
+        comic.className = 'normal';
+        container.classList.remove('fullscreen');
+        
+        // Show install button again if present
+        const installButtons = document.querySelectorAll('button');
+        installButtons.forEach(button => {
+            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+                button.style.display = '';
+            }
+        });
+        
+        // Show UI elements again
+        elementsToHide.forEach(el => {
+            el.classList.remove('hidden-during-fullscreen');
+        });
+        
+        if (controlsDiv) {
+            controlsDiv.classList.remove('hidden-during-fullscreen');
+        }
+    }
 }
 

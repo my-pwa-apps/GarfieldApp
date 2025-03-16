@@ -1,7 +1,9 @@
-
 const OFFLINE_VERSION = 2;
+const CACHE_NAME = "garfield-offline";
 const CACHE = "offline";
+const OFFLINE_URL = "index.html";
 
+// Import Workbox for better service worker management
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
 self.addEventListener("message", (event) => {
@@ -10,6 +12,7 @@ self.addEventListener("message", (event) => {
   }
 });
 
+// Use Workbox for efficient caching strategies
 workbox.routing.registerRoute(
   new RegExp('.*'),
   new workbox.strategies.StaleWhileRevalidate({
@@ -17,10 +20,11 @@ workbox.routing.registerRoute(
   })
 );
 
-beforeinstallprompt = null;
+// Keep track of install prompt for better PWA experience
+let installPrompt = null;
 self.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  beforeinstallprompt = e;
+  installPrompt = e;
   return false;
 });
 
@@ -32,7 +36,15 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  // Clean up old caches
   event.waitUntil((async () => {
+    // Delete old caches
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name !== CACHE_NAME && name !== CACHE)
+        .map(name => caches.delete(name))
+    );
    
     if ('navigationPreload' in self.registration) {
       await self.registration.navigationPreload.enable();
@@ -43,7 +55,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
- 
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -55,7 +66,6 @@ self.addEventListener('fetch', (event) => {
         const networkResponse = await fetch(event.request);
         return networkResponse;
       } catch (error) {
-       
         console.log('Fetch failed; returning offline page instead.', error);
 
         const cache = await caches.open(CACHE_NAME);

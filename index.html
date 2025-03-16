@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
+    <meta name="keywords" content="today on garfield, comics by jim davis, garfield, gocomics, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, pwa, progressive, web, app, ios, android, windows">
     <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
     <meta name="msapplication-TileColor" content="#eee239">
     <meta name="theme-color" content="#eee239">
@@ -19,7 +19,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <script src="./swiped-events.min.js"></script>
+    <script src="./swiped-events.min.js" defer></script>
     
     <!-- Load Tesseract.js asynchronously so it doesn't block rendering -->
     <script>
@@ -37,7 +37,6 @@
         }
     </script>
     
-    <!-- Removed jQuery as it doesn't appear to be used -->
     <style>
         /* Normalize date input styling to match button appearance */
         #DatePicker {
@@ -81,6 +80,7 @@
             border-radius: 4px;
             font-size: 12px;
             z-index: 10;
+            transition: opacity 0.5s;
         }
     </style>
 </head>
@@ -89,7 +89,7 @@
     <h1 hidden>Daily Garfield Comics App</h1>
     
     <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" alt="Daily Garfield Comics" loading="eager" width="280" height="70">
     </div>
     
     <div class="buttongrid">
@@ -110,7 +110,7 @@
     
     <div id="comic-container">
         <div id="comic-wrapper">
-            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
+            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com..." loading="eager">
         </div>
     </div>
     
@@ -138,8 +138,6 @@
         </div>
     </div>
     
-    <!-- Removed redundant <br> before settings div -->
-    
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
@@ -154,45 +152,6 @@
         <label for="translate" class="labels">Translate comic text</label>
     </div>
     
-    <script>
-    // Add this script before the main app.js to prevent date clearing and handle translation init
-    document.addEventListener('DOMContentLoaded', function() {
-        const dateInput = document.getElementById('DatePicker');
-        
-        // Store the original value
-        let lastValidValue = dateInput.value;
-        
-        dateInput.addEventListener('change', function() {
-            if (!this.value) {
-                // If cleared, restore to previous value
-                this.value = lastValidValue;
-            } else {
-                // Update the valid value
-                lastValidValue = this.value;
-            }
-        });
-        
-        // Make sure translation toggle doesn't block comic loading
-        const translateCheckbox = document.getElementById('translate');
-        if (translateCheckbox) {
-            // Remove any existing listeners to prevent duplicates
-            const newCheckbox = translateCheckbox.cloneNode(true);
-            translateCheckbox.parentNode.replaceChild(newCheckbox, translateCheckbox);
-            
-            // Re-add event listener with safe implementation
-            newCheckbox.addEventListener('change', function() {
-                if (this.checked) {
-                    window.loadTesseract().catch(err => {
-                        console.error('Failed to load Tesseract:', err);
-                        this.checked = false;
-                        alert('Translation feature is not available at this time.');
-                    });
-                }
-                // Translation feature will be fully initialized by app.js
-            });
-        }
-    });
-    </script>
     <script src="./app.js" defer></script>
 </body>
 
