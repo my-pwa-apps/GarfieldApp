@@ -505,20 +505,15 @@ function showFullsizeVertical() {
     comic.classList.add('fullscreen-vertical');
     container.classList.add('fullscreen');
     
-    // Create overlay background
-    const overlay = document.createElement('div');
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = 'rgba(0,0,0,0.75)';
-    overlay.style.zIndex = '999';
-    overlay.id = 'fullscreen-overlay';
-    document.body.appendChild(overlay);
+    // Set the container background to match the app background gradient
+    container.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
+    container.style.backgroundSize = '100% 100vh';
     
-    // Move comic in front of overlay
-    comic.style.zIndex = '1000';
+    // Hide install button if present
+    const installButton = document.querySelector('button[innerText="Install App"]');
+    if (installButton) {
+        installButton.style.display = 'none';
+    }
     
     // Hide other UI elements
     elementsToHide.forEach(el => {
@@ -531,7 +526,7 @@ function showFullsizeVertical() {
     
     // Add click handler to exit fullscreen
     comic.addEventListener('click', exitFullsizeVertical);
-    overlay.addEventListener('click', exitFullsizeVertical);
+    container.addEventListener('click', exitFullsizeVertical);
 }
 
 // Function to exit fullsize vertical comic view
@@ -541,10 +536,14 @@ function exitFullsizeVertical() {
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
     const controlsDiv = document.querySelector('#controls-container');
     
-    // Remove overlay
-    const overlay = document.getElementById('fullscreen-overlay');
-    if (overlay) {
-        document.body.removeChild(overlay);
+    // Reset container background
+    container.style.background = '';
+    container.style.backgroundSize = '';
+    
+    // Show install button again if present
+    const installButton = document.querySelector('button[innerText="Install App"]');
+    if (installButton) {
+        installButton.style.display = '';
     }
     
     // Switch back to thumbnail view
@@ -564,6 +563,7 @@ function exitFullsizeVertical() {
     
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
+    container.removeEventListener('click', exitFullsizeVertical);
 }
 
 document.addEventListener('swiped-down', function(e) {
