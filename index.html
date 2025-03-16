@@ -21,6 +21,32 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <script src="./swiped-events.min.js"></script>
     <!-- Removed jQuery as it doesn't appear to be used -->
+    <style>
+        /* Normalize date input styling to match button appearance */
+        #DatePicker {
+            font-family: inherit;
+            font-size: 1em;
+            font-weight: bold;
+            color: black;
+            text-align: center;
+        }
+        
+        /* Remove default date input styling on various browsers */
+        #DatePicker::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+        }
+        
+        #DatePicker::-webkit-datetime-edit {
+            padding: 0;
+        }
+        
+        /* Make date input consistent across platforms */
+        .date-center-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
 </head>
 
 <body onload="onLoad()">
