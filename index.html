@@ -37,7 +37,7 @@
         <button class="button" id="First" onclick="FirstClick()">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" required>
             </div>
         </div>
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>
@@ -89,6 +89,25 @@
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
     
+    <script>
+    // Add this script before the main app.js to prevent date clearing
+    document.addEventListener('DOMContentLoaded', function() {
+        const dateInput = document.getElementById('DatePicker');
+        
+        // Store the original value
+        let lastValidValue = dateInput.value;
+        
+        dateInput.addEventListener('change', function() {
+            if (!this.value) {
+                // If cleared, restore to previous value
+                this.value = lastValidValue;
+            } else {
+                // Update the valid value
+                lastValidValue = this.value;
+            }
+        });
+    });
+    </script>
     <script src="./app.js" defer></script>
 </body>
 
