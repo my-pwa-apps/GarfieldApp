@@ -472,7 +472,7 @@ function showInstallPromotion() {
     installButton.innerText = 'Install App';
     installButton.className = 'button';
     
-    // Match exact button styling from the app
+    // Match button styling from the app, with more subtle font
     Object.assign(installButton.style, {
         position: 'fixed',
         bottom: '20px',
@@ -481,8 +481,8 @@ function showInstallPromotion() {
         margin: '0',
         padding: '10px 20px',
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        fontSize: '0.75rem',
-        fontWeight: '700',
+        fontSize: '0.85rem',
+        fontWeight: '500',
         color: 'black',
         borderRadius: '10px',
         border: 'none',

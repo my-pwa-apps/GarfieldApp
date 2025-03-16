@@ -34,8 +34,8 @@ main {
     border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 700;
-    font-size: 0.9rem;
+    font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
+    font-size: 0.85rem; /* Slightly smaller font size */
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
     user-select: none;
@@ -203,16 +203,14 @@ input[type="date"] {
     height: 42px;
     margin: 0;
     padding: 0;
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 0.85rem; /* Matching the button font size */
+    font-weight: 500; /* Matching the button font weight */
     background: transparent;
     border: none;
     color: black;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    text-align: -webkit-center;
-    text-align: center;
 }
 
 /* Remove default calendar icon but keep functionality */
