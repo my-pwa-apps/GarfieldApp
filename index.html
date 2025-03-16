@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://assets.amuniversal.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <script src="./swiped-events.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- Removed jQuery as it doesn't appear to be used -->
 </head>
 
 <body onload="onLoad()">
@@ -43,6 +43,7 @@
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>
     </div>
     
+    <!-- Keeping first <br> for layout spacing -->
     <br>
     
     <div id="comic-container">
@@ -51,6 +52,7 @@
         </div>
     </div>
     
+    <!-- Keeping second <br> for layout spacing -->
     <br>
     
     <div id="controls-container">
@@ -74,7 +76,7 @@
         </div>
     </div>
     
-    <br>
+    <!-- Removed redundant <br> before settings div -->
     
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
