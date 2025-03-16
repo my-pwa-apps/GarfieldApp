@@ -131,6 +131,22 @@ function onLoad() {
     document.body.style.width = '100%';
     document.body.style.height = '100%';
 
+    // Prevent clearing the date picker
+    const datePicker = document.getElementById("DatePicker");
+    datePicker.setAttribute("required", "required");
+    
+    // Add event listener to prevent emptying the date
+    datePicker.addEventListener('change', function(e) {
+        if (!this.value) {
+            // If cleared, reset to current date
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            this.value = `${yyyy}-${mm}-${dd}`;
+        }
+    });
+
     if (document.getElementById("showfavs").checked) {
         currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
         if (!favs.length) {
