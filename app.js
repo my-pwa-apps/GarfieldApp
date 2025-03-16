@@ -80,6 +80,17 @@ function HideSettings() {
     document.body.style.minHeight = "";
 }
 
+// Add this function to update the date display for mobile
+function updateDateDisplay() {
+    const dateInput = document.getElementById('DatePicker');
+    const wrapper = document.querySelector('.date-center-wrapper');
+    
+    if (dateInput && wrapper) {
+        const formattedDate = dateInput.value;
+        wrapper.setAttribute('data-display-date', formattedDate);
+    }
+}
+
 function onLoad() {
     previousclicked = false;
     previousUrl = "";
@@ -118,7 +129,66 @@ function onLoad() {
     }
     CompareDates();
     showComic();
+    updateDateDisplay(); // Add this line to update the display
 }
+
+// Call this function when the date changes
+function DateChange() {
+	currentselectedDate = document.getElementById('DatePicker');
+	currentselectedDate = new Date(currentselectedDate.value);
+	updateDateDisplay(); // Add this line to update the display
+	CompareDates();
+	showComic();
+}
+
+// Add this to update the display when showing a comic
+function showComic()
+{
+	formatDate(currentselectedDate);
+	formattedDate = year + "-" + month + "-" + day;
+	formattedComicDate = year + "/" + month + "/" + day;
+	document.getElementById('DatePicker').value = formattedDate;
+	updateDateDisplay(); // Add this line to update the display
+	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+    localStorage.setItem('lastcomic', currentselectedDate);
+	fetch(siteUrl)
+    .then(function(response)
+	{
+      return response.text();
+    })
+    .then(function(text)
+	{
+      siteBody = text;
+      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
+      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+      if(pictureUrl != previousUrl) {
+		//document.getElementById("comic").src = pictureUrl;
+		changeComicImage(pictureUrl);
+	  }
+	  else
+	  {
+		if(previousclicked == true)
+		{
+			PreviousClick();
+		}
+	  }	
+	  previousclicked = false;			
+	  previousUrl = pictureUrl;
+	  var favs = JSON.parse(localStorage.getItem('favs'));
+		if(favs == null)
+		{
+			favs = [];
+		}
+		if(favs.indexOf(formattedComicDate) == -1)
+		{
+			document.getElementById("favheart").src="./heartborder.svg";
+		}	
+		else
+		{
+			document.getElementById("favheart").src="./heart.svg";
+		}
+    });
+};
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
@@ -188,6 +258,7 @@ function RandomClick()
 function DateChange() {
 	currentselectedDate = document.getElementById('DatePicker');
 	currentselectedDate = new Date(currentselectedDate.value);
+	updateDateDisplay(); // Add this line to update the display
 	CompareDates();
 	showComic();
 }
@@ -198,6 +269,7 @@ function showComic()
 	formattedDate = year + "-" + month + "-" + day;
 	formattedComicDate = year + "/" + month + "/" + day;
 	document.getElementById('DatePicker').value = formattedDate;
+	updateDateDisplay(); // Add this line to update the display
 	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
     localStorage.setItem('lastcomic', currentselectedDate);
 	fetch(siteUrl)

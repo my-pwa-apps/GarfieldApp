@@ -197,12 +197,12 @@ input[type=checkbox] {
 }
 
 input[type="date"] {
-    width: 100%;
+    width: auto;
     height: 42px;
     margin: 0;
     padding: 0;
-    font-size: 0.85rem; /* Matching the button font size */
-    font-weight: 500; /* Matching the button font weight */
+    font-size: 0.85rem;
+    font-weight: 500;
     background: transparent;
     border: none;
     color: black;
@@ -229,58 +229,30 @@ input[type="date"]::-webkit-datetime-edit {
     text-align: center;
 }
 
-/* Specific styles for mobile date centering */
+/* Use a simpler approach for mobile */
 @media (max-width: 768px) {
-    .date-input-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-    }
-
     input[type="date"] {
-        width: auto;
-        height: 42px;
-        margin: 0;
-        padding: 0;
-        font-size: 0.85rem;
-        font-weight: 500;
-        background: transparent;
-        border: none;
-        color: black;
-        -webkit-appearance: none !important;
-        -moz-appearance: none !important;
-        appearance: none !important;
+        opacity: 0; /* Hide the visual input */
+    }
+    
+    .date-center-wrapper {
         position: relative;
-        left: 0; /* Remove the offset that caused the overlay issue */
-        text-align: center;
     }
     
-    /* Reset any mobile browser specific styling that might cause issues */
-    input[type="date"]::-webkit-datetime-edit {
-        text-align: center;
-        padding: 0;
-        margin: 0 auto;
-    }
-    
-    /* Make the hidden picker cover the entire button */
-    input[type="date"]::-webkit-calendar-picker-indicator {
+    /* Add a visible date display that matches the styling */
+    .date-center-wrapper::before {
+        content: attr(data-display-date);
         position: absolute;
-        width: 100%;
-        height: 100%;
         top: 0;
         left: 0;
-        opacity: 0;
-        cursor: pointer;
-        z-index: 2;
-    }
-    
-    /* Remove any elements that might cause overlay issues */
-    input[type="date"]::after,
-    input[type="date"]::before,
-    input[type="date"]::-webkit-clear-button,
-    input[type="date"]::-webkit-inner-spin-button {
-        display: none !important;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        font-weight: 500;
+        pointer-events: none;
     }
 }
 
