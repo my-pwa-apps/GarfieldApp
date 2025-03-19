@@ -1111,7 +1111,7 @@ function Rotate() {
     }
 }
 
-// Add this function to handle dark mode toggling
+// Update the function to handle dark mode toggling with the new black/orange gradient
 function toggleDarkMode(isDark) {
     if (isDark) {
         document.body.classList.add('dark-theme');
@@ -1119,14 +1119,27 @@ function toggleDarkMode(isDark) {
         document.body.classList.remove('dark-theme');
     }
     
-    // In fullscreen mode, also update the comic container background
+    // In fullscreen mode, also ensure the comic container uses the correct theme variables
     const comicContainer = document.getElementById('comic-container');
     if (comicContainer.classList.contains('fullscreen')) {
-        if (isDark) {
-            comicContainer.style.background = 'var(--primary-bg)';
-        } else {
-            comicContainer.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
-        }
+        comicContainer.style.background = 'var(--primary-bg)';
+        comicContainer.style.backgroundSize = '100% 100vh';
+    }
+    
+    // Update any translation bubbles for dark mode
+    const translationBubbles = document.querySelectorAll('.translation-overlay div');
+    if (translationBubbles.length > 0) {
+        translationBubbles.forEach(bubble => {
+            if (isDark) {
+                bubble.style.backgroundColor = '#333';
+                bubble.style.color = '#fff';
+                bubble.style.border = '1px solid #F09819';
+            } else {
+                bubble.style.backgroundColor = 'white';
+                bubble.style.color = 'black';
+                bubble.style.border = '1px solid black';
+            }
+        });
     }
 }
 

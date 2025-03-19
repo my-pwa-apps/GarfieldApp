@@ -11,21 +11,23 @@
     --checkbox-bg: #eee239;
     --overlay-bg: rgba(255, 255, 255, 0.8);
     --overlay-text: black;
+    --thumbnail-notice-bg: rgba(238, 226, 57, 0.8);
 }
 
-/* Dark mode variables */
+/* Dark mode variables - black and orange gradient */
 .dark-theme {
-    --primary-bg: linear-gradient(#222, #444);
-    --text-color: #eee;
-    --card-bg: linear-gradient(45deg, #444 0%, #666 51%, #444 100%);
-    --input-bg: #555;
-    --button-text-color: #eee;
-    --border-color: #888;
-    --shadow-color: rgba(0, 0, 0, 0.4);
-    --shadow-color-hover: rgba(0, 0, 0, 0.5);
-    --checkbox-bg: #555;
-    --overlay-bg: rgba(0, 0, 0, 0.7);
-    --overlay-text: #eee;
+    --primary-bg: linear-gradient(#000000, #F09819);
+    --text-color: #ffffff;
+    --card-bg: linear-gradient(45deg, #222222 0%, #F09819 51%, #222222 100%);
+    --input-bg: #333333;
+    --button-text-color: #ffffff;
+    --border-color: #F09819;
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --shadow-color-hover: rgba(0, 0, 0, 0.7);
+    --checkbox-bg: #333333;
+    --overlay-bg: rgba(0, 0, 0, 0.75);
+    --overlay-text: #ffffff;
+    --thumbnail-notice-bg: rgba(240, 152, 25, 0.9);
 }
 
 /* Apply theming variables to existing elements */
@@ -422,7 +424,7 @@ input[type="date"]::-webkit-datetime-edit {
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: rgba(238, 226, 57, 0.8);
+    background-color: var(--thumbnail-notice-bg);
     color: black;
     padding: 8px;
     font-size: 0.85rem;
@@ -455,4 +457,20 @@ input[type="date"]::-webkit-datetime-edit {
 
 #darkmode:not(:checked) + label:after {
     content: " (off)";
+}
+
+/* Dark mode action icon styles */
+.dark-theme .action-icon {
+    filter: invert(0.8) sepia(0.5) hue-rotate(-15deg) saturate(1.2);
+}
+
+/* Add styles for the Ko-fi button in dark mode */
+.dark-theme .kofi-button-styled {
+    filter: brightness(1.2);
+}
+
+/* Ensure fullscreen container uses the proper dark mode gradient in both vertical and horizontal modes */
+.dark-theme #comic-container.fullscreen {
+    background: var(--primary-bg);
+    background-size: 100% 100vh;
 }
