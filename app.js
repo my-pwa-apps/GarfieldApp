@@ -12,6 +12,7 @@ let pictureUrl;
 let formattedComicDate;
 let formattedDate;
 let isRotatedMode = false; // Track if we're in rotated mode
+let darkModeEnabled = localStorage.getItem('darkmode') === 'true'; // Track dark mode state
 
 if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
@@ -1108,5 +1109,50 @@ function Rotate() {
         // Switch back to normal view
         exitRotatedView();
     }
+}
+
+// Add this function to handle dark mode toggling
+function toggleDarkMode(isDark) {
+    if (isDark) {
+        document.body.classList.add('dark-theme');
+    } else {
+        document.body.classList.remove('dark-theme');
+    }
+    
+    // In fullscreen mode, also update the comic container background
+    const comicContainer = document.getElementById('comic-container');
+    if (comicContainer.classList.contains('fullscreen')) {
+        if (isDark) {
+            comicContainer.style.background = 'var(--primary-bg)';
+        } else {
+            comicContainer.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
+        }
+    }
+}
+
+// Add dark mode event handler after the other settings handlers
+setStatus = document.getElementById('darkmode');
+setStatus.onclick = function() {
+    darkModeEnabled = document.getElementById('darkmode').checked;
+    localStorage.setItem('darkmode', darkModeEnabled ? 'true' : 'false');
+    toggleDarkMode(darkModeEnabled);
+}
+
+// Initialize dark mode based on stored preference
+getStatus = localStorage.getItem('darkmode');
+if (getStatus == "true") {
+    document.getElementById("darkmode").checked = true;
+    toggleDarkMode(true);
+} else {
+    document.getElementById("darkmode").checked = false;
+    toggleDarkMode(false);
+}
+
+// Consider system preference for dark mode if no stored preference
+if (getStatus == null && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.getElementById("darkmode").checked = true;
+    darkModeEnabled = true;
+    localStorage.setItem('darkmode', 'true');
+    toggleDarkMode(true);
 }
 

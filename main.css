@@ -1,20 +1,51 @@
+/* Root CSS Variables for theming */
+:root {
+    --primary-bg: linear-gradient(#eee239, orange);
+    --text-color: black;
+    --card-bg: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    --input-bg: #eee239;
+    --button-text-color: black;
+    --border-color: black;
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --shadow-color-hover: rgba(0, 0, 0, 0.3);
+    --checkbox-bg: #eee239;
+    --overlay-bg: rgba(255, 255, 255, 0.8);
+    --overlay-text: black;
+}
+
+/* Dark mode variables */
+.dark-theme {
+    --primary-bg: linear-gradient(#222, #444);
+    --text-color: #eee;
+    --card-bg: linear-gradient(45deg, #444 0%, #666 51%, #444 100%);
+    --input-bg: #555;
+    --button-text-color: #eee;
+    --border-color: #888;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-color-hover: rgba(0, 0, 0, 0.5);
+    --checkbox-bg: #555;
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --overlay-text: #eee;
+}
+
+/* Apply theming variables to existing elements */
 html {
     height: 100%;
     overflow: hidden;
 }
 
 body {
-    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    background: var(--primary-bg) no-repeat fixed;
     background-size: 100% 100vh;
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: black;
-    background-color: orange;
+    color: var(--text-color);
     margin: 0;
     padding: 0;
     overflow: hidden;
     box-sizing: border-box;
     width: 100%;
+    transition: background 0.5s ease;
 }
 
 main {
@@ -30,38 +61,37 @@ main {
     text-align: center;
     transition: 0.5s;
     background-size: 200% auto;
-    color: black;
+    color: var(--button-text-color);
     border-radius: 10px;
     border: none;
     display: block;
     font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
     font-size: 0.85rem; /* Slightly smaller font size */
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-image: var(--card-bg);
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px var(--shadow-color);
     min-width: 70px;
     height: auto;
 }
 
 .button:active {
     transform: scale(0.95);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px var(--shadow-color);
 }
 
 .button:hover {
     background-position: right center;
-    color: black;
+    color: var(--button-text-color);
     text-decoration: none;
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 12px var(--shadow-color-hover);
 }
 
 .button:disabled {
-    background-color: #f39700;
     opacity: 0.5;
-    color: black;
+    color: var(--button-text-color);
     box-shadow: none;
 }
 
@@ -75,7 +105,9 @@ input {
     text-align: center;
     border-radius: 10px;
     opacity: 0.9;
-    background-color: #eee239;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
 }
 
 .buttongrid {
@@ -105,7 +137,7 @@ input {
     padding: 0;
     z-index: 1000;
     transition: transform 0.3s ease;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px var(--shadow-color-hover);
     border-radius: 5px;
 }
 
@@ -117,8 +149,10 @@ input {
     display: block;
     margin: 0 auto;
     transition: all 0.3s ease;
+    box-shadow: 0 5px 15px var(--shadow-color);
 }
 
+/* Checkbox styling */
 input[type="checkbox"], label {
     float: left;
     line-height: 1.6em;
@@ -126,6 +160,7 @@ input[type="checkbox"], label {
     margin: 0 2px;
     padding: 0;
     font-size: small;
+    color: var(--text-color);
 }
 
 input[type=checkbox]:before {
@@ -136,9 +171,9 @@ input[type=checkbox]:before {
     height: 16px;
     top: 0;
     left: 0;
-    border: 2px solid black;
+    border: 2px solid var(--border-color);
     border-radius: 5px;
-    background-color: #eee239;
+    background-color: var(--checkbox-bg);
 }
 
 input[type=checkbox]:checked:after {
@@ -146,7 +181,7 @@ input[type=checkbox]:checked:after {
     display: block;
     width: 5px;
     height: 10px;
-    border: solid black;
+    border: solid var(--border-color);
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
     position: absolute;
@@ -165,6 +200,8 @@ input[type=checkbox] {
 #comic {
     transition: opacity 1s ease-in-out;
     opacity: 1;
+    border-radius: 5px;
+    box-shadow: 0 5px 15px var(--shadow-color);
 }
 
 #comic.dissolve {
@@ -175,16 +212,16 @@ input[type=checkbox] {
     position: relative;
     margin: 5px;
     border-radius: 10px;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-image: var(--card-bg);
     background-size: 200% auto;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px var(--shadow-color);
     transition: 0.5s;
     overflow: hidden;
 }
 
 .date-input-container:hover {
     background-position: right center;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 12px var(--shadow-color-hover);
     transform: translateY(-2px);
 }
 
@@ -205,7 +242,7 @@ input[type="date"] {
     font-weight: 500;
     background: transparent;
     border: none;
-    color: black;
+    color: var(--text-color);
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -280,6 +317,7 @@ input[type="date"]::-webkit-datetime-edit {
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
+    transition: background 0.5s ease;
 }
 
 #comic-container.fullscreen {
@@ -288,7 +326,7 @@ input[type="date"]::-webkit-datetime-edit {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    background: var(--primary-bg) no-repeat fixed;
     z-index: 999;
     display: flex;
     justify-content: center;
@@ -351,6 +389,7 @@ input[type="date"]::-webkit-datetime-edit {
     width: 30px;
     margin-right: 20px;
     cursor: pointer;
+    transition: filter 0.3s ease;
 }
 
 .action-icon:last-child {
@@ -405,6 +444,15 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 0;
     padding: 0;
     z-index: 1000;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px var(--shadow-color-hover);
     border-radius: 5px;
+}
+
+/* Dark mode toggle indicator */
+#darkmode:checked + label:after {
+    content: " (on)";
+}
+
+#darkmode:not(:checked) + label:after {
+    content: " (off)";
 }
