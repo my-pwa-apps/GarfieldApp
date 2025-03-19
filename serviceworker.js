@@ -1,6 +1,6 @@
-
 const OFFLINE_VERSION = 2;
-const CACHE = "offline";
+const CACHE_NAME = "offline";
+const OFFLINE_URL = "index.html";
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
@@ -13,14 +13,14 @@ self.addEventListener("message", (event) => {
 workbox.routing.registerRoute(
   new RegExp('.*'),
   new workbox.strategies.StaleWhileRevalidate({
-    cacheName: CACHE
+    cacheName: CACHE_NAME
   })
 );
 
-beforeinstallprompt = null;
+let installPrompt = null;
 self.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
-  beforeinstallprompt = e;
+  installPrompt = e;
   return false;
 });
 
@@ -33,6 +33,13 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    // Clean up old caches
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name !== CACHE_NAME)
+        .map(name => caches.delete(name))
+    );
    
     if ('navigationPreload' in self.registration) {
       await self.registration.navigationPreload.enable();
@@ -43,7 +50,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
- 
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -55,7 +61,6 @@ self.addEventListener('fetch', (event) => {
         const networkResponse = await fetch(event.request);
         return networkResponse;
       } catch (error) {
-       
         console.log('Fetch failed; returning offline page instead.', error);
 
         const cache = await caches.open(CACHE_NAME);

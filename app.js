@@ -204,9 +204,9 @@ function showComic() {
     siteUrl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
     localStorage.setItem('lastcomic', currentselectedDate);
     
-    // Store current rotation state before loading new comic
+    // Store current fullscreen state before loading new comic
     const comic = document.getElementById('comic');
-    const wasRotated = isRotatedMode;
+    const wasInFullscreenMode = isRotatedMode || comic.classList.contains('fullscreen-vertical');
     
     fetch(siteUrl)
     .then(function(response) {
@@ -218,17 +218,24 @@ function showComic() {
         pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
         
         if(pictureUrl != previousUrl) {
-            // Use a one-time load event handler to maintain rotation state
+            // Use a one-time load event handler to handle orientation changes
             const loadHandler = function() {
                 comic.removeEventListener('load', loadHandler);
                 
-                // Call our standard image handler
+                // Call our standard image handler which will detect orientation
                 handleImageLoad();
                 
-                // If we were in rotated mode before, restore that state
-                if (wasRotated) {
+                // If we were in fullscreen mode before, maintain the appropriate fullscreen state
+                if (wasInFullscreenMode) {
                     setTimeout(() => {
-                        applyRotatedView();
+                        // Check if the new comic is vertical or horizontal and apply appropriate fullscreen mode
+                        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+                            // Vertical comic - show in vertical fullscreen mode
+                            showFullsizeVertical();
+                        } else {
+                            // Horizontal comic - show in rotated fullscreen mode
+                            applyRotatedView();
+                        }
                     }, 100);
                 }
             };
