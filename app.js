@@ -1,15 +1,28 @@
 //garfieldapp.pages.dev
 
+// Global variables for app functionality
+let translationEnabled = localStorage.getItem('translation') === 'true';
+let userLanguage = navigator.language || navigator.userLanguage || 'en';
+let translationInProgress = false;
+let previousclicked = false;
+let previousUrl = "";
+let currentselectedDate;
+let day, month, year;
+let pictureUrl;
+let formattedComicDate;
+let formattedDate;
+let isRotatedMode = false; // Track if we're in rotated mode
+
 if("serviceWorker" in navigator) {
-	navigator.serviceWorker.register("./serviceworker.js");
+    navigator.serviceWorker.register("./serviceworker.js");
 }
 
 async function Share() 
 {
-	if(navigator.share) {
-		comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
-		const response = await fetch(comicurl);
-		const blob = await response.blob();
+    if(navigator.share) {
+        comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
+        const response = await fetch(comicurl);
+        const blob = await response.blob();
         const img = await createImageBitmap(blob);
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
@@ -19,43 +32,43 @@ async function Share()
         const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
 
         const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
-		navigator.share({
-			url: 'https://garfieldapp.pages.dev',
-			text: 'Shared from https://garfieldapp.pages.dev',
-			files: [file]
-		});
-	}
+        navigator.share({
+            url: 'https://garfieldapp.pages.dev',
+            text: 'Shared from https://garfieldapp.pages.dev',
+            files: [file]
+        });
+    }
 }
 
 function Addfav()
 {
-	formattedComicDate = year + "/" + month + "/" + day;
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(favs == null)
-	{
-		favs = [];
-	}
-	if(favs.indexOf(formattedComicDate) == -1)
-	{
-		favs.push(formattedComicDate);
-		document.getElementById("favheart").src="./heart.svg";
-		document.getElementById("showfavs").disabled = false;
-	}
-	else
-	{
-		favs.splice(favs.indexOf(formattedComicDate), 1);
-		document.getElementById("favheart").src="./heartborder.svg";
-		if(favs.length === 0)
-		{
-			document.getElementById("showfavs").checked = false;
-			document.getElementById("showfavs").disabled = true;
-			document.getElementById("Today").innerHTML = 'Today';
-		}
-	}
-	favs.sort();
-	localStorage.setItem('favs', JSON.stringify(favs));
-	CompareDates();
-	showComic();
+    formattedComicDate = year + "/" + month + "/" + day;
+    var favs = JSON.parse(localStorage.getItem('favs'));
+    if(favs == null)
+    {
+        favs = [];
+    }
+    if(favs.indexOf(formattedComicDate) == -1)
+    {
+        favs.push(formattedComicDate);
+        document.getElementById("favheart").src="./heart.svg";
+        document.getElementById("showfavs").disabled = false;
+    }
+    else
+    {
+        favs.splice(favs.indexOf(formattedComicDate), 1);
+        document.getElementById("favheart").src="./heartborder.svg";
+        if(favs.length === 0)
+        {
+            document.getElementById("showfavs").checked = false;
+            document.getElementById("showfavs").disabled = true;
+            document.getElementById("Today").innerHTML = 'Today';
+        }
+    }
+    favs.sort();
+    localStorage.setItem('favs', JSON.stringify(favs));
+    CompareDates();
+    showComic();
 }
 
 function changeComicImage(newSrc) {
@@ -118,8 +131,6 @@ function updateDateDisplay() {
 }
 
 function onLoad() {
-    previousclicked = false;
-    previousUrl = "";
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
     // Set minimum body height at load time to prevent gradient shift
@@ -130,6 +141,22 @@ function onLoad() {
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
     document.body.style.height = '100%';
+
+    // Prevent clearing the date picker
+    const datePicker = document.getElementById("DatePicker");
+    datePicker.setAttribute("required", "required");
+    
+    // Add event listener to prevent emptying the date
+    datePicker.addEventListener('change', function(e) {
+        if (!this.value) {
+            // If cleared, reset to current date
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            this.value = `${yyyy}-${mm}-${dd}`;
+        }
+    });
 
     if (document.getElementById("showfavs").checked) {
         currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
@@ -160,63 +187,401 @@ function onLoad() {
 
 // Call this function when the date changes
 function DateChange() {
-	currentselectedDate = document.getElementById('DatePicker');
-	currentselectedDate = new Date(currentselectedDate.value);
-	updateDateDisplay(); // Add this line to update the display
-	CompareDates();
-	showComic();
+    currentselectedDate = document.getElementById('DatePicker');
+    currentselectedDate = new Date(currentselectedDate.value);
+    updateDateDisplay(); // Add this line to update the display
+    CompareDates();
+    showComic();
 }
 
 // Add this to update the display when showing a comic
-function showComic()
-{
-	formatDate(currentselectedDate);
-	formattedDate = year + "-" + month + "-" + day;
-	formattedComicDate = year + "/" + month + "/" + day;
-	document.getElementById('DatePicker').value = formattedDate;
-	updateDateDisplay(); // Add this line to update the display
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+function showComic() {
+    formatDate(currentselectedDate);
+    formattedDate = year + "-" + month + "-" + day;
+    formattedComicDate = year + "/" + month + "/" + day;
+    document.getElementById('DatePicker').value = formattedDate;
+    updateDateDisplay();
+    siteUrl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
     localStorage.setItem('lastcomic', currentselectedDate);
-	fetch(siteUrl)
-    .then(function(response)
-	{
-      return response.text();
+    
+    // Store current rotation state before loading new comic
+    const comic = document.getElementById('comic');
+    const wasRotated = isRotatedMode;
+    
+    fetch(siteUrl)
+    .then(function(response) {
+        return response.text();
     })
-    .then(function(text)
-	{
-      siteBody = text;
-      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl) {
-		//document.getElementById("comic").src = pictureUrl;
-		changeComicImage(pictureUrl);
-        const comicImg = document.getElementById('comic');
-        comicImg.addEventListener('load', handleImageLoad);
-	  }
-	  else
-	  {
-		if(previousclicked == true)
-		{
-			PreviousClick();
-		}
-	  }	
-	  previousclicked = false;			
-	  previousUrl = pictureUrl;
-	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
-		{
-			favs = [];
-		}
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").src="./heartborder.svg";
-		}	
-		else
-		{
-			document.getElementById("favheart").src="./heart.svg";
-		}
+    .then(function(text) {
+        siteBody = text;
+        picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
+        pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
+        
+        if(pictureUrl != previousUrl) {
+            // Use a one-time load event handler to maintain rotation state
+            const loadHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                
+                // Call our standard image handler
+                handleImageLoad();
+                
+                // If we were in rotated mode before, restore that state
+                if (wasRotated) {
+                    setTimeout(() => {
+                        applyRotatedView();
+                    }, 100);
+                }
+            };
+            
+            comic.addEventListener('load', loadHandler);
+            changeComicImage(pictureUrl);
+        } else {
+            if(previousclicked == true) {
+                PreviousClick();
+            }
+        }
+        
+        previousclicked = false;
+        previousUrl = pictureUrl;
+        
+        var favs = JSON.parse(localStorage.getItem('favs'));
+        if(favs == null) {
+            favs = [];
+        }
+        if(favs.indexOf(formattedComicDate) == -1) {
+            document.getElementById("favheart").src="./heartborder.svg";
+        } else {
+            document.getElementById("favheart").src="./heart.svg";
+        }
+    })
+    .catch(function(error) {
+        console.error("Error loading comic:", error);
+        // Try to recover by showing an error message
+        document.getElementById('comic').alt = "Failed to load comic. Please try again.";
     });
-};
+}
+
+// Unified translation function - this replaces all duplicate implementations
+async function translateComic() {
+    if (!translationEnabled || translationInProgress) return;
+    
+    const comic = document.getElementById('comic');
+    const comicWrapper = document.getElementById('comic-wrapper');
+    
+    // Ensure the comic is fully loaded and visible
+    if (!comic.complete || comic.naturalWidth === 0) return;
+    
+    try {
+        // Mark translation as in progress
+        translationInProgress = true;
+        
+        // Add indicator that translation is in progress
+        const indicator = document.createElement('div');
+        indicator.className = 'translation-indicator';
+        indicator.textContent = 'Detecting text...';
+        comicWrapper.appendChild(indicator);
+        
+        // Load Tesseract if needed
+        if (!window.Tesseract) {
+            await window.loadTesseract().catch(e => {
+                throw new Error('Failed to load Tesseract.js: ' + e.message);
+            });
+        }
+        
+        // Use Tesseract.js to detect text in the image
+        const result = await Tesseract.recognize(
+            comic.src,
+            'eng', // Start with English detection
+            { 
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        indicator.textContent = `Processing: ${Math.floor(m.progress * 100)}%`;
+                    }
+                }
+            }
+        );
+        
+        // Update indicator
+        indicator.textContent = 'Translating...';
+        
+        // Get detected text
+        const detectedText = result.data.text;
+        
+        if (detectedText.trim()) {
+            // Split into paragraphs/speech bubbles
+            const textBlocks = detectedText
+                .split('\n\n')
+                .filter(block => block.trim().length > 5); // Filter out very short blocks
+            
+            // Get target language (first 2 chars of locale)
+            const targetLang = userLanguage.substring(0, 2);
+            
+            // Only proceed if we're not translating to English (source lang)
+            if (targetLang !== 'en' && textBlocks.length > 0) {
+                // Translate text blocks using a free translation service
+                const translatedBlocks = await translateTextBlocks(textBlocks, targetLang);
+                
+                // Create overlay for translated text
+                createTranslationOverlay(comic, result.data.words, translatedBlocks);
+                
+                indicator.textContent = 'Translated!';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => indicator.remove(), 500);
+                }, 2000);
+            } else {
+                indicator.textContent = 'No translation needed';
+                setTimeout(() => {
+                    indicator.style.opacity = '0';
+                    setTimeout(() => indicator.remove(), 500);
+                }, 1500);
+            }
+        } else {
+            indicator.textContent = 'No text detected';
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 500);
+            }, 1500);
+        }
+    } catch (error) {
+        console.error('Translation error:', error);
+        const indicator = document.querySelector('.translation-indicator') || 
+                         document.createElement('div');
+        indicator.className = 'translation-indicator';
+        indicator.textContent = 'Translation failed';
+        if (!indicator.parentNode) comicWrapper.appendChild(indicator);
+        
+        setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 500);
+        }, 2000);
+    } finally {
+        translationInProgress = false;
+    }
+}
+
+// Free translation API using LibreTranslate
+async function translateTextBlocks(textBlocks, targetLang) {
+    // For proof of concept, let's use a mock translation to avoid rate limits
+    // In production, use a proper API
+    
+    return textBlocks.map(text => {
+        // This is just a mock "translation" for testing purposes
+        // In production, use a real translation service API
+        return `[${targetLang}] ${text}`;
+    });
+    
+    /* Uncomment and configure with an actual free translation API
+    const translations = [];
+    
+    for (const text of textBlocks) {
+        try {
+            // Example with LibreTranslate API - replace URL with a working instance
+            const response = await fetch('https://libretranslate.com/translate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    q: text,
+                    source: 'en',
+                    target: targetLang,
+                    format: 'text'
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            translations.push(data.translatedText || text);
+        } catch (error) {
+            console.error('Error translating block:', error);
+            translations.push(text); // Fall back to original
+        }
+    }
+    
+    return translations;
+    */
+}
+
+// Create visual overlay with translations
+function createTranslationOverlay(comic, words, translatedBlocks) {
+    const comicWrapper = document.getElementById('comic-wrapper');
+    
+    // Remove any existing translation overlays
+    const existingOverlay = document.querySelector('.translation-overlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    // Create canvas overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'translation-overlay';
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = `${comic.offsetWidth}px`;
+    overlay.style.height = `${comic.offsetHeight}px`;
+    
+    // Group words into likely speech bubbles
+    const bubbles = groupWordsIntoBubbles(words);
+    
+    // Create translation bubbles
+    let blockIndex = 0;
+    
+    for (const bubble of bubbles) {
+        if (blockIndex >= translatedBlocks.length) break;
+        
+        // Create translated speech bubble
+        const translationBubble = document.createElement('div');
+        translationBubble.style.position = 'absolute';
+        translationBubble.style.left = `${bubble.x}px`;
+        translationBubble.style.top = `${bubble.y}px`;
+        translationBubble.style.width = `${bubble.width}px`;
+        translationBubble.style.maxWidth = '200px';
+        translationBubble.style.backgroundColor = 'white';
+        translationBubble.style.padding = '5px';
+        translationBubble.style.border = '1px solid black';
+        translationBubble.style.borderRadius = '5px';
+        translationBubble.style.fontSize = '12px';
+        translationBubble.style.zIndex = '5';
+        translationBubble.textContent = translatedBlocks[blockIndex];
+        
+        overlay.appendChild(translationBubble);
+        blockIndex++;
+    }
+    
+    comicWrapper.appendChild(overlay);
+}
+
+// Group OCR words into likely speech bubbles
+function groupWordsIntoBubbles(words) {
+    if (!words || words.length === 0) return [];
+    
+    // This is a simplified algorithm for grouping
+    // In a real implementation, this would be more sophisticated
+    const bubbles = [];
+    let currentBubble = null;
+    
+    for (const word of words) {
+        // Filter out confidence
+        if (word.confidence < 60) continue;
+        
+        // Get bounding box
+        const { x0, y0, x1, y1 } = word.bbox;
+        
+        if (!currentBubble) {
+            currentBubble = {
+                x: x0,
+                y: y0,
+                width: x1 - x0,
+                height: y1 - y0,
+                words: [word]
+            };
+        } else {
+            // Check if this word is close to current bubble
+            const distX = Math.min(
+                Math.abs(x0 - (currentBubble.x + currentBubble.width)),
+                Math.abs(x1 - currentBubble.x)
+            );
+            const distY = Math.min(
+                Math.abs(y0 - (currentBubble.y + currentBubble.height)),
+                Math.abs(y1 - currentBubble.y)
+            );
+            
+            if (distX < 50 && distY < 20) {
+                // Expand current bubble
+                currentBubble.x = Math.min(currentBubble.x, x0);
+                currentBubble.y = Math.min(currentBubble.y, y0);
+                currentBubble.width = Math.max(currentBubble.x + currentBubble.width, x1) - currentBubble.x;
+                currentBubble.height = Math.max(currentBubble.y + currentBubble.height, y1) - currentBubble.y;
+                currentBubble.words.push(word);
+            } else {
+                // Start a new bubble
+                bubbles.push(currentBubble);
+                currentBubble = {
+                    x: x0,
+                    y: y0,
+                    width: x1 - x0,
+                    height: y1 - y0,
+                    words: [word]
+                };
+            }
+        }
+    }
+    
+    if (currentBubble) {
+        bubbles.push(currentBubble);
+    }
+    
+    // Convert to screen coordinates
+    const comic = document.getElementById('comic');
+    const scaleX = comic.offsetWidth / comic.naturalWidth;
+    const scaleY = comic.offsetHeight / comic.naturalHeight;
+    
+    return bubbles.map(bubble => ({
+        x: bubble.x * scaleX,
+        y: bubble.y * scaleY,
+        width: bubble.width * scaleX,
+        height: bubble.height * scaleY,
+        words: bubble.words
+    }));
+}
+
+// Modified handleImageLoad function - unified implementation
+function handleImageLoad() {
+    const comic = document.getElementById('comic');
+    
+    // Check if the image is loaded
+    if (!comic.complete) {
+        comic.addEventListener('load', () => {
+            checkImageOrientation();
+            // Try to translate if enabled
+            if (translationEnabled) {
+                setTimeout(translateComic, 500); // Give the image time to render properly
+            }
+        });
+    } else {
+        checkImageOrientation();
+        // Try to translate if enabled
+        if (translationEnabled) {
+            setTimeout(translateComic, 500); // Give the image time to render properly
+        }
+    }
+}
+
+// Make sure translation settings are initialized on load - merged with the other listeners at bottom
+document.addEventListener('DOMContentLoaded', function() {
+    try {
+        // Initialize translation checkbox
+        const translateCheckbox = document.getElementById('translate');
+        if (translateCheckbox) {
+            // Set initial state
+            translateCheckbox.checked = translationEnabled;
+            
+            // Set up one unified event listener
+            translateCheckbox.addEventListener('change', function() {
+                translationEnabled = this.checked;
+                localStorage.setItem('translation', translationEnabled ? 'true' : 'false');
+                
+                // Clear any existing translation overlay
+                const existingOverlay = document.querySelector('.translation-overlay');
+                if (existingOverlay) existingOverlay.remove();
+                
+                if (translationEnabled) {
+                    // Try to load Tesseract and translate current comic
+                    window.loadTesseract().then(() => {
+                        translateComic(); // Use the primary translation function
+                    }).catch(error => {
+                        console.error('Failed to load Tesseract:', error);
+                        this.checked = false;
+                        translationEnabled = false;
+                        localStorage.setItem('translation', 'false');
+                        alert('Translation feature could not be enabled.');
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to initialize translation feature:', error);
+    }
+});
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
@@ -283,64 +648,6 @@ function RandomClick()
 	showComic();
 }
 
-function DateChange() {
-	currentselectedDate = document.getElementById('DatePicker');
-	currentselectedDate = new Date(currentselectedDate.value);
-	updateDateDisplay(); // Add this line to update the display
-	CompareDates();
-	showComic();
-}
-
-function showComic()
-{
-	formatDate(currentselectedDate);
-	formattedDate = year + "-" + month + "-" + day;
-	formattedComicDate = year + "/" + month + "/" + day;
-	document.getElementById('DatePicker').value = formattedDate;
-	updateDateDisplay(); // Add this line to update the display
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
-    localStorage.setItem('lastcomic', currentselectedDate);
-	fetch(siteUrl)
-    .then(function(response)
-	{
-      return response.text();
-    })
-    .then(function(text)
-	{
-      siteBody = text;
-      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl) {
-		//document.getElementById("comic").src = pictureUrl;
-		changeComicImage(pictureUrl);
-        const comicImg = document.getElementById('comic');
-        comicImg.addEventListener('load', handleImageLoad);
-	  }
-	  else
-	  {
-		if(previousclicked == true)
-		{
-			PreviousClick();
-		}
-	  }	
-	  previousclicked = false;			
-	  previousUrl = pictureUrl;
-	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
-		{
-			favs = [];
-		}
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").src="./heartborder.svg";
-		}	
-		else
-		{
-			document.getElementById("favheart").src="./heart.svg";
-		}
-    });
-};
-
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
 	if(document.getElementById("showfavs").checked)
@@ -401,72 +708,78 @@ function formatDate(datetoFormat) {
 	day = ("0" + day).slice(-2);
 }
 
-function Rotate() {
-    const comic = document.getElementById('comic');
-    const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
-    const controlsDiv = document.querySelector('#controls-container');
-    
-    if (comic.className === "normal") {
-        // Switch to rotated view
-        comic.className = "rotate";
-        container.classList.add('fullscreen');
-        
-        // Hide install button if present
-        const installButtons = document.querySelectorAll('button');
-        installButtons.forEach(button => {
-            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-                button.style.display = 'none';
-            }
-        });
-        
-        // Hide other UI elements
-        elementsToHide.forEach(el => {
-            el.classList.add('hidden-during-fullscreen');
-        });
-        
-        if (controlsDiv) {
-            controlsDiv.classList.add('hidden-during-fullscreen');
-        }
-        
-        // Force recalculation of position for better centering
-        setTimeout(() => {
-            window.dispatchEvent(new Event('resize'));
-        }, 50);
-    } else {
-        // Switch back to normal view
-        comic.className = 'normal';
-        container.classList.remove('fullscreen');
-        
-        // Show install button again if present
-        const installButtons = document.querySelectorAll('button');
-        installButtons.forEach(button => {
-            if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-                button.style.display = '';
-            }
-        });
-        
-        // Show UI elements again
-        elementsToHide.forEach(el => {
-            el.classList.remove('hidden-during-fullscreen');
-        });
-        
-        if (controlsDiv) {
-            controlsDiv.classList.remove('hidden-during-fullscreen');
-        }
+document.addEventListener('swiped-down', function(e) {
+	if(document.getElementById("swipe").checked) {
+		RandomClick()}
+})
+
+document.addEventListener('swiped-right', function(e) {
+	if(document.getElementById("swipe").checked) {
+		PreviousClick()}
+})
+
+
+document.addEventListener('swiped-left', function(e) {
+	if(document.getElementById("swipe").checked) {
+		NextClick()}
+})
+
+document.addEventListener('swiped-up', function(e) {
+	if(document.getElementById("swipe").checked) {
+		CurrentClick()}
+})
+
+setStatus = document.getElementById('swipe');
+setStatus.onclick = function()
+{
+	if(document.getElementById('swipe').checked)
+	{
+    	localStorage.setItem('stat', "true");
+    }
+	else
+	{
+            localStorage.setItem('stat', "false");
+			CompareDates();
+			showComic();
     }
 }
 
-// Add this function to handle image loading and detect vertical comics
-function handleImageLoad() {
-    const comic = document.getElementById('comic');
-    
-    // Check if the image is loaded
-    if (!comic.complete) {
-        comic.addEventListener('load', checkImageOrientation);
-    } else {
-        checkImageOrientation();
-    }
+setStatus = document.getElementById('lastdate');
+setStatus.onclick = function()
+{
+	if(document.getElementById('lastdate').checked) 
+	{
+		localStorage.setItem('lastdate', "true");
+	}
+	else
+	{
+		localStorage.setItem('lastdate', "false");
+	}
+}
+
+setStatus = document.getElementById('showfavs');
+setStatus.onclick = function()
+{
+	var favs = JSON.parse(localStorage.getItem('favs'));
+	if(document.getElementById('showfavs').checked)
+	{
+		localStorage.setItem('showfavs', "true");
+		if(favs.indexOf(formattedComicDate) !== -1)
+		{
+		}
+		else
+		{
+			currentselectedDate = new Date(favs[0]);	
+		}
+		document.getElementById('Today').innerHTML = 'Last'
+	} 
+	else
+	{
+		localStorage.setItem('showfavs', "false");
+		document.getElementById('Today').innerHTML = 'Today'
+	}
+	CompareDates();
+	showComic();
 }
 
 // Function to check if the comic is vertical and show thumbnail if needed
@@ -484,8 +797,8 @@ function checkImageOrientation() {
         existingThumbnail.parentNode.replaceChild(comic, existingThumbnail);
     }
     
-    // Check if image is vertical (height > width)
-    if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+    // Check if image is fully loaded and vertical (height > width)
+    if (comic.complete && comic.naturalHeight > 0 && comic.naturalHeight > comic.naturalWidth * 1.5) {
         // It's a vertical comic, create thumbnail view
         comic.classList.remove('normal');
         comic.classList.add('vertical');
@@ -505,9 +818,7 @@ function checkImageOrientation() {
         thumbnailContainer.appendChild(notice);
         
         // Add click handler to the thumbnail container
-        thumbnailContainer.onclick = function(event) {
-            showFullsizeVertical(event);
-        };
+        thumbnailContainer.onclick = showFullsizeVertical;
     }
 }
 
@@ -600,81 +911,6 @@ function exitFullsizeVertical(event) {
     container.removeEventListener('click', exitFullsizeVertical);
 }
 
-document.addEventListener('swiped-down', function(e) {
-	if(document.getElementById("swipe").checked) {
-		RandomClick()}
-})
-
-document.addEventListener('swiped-right', function(e) {
-	if(document.getElementById("swipe").checked) {
-		PreviousClick()}
-})
-
-
-document.addEventListener('swiped-left', function(e) {
-	if(document.getElementById("swipe").checked) {
-		NextClick()}
-})
-
-document.addEventListener('swiped-up', function(e) {
-	if(document.getElementById("swipe").checked) {
-		CurrentClick()}
-})
-
-setStatus = document.getElementById('swipe');
-setStatus.onclick = function()
-{
-	if(document.getElementById('swipe').checked)
-	{
-    	localStorage.setItem('stat', "true");
-    }
-	else
-	{
-            localStorage.setItem('stat', "false");
-			CompareDates();
-			showComic();
-    }
-}
-
-setStatus = document.getElementById('lastdate');
-setStatus.onclick = function()
-{
-	if(document.getElementById('lastdate').checked) 
-	{
-		localStorage.setItem('lastdate', "true");
-	}
-	else
-	{
-		localStorage.setItem('lastdate', "false");
-	}
-}
-
-
-setStatus = document.getElementById('showfavs');
-setStatus.onclick = function()
-{
-	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById('showfavs').checked)
-	{
-		localStorage.setItem('showfavs', "true");
-		if(favs.indexOf(formattedComicDate) !== -1)
-		{
-		}
-		else
-		{
-			currentselectedDate = new Date(favs[0]);	
-		}
-		document.getElementById('Today').innerHTML = 'Last'
-	} 
-	else
-	{
-		localStorage.setItem('showfavs', "false");
-		document.getElementById('Today').innerHTML = 'Today'
-	}
-	CompareDates();
-	showComic();
-}
-
 getStatus = localStorage.getItem('stat');
 if (getStatus == "true")
 {
@@ -717,6 +953,7 @@ else
 	document.getElementById("settingsDIV").style.display = "none";
 }
 
+// Set up app install prompt
 let deferredPrompt;
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -770,19 +1007,99 @@ function showInstallPromotion() {
     document.body.appendChild(installButton);
     
     installButton.addEventListener('click', () => {
-	// Hide the app provided install promotion
-	installButton.style.display = 'none';
-	// Show the install prompt
-	deferredPrompt.prompt();
-	// Wait for the user to respond to the prompt
-	deferredPrompt.userChoice.then((choiceResult) => {
-	  if (choiceResult.outcome === 'accepted') {
-		console.log('User accepted the install prompt');
-	  } else {
-		console.log('User dismissed the install prompt');
-	  }
-	  deferredPrompt = null;
-	});
-  });
+        // Hide the app provided install promotion
+        installButton.style.display = 'none';
+        // Show the install prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          } else {
+            console.log('User dismissed the install prompt');
+          }
+          deferredPrompt = null;
+        });
+    });
+}
+
+// Apply rotated view with state tracking
+function applyRotatedView() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Set rotation state
+    isRotatedMode = true;
+    
+    comic.className = "rotate";
+    container.classList.add('fullscreen');
+    
+    // Hide install button if present
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = 'none';
+        }
+    });
+    
+    // Hide other UI elements
+    elementsToHide.forEach(el => {
+        el.classList.add('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.add('hidden-during-fullscreen');
+    }
+    
+    // Force recalculation of position for better centering
+    setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
+}
+
+// Exit rotated view with state tracking
+function exitRotatedView() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Reset rotation state
+    isRotatedMode = false;
+    
+    comic.className = 'normal';
+    container.classList.remove('fullscreen');
+    
+    // Show install button again if present
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = '';
+        }
+    });
+    
+    // Show UI elements again
+    elementsToHide.forEach(el => {
+        el.classList.remove('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.remove('hidden-during-fullscreen');
+    }
+}
+
+// Clean up the Rotate function to use our new state-aware functions
+function Rotate() {
+    const comic = document.getElementById('comic');
+    
+    if (comic.className === "normal") {
+        // Switch to rotated view
+        applyRotatedView();
+    } else {
+        // Switch back to normal view
+        exitRotatedView();
+    }
 }
 
