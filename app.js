@@ -364,11 +364,16 @@ function showComic() {
                 console.log(`Retrying (${retryCount}/${maxRetries}) in ${retryCount * 1000}ms...`);
                 comic.alt = `Retrying to load comic... (${retryCount}/${maxRetries})`;
                 
-                // Try a different approach on the second retry
+                // Try different approaches on retries, but DON'T use /m/ subfolder
                 if (retryCount === 2) {
-                    // Use mobile site as a fallback
-                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/m/garfield/${formattedComicDate}`;
-                    console.log("Trying mobile site URL:", siteUrl);
+                    // Use a different date format as fallback
+                    const altDateFormat = `${year}-${month}-${day}`;
+                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/garfield/${altDateFormat}`;
+                    console.log("Trying alternative date format URL:", siteUrl);
+                } else if (retryCount === 3) {
+                    // Try a direct approach with a more lenient CORS proxy
+                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&strict=0&url=https://www.gocomics.com/garfield/${formattedComicDate}`;
+                    console.log("Trying less strict CORS proxy:", siteUrl);
                 }
                 
                 // Wait before retrying (exponential backoff)
