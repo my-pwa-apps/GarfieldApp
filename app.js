@@ -195,53 +195,131 @@ function DateChange() {
 }
 
 // Add this to update the display when showing a comic
-function showComic()
-{
-	formatDate(currentselectedDate);
-	formattedDate = year + "-" + month + "-" + day;
-	formattedComicDate = year + "/" + month + "/" + day;
-	document.getElementById('DatePicker').value = formattedDate;
-	siteUrl =  "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+function showComic() {
+    formatDate(currentselectedDate);
+    formattedDate = year + "-" + month + "-" + day;
+    formattedComicDate = year + "/" + month + "/" + day;
+    document.getElementById('DatePicker').value = formattedDate;
+    updateDateDisplay();
+    
     localStorage.setItem('lastcomic', currentselectedDate);
-	fetch(siteUrl)
-    .then(function(response)
-	{
-      return response.text();
-    })
-    .then(function(text)
-	{
-      siteBody = text;
-      picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-      pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-      if(pictureUrl != previousUrl) {
-		//document.getElementById("comic").src = pictureUrl;
-		changeComicImage(pictureUrl);
-	  }
-	  else
-	  {
-		if(previousclicked == true)
-		{
-			PreviousClick();
-		}
-	  }	
-	  previousclicked = false;			
-	  previousUrl = pictureUrl;
-	  var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs == null)
-		{
-			favs = [];
-		}
-		// console.log('showcomic',formattedComicDate, favs);
-		if(favs.indexOf(formattedComicDate) == -1)
-		{
-			document.getElementById("favheart").src="./heartborder.svg";
-		}	
-		else
-		{
-			document.getElementById("favheart").src="./heart.svg";
-		}
-    });
-};
+    const comic = document.getElementById('comic');
+    comic.alt = "Loading comic...";
+    
+    // Define multiple CORS proxies to try in sequence
+    const corsProxies = [
+        // Original proxy
+        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${url}`,
+        // Alternative proxies
+        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        // Try without CORS proxy as last resort (may work in some environments)
+        url => url
+    ];
+    
+    const originalUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
+    let currentProxyIndex = 0;
+    
+    function tryNextProxy() {
+        if (currentProxyIndex >= corsProxies.length) {
+            comic.alt = "Failed to load comic. Please try again later.";
+            return;
+        }
+        
+        const proxyUrl = corsProxies[currentProxyIndex](originalUrl);
+        console.log(`Trying CORS proxy ${currentProxyIndex + 1}/${corsProxies.length}: ${proxyUrl}`);
+        
+        fetch(proxyUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                siteBody = text;
+                
+                // Try multiple extraction methods
+                const extractionMethods = [
+                    // Method 1: Standard picture element extraction
+                    () => {
+                        const picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
+                        if (picturePosition !== -1) {
+                            return siteBody.substring(picturePosition, picturePosition + 63);
+                        }
+                        return null;
+                    },
+                    // Method 2: Look for og:image metadata
+                    () => {
+                        const ogMatch = siteBody.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+                        return ogMatch ? ogMatch[1] : null;
+                    },
+                    // Method 3: Look for any image with comic in URL/class
+                    () => {
+                        const imgMatch = siteBody.match(/<img[^>]+src="([^"]+?asset[^"]+?)"[^>]*>/i);
+                        return imgMatch ? imgMatch[1] : null;
+                    },
+                    // Method 4: Last resort - construct URL based on date
+                    () => {
+                        return `https://assets.amuniversal.com/garfield_${year}${month}${day}`;
+                    }
+                ];
+                
+                // Try each extraction method in order
+                let pictureUrl = null;
+                for (let i = 0; i < extractionMethods.length; i++) {
+                    pictureUrl = extractionMethods[i]();
+                    if (pictureUrl) {
+                        console.log(`Extraction method ${i+1} succeeded: ${pictureUrl}`);
+                        break;
+                    }
+                }
+                
+                if (!pictureUrl) {
+                    throw new Error("Could not extract comic image URL");
+                }
+                
+                // Handle protocol-relative URLs
+                if (pictureUrl.startsWith('//')) {
+                    pictureUrl = 'https:' + pictureUrl;
+                }
+                
+                // Use current proxy to load the actual image if needed
+                const imageUrl = corsProxies[currentProxyIndex](pictureUrl);
+                window.pictureUrl = pictureUrl; // Store for Share function
+                
+                if (imageUrl !== previousUrl) {
+                    changeComicImage(imageUrl);
+                } else if (previousclicked) {
+                    PreviousClick();
+                }
+                previousclicked = false;
+                previousUrl = imageUrl;
+                
+                // Update favorites heart
+                var favs = JSON.parse(localStorage.getItem('favs')) || [];
+                document.getElementById("favheart").src = 
+                    (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
+                
+                // Add image load error handler to try next proxy if image fails to load
+                const comicImg = document.getElementById('comic');
+                comicImg.onerror = function() {
+                    console.error(`Failed to load image: ${imageUrl}`);
+                    currentProxyIndex++;
+                    setTimeout(tryNextProxy, 500);
+                };
+            })
+            .catch(error => {
+                console.error(`Error with proxy ${currentProxyIndex + 1}:`, error);
+                currentProxyIndex++;
+                comic.alt = `Trying another source... (${currentProxyIndex + 1}/${corsProxies.length})`;
+                setTimeout(tryNextProxy, 500); // Wait a bit before trying the next proxy
+            });
+    }
+    
+    // Start the proxy chain
+    tryNextProxy();
+}
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
