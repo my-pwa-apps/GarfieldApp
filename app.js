@@ -204,7 +204,9 @@ function showComic() {
     
     // Add cache-busting parameter to avoid stale responses
     const cacheBuster = new Date().getTime();
-    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/garfield/${formattedComicDate}`;
+    // Store original URL for potential direct image loading
+    const originalGoComicsUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
+    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(originalGoComicsUrl)}`;
     
     localStorage.setItem('lastcomic', currentselectedDate);
     
@@ -216,17 +218,51 @@ function showComic() {
     comic.alt = "Loading comic...";
     
     // Max retries
-    const maxRetries = 3;
+    const maxRetries = 4;
     let retryCount = 0;
+    
+    // Array of CORS proxies to try if the primary one fails
+    const corsProxies = [
+        (url) => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(url)}`,
+        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        // Direct loading attempt as last resort
+        (url) => url
+    ];
     
     function attemptFetch() {
         console.log(`Fetching comic for ${formattedComicDate} (Attempt ${retryCount + 1}/${maxRetries})`);
         
-        fetch(siteUrl)
+        // Determine which proxy to use based on retry count
+        const proxyUrl = corsProxies[Math.min(retryCount, corsProxies.length - 1)](originalGoComicsUrl);
+        console.log(`Using proxy URL: ${proxyUrl}`);
+        
+        // Use no-cors mode for the fetch if we're having CORS issues and not on the last retry
+        const fetchOptions = retryCount < corsProxies.length - 1 ? {} : { mode: 'no-cors' };
+        
+        fetch(proxyUrl, fetchOptions)
         .then(function(response) {
-            if (!response.ok) {
+            if (!response.ok && response.type !== 'opaque') {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
+            
+            // If we're using no-cors mode, we can't read the response text
+            if (response.type === 'opaque') {
+                // We can't extract the comic URL from an opaque response
+                // Try direct image guessing based on date
+                console.log("Received opaque response, trying direct image URL pattern...");
+                
+                // Try to load the image directly - this is a last resort
+                // First, try loading from a common pattern based on date
+                const dateStr = `${year}${month}${day}`;
+                const imageUrl = `https://assets.amuniversal.com/garfield_${dateStr}`;
+                pictureUrl = imageUrl;
+                
+                // The rest of the image loading logic will be handled by the error handler
+                // which will try to load the image directly
+                throw new Error("Using direct image URL pattern");
+            }
+            
             return response.text();
         })
         .then(function(text) {
@@ -358,30 +394,47 @@ function showComic() {
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
             
+            // If error is related to CORS, log that specifically
+            if (error.message && error.message.includes('CORS')) {
+                console.warn("CORS error detected - will try different proxy on next attempt");
+            }
+            
             // Try to recover by showing a specific error message
             if (retryCount < maxRetries) {
                 retryCount++;
-                console.log(`Retrying (${retryCount}/${maxRetries}) in ${retryCount * 1000}ms...`);
+                console.log(`Retrying (${retryCount}/${maxRetries}) in ${retryCount * 500}ms...`);
                 comic.alt = `Retrying to load comic... (${retryCount}/${maxRetries})`;
                 
-                // Try different approaches on retries, but DON'T use /m/ subfolder
-                if (retryCount === 2) {
-                    // Use a different date format as fallback
-                    const altDateFormat = `${year}-${month}-${day}`;
-                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/garfield/${altDateFormat}`;
-                    console.log("Trying alternative date format URL:", siteUrl);
-                } else if (retryCount === 3) {
-                    // Try a direct approach with a more lenient CORS proxy
-                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&strict=0&url=https://www.gocomics.com/garfield/${formattedComicDate}`;
-                    console.log("Trying less strict CORS proxy:", siteUrl);
-                }
-                
                 // Wait before retrying (exponential backoff)
-                setTimeout(attemptFetch, 1000 * retryCount);
+                setTimeout(attemptFetch, 500 * retryCount);
             } else {
-                // All retries failed
+                // All retries failed, try direct image loading as last resort
                 console.error("All retry attempts failed");
-                comic.alt = `Failed to load comic: ${error.message}. Please try again later.`;
+                
+                // Try to guess the image URL based on the date pattern
+                const todayFormatted = `${year}${month}${day}`;
+                const guessedUrl = `https://assets.amuniversal.com/garfield_${todayFormatted}`;
+                
+                console.log("Trying direct image URL as last resort:", guessedUrl);
+                pictureUrl = guessedUrl;
+                
+                // Set up a single load handler to handle the image
+                const loadHandler = function() {
+                    comic.removeEventListener('load', loadHandler);
+                    comic.removeEventListener('error', errorHandler);
+                    handleImageLoad();
+                };
+                
+                // And an error handler in case that fails too
+                const errorHandler = function() {
+                    comic.removeEventListener('load', loadHandler);
+                    comic.removeEventListener('error', errorHandler);
+                    comic.alt = "Failed to load today's comic. Please try again later.";
+                };
+                
+                comic.addEventListener('load', loadHandler);
+                comic.addEventListener('error', errorHandler);
+                comic.src = guessedUrl;
             }
         });
     }
