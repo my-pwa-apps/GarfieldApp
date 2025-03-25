@@ -223,8 +223,7 @@ function showComic() {
     const maxRetries = 4;
     let retryCount = 0;
     
-    // Try direct image loading as first fallback (faster than proxy)
-    // Advanced pattern matching based on GoComics URL patterns
+    // Direct image patterns - used as fallbacks
     const directImagePatterns = [
         // Try established patterns for GoComics URLs
         () => {
@@ -241,263 +240,211 @@ function showComic() {
         () => `https://assets.amuniversal.com/garfield/${year}/${month}/${day}`
     ];
     
-    // Array of CORS proxies to try - modified for more resilience
-    const corsProxies = [
-        // Always use no-cors for all proxy attempts to avoid CORS issues
-        (url) => ({
-            url: `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
-            options: { 
-                mode: 'no-cors',
-                cache: 'no-cache' 
-            }
+    // Fixed array of fetch strategies to try in sequence
+    const fetchStrategies = [
+        // First try: Standard fetch with regular CORS proxy
+        () => fetch(siteUrl).then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.text();
         }),
-        (url) => ({
-            url: `https://corsproxy.io/?${encodeURIComponent(url)}`,
-            options: { mode: 'no-cors' }
+        
+        // Second try: Another CORS proxy
+        () => fetch(`https://corsproxy.io/?${encodeURIComponent(originalGoComicsUrl)}`).then(response => {
+            if (!response.ok) throw new Error(`HTTP error from corsproxy.io! Status: ${response.status}`);
+            return response.text();
         }),
-        (url) => ({
-            url: `https://api.allorigins.win/raw?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
-            options: { mode: 'no-cors' }
+        
+        // Third try: Try direct image loading - first pattern
+        () => {
+            const directUrl = directImagePatterns[0]();
+            console.log("Trying direct image URL:", directUrl);
+            pictureUrl = directUrl;
+            return tryDirectImageLoading(directUrl);
+        },
+        
+        // Fourth try: Another proxy with no-cors as last resort
+        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(originalGoComicsUrl)}`, {
+            cache: 'no-cache'
+        }).then(response => {
+            if (!response.ok) throw new Error(`HTTP error from allorigins! Status: ${response.status}`);
+            return response.text();
         })
     ];
+    
+    // Helper function to try direct image loading
+    function tryDirectImageLoading(url) {
+        return new Promise((resolve, reject) => {
+            console.log("Attempting direct image load:", url);
+            
+            // Create a temporary image to test loading
+            const testImg = new Image();
+            testImg.onload = () => {
+                console.log("Direct image load successful!");
+                resolve(`<img src="${url}" />`); // Return mock HTML that our parser can handle
+            };
+            testImg.onerror = () => {
+                console.log("Direct image load failed");
+                reject(new Error("Direct image load failed"));
+            };
+            testImg.src = url;
+            
+            // Set a timeout to avoid hanging
+            setTimeout(() => reject(new Error("Direct image load timeout")), 5000);
+        });
+    }
     
     function attemptFetch() {
         console.log(`Fetching comic for ${formattedComicDate} (Attempt ${retryCount + 1}/${maxRetries})`);
         
-        // After first attempt, try direct image loading as it's often faster than proxies
-        if (retryCount >= 1) {
-            // Try direct image pattern
-            const patternIndex = Math.min(retryCount-1, directImagePatterns.length-1);
-            const directUrl = directImagePatterns[patternIndex]();
-            
-            console.log(`Trying direct image URL: ${directUrl}`);
-            pictureUrl = directUrl;
-            
-            // Set up handlers for the direct image attempt
-            const loadHandler = function() {
-                comic.removeEventListener('load', loadHandler);
-                comic.removeEventListener('error', errorHandler);
-                handleImageLoad();
-                console.log("Direct image load successful!");
-            };
-            
-            const errorHandler = function() {
-                comic.removeEventListener('load', loadHandler);
-                comic.removeEventListener('error', errorHandler);
-                console.log("Direct image load failed, continuing with proxy attempts");
-                
-                // Continue with proxy attempts
-                if (retryCount < maxRetries) {
-                    retryCount++;
-                    setTimeout(attemptFetch, 500 * retryCount);
-                } else {
-                    comic.alt = "Failed to load comic. Please try again later.";
-                }
-            };
-            
-            // Try loading the image directly
-            comic.addEventListener('load', loadHandler);
-            comic.addEventListener('error', errorHandler);
-            comic.src = directUrl;
-            return; // Exit this attempt - handlers will take it from here
-        }
+        // Use the current strategy based on retry count
+        const currentStrategy = fetchStrategies[Math.min(retryCount, fetchStrategies.length - 1)];
         
-        // If we're here, we're trying a proxy
-        const proxyIndex = Math.min(retryCount, corsProxies.length-1);
-        const proxyInfo = corsProxies[proxyIndex](originalGoComicsUrl);
-        console.log(`Using proxy URL: ${proxyInfo.url}`);
-        
-        // Always use no-cors to avoid CORS issues
-        fetch(proxyInfo.url, proxyInfo.options)
-        .then(function(response) {
-            // For opaque responses (from no-cors), we can't check .ok
-            if (response.type === 'opaque') {
-                // We can't extract the comic URL from an opaque response
-                console.log("Received opaque response, trying next option...");
-                throw new Error("Opaque response received");
-            }
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            return response.text();
-        })
+        currentStrategy()
         .then(function(text) {
-            siteBody = text;
-            
-            // Try multiple extraction strategies
-            let comicUrl = null;
-            
-            // Strategy 1: Look for picture element with comic image
-            // This is already the first strategy attempted - it's the most reliable
-            console.log("Trying extraction strategy 1: Picture element");
-            const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
-            const pictureMatch = siteBody.match(pictureRegex);
-            if (pictureMatch && pictureMatch[1]) {
-                comicUrl = pictureMatch[1];
-                console.log("Strategy 1 success:", comicUrl);
-                // Success! We'll use this URL directly without checking other strategies
-            }
-            
-            // Other strategies are only used if Strategy 1 fails
-            // Strategy 2: Look for assets.amuniversal.com URL pattern (original method)
-            if (!comicUrl) {
-                console.log("Trying extraction strategy 2: Assets direct URL");
-                const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
-                const match = siteBody.match(urlRegex);
-                
-                if (match) {
-                    comicUrl = match[0];
-                    console.log("Strategy 2 success:", comicUrl);
-                }
-            }
-            
-            // Strategy 3: Look for any image URL with "assets" in it
-            if (!comicUrl) {
-                console.log("Trying extraction strategy 3: Any assets URL");
-                const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
-                const genericMatch = siteBody.match(genericRegex);
-                
-                if (genericMatch) {
-                    comicUrl = genericMatch[0];
-                    console.log("Strategy 3 success:", comicUrl);
-                }
-            }
-            
-            // Strategy 4: Look in og:image meta tag
-            if (!comicUrl) {
-                console.log("Trying extraction strategy 4: og:image meta tag");
-                const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+)"/i;
-                const ogMatch = siteBody.match(ogImageRegex);
-                
-                if (ogMatch && ogMatch[1]) {
-                    comicUrl = ogMatch[1];
-                    console.log("Strategy 4 success:", comicUrl);
-                }
-            }
-            
-            // Final check - did we get a URL?
-            if (!comicUrl) {
-                throw new Error("Could not find comic URL in the page using any strategy");
-            }
-            
-            // Ensure it's a full URL
-            if (comicUrl.startsWith("//")) {
-                comicUrl = "https:" + comicUrl;
-            }
-            
-            pictureUrl = comicUrl;
-            console.log("Final comic URL:", pictureUrl);
-            
-            if(pictureUrl != previousUrl) {
-                // Use a one-time load event handler to handle orientation changes
-                const loadHandler = function() {
-                    comic.removeEventListener('load', loadHandler);
-                    
-                    // Call our standard image handler which will detect orientation
-                    handleImageLoad();
-                    
-                    // If we were in fullscreen mode before, maintain the appropriate fullscreen state
-                    if (wasInFullscreenMode) {
-                        setTimeout(() => {
-                            // Check if the new comic is vertical or horizontal and apply appropriate fullscreen mode
-                            if (comic.naturalHeight > comic.naturalWidth * 1.5) {
-                                // Vertical comic - show in vertical fullscreen mode
-                                showFullsizeVertical();
-                            } else {
-                                // Horizontal comic - show in rotated fullscreen mode
-                                applyRotatedView();
-                            }
-                        }, 100);
-                    }
-                };
-                
-                // Add error handler for the image loading
-                const errorHandler = function() {
-                    comic.removeEventListener('error', errorHandler);
-                    console.error("Failed to load image from URL:", pictureUrl);
-                    
-                    // Try direct loading through CORS proxy if the original URL fails
-                    if (!pictureUrl.includes('corsproxy.garfieldapp.workers.dev')) {
-                        const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
-                        console.log("Trying to load through CORS proxy:", proxiedUrl);
-                        
-                        comic.src = proxiedUrl;
-                        return;
-                    }
-                    
-                    comic.alt = "Failed to load comic image. Please try again.";
-                };
-                
-                comic.addEventListener('load', loadHandler);
-                comic.addEventListener('error', errorHandler);
-                changeComicImage(pictureUrl);
+            // If this is a direct image loading result, we can use pictureUrl directly
+            if (text.includes(pictureUrl) && pictureUrl.includes('assets.amuniversal.com')) {
+                console.log("Using directly loaded image URL:", pictureUrl);
             } else {
-                if(previousclicked == true) {
-                    PreviousClick();
+                // Otherwise parse the HTML to extract the comic URL
+                siteBody = text;
+                
+                // Try multiple extraction strategies
+                let comicUrl = null;
+                
+                // Strategy 1: Look for picture element with comic image
+                console.log("Trying extraction strategy 1: Picture element");
+                const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
+                const pictureMatch = siteBody.match(pictureRegex);
+                if (pictureMatch && pictureMatch[1]) {
+                    comicUrl = pictureMatch[1];
+                    console.log("Strategy 1 success:", comicUrl);
                 }
+                
+                // Only move to other strategies if needed
+                if (!comicUrl) {
+                    // Strategy 2: Look for assets.amuniversal.com URL pattern
+                    console.log("Trying extraction strategy 2: Assets direct URL");
+                    const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
+                    const match = siteBody.match(urlRegex);
+                    
+                    if (match) {
+                        comicUrl = match[0];
+                        console.log("Strategy 2 success:", comicUrl);
+                    }
+                }
+                
+                if (!comicUrl) {
+                    // Strategy 3 & 4 (checks for more generic patterns)
+                    // Try more generic pattern
+                    console.log("Trying extraction strategy 3: Any assets URL");
+                    const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
+                    const genericMatch = siteBody.match(genericRegex);
+                    
+                    if (genericMatch) {
+                        comicUrl = genericMatch[0];
+                        console.log("Strategy 3 success:", comicUrl);
+                    }
+                }
+                
+                // Strategy 4: Look in og:image meta tag
+                if (!comicUrl) {
+                    console.log("Trying extraction strategy 4: og:image meta tag");
+                    const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+)"/i;
+                    const ogMatch = siteBody.match(ogImageRegex);
+                    
+                    if (ogMatch && ogMatch[1]) {
+                        comicUrl = ogMatch[1];
+                        console.log("Strategy 4 success:", comicUrl);
+                    }
+                }
+                
+                // Final check
+                if (!comicUrl) {
+                    throw new Error("Could not find comic URL in the page");
+                }
+                
+                // Handle protocol-relative URLs
+                if (comicUrl.startsWith("//")) {
+                    comicUrl = "https:" + comicUrl;
+                }
+                
+                pictureUrl = comicUrl;
+                console.log("Final comic URL:", pictureUrl);
             }
             
-            previousclicked = false;
-            previousUrl = pictureUrl;
-            
-            var favs = JSON.parse(localStorage.getItem('favs'));
-            if(favs == null) {
-                favs = [];
-            }
-            if(favs.indexOf(formattedComicDate) == -1) {
-                document.getElementById("favheart").src="./heartborder.svg";
-            } else {
-                document.getElementById("favheart").src="./heart.svg";
-            }
+            // Display the comic image - show() handles error handling for loading image
+            showComicImage(pictureUrl);
         })
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
             
-            // If error is related to CORS, log that specifically
-            if (error.message && error.message.includes('CORS')) {
-                console.warn("CORS error detected - will try different proxy on next attempt");
-            }
-            
-            // Try to recover by showing a specific error message
-            if (retryCount < maxRetries) {
+            // Increment retry counter and try again or give up
+            if (retryCount < maxRetries - 1) {
                 retryCount++;
-                console.log(`Retrying (${retryCount}/${maxRetries}) in ${retryCount * 500}ms...`);
-                comic.alt = `Retrying to load comic... (${retryCount}/${maxRetries})`;
+                console.log(`Retrying (${retryCount + 1}/${maxRetries}) in ${retryCount * 500}ms...`);
+                comic.alt = `Retrying to load comic... (${retryCount + 1}/${maxRetries})`;
                 
-                // Wait before retrying (exponential backoff)
+                // Wait before retrying with exponential backoff
                 setTimeout(attemptFetch, 500 * retryCount);
             } else {
-                // All retries failed, try direct image loading as last resort
-                console.error("All retry attempts failed");
-                
-                // Try to guess the image URL based on the date pattern
-                const todayFormatted = `${year}${month}${day}`;
-                const guessedUrl = `https://assets.amuniversal.com/garfield_${todayFormatted}`;
-                
-                console.log("Trying direct image URL as last resort:", guessedUrl);
-                pictureUrl = guessedUrl;
-                
-                // Set up a single load handler to handle the image
-                const loadHandler = function() {
-                    comic.removeEventListener('load', loadHandler);
-                    comic.removeEventListener('error', errorHandler);
-                    handleImageLoad();
-                };
-                
-                // And an error handler in case that fails too
-                const errorHandler = function() {
-                    comic.removeEventListener('load', loadHandler);
-                    comic.removeEventListener('error', errorHandler);
-                    comic.alt = "Failed to load today's comic. Please try again later.";
-                };
-                
-                comic.addEventListener('load', loadHandler);
-                comic.addEventListener('error', errorHandler);
-                comic.src = guessedUrl;
+                // All normal methods failed, try one final direct image URL as last resort
+                console.error("All fetch strategies failed, using emergency fallback");
+                // Try last direct pattern
+                const lastResortUrl = directImagePatterns[directImagePatterns.length - 1]();
+                console.log("Emergency fallback URL:", lastResortUrl);
+                pictureUrl = lastResortUrl;
+                showComicImage(lastResortUrl);
             }
         });
+    }
+    
+    // Helper function to show comic image with proper error handling
+    function showComicImage(url) {
+        if (url !== previousUrl) {
+            const loadHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                handleImageLoad();
+                
+                // Restore fullscreen state if needed
+                if (wasInFullscreenMode) {
+                    setTimeout(() => {
+                        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+                            showFullsizeVertical();
+                        } else {
+                            applyRotatedView();
+                        }
+                    }, 100);
+                }
+            };
+            
+            const errorHandler = function() {
+                comic.removeEventListener('error', errorHandler);
+                console.error("Failed to load image from URL:", url);
+                
+                // Try one last approach - if not already a proxied URL
+                if (!url.includes('corsproxy')) {
+                    const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`;
+                    console.log("Final attempt through CORS proxy:", proxiedUrl);
+                    comic.src = proxiedUrl;
+                } else {
+                    comic.alt = "Failed to load comic image. Please try again later.";
+                }
+            };
+            
+            comic.addEventListener('load', loadHandler);
+            comic.addEventListener('error', errorHandler);
+            changeComicImage(url);
+        } else if (previousclicked) {
+            PreviousClick();
+        }
+        
+        previousclicked = false;
+        previousUrl = url;
+        
+        // Update favorites display
+        var favs = JSON.parse(localStorage.getItem('favs')) || [];
+        document.getElementById("favheart").src = 
+            (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
     }
     
     // Start the fetch process
