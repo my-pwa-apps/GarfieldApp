@@ -223,46 +223,102 @@ function showComic() {
     const maxRetries = 4;
     let retryCount = 0;
     
-    // Array of CORS proxies to try if the primary one fails - fixed URL formats
+    // Try direct image loading as first fallback (faster than proxy)
+    // Advanced pattern matching based on GoComics URL patterns
+    const directImagePatterns = [
+        // Try established patterns for GoComics URLs
+        () => {
+            const assetPattern = `${year}${month}${day}`;
+            return `https://assets.amuniversal.com/garfield_${assetPattern}`;
+        },
+        () => {
+            // Try date-based hash pattern
+            const dateStr = `${year}${month}${day}`;
+            const simpleHash = parseInt(dateStr) % 1000;
+            return `https://assets.amuniversal.com/garfield_${dateStr}_${simpleHash}`;
+        },
+        // Try more generic pattern
+        () => `https://assets.amuniversal.com/garfield/${year}/${month}/${day}`
+    ];
+    
+    // Array of CORS proxies to try - modified for more resilience
     const corsProxies = [
-        (url) => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
-        (url) => `https://corsproxy.io/?cacheBuster=${cacheBuster}&${encodeURIComponent(url)}`,
-        (url) => `https://api.allorigins.win/raw?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
-        // Direct loading attempt as last resort
-        (url) => url
+        // Always use no-cors for all proxy attempts to avoid CORS issues
+        (url) => ({
+            url: `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
+            options: { 
+                mode: 'no-cors',
+                cache: 'no-cache' 
+            }
+        }),
+        (url) => ({
+            url: `https://corsproxy.io/?${encodeURIComponent(url)}`,
+            options: { mode: 'no-cors' }
+        }),
+        (url) => ({
+            url: `https://api.allorigins.win/raw?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
+            options: { mode: 'no-cors' }
+        })
     ];
     
     function attemptFetch() {
         console.log(`Fetching comic for ${formattedComicDate} (Attempt ${retryCount + 1}/${maxRetries})`);
         
-        // Determine which proxy to use based on retry count
-        const proxyUrl = corsProxies[Math.min(retryCount, corsProxies.length - 1)](originalGoComicsUrl);
-        console.log(`Using proxy URL: ${proxyUrl}`);
-        
-        // Use no-cors mode for the fetch if we're having CORS issues and not on the last retry
-        const fetchOptions = retryCount < corsProxies.length - 1 ? {} : { mode: 'no-cors' };
-        
-        fetch(proxyUrl, fetchOptions)
-        .then(function(response) {
-            if (!response.ok && response.type !== 'opaque') {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
+        // After first attempt, try direct image loading as it's often faster than proxies
+        if (retryCount >= 1) {
+            // Try direct image pattern
+            const patternIndex = Math.min(retryCount-1, directImagePatterns.length-1);
+            const directUrl = directImagePatterns[patternIndex]();
             
-            // If we're using no-cors mode, we can't read the response text
+            console.log(`Trying direct image URL: ${directUrl}`);
+            pictureUrl = directUrl;
+            
+            // Set up handlers for the direct image attempt
+            const loadHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                comic.removeEventListener('error', errorHandler);
+                handleImageLoad();
+                console.log("Direct image load successful!");
+            };
+            
+            const errorHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                comic.removeEventListener('error', errorHandler);
+                console.log("Direct image load failed, continuing with proxy attempts");
+                
+                // Continue with proxy attempts
+                if (retryCount < maxRetries) {
+                    retryCount++;
+                    setTimeout(attemptFetch, 500 * retryCount);
+                } else {
+                    comic.alt = "Failed to load comic. Please try again later.";
+                }
+            };
+            
+            // Try loading the image directly
+            comic.addEventListener('load', loadHandler);
+            comic.addEventListener('error', errorHandler);
+            comic.src = directUrl;
+            return; // Exit this attempt - handlers will take it from here
+        }
+        
+        // If we're here, we're trying a proxy
+        const proxyIndex = Math.min(retryCount, corsProxies.length-1);
+        const proxyInfo = corsProxies[proxyIndex](originalGoComicsUrl);
+        console.log(`Using proxy URL: ${proxyInfo.url}`);
+        
+        // Always use no-cors to avoid CORS issues
+        fetch(proxyInfo.url, proxyInfo.options)
+        .then(function(response) {
+            // For opaque responses (from no-cors), we can't check .ok
             if (response.type === 'opaque') {
                 // We can't extract the comic URL from an opaque response
-                // Try direct image guessing based on date
-                console.log("Received opaque response, trying direct image URL pattern...");
-                
-                // Try to load the image directly - this is a last resort
-                // First, try loading from a common pattern based on date
-                const dateStr = `${year}${month}${day}`;
-                const imageUrl = `https://assets.amuniversal.com/garfield_${dateStr}`;
-                pictureUrl = imageUrl;
-                
-                // The rest of the image loading logic will be handled by the error handler
-                // which will try to load the image directly
-                throw new Error("Using direct image URL pattern");
+                console.log("Received opaque response, trying next option...");
+                throw new Error("Opaque response received");
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
             return response.text();
