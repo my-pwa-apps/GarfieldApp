@@ -201,7 +201,11 @@ function showComic() {
     formattedComicDate = year + "/" + month + "/" + day;
     document.getElementById('DatePicker').value = formattedDate;
     updateDateDisplay();
-    siteUrl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?https://www.gocomics.com/garfield/" + formattedComicDate;
+    
+    // Add cache-busting parameter to avoid stale responses
+    const cacheBuster = new Date().getTime();
+    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/garfield/${formattedComicDate}`;
+    
     localStorage.setItem('lastcomic', currentselectedDate);
     
     // Store current fullscreen state before loading new comic
@@ -216,6 +220,8 @@ function showComic() {
     let retryCount = 0;
     
     function attemptFetch() {
+        console.log(`Fetching comic for ${formattedComicDate} (Attempt ${retryCount + 1}/${maxRetries})`);
+        
         fetch(siteUrl)
         .then(function(response) {
             if (!response.ok) {
@@ -226,20 +232,66 @@ function showComic() {
         .then(function(text) {
             siteBody = text;
             
-            // Use regex to extract the image URL more reliably
-            const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
-            const match = siteBody.match(urlRegex);
+            // Try multiple extraction strategies
+            let comicUrl = null;
             
-            if (!match) {
-                throw new Error("Could not find comic URL pattern in the page");
+            // Strategy 1: Look for picture element with comic image
+            console.log("Trying extraction strategy 1: Picture element");
+            const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
+            const pictureMatch = siteBody.match(pictureRegex);
+            if (pictureMatch && pictureMatch[1]) {
+                comicUrl = pictureMatch[1];
+                console.log("Strategy 1 success:", comicUrl);
             }
             
-            pictureUrl = match[0];
-            
-            // Validate URL
-            if (!pictureUrl || !pictureUrl.startsWith("https://assets.amuniversal.com/")) {
-                throw new Error("Invalid comic URL detected");
+            // Strategy 2: Look for assets.amuniversal.com URL pattern (original method)
+            if (!comicUrl) {
+                console.log("Trying extraction strategy 2: Assets direct URL");
+                const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
+                const match = siteBody.match(urlRegex);
+                
+                if (match) {
+                    comicUrl = match[0];
+                    console.log("Strategy 2 success:", comicUrl);
+                }
             }
+            
+            // Strategy 3: Look for any image URL with "assets" in it
+            if (!comicUrl) {
+                console.log("Trying extraction strategy 3: Any assets URL");
+                const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
+                const genericMatch = siteBody.match(genericRegex);
+                
+                if (genericMatch) {
+                    comicUrl = genericMatch[0];
+                    console.log("Strategy 3 success:", comicUrl);
+                }
+            }
+            
+            // Strategy 4: Look in og:image meta tag
+            if (!comicUrl) {
+                console.log("Trying extraction strategy 4: og:image meta tag");
+                const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+)"/i;
+                const ogMatch = siteBody.match(ogImageRegex);
+                
+                if (ogMatch && ogMatch[1]) {
+                    comicUrl = ogMatch[1];
+                    console.log("Strategy 4 success:", comicUrl);
+                }
+            }
+            
+            // Final check - did we get a URL?
+            if (!comicUrl) {
+                throw new Error("Could not find comic URL in the page using any strategy");
+            }
+            
+            // Ensure it's a full URL
+            if (comicUrl.startsWith("//")) {
+                comicUrl = "https:" + comicUrl;
+            }
+            
+            pictureUrl = comicUrl;
+            console.log("Final comic URL:", pictureUrl);
             
             if(pictureUrl != previousUrl) {
                 // Use a one-time load event handler to handle orientation changes
@@ -268,6 +320,16 @@ function showComic() {
                 const errorHandler = function() {
                     comic.removeEventListener('error', errorHandler);
                     console.error("Failed to load image from URL:", pictureUrl);
+                    
+                    // Try direct loading through CORS proxy if the original URL fails
+                    if (!pictureUrl.includes('corsproxy.garfieldapp.workers.dev')) {
+                        const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
+                        console.log("Trying to load through CORS proxy:", proxiedUrl);
+                        
+                        comic.src = proxiedUrl;
+                        return;
+                    }
+                    
                     comic.alt = "Failed to load comic image. Please try again.";
                 };
                 
@@ -294,13 +356,21 @@ function showComic() {
             }
         })
         .catch(function(error) {
-            console.error("Error loading comic:", error);
+            console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
             
             // Try to recover by showing a specific error message
             if (retryCount < maxRetries) {
                 retryCount++;
-                console.log(`Retrying (${retryCount}/${maxRetries})...`);
+                console.log(`Retrying (${retryCount}/${maxRetries}) in ${retryCount * 1000}ms...`);
                 comic.alt = `Retrying to load comic... (${retryCount}/${maxRetries})`;
+                
+                // Try a different approach on the second retry
+                if (retryCount === 2) {
+                    // Use mobile site as a fallback
+                    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=https://www.gocomics.com/m/garfield/${formattedComicDate}`;
+                    console.log("Trying mobile site URL:", siteUrl);
+                }
+                
                 // Wait before retrying (exponential backoff)
                 setTimeout(attemptFetch, 1000 * retryCount);
             } else {
