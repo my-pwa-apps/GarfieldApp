@@ -219,6 +219,16 @@ function showComic() {
     // Add status indicator
     comic.alt = "Loading comic...";
     
+    // Check if we have this comic in localStorage cache first
+    const cacheKey = `comic_${formattedComicDate}`;
+    const cachedUrl = localStorage.getItem(cacheKey);
+    if (cachedUrl) {
+        console.log("Using cached comic URL:", cachedUrl);
+        pictureUrl = cachedUrl;
+        showComicImage(cachedUrl);
+        return;
+    }
+    
     // Max retries
     const maxRetries = 4;
     let retryCount = 0;
@@ -259,64 +269,77 @@ function showComic() {
             console.log(`Response sample (first ${sampleLength} chars):`, text.substring(0, sampleLength));
             
             // Now we have the HTML content (through the CORS proxy)
-            // We extract the direct image URL using different extraction strategies
             siteBody = text;
             
-            // Try multiple extraction strategies
+            // Try multiple extraction strategies in sequence
             let comicUrl = null;
             
-            // UPDATED: More precise regex patterns for comics
-            console.log("Trying extraction strategy 1: Picture element with item-comic-image class");
-            const pictureRegex = /<picture[^>]*class="[^"]*item-comic-image[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+\.(?:gif|jpg|jpeg|png))"[^>]*>[\s\S]*?<\/picture>/i;
-            const pictureMatch = siteBody.match(pictureRegex);
-            if (pictureMatch && pictureMatch[1] && !pictureMatch[1].includes('favicon')) {
-                comicUrl = pictureMatch[1];
-                console.log("Strategy 1 success:", comicUrl);
-            }
-            
-            // Only move to other strategies if needed
-            if (!comicUrl) {
-                console.log("Trying extraction strategy 2: Image with comic in data-image");
-                const dataImageRegex = /<img[^>]*data-image="([^"]+\.(?:gif|jpg|jpeg|png))"[^>]*>/i;
-                const dataImageMatch = siteBody.match(dataImageRegex);
+            // IMPROVED: More comprehensive set of regex patterns to extract comic image URL
+            // 1. Primary pattern: Find comic image in picture element
+            const patterns = [
+                // Pattern 1: Standard picture element with item-comic-image class
+                /<picture[^>]*class="[^"]*item-comic-image[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+?\.(gif|jpg|jpeg|png)(?:\?[^"]*)?)"[^>]*>/i,
                 
-                if (dataImageMatch && dataImageMatch[1] && !dataImageMatch[1].includes('favicon')) {
-                    comicUrl = dataImageMatch[1];
-                    console.log("Strategy 2 success:", comicUrl);
+                // Pattern 2: Find data-image attribute (sometimes used instead of src)
+                /<img[^>]*data-image="([^"]+?\.(gif|jpg|jpeg|png)(?:\?[^"]*)?)"[^>]*>/i,
+                
+                // Pattern 3: Find any image URL referencing assets.amuniversal.com
+                /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/i,
+                
+                // Pattern 4: Find og:image meta tag
+                /<meta\s+property="og:image"\s+content="([^"]+?\.(gif|jpg|jpeg|png)(?:\?[^"]*)?)"[^>]*>/i,
+                
+                // Pattern 5: Find any image URL containing "garfield" in the path
+                /https:\/\/[^"'\s]*?garfield[^"'\s]*?\.(gif|jpg|jpeg|png)(?:\?[^"'\s]*)?/i,
+                
+                // Pattern 6: Look for content embed with image
+                /<div[^>]*class="[^"]*?comic[^"]*?"[^>]*>[\s\S]*?<img[^>]*?src="([^"]+?\.(gif|jpg|jpeg|png)(?:\?[^"]*)?)"[^>]*?>/i
+            ];
+            
+            // Try each pattern in sequence
+            for (let i = 0; i < patterns.length; i++) {
+                const match = siteBody.match(patterns[i]);
+                if (match) {
+                    // Get the URL from the regex match
+                    // If the pattern has a capture group, use the first one, otherwise use the full match
+                    comicUrl = match[1] || match[0];
+                    
+                    // Filter out favicon URLs and other non-comic images
+                    if (!comicUrl.includes('favicon') && 
+                        !comicUrl.includes('logo') && 
+                        !comicUrl.includes('icon')) {
+                        
+                        console.log(`Extraction pattern ${i+1} success:`, comicUrl);
+                        break; // Exit the loop once we find a match
+                    } else {
+                        console.log(`Skipping non-comic image URL: ${comicUrl}`);
+                        comicUrl = null; // Reset and try next pattern
+                    }
                 }
             }
             
+            // If no comic URL found, try constructing direct URLs
             if (!comicUrl) {
-                console.log("Trying extraction strategy 3: Any assets URL");
-                const genericRegex = /https:\/\/[^"'\s]*?assets\.amuniversal\.com\/[a-zA-Z0-9]+/i;
-                const genericMatch = siteBody.match(genericRegex);
+                console.log("All extraction patterns failed, trying direct URL construction");
                 
-                if (genericMatch && !genericMatch[0].includes('favicon')) {
-                    comicUrl = genericMatch[0];
-                    console.log("Strategy 3 success:", comicUrl);
-                }
-            }
-            
-            // Strategy 4: Look in og:image meta tag (often works even when other strategies fail)
-            if (!comicUrl) {
-                console.log("Trying extraction strategy 4: og:image meta tag");
-                const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+(?:gif|jpg|jpeg|png))"/i;
-                const ogMatch = siteBody.match(ogImageRegex);
+                // Try various formats of direct URL construction
+                const directUrlPatterns = [
+                    // Basic date-based pattern
+                    `https://assets.amuniversal.com/garfield_${year}${month}${day}`,
+                    
+                    // Alternative format with slashes
+                    `https://assets.amuniversal.com/garfield/${year}/${month}/${day}`,
+                    
+                    // Try with hash variant
+                    `https://assets.amuniversal.com/garfield_${year}${month}${day}_${parseInt(year+month+day) % 1000}`,
+                    
+                    // Try GoComics URLs directly
+                    `https://media.gocomics.com/garfield/${year}/${month}/${day}`
+                ];
                 
-                if (ogMatch && ogMatch[1] && !ogMatch[1].includes('favicon')) {
-                    comicUrl = ogMatch[1];
-                    console.log("Strategy 4 success:", comicUrl);
-                }
-            }
-            
-            // Last resort - try constructing the URL directly based on date
-            if (!comicUrl) {
-                console.log("All extraction strategies failed, trying direct URL construction");
-                
-                // Try a common pattern seen for Garfield comics - date with underscore
-                const dateStr = `${year}${month}${day}`;
-                comicUrl = `https://assets.amuniversal.com/garfield_${dateStr}`;
-                console.log("Constructed URL:", comicUrl);
+                // Use the first pattern for now, we'll try others if this fails
+                comicUrl = directUrlPatterns[0];
+                console.log("Using constructed URL:", comicUrl);
             }
             
             // Handle protocol-relative URLs
@@ -324,22 +347,44 @@ function showComic() {
                 comicUrl = "https:" + comicUrl;
             }
             
-            // FILTER: Reject any URL with 'favicon' to avoid loading icons
-            if (comicUrl && comicUrl.toLowerCase().includes('favicon')) {
-                console.error("Rejected favicon URL:", comicUrl);
-                throw new Error("URL appears to be a favicon, rejecting");
+            // Clean up the URL - remove query parameters if present
+            if (comicUrl && comicUrl.includes('?')) {
+                comicUrl = comicUrl.split('?')[0];
             }
             
-            pictureUrl = comicUrl; // Store original URL for reference
-            console.log("Final comic URL:", pictureUrl);
+            // Store the URL for reference and sharing
+            pictureUrl = comicUrl;
             
-            // IMPORTANT: Always use CORS proxy for comics to avoid CORS issues
-            const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
-            console.log("Using CORS proxy:", proxiedUrl);
+            // Cache the successful URL for future visits
+            try {
+                localStorage.setItem(cacheKey, comicUrl);
+            } catch (e) {
+                console.warn("Failed to cache comic URL:", e);
+                // If localStorage is full, clear old cache entries
+                if (e.name === 'QuotaExceededError') {
+                    clearOldComicCache();
+                }
+            }
+            
+            // Always use CORS proxy for actual loading
+            const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(comicUrl)}`;
+            console.log("Loading comic via CORS proxy:", proxiedUrl);
             showComicImage(proxiedUrl);
         })
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
+            
+            // Try a directly constructed URL if we're on the last retry
+            if (retryCount === maxRetries - 1) {
+                const directUrlFallback = `https://assets.amuniversal.com/garfield_${year}${month}${day}`;
+                console.log("Trying emergency fallback URL:", directUrlFallback);
+                pictureUrl = directUrlFallback;
+                
+                // Try loading via CORS proxy
+                const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(directUrlFallback)}`;
+                showComicImage(proxiedUrl);
+                return;
+            }
             
             if (retryCount < maxRetries - 1) {
                 retryCount++;
@@ -349,68 +394,36 @@ function showComic() {
                 // Wait before retrying with exponential backoff
                 setTimeout(attemptFetch, 500 * retryCount);
             } else {
-                // All normal methods failed
+                // All methods failed
                 console.error("All fetch strategies failed");
                 comic.alt = "Failed to load comic. Please try again later.";
             }
         });
     }
     
-    // Helper function to show comic image with proper error handling
-    function showComicImage(url) {
-        if (url !== previousUrl) {
-            console.log("Loading comic image from:", url);
-            
-            const loadHandler = function() {
-                comic.removeEventListener('load', loadHandler);
-                comic.removeEventListener('error', errorHandler);
-                console.log("Comic image loaded successfully");
-                handleImageLoad();
-                
-                // Restore fullscreen state if needed
-                if (wasInFullscreenMode) {
-                    setTimeout(() => {
-                        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
-                            showFullsizeVertical();
-                        } else {
-                            applyRotatedView();
-                        }
-                    }, 100);
-                }
-            };
-            
-            const errorHandler = function() {
-                comic.removeEventListener('load', loadHandler);
-                comic.removeEventListener('error', errorHandler);
-                console.error("Failed to load image from URL:", url);
-                
-                // Only use the CORS proxy as a fallback when direct loading fails
-                if (!url.includes('corsproxy')) {
-                    const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`;
-                    console.log("Trying with CORS proxy as fallback:", proxiedUrl);
-                    comic.src = proxiedUrl;
-                    return; // Important - don't continue with the error handling
-                }
-                
-                // If we're already using a proxy and it failed, show error
-                comic.alt = "Failed to load comic image. Please try again later.";
-            };
-            
-            // Ensure event listeners are added before setting src
-            comic.addEventListener('load', loadHandler);
-            comic.addEventListener('error', errorHandler);
-            changeComicImage(url);
-        } else if (previousclicked) {
-            PreviousClick();
+    // Helper function to clear old comic cache entries to free up space
+    function clearOldComicCache() {
+        console.log("Clearing old comic cache entries");
+        const keysToKeep = [];
+        
+        // Get all cache keys
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('comic_')) {
+                keysToKeep.push({
+                    key,
+                    date: key.substring(6) // Extract the date part after 'comic_'
+                });
+            }
         }
         
-        previousclicked = false;
-        previousUrl = url;
+        // Sort by date and keep only the 10 most recent
+        keysToKeep.sort((a, b) => b.date.localeCompare(a.date));
         
-        // Update favorites display
-        var favs = JSON.parse(localStorage.getItem('favs')) || [];
-        document.getElementById("favheart").src = 
-            (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
+        // Keep the 10 most recent entries and delete the rest
+        for (let i = 10; i < keysToKeep.length; i++) {
+            localStorage.removeItem(keysToKeep[i].key);
+        }
     }
     
     // Start the fetch process
