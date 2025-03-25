@@ -315,9 +315,18 @@ function showComic() {
             }
             
             pictureUrl = comicUrl; // Store original URL for reference
+            console.log("Found comic URL:", pictureUrl);
             
-            // Try direct loading first, only use proxy as fallback
-            showComicImage(pictureUrl);
+            // IMPORTANT CHANGE: Always use CORS proxy for assets.amuniversal.com URLs
+            // These URLs often have CORS restrictions that prevent direct loading
+            if (pictureUrl.includes('assets.amuniversal.com')) {
+                const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
+                console.log("Using CORS proxy for assets.amuniversal.com:", proxiedUrl);
+                showComicImage(proxiedUrl);
+            } else {
+                // For other URLs, try direct loading first with fallback
+                showComicImage(pictureUrl);
+            }
         })
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
@@ -340,9 +349,12 @@ function showComic() {
     // Helper function to show comic image with proper error handling
     function showComicImage(url) {
         if (url !== previousUrl) {
+            console.log("Loading comic image from:", url);
+            
             const loadHandler = function() {
                 comic.removeEventListener('load', loadHandler);
                 comic.removeEventListener('error', errorHandler);
+                console.log("Comic image loaded successfully");
                 handleImageLoad();
                 
                 // Restore fullscreen state if needed
@@ -367,11 +379,14 @@ function showComic() {
                     const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`;
                     console.log("Trying with CORS proxy as fallback:", proxiedUrl);
                     comic.src = proxiedUrl;
-                } else {
-                    comic.alt = "Failed to load comic image. Please try again later.";
+                    return; // Important - don't continue with the error handling
                 }
+                
+                // If we're already using a proxy and it failed, show error
+                comic.alt = "Failed to load comic image. Please try again later.";
             };
             
+            // Ensure event listeners are added before setting src
             comic.addEventListener('load', loadHandler);
             comic.addEventListener('error', errorHandler);
             changeComicImage(url);
