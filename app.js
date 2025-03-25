@@ -225,8 +225,68 @@ function showComic() {
     if (cachedUrl) {
         console.log("Using cached comic URL:", cachedUrl);
         pictureUrl = cachedUrl;
-        showComicImage(cachedUrl);
+        
+        // Use CORS proxy for cached URL too
+        const proxiedCacheUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(cachedUrl)}`;
+        showComicImage(proxiedCacheUrl, wasInFullscreenMode);
         return;
+    }
+    
+    // Define the showComicImage function here to fix the "not defined" error
+    function showComicImage(url, restoreFullscreen = wasInFullscreenMode) {
+        if (url !== previousUrl) {
+            console.log("Loading comic image from:", url);
+            
+            const loadHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                comic.removeEventListener('error', errorHandler);
+                console.log("Comic image loaded successfully");
+                handleImageLoad();
+                
+                // Restore fullscreen state if needed
+                if (restoreFullscreen) {
+                    setTimeout(() => {
+                        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+                            showFullsizeVertical();
+                        } else {
+                            applyRotatedView();
+                        }
+                    }, 100);
+                }
+            };
+            
+            const errorHandler = function() {
+                comic.removeEventListener('load', loadHandler);
+                comic.removeEventListener('error', errorHandler);
+                console.error("Failed to load image from URL:", url);
+                
+                // Only use the CORS proxy as a fallback when direct loading fails
+                if (!url.includes('corsproxy')) {
+                    const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`;
+                    console.log("Trying with CORS proxy as fallback:", proxiedUrl);
+                    comic.src = proxiedUrl;
+                    return; // Important - don't continue with the error handling
+                }
+                
+                // If we're already using a proxy and it failed, show error
+                comic.alt = "Failed to load comic image. Please try again later.";
+            };
+            
+            // Ensure event listeners are added before setting src
+            comic.addEventListener('load', loadHandler);
+            comic.addEventListener('error', errorHandler);
+            changeComicImage(url);
+        } else if (previousclicked) {
+            PreviousClick();
+        }
+        
+        previousclicked = false;
+        previousUrl = url;
+        
+        // Update favorites display
+        var favs = JSON.parse(localStorage.getItem('favs')) || [];
+        document.getElementById("favheart").src = 
+            (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
     }
     
     // Max retries
