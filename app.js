@@ -208,64 +208,111 @@ function showComic() {
     const comic = document.getElementById('comic');
     const wasInFullscreenMode = isRotatedMode || comic.classList.contains('fullscreen-vertical');
     
-    fetch(siteUrl)
-    .then(function(response) {
-        return response.text();
-    })
-    .then(function(text) {
-        siteBody = text;
-        picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-        pictureUrl = siteBody.substring(picturePosition, picturePosition + 63);
-        
-        if(pictureUrl != previousUrl) {
-            // Use a one-time load event handler to handle orientation changes
-            const loadHandler = function() {
-                comic.removeEventListener('load', loadHandler);
-                
-                // Call our standard image handler which will detect orientation
-                handleImageLoad();
-                
-                // If we were in fullscreen mode before, maintain the appropriate fullscreen state
-                if (wasInFullscreenMode) {
-                    setTimeout(() => {
-                        // Check if the new comic is vertical or horizontal and apply appropriate fullscreen mode
-                        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
-                            // Vertical comic - show in vertical fullscreen mode
-                            showFullsizeVertical();
-                        } else {
-                            // Horizontal comic - show in rotated fullscreen mode
-                            applyRotatedView();
-                        }
-                    }, 100);
-                }
-            };
-            
-            comic.addEventListener('load', loadHandler);
-            changeComicImage(pictureUrl);
-        } else {
-            if(previousclicked == true) {
-                PreviousClick();
+    // Add status indicator
+    comic.alt = "Loading comic...";
+    
+    // Max retries
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    function attemptFetch() {
+        fetch(siteUrl)
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
-        }
-        
-        previousclicked = false;
-        previousUrl = pictureUrl;
-        
-        var favs = JSON.parse(localStorage.getItem('favs'));
-        if(favs == null) {
-            favs = [];
-        }
-        if(favs.indexOf(formattedComicDate) == -1) {
-            document.getElementById("favheart").src="./heartborder.svg";
-        } else {
-            document.getElementById("favheart").src="./heart.svg";
-        }
-    })
-    .catch(function(error) {
-        console.error("Error loading comic:", error);
-        // Try to recover by showing an error message
-        document.getElementById('comic').alt = "Failed to load comic. Please try again.";
-    });
+            return response.text();
+        })
+        .then(function(text) {
+            siteBody = text;
+            
+            // Use regex to extract the image URL more reliably
+            const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
+            const match = siteBody.match(urlRegex);
+            
+            if (!match) {
+                throw new Error("Could not find comic URL pattern in the page");
+            }
+            
+            pictureUrl = match[0];
+            
+            // Validate URL
+            if (!pictureUrl || !pictureUrl.startsWith("https://assets.amuniversal.com/")) {
+                throw new Error("Invalid comic URL detected");
+            }
+            
+            if(pictureUrl != previousUrl) {
+                // Use a one-time load event handler to handle orientation changes
+                const loadHandler = function() {
+                    comic.removeEventListener('load', loadHandler);
+                    
+                    // Call our standard image handler which will detect orientation
+                    handleImageLoad();
+                    
+                    // If we were in fullscreen mode before, maintain the appropriate fullscreen state
+                    if (wasInFullscreenMode) {
+                        setTimeout(() => {
+                            // Check if the new comic is vertical or horizontal and apply appropriate fullscreen mode
+                            if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+                                // Vertical comic - show in vertical fullscreen mode
+                                showFullsizeVertical();
+                            } else {
+                                // Horizontal comic - show in rotated fullscreen mode
+                                applyRotatedView();
+                            }
+                        }, 100);
+                    }
+                };
+                
+                // Add error handler for the image loading
+                const errorHandler = function() {
+                    comic.removeEventListener('error', errorHandler);
+                    console.error("Failed to load image from URL:", pictureUrl);
+                    comic.alt = "Failed to load comic image. Please try again.";
+                };
+                
+                comic.addEventListener('load', loadHandler);
+                comic.addEventListener('error', errorHandler);
+                changeComicImage(pictureUrl);
+            } else {
+                if(previousclicked == true) {
+                    PreviousClick();
+                }
+            }
+            
+            previousclicked = false;
+            previousUrl = pictureUrl;
+            
+            var favs = JSON.parse(localStorage.getItem('favs'));
+            if(favs == null) {
+                favs = [];
+            }
+            if(favs.indexOf(formattedComicDate) == -1) {
+                document.getElementById("favheart").src="./heartborder.svg";
+            } else {
+                document.getElementById("favheart").src="./heart.svg";
+            }
+        })
+        .catch(function(error) {
+            console.error("Error loading comic:", error);
+            
+            // Try to recover by showing a specific error message
+            if (retryCount < maxRetries) {
+                retryCount++;
+                console.log(`Retrying (${retryCount}/${maxRetries})...`);
+                comic.alt = `Retrying to load comic... (${retryCount}/${maxRetries})`;
+                // Wait before retrying (exponential backoff)
+                setTimeout(attemptFetch, 1000 * retryCount);
+            } else {
+                // All retries failed
+                console.error("All retry attempts failed");
+                comic.alt = `Failed to load comic: ${error.message}. Please try again later.`;
+            }
+        });
+    }
+    
+    // Start the fetch process
+    attemptFetch();
 }
 
 // Unified translation function - this replaces all duplicate implementations
