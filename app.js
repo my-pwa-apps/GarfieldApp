@@ -254,6 +254,10 @@ function showComic() {
         
         currentStrategy()
         .then(function(text) {
+            // Log a small sample of the response for debugging
+            const sampleLength = Math.min(text.length, 500);
+            console.log(`Response sample (first ${sampleLength} chars):`, text.substring(0, sampleLength));
+            
             // Now we have the HTML content (through the CORS proxy)
             // We extract the direct image URL using different extraction strategies
             siteBody = text;
@@ -261,72 +265,78 @@ function showComic() {
             // Try multiple extraction strategies
             let comicUrl = null;
             
-            console.log("Trying extraction strategy 1: Picture element");
-            const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
+            // UPDATED: More precise regex patterns for comics
+            console.log("Trying extraction strategy 1: Picture element with item-comic-image class");
+            const pictureRegex = /<picture[^>]*class="[^"]*item-comic-image[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]+\.(?:gif|jpg|jpeg|png))"[^>]*>[\s\S]*?<\/picture>/i;
             const pictureMatch = siteBody.match(pictureRegex);
-            if (pictureMatch && pictureMatch[1]) {
+            if (pictureMatch && pictureMatch[1] && !pictureMatch[1].includes('favicon')) {
                 comicUrl = pictureMatch[1];
                 console.log("Strategy 1 success:", comicUrl);
             }
             
             // Only move to other strategies if needed
             if (!comicUrl) {
-                console.log("Trying extraction strategy 2: Assets direct URL");
-                const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
-                const match = siteBody.match(urlRegex);
+                console.log("Trying extraction strategy 2: Image with comic in data-image");
+                const dataImageRegex = /<img[^>]*data-image="([^"]+\.(?:gif|jpg|jpeg|png))"[^>]*>/i;
+                const dataImageMatch = siteBody.match(dataImageRegex);
                 
-                if (match) {
-                    comicUrl = match[0];
+                if (dataImageMatch && dataImageMatch[1] && !dataImageMatch[1].includes('favicon')) {
+                    comicUrl = dataImageMatch[1];
                     console.log("Strategy 2 success:", comicUrl);
                 }
             }
             
-            // Strategy 3 & 4 (checks for more generic patterns)
-            // Try more generic pattern
-            console.log("Trying extraction strategy 3: Any assets URL");
-            const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
-            const genericMatch = siteBody.match(genericRegex);
-            
-            if (genericMatch) {
-                comicUrl = genericMatch[0];
-                console.log("Strategy 3 success:", comicUrl);
+            if (!comicUrl) {
+                console.log("Trying extraction strategy 3: Any assets URL");
+                const genericRegex = /https:\/\/[^"'\s]*?assets\.amuniversal\.com\/[a-zA-Z0-9]+/i;
+                const genericMatch = siteBody.match(genericRegex);
+                
+                if (genericMatch && !genericMatch[0].includes('favicon')) {
+                    comicUrl = genericMatch[0];
+                    console.log("Strategy 3 success:", comicUrl);
+                }
             }
             
-            // Strategy 4: Look in og:image meta tag
+            // Strategy 4: Look in og:image meta tag (often works even when other strategies fail)
             if (!comicUrl) {
                 console.log("Trying extraction strategy 4: og:image meta tag");
-                const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+)"/i;
+                const ogImageRegex = /<meta\s+property="og:image"\s+content="([^"]+(?:gif|jpg|jpeg|png))"/i;
                 const ogMatch = siteBody.match(ogImageRegex);
                 
-                if (ogMatch && ogMatch[1]) {
+                if (ogMatch && ogMatch[1] && !ogMatch[1].includes('favicon')) {
                     comicUrl = ogMatch[1];
                     console.log("Strategy 4 success:", comicUrl);
                 }
             }
             
-            // Final check
+            // Last resort - try constructing the URL directly based on date
             if (!comicUrl) {
-                throw new Error("Could not find comic URL in the page");
+                console.log("All extraction strategies failed, trying direct URL construction");
+                
+                // Try a common pattern seen for Garfield comics - date with underscore
+                const dateStr = `${year}${month}${day}`;
+                comicUrl = `https://assets.amuniversal.com/garfield_${dateStr}`;
+                console.log("Constructed URL:", comicUrl);
             }
             
             // Handle protocol-relative URLs
-            if (comicUrl.startsWith("//")) {
+            if (comicUrl && comicUrl.startsWith("//")) {
                 comicUrl = "https:" + comicUrl;
             }
             
-            pictureUrl = comicUrl; // Store original URL for reference
-            console.log("Found comic URL:", pictureUrl);
-            
-            // IMPORTANT CHANGE: Always use CORS proxy for assets.amuniversal.com URLs
-            // These URLs often have CORS restrictions that prevent direct loading
-            if (pictureUrl.includes('assets.amuniversal.com')) {
-                const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
-                console.log("Using CORS proxy for assets.amuniversal.com:", proxiedUrl);
-                showComicImage(proxiedUrl);
-            } else {
-                // For other URLs, try direct loading first with fallback
-                showComicImage(pictureUrl);
+            // FILTER: Reject any URL with 'favicon' to avoid loading icons
+            if (comicUrl && comicUrl.toLowerCase().includes('favicon')) {
+                console.error("Rejected favicon URL:", comicUrl);
+                throw new Error("URL appears to be a favicon, rejecting");
             }
+            
+            pictureUrl = comicUrl; // Store original URL for reference
+            console.log("Final comic URL:", pictureUrl);
+            
+            // IMPORTANT: Always use CORS proxy for comics to avoid CORS issues
+            const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(pictureUrl)}`;
+            console.log("Using CORS proxy:", proxiedUrl);
+            showComicImage(proxiedUrl);
         })
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
