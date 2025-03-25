@@ -220,24 +220,24 @@ function showComic() {
     comic.alt = "Loading comic...";
     
     // Max retries
-    const maxRetries = 3;
+    const maxRetries = 4;
     let retryCount = 0;
     
-    // Modified fetch strategies - only using CORS proxies, no direct loading attempts
+    // Fetch strategies - balance of proxies and direct attempts
     const fetchStrategies = [
-        // First try: Primary CORS proxy
+        // First try: Standard fetch with regular CORS proxy
         () => fetch(siteUrl).then(response => {
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
             return response.text();
         }),
         
-        // Second try: Alternate CORS proxy
+        // Second try: Another CORS proxy
         () => fetch(`https://corsproxy.io/?${encodeURIComponent(originalGoComicsUrl)}`).then(response => {
             if (!response.ok) throw new Error(`HTTP error from corsproxy.io! Status: ${response.status}`);
             return response.text();
         }),
         
-        // Third try: Yet another CORS proxy with different options
+        // Third try: Another proxy with different options
         () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(originalGoComicsUrl)}`, {
             cache: 'no-cache'
         }).then(response => {
@@ -261,8 +261,6 @@ function showComic() {
             // Try multiple extraction strategies
             let comicUrl = null;
             
-            // Strategy numbers 1-4 refer to different ways of EXTRACTING the URL,
-            // not different ways of fetching the page
             console.log("Trying extraction strategy 1: Picture element");
             const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
             const pictureMatch = siteBody.match(pictureRegex);
@@ -273,7 +271,6 @@ function showComic() {
             
             // Only move to other strategies if needed
             if (!comicUrl) {
-                // Strategy 2: Look for assets.amuniversal.com URL pattern
                 console.log("Trying extraction strategy 2: Assets direct URL");
                 const urlRegex = /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/;
                 const match = siteBody.match(urlRegex);
@@ -284,17 +281,15 @@ function showComic() {
                 }
             }
             
-            if (!comicUrl) {
-                // Strategy 3 & 4 (checks for more generic patterns)
-                // Try more generic pattern
-                console.log("Trying extraction strategy 3: Any assets URL");
-                const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
-                const genericMatch = siteBody.match(genericRegex);
-                
-                if (genericMatch) {
-                    comicUrl = genericMatch[0];
-                    console.log("Strategy 3 success:", comicUrl);
-                }
+            // Strategy 3 & 4 (checks for more generic patterns)
+            // Try more generic pattern
+            console.log("Trying extraction strategy 3: Any assets URL");
+            const genericRegex = /https:\/\/[^"'\s]*?asset[^"'\s]*?\.(gif|jpg|jpeg|png)/i;
+            const genericMatch = siteBody.match(genericRegex);
+            
+            if (genericMatch) {
+                comicUrl = genericMatch[0];
+                console.log("Strategy 3 success:", comicUrl);
             }
             
             // Strategy 4: Look in og:image meta tag
@@ -319,19 +314,14 @@ function showComic() {
                 comicUrl = "https:" + comicUrl;
             }
             
-            // ALWAYS use the CORS proxy for loading the actual image
-            const proxiedImageUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(comicUrl)}`;
-            console.log("Using CORS proxy for image:", proxiedImageUrl);
-            
             pictureUrl = comicUrl; // Store original URL for reference
             
-            // Display using proxied URL
-            showComicImage(proxiedImageUrl);
+            // Try direct loading first, only use proxy as fallback
+            showComicImage(pictureUrl);
         })
         .catch(function(error) {
             console.error(`Error loading comic (attempt ${retryCount + 1}/${maxRetries}):`, error);
             
-            // Increment retry counter and try again or give up
             if (retryCount < maxRetries - 1) {
                 retryCount++;
                 console.log(`Retrying with different proxy (${retryCount + 1}/${maxRetries})...`);
@@ -347,7 +337,7 @@ function showComic() {
         });
     }
     
-    // Helper function to show comic image with consistent error handling
+    // Helper function to show comic image with proper error handling
     function showComicImage(url) {
         if (url !== previousUrl) {
             const loadHandler = function() {
@@ -371,7 +361,15 @@ function showComic() {
                 comic.removeEventListener('load', loadHandler);
                 comic.removeEventListener('error', errorHandler);
                 console.error("Failed to load image from URL:", url);
-                comic.alt = "Failed to load comic image. Please try again later.";
+                
+                // Only use the CORS proxy as a fallback when direct loading fails
+                if (!url.includes('corsproxy')) {
+                    const proxiedUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`;
+                    console.log("Trying with CORS proxy as fallback:", proxiedUrl);
+                    comic.src = proxiedUrl;
+                } else {
+                    comic.alt = "Failed to load comic image. Please try again later.";
+                }
             };
             
             comic.addEventListener('load', loadHandler);
