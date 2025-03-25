@@ -272,14 +272,17 @@ function showComic() {
             let comicUrl = null;
             
             // Strategy 1: Look for picture element with comic image
+            // This is already the first strategy attempted - it's the most reliable
             console.log("Trying extraction strategy 1: Picture element");
             const pictureRegex = /<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]*?asset[^"]*?)".*?<\/picture>/s;
             const pictureMatch = siteBody.match(pictureRegex);
             if (pictureMatch && pictureMatch[1]) {
                 comicUrl = pictureMatch[1];
                 console.log("Strategy 1 success:", comicUrl);
+                // Success! We'll use this URL directly without checking other strategies
             }
             
+            // Other strategies are only used if Strategy 1 fails
             // Strategy 2: Look for assets.amuniversal.com URL pattern (original method)
             if (!comicUrl) {
                 console.log("Trying extraction strategy 2: Assets direct URL");
