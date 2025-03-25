@@ -206,7 +206,9 @@ function showComic() {
     const cacheBuster = new Date().getTime();
     // Store original URL for potential direct image loading
     const originalGoComicsUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
-    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(originalGoComicsUrl)}`;
+    
+    // Fix the URL format - properly named parameter for cache buster
+    siteUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(originalGoComicsUrl)}`;
     
     localStorage.setItem('lastcomic', currentselectedDate);
     
@@ -221,11 +223,11 @@ function showComic() {
     const maxRetries = 4;
     let retryCount = 0;
     
-    // Array of CORS proxies to try if the primary one fails
+    // Array of CORS proxies to try if the primary one fails - fixed URL formats
     const corsProxies = [
-        (url) => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${cacheBuster}&url=${encodeURIComponent(url)}`,
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        (url) => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
+        (url) => `https://corsproxy.io/?cacheBuster=${cacheBuster}&${encodeURIComponent(url)}`,
+        (url) => `https://api.allorigins.win/raw?cacheBuster=${cacheBuster}&url=${encodeURIComponent(url)}`,
         // Direct loading attempt as last resort
         (url) => url
     ];
