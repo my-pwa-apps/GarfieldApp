@@ -17,14 +17,11 @@ if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
 }
 
-async function Share() 
-{
+async function Share() {
     if(!window.pictureUrl) {
         console.warn("No comic URL found in window.pictureUrl, checking previousUrl");
-        // Use previousUrl as fallback
         window.pictureUrl = previousUrl;
         
-        // If still no URL, show error
         if(!window.pictureUrl) {
             console.error("No comic URL available to share");
             alert("No comic to share. Please try loading a comic first.");
@@ -34,84 +31,65 @@ async function Share()
     
     if(navigator.share) {
         try {
-            console.log("Starting share process...");
+            // Get the current displayed comic image - most reliable approach
+            const comic = document.getElementById('comic');
             
-            // Create a new image element with crossOrigin set to anonymous 
-            // to avoid tainted canvas issues
-            const tempImg = new Image();
-            tempImg.crossOrigin = "anonymous";
+            if (!comic.complete || comic.naturalHeight === 0) {
+                alert("Please wait for the comic to load completely.");
+                return;
+            }
             
-            // Create a URL with CORS proxy to load the image
-            const cacheBuster = Date.now();
-            const imgUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
-            console.log("Loading image for sharing via:", imgUrl);
-            
-            // Wait for image to load
-            await new Promise((resolve, reject) => {
-                tempImg.onload = resolve;
-                tempImg.onerror = () => reject(new Error("Failed to load image for sharing"));
-                tempImg.src = imgUrl;
-                
-                // Set a timeout in case the image load hangs
-                setTimeout(() => reject(new Error("Image load timeout")), 5000);
-            });
-            
-            console.log("Image loaded successfully, converting to canvas...");
-            
-            // Create canvas and draw image
+            // Create canvas from the already loaded image
             const canvas = document.createElement('canvas');
-            canvas.width = tempImg.width;
-            canvas.height = tempImg.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, 0, 0);
+            canvas.width = comic.naturalWidth;
+            canvas.height = comic.naturalHeight;
             
-            // Convert to blob
-            const jpgBlob = await new Promise((resolve, reject) => {
-                try {
+            try {
+                // Draw the image to canvas
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(comic, 0, 0);
+                
+                // Convert to blob
+                const jpgBlob = await new Promise((resolve, reject) => {
                     canvas.toBlob(blob => {
                         if (blob) resolve(blob);
-                        else reject(new Error("Failed to create blob from canvas"));
+                        else reject(new Error("Failed to create blob"));
                     }, 'image/jpeg', 0.95);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-            
-            console.log("Canvas converted to blob successfully");
-            
-            // Create file for sharing
-            const file = new File([jpgBlob], "garfield.jpg", { 
-                type: "image/jpeg", 
-                lastModified: Date.now() 
-            });
-            
-            // Share the file
-            console.log("Attempting to share file...");
-            await navigator.share({
-                url: 'https://garfieldapp.pages.dev',
-                text: 'Shared from GarfieldApp',
-                files: [file]
-            });
-            
-            console.log("Comic shared successfully!");
-        } catch (error) {
-            console.error("Error sharing comic:", error);
-            
-            // Check if this is a CORS-related error
-            if (error.name === 'SecurityError') {
-                // Try fallback sharing without the image
-                try {
-                    console.log("Trying fallback sharing without image...");
+                    
+                    setTimeout(() => reject(new Error("Blob creation timeout")), 3000);
+                });
+                
+                // Create file for sharing
+                const file = new File([jpgBlob], "garfield.jpg", { 
+                    type: "image/jpeg", 
+                    lastModified: Date.now() 
+                });
+                
+                // Share the file
+                await navigator.share({
+                    url: 'https://garfieldapp.pages.dev',
+                    text: 'Shared from GarfieldApp',
+                    files: [file]
+                });
+                
+                console.log("Comic shared successfully!");
+            } catch (canvasError) {
+                console.error("Canvas error:", canvasError);
+                
+                // If canvas approach fails, try fallback approach
+                if (canvasError.name === 'SecurityError') {
+                    // Try text-only share as fallback
+                    console.log("Using text-only share as fallback");
                     await navigator.share({
                         url: 'https://garfieldapp.pages.dev',
                         text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                     });
-                    console.log("Fallback sharing successful!");
-                    return;
-                } catch (fallbackError) {
-                    console.error("Fallback sharing failed:", fallbackError);
+                } else {
+                    throw canvasError;
                 }
             }
+        } catch (error) {
+            console.error("Error sharing comic:", error);
             
             // Don't show alert if sharing was canceled by user
             if (error.name !== 'AbortError') {
@@ -291,13 +269,9 @@ function showComic() {
     
     // Define multiple CORS proxies to try in sequence
     const corsProxies = [
-        // Original proxy
-        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${url}`,
-        // Alternative proxies
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
         url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        // Try without CORS proxy as last resort (may work in some environments)
-        url => url
+        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`
     ];
     
     const originalUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
@@ -322,27 +296,29 @@ function showComic() {
             .then(text => {
                 siteBody = text;
                 
-                // Try multiple extraction methods
+                // Try multiple extraction methods in order of reliability
                 const extractionMethods = [
-                    // Method 1: Standard picture element extraction
+                    // Method 1: Look for picture element with comic image
                     () => {
-                        const picturePosition = siteBody.indexOf("https://assets.amuniversal.com");
-                        if (picturePosition !== -1) {
-                            return siteBody.substring(picturePosition, picturePosition + 63);
-                        }
-                        return null;
+                        const match = siteBody.match(/<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]+?\.(?:gif|jpg|jpeg|png)[^"]*?)"[^>]*>/i);
+                        return match ? match[1] : null;
                     },
-                    // Method 2: Look for og:image metadata
+                    // Method 2: Look for assets.amuniversal.com URL pattern
                     () => {
-                        const ogMatch = siteBody.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-                        return ogMatch ? ogMatch[1] : null;
+                        const match = siteBody.match(/https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/i);
+                        return match ? match[0] : null;
                     },
-                    // Method 3: Look for any image with comic in URL/class
+                    // Method 3: Look for og:image metadata
                     () => {
-                        const imgMatch = siteBody.match(/<img[^>]+src="([^"]+?asset[^"]+?)"[^>]*>/i);
-                        return imgMatch ? imgMatch[1] : null;
+                        const match = siteBody.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+                        return match ? match[1] : null;
                     },
-                    // Method 4: Last resort - construct URL based on date
+                    // Method 4: Look for any image with asset in URL
+                    () => {
+                        const match = siteBody.match(/<img[^>]+src="([^"]+?asset[^"]+?)"[^>]*>/i);
+                        return match ? match[1] : null;
+                    },
+                    // Method 5: Last resort - construct URL based on date
                     () => {
                         return `https://assets.amuniversal.com/garfield_${year}${month}${day}`;
                     }
@@ -351,8 +327,9 @@ function showComic() {
                 // Try each extraction method in order
                 let pictureUrl = null;
                 for (let i = 0; i < extractionMethods.length; i++) {
-                    pictureUrl = extractionMethods[i]();
-                    if (pictureUrl) {
+                    const url = extractionMethods[i]();
+                    if (url && !url.includes('favicon') && !url.includes('logo')) {
+                        pictureUrl = url;
                         console.log(`Extraction method ${i+1} succeeded: ${pictureUrl}`);
                         break;
                     }
@@ -367,12 +344,20 @@ function showComic() {
                     pictureUrl = 'https:' + pictureUrl;
                 }
                 
-                // Use current proxy to load the actual image if needed
+                // Use current proxy to load the actual image
                 const imageUrl = corsProxies[currentProxyIndex](pictureUrl);
                 window.pictureUrl = pictureUrl; // Store for Share function
                 
                 if (imageUrl !== previousUrl) {
                     changeComicImage(imageUrl);
+                    
+                    // Add image load error handler
+                    const comicImg = document.getElementById('comic');
+                    comicImg.onerror = function() {
+                        console.error(`Failed to load image: ${imageUrl}`);
+                        currentProxyIndex++;
+                        setTimeout(tryNextProxy, 500);
+                    };
                 } else if (previousclicked) {
                     PreviousClick();
                 }
@@ -383,20 +368,12 @@ function showComic() {
                 var favs = JSON.parse(localStorage.getItem('favs')) || [];
                 document.getElementById("favheart").src = 
                     (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
-                
-                // Add image load error handler to try next proxy if image fails to load
-                const comicImg = document.getElementById('comic');
-                comicImg.onerror = function() {
-                    console.error(`Failed to load image: ${imageUrl}`);
-                    currentProxyIndex++;
-                    setTimeout(tryNextProxy, 500);
-                };
             })
             .catch(error => {
                 console.error(`Error with proxy ${currentProxyIndex + 1}:`, error);
                 currentProxyIndex++;
                 comic.alt = `Trying another source... (${currentProxyIndex + 1}/${corsProxies.length})`;
-                setTimeout(tryNextProxy, 500); // Wait a bit before trying the next proxy
+                setTimeout(tryNextProxy, 500);
             });
     }
     
