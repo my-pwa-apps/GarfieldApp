@@ -34,118 +34,58 @@ async function Share()
     
     if(navigator.share) {
         try {
-            // Define multiple CORS proxies to try in sequence
-            const corsProxies = [
-                // Original proxy
-                url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${Date.now()}&url=${encodeURIComponent(url)}`,
-                // Alternative proxies
-                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                // Try direct as last resort
-                url => url
-            ];
+            // Directly get the current image from the comic element
+            const comic = document.getElementById('comic');
             
-            console.log("Attempting to share comic from URL:", window.pictureUrl);
-            
-            // Try each proxy in sequence
-            let blob = null;
-            let proxyWorked = false;
-            let imageLoaded = false;
-            
-            for (let i = 0; i < corsProxies.length && !imageLoaded; i++) {
-                try {
-                    const proxyUrl = corsProxies[i](window.pictureUrl);
-                    console.log(`Trying CORS proxy ${i + 1}/${corsProxies.length}: ${proxyUrl}`);
-                    
-                    // Add no-cors mode for CORS-restricted sources
-                    const fetchOptions = i < corsProxies.length - 1 ? {} : { mode: 'no-cors' };
-                    
-                    const response = await fetch(proxyUrl, fetchOptions);
-                    
-                    // Check for opaque response (from no-cors mode)
-                    if (response.type === 'opaque') {
-                        console.log("Got opaque response, using backup approach...");
-                        // For opaque responses, we can't access the blob directly
-                        // Create a temporary image and use canvas to capture it
-                        try {
-                            blob = await new Promise((resolve, reject) => {
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous';
-                                img.onload = () => {
-                                    imageLoaded = true;
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = img.width;
-                                    canvas.height = img.height;
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0);
-                                    canvas.toBlob(resolve, 'image/jpeg', 0.95);
-                                };
-                                img.onerror = () => reject(new Error('Failed to load image'));
-                                img.src = proxyUrl;
-                                // Set a timeout to prevent hanging
-                                setTimeout(() => reject(new Error('Image load timeout')), 5000);
-                            });
-                            proxyWorked = true;
-                            break;
-                        } catch (imageError) {
-                            console.error("Error with image loading:", imageError);
-                            // Continue to next proxy
-                            continue;
-                        }
-                    } else if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    } else {
-                        blob = await response.blob();
-                        if (blob.size > 0) {
-                            imageLoaded = true;
-                            proxyWorked = true;
-                            break;
-                        } else {
-                            throw new Error("Received empty blob");
-                        }
-                    }
-                } catch (proxyError) {
-                    console.error(`Error with proxy ${i + 1}:`, proxyError);
-                    // Continue to next proxy
-                }
+            // Check if the image is loaded
+            if (!comic.complete || comic.naturalHeight === 0) {
+                alert("Please wait for the comic to load completely.");
+                return;
             }
             
-            if (!proxyWorked || !blob || blob.size === 0) {
-                throw new Error("All proxies failed to fetch the comic");
-            }
+            console.log("Sharing current comic...");
             
-            // Process the image and share it
+            // Create a canvas and draw the current image to it
+            const canvas = document.createElement('canvas');
+            canvas.width = comic.naturalWidth;
+            canvas.height = comic.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(comic, 0, 0);
+            
+            // Convert to a JPEG blob
             try {
-                const img = await createImageBitmap(blob);
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                const jpgBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                    // Add timeout to avoid hanging
+                    setTimeout(() => reject(new Error("Timed out creating blob")), 3000);
+                });
                 
-                if (!jpgBlob || jpgBlob.size === 0) {
-                    throw new Error("Failed to create shareable image");
+                if (!jpgBlob) {
+                    throw new Error("Failed to create image blob");
                 }
-
-                const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
                 
+                // Create a file for sharing
+                const file = new File([jpgBlob], "garfield.jpg", { 
+                    type: "image/jpeg", 
+                    lastModified: new Date().getTime() 
+                });
+                
+                // Use the Web Share API directly with the image we already have
                 await navigator.share({
                     url: 'https://garfieldapp.pages.dev',
-                    text: 'Shared from https://garfieldapp.pages.dev',
+                    text: 'Shared from GarfieldApp',
                     files: [file]
                 });
                 
                 console.log("Comic shared successfully!");
-                return; // Exit function after successful share
-            } catch (processingError) {
-                console.error("Error processing image:", processingError);
-                throw processingError;
+            } catch (error) {
+                console.error("Error creating or sharing image:", error);
+                throw error; // Re-throw to be caught by outer catch
             }
         } catch (error) {
             console.error("Error sharing comic:", error);
             
-            // Don't show alert if sharing was already completed
+            // Don't show alert if sharing was already completed or user canceled
             if (error.name !== 'AbortError') {
                 alert("Failed to share the comic. Please try again.");
             }
