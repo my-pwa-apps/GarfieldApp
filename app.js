@@ -27,17 +27,22 @@ function formatDate(datetoFormat) {
 
 // Only have one initialization function that calls everything else
 function initializeApp() {
-    // Set up swipe event listeners
-    setupSwipeListeners();
-    
-    // Initialize settings from localStorage
-    initializeSettings();
-    
-    // Initialize all event handlers
-    initializeEventHandlers();
-    
-    // Initialize app state and display
-    onLoad();
+    console.log("Initializing app...");
+    try {
+        setupSwipeListeners();
+        console.log("Swipe listeners set up.");
+
+        initializeSettings();
+        console.log("Settings initialized.");
+
+        initializeEventHandlers();
+        console.log("Event handlers initialized.");
+
+        onLoad();
+        console.log("App state loaded.");
+    } catch (error) {
+        console.error("Error during app initialization:", error);
+    }
 }
 
 // Move swipe listeners to their own function
@@ -185,16 +190,18 @@ function RandomClick() {
 
 // Comic display functions
 function changeComicImage(newSrc) {
+    console.log("Changing comic image to:", newSrc);
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
 
     comic.onload = () => {
+        console.log("Comic image loaded successfully.");
         comic.classList.remove('dissolve');
         handleImageLoad();
     };
 
     comic.onerror = () => {
-        console.error(`Failed to load image: ${newSrc}`);
+        console.error("Failed to load comic image:", newSrc);
         comic.alt = "Failed to load comic. Please try again later.";
     };
 
@@ -241,54 +248,48 @@ function DateChange() {
 
 // Add this to update the display when showing a comic
 function showComic() {
+    console.log("Starting to show comic...");
     const { year, month, day } = formatDate(APP_STATE.currentselectedDate);
     APP_STATE.formattedDate = `${year}-${month}-${day}`;
     APP_STATE.formattedComicDate = `${year}/${month}/${day}`;
+    console.log("Formatted date:", APP_STATE.formattedDate);
+
     document.getElementById('DatePicker').value = APP_STATE.formattedDate;
     updateDateDisplay();
-    
-    // Cache key for this comic
+
     const cacheKey = `comic_${APP_STATE.formattedComicDate}`;
-    
     localStorage.setItem('lastcomic', APP_STATE.currentselectedDate);
     const comic = document.getElementById('comic');
     comic.alt = "Loading comic...";
-    
-    // Check if we have this comic in localStorage cache
+
     const cachedData = localStorage.getItem(cacheKey);
     if (cachedData) {
         try {
             const data = JSON.parse(cachedData);
             if (data && data.url) {
-                console.log(`Using cached comic URL from ${data.timestamp}: ${data.url}`);
+                console.log("Using cached comic URL:", data.url);
                 APP_STATE.pictureUrl = data.url;
                 changeComicImage(data.imageUrl);
-                
-                // Update favorites heart
-                const favs = JSON.parse(localStorage.getItem('favs')) || [];
-                document.getElementById("favheart").src = 
-                    (favs.indexOf(APP_STATE.formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
-                
-                return; // Exit early if we have a cached comic
+                return;
             }
         } catch (e) {
             console.warn("Error reading cache:", e);
-            // Continue with normal download if cache read fails
         }
     }
-    
+
     const originalUrl = `https://www.gocomics.com/garfield/${APP_STATE.formattedComicDate}`;
     let currentProxyIndex = 0;
-    
+
     function tryNextProxy() {
         if (currentProxyIndex >= CORS_PROXIES.length) {
+            console.error("All proxies failed. Unable to load comic.");
             comic.alt = "Failed to load comic. Please try again later.";
             return;
         }
-        
+
         const proxyUrl = CORS_PROXIES[currentProxyIndex](originalUrl);
-        console.log(`Trying CORS proxy ${currentProxyIndex + 1}/${CORS_PROXIES.length}: ${proxyUrl}`);
-        
+        console.log(`Trying proxy ${currentProxyIndex + 1}: ${proxyUrl}`);
+
         fetch(proxyUrl)
             .then(response => {
                 if (!response.ok) {
@@ -297,105 +298,30 @@ function showComic() {
                 return response.text();
             })
             .then(text => {
-                const siteBody = text; // Fixed: Properly declare siteBody
-                
-                // Try multiple extraction methods in order of reliability
-                const extractionMethods = [
-                    // Method 1: Look for picture element with comic image
-                    () => {
-                        const match = siteBody.match(/<picture.*?class="[^"]*?item-comic-image[^"]*?".*?>.*?<img[^>]*?src="([^"]+?\.(?:gif|jpg|jpeg|png)[^"]*?)"[^>]*>/i);
-                        return match ? match[1] : null;
-                    },
-                    // Method 2: Look for assets.amuniversal.com URL pattern
-                    () => {
-                        const match = siteBody.match(/https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/i);
-                        return match ? match[0] : null;
-                    },
-                    // Method 3: Look for og:image metadata
-                    () => {
-                        const match = siteBody.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-                        return match ? match[1] : null;
-                    },
-                    // Method 4: Look for any image with asset in URL
-                    () => {
-                        const match = siteBody.match(/<img[^>]+src="([^"]+?asset[^"]+?)"[^>]*>/i);
-                        return match ? match[1] : null;
-                    }
-                ];
-                
-                // Try each extraction method in order
-                let pictureUrl = null;
-                for (let i = 0; i < extractionMethods.length && !pictureUrl; i++) {
-                    try {
-                        const url = extractionMethods[i]();
-                        if (url && !url.includes('favicon') && !url.includes('logo')) {
-                            pictureUrl = url;
-                            console.log(`Extraction method ${i+1} succeeded: ${pictureUrl}`);
-                            break;
-                        }
-                    } catch (e) {
-                        console.warn(`Extraction method ${i+1} failed:`, e);
-                    }
-                }
-                
+                console.log("Proxy response received.");
+                const siteBody = text;
+                const pictureUrl = extractComicUrl(siteBody);
                 if (!pictureUrl) {
                     throw new Error("Could not extract comic image URL");
                 }
-                
-                // Handle protocol-relative URLs
-                if (pictureUrl.startsWith('//')) {
-                    pictureUrl = 'https:' + pictureUrl;
-                }
-                
-                // Use current proxy to load the actual image
+
                 const imageUrl = CORS_PROXIES[currentProxyIndex](pictureUrl);
-                APP_STATE.pictureUrl = pictureUrl; // Store for Share function
-                
-                // Cache the successful result
-                try {
-                    localStorage.setItem(cacheKey, JSON.stringify({
-                        url: pictureUrl,
-                        imageUrl: imageUrl,
-                        timestamp: Date.now(),
-                        proxy: currentProxyIndex
-                    }));
-                } catch (e) {
-                    console.warn("Failed to cache comic URL:", e);
-                    // If localStorage is full, clear old entries
-                    if (e.name === 'QuotaExceededError') {
-                        clearOldComicCache();
-                    }
-                }
-                
-                if (imageUrl !== APP_STATE.previousUrl) {
-                    changeComicImage(imageUrl);
-                    // Add error handling for the image load
-                    const comicImg = document.getElementById('comic');
-                    comicImg.onerror = function() {
-                        console.error(`Failed to load image: ${imageUrl}`);
-                        currentProxyIndex++;
-                        setTimeout(tryNextProxy, 500);
-                    };
-                } else if (APP_STATE.previousclicked) {
-                    PreviousClick();
-                }
-                APP_STATE.previousclicked = false;
-                APP_STATE.previousUrl = imageUrl;
-                
-                // Update favorites heart
-                const favs = JSON.parse(localStorage.getItem('favs')) || [];
-                document.getElementById("favheart").src = 
-                    (favs.indexOf(APP_STATE.formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
+                APP_STATE.pictureUrl = pictureUrl;
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    url: pictureUrl,
+                    imageUrl: imageUrl,
+                    timestamp: Date.now()
+                }));
+                console.log("Comic image URL extracted:", imageUrl);
+                changeComicImage(imageUrl);
             })
             .catch(error => {
-                console.error(`Error with proxy ${currentProxyIndex + 1}:`, error);
+                console.error(`Proxy ${currentProxyIndex + 1} failed:`, error);
                 currentProxyIndex++;
-                comic.alt = `Trying another source... (${currentProxyIndex + 1}/${CORS_PROXIES.length})`;
-                setTimeout(tryNextProxy, 500);
+                tryNextProxy();
             });
     }
-    
-    // Start the proxy chain
+
     tryNextProxy();
 }
 
