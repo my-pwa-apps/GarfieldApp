@@ -18,20 +18,9 @@ if("serviceWorker" in navigator) {
 }
 
 async function Share() {
-    if(!window.pictureUrl) {
-        console.warn("No comic URL found in window.pictureUrl, checking previousUrl");
-        window.pictureUrl = previousUrl;
-        
-        if(!window.pictureUrl) {
-            console.error("No comic URL available to share");
-            alert("No comic to share. Please try loading a comic first.");
-            return;
-        }
-    }
-    
     if(navigator.share) {
         try {
-            // Get the current displayed comic image - most reliable approach
+            // Use the existing comic image in the DOM
             const comic = document.getElementById('comic');
             
             if (!comic.complete || comic.naturalHeight === 0) {
@@ -39,55 +28,18 @@ async function Share() {
                 return;
             }
             
-            // Create canvas from the already loaded image
-            const canvas = document.createElement('canvas');
-            canvas.width = comic.naturalWidth;
-            canvas.height = comic.naturalHeight;
+            console.log("Starting share process using loaded comic image...");
             
-            try {
-                // Draw the image to canvas
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(comic, 0, 0);
-                
-                // Convert to blob
-                const jpgBlob = await new Promise((resolve, reject) => {
-                    canvas.toBlob(blob => {
-                        if (blob) resolve(blob);
-                        else reject(new Error("Failed to create blob"));
-                    }, 'image/jpeg', 0.95);
-                    
-                    setTimeout(() => reject(new Error("Blob creation timeout")), 3000);
-                });
-                
-                // Create file for sharing
-                const file = new File([jpgBlob], "garfield.jpg", { 
-                    type: "image/jpeg", 
-                    lastModified: Date.now() 
-                });
-                
-                // Share the file
-                await navigator.share({
-                    url: 'https://garfieldapp.pages.dev',
-                    text: 'Shared from GarfieldApp',
-                    files: [file]
-                });
-                
-                console.log("Comic shared successfully!");
-            } catch (canvasError) {
-                console.error("Canvas error:", canvasError);
-                
-                // If canvas approach fails, try fallback approach
-                if (canvasError.name === 'SecurityError') {
-                    // Try text-only share as fallback
-                    console.log("Using text-only share as fallback");
-                    await navigator.share({
-                        url: 'https://garfieldapp.pages.dev',
-                        text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
-                    });
-                } else {
-                    throw canvasError;
-                }
-            }
+            // Create a text description for the share
+            const shareText = `Garfield comic for ${formattedComicDate}`;
+            
+            // Try to share with text and URL only
+            await navigator.share({
+                text: shareText + " - Shared from GarfieldApp",
+                url: 'https://garfieldapp.pages.dev'
+            });
+            
+            console.log("Comic shared successfully with text!");
         } catch (error) {
             console.error("Error sharing comic:", error);
             
@@ -267,11 +219,11 @@ function showComic() {
     const comic = document.getElementById('comic');
     comic.alt = "Loading comic...";
     
-    // Define multiple CORS proxies to try in sequence
+    // Define multiple CORS proxies to try in sequence - put garfieldapp.workers.dev first
     const corsProxies = [
+        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`,
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`
+        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
     ];
     
     const originalUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
