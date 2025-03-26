@@ -251,11 +251,15 @@ function onLoad() {
     // Set minimum body height at load time to prevent gradient shift
     document.body.style.minHeight = "100vh";
 
-    // Set proper body overflow to prevent scrolling
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.style.height = '100%';
+    // Apply fixed layout only on mobile devices
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        // Set proper body overflow to prevent scrolling on mobile
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+    }
 
     // Prevent clearing the date picker
     const datePicker = document.getElementById("DatePicker");

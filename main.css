@@ -1,6 +1,6 @@
 html {
     height: 100%;
-    overflow: hidden;
+    /* Remove overflow: hidden that prevents scrolling */
 }
 
 body {
@@ -21,6 +21,10 @@ body {
 
 /* Apply fixed layout only on mobile devices */
 @media (max-width: 768px) {
+    html {
+        overflow: hidden;
+    }
+    
     body {
         overflow: hidden;
         position: fixed;
@@ -271,11 +275,13 @@ input[type="date"]::-webkit-datetime-edit {
     width: 100%;
     box-sizing: border-box;
     text-align: center;
-    padding: 0;
+    padding: 0 16px; /* Add horizontal padding */
     margin: 0 auto;
+    max-width: 1200px; /* Limit maximum width for very large screens */
 }
 
 .logo img {
+    width: 100%; /* Fill the container width */
     max-width: 95%;
     margin: 25px auto 5px;
     display: block;
