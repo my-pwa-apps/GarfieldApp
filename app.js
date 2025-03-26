@@ -32,11 +32,30 @@ async function Share() {
                 }
             }
             
-            // Create a blob URL directly from the proxy
-            const shareUrl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(window.pictureUrl)}`;
+            // Use the same proxy that was successful in loading the comic
+            // Extract the proxy base from the previous URL
+            let proxyUrl;
+            const comic = document.getElementById('comic');
+            const currentImgSrc = comic.src;
+            
+            console.log("Current image source:", currentImgSrc);
+            
+            // Determine which proxy to use based on the current image source
+            if (currentImgSrc.includes('corsproxy.garfieldapp.workers.dev')) {
+                proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(window.pictureUrl)}`;
+            } else if (currentImgSrc.includes('corsproxy.io')) {
+                proxyUrl = `https://corsproxy.io/?${encodeURIComponent(window.pictureUrl)}`;
+            } else if (currentImgSrc.includes('allorigins.win')) {
+                proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(window.pictureUrl)}`;
+            } else {
+                // Default to the first proxy if we can't determine which one worked
+                proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(window.pictureUrl)}`;
+            }
+            
+            console.log("Using proxy URL for sharing:", proxyUrl);
             
             // Fetch the image through the proxy
-            const response = await fetch(shareUrl);
+            const response = await fetch(proxyUrl);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
