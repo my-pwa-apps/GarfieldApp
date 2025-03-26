@@ -61,9 +61,10 @@ body {
     grid-template-rows: auto auto;
     text-align: center;
     gap: 5px;
-    padding: 0;
+    padding: 10px;
     box-sizing: border-box;
     width: 100%;
+    max-width: 600px;
     margin: 0 auto;
     opacity: 1 !important;
     visibility: visible !important;
@@ -96,7 +97,7 @@ body {
     align-items: center;
     width: 100%;
     margin: 0 auto;
-    padding: 0;
+    padding: 10px;
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
@@ -104,6 +105,7 @@ body {
     visibility: visible !important;
     display: flex !important;
     min-height: 200px;
+    background: transparent;
 }
 
 #comic-wrapper {
@@ -113,15 +115,22 @@ body {
     width: 100%;
     height: 100%;
     transition: all 0.3s ease;
+    margin: 0 auto;
+    text-align: center;
 }
 
 #comic {
-    transition: opacity 1s ease-in-out;
+    transition: opacity 0.3s ease-in-out;
     opacity: 1;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    display: block;
+    background: transparent;
 }
 
 #comic.dissolve {
-    opacity: 0;
+    opacity: 0.5;
 }
 
 .normal {
@@ -250,13 +259,15 @@ input[type="checkbox"]:checked:after {
     opacity: 1 !important;
     visibility: visible !important;
     display: flex !important;
+    max-width: 800px;
+    margin: 10px auto;
 }
 
 #support-container {
     flex: initial;
     margin-right: auto;
     position: relative;
-    z-index: 10;
+    z-index: 1;
 }
 
 #action-buttons {
@@ -278,6 +289,9 @@ input[type="checkbox"]:checked:after {
     margin-top: 25px;
     padding: 0 16px;
     display: none;  /* Hide by default */
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px;
 }
 
 #settingsDIV label {

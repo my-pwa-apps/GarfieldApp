@@ -186,21 +186,27 @@ function RandomClick() {
 function changeComicImage(newSrc) {
     console.log("Changing comic image to:", newSrc);
     const comic = document.getElementById('comic');
+    
+    // Keep the comic visible during transition
     comic.classList.add('dissolve');
+    document.body.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
+    document.body.style.backgroundSize = '100% 100vh';
 
     comic.onload = () => {
-        console.log("Comic image loaded successfully.");
+        console.log("Comic image loaded successfully");
         comic.classList.remove('dissolve');
         handleImageLoad();
+        comic.onload = null;
     };
 
     comic.onerror = () => {
         console.error("Failed to load comic image:", newSrc);
-        comic.alt = "Failed to load comic. Displaying fallback image.";
-        comic.src = "./garfieldchristmas.png"; // Fallback image
+        comic.alt = "Failed to load comic. Please try again.";
     };
 
-    comic.src = newSrc;
+    setTimeout(() => {
+        comic.src = newSrc;
+    }, 300);
 }
 
 // Settings functions
