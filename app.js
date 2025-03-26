@@ -12,8 +12,36 @@ const APP_STATE = {
     START_DATE: new Date("1978/06/19")
 };
 
-// Move event listeners and initialization into a main init function
+// Service Worker Registration
+if("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./serviceworker.js");
+}
+
+// Format date helper
+function formatDate(datetoFormat) {
+    const day = String(datetoFormat.getDate()).padStart(2, '0');
+    const month = String(datetoFormat.getMonth() + 1).padStart(2, '0');
+    const year = datetoFormat.getFullYear();
+    return { day, month, year };
+}
+
+// Only have one initialization function that calls everything else
 function initializeApp() {
+    // Set up swipe event listeners
+    setupSwipeListeners();
+    
+    // Initialize settings from localStorage
+    initializeSettings();
+    
+    // Initialize all event handlers
+    initializeEventHandlers();
+    
+    // Initialize app state and display
+    onLoad();
+}
+
+// Move swipe listeners to their own function
+function setupSwipeListeners() {
     document.addEventListener('swiped-down', () => {
         if(document.getElementById("swipe").checked) RandomClick();
     });
@@ -29,64 +57,57 @@ function initializeApp() {
     document.addEventListener('swiped-up', () => {
         if(document.getElementById("swipe").checked) CurrentClick();
     });
+}
 
-    // Initialize settings
-    const swipeCheckbox = document.getElementById('swipe');
-    const lastdateCheckbox = document.getElementById('lastdate');
-    const showfavsCheckbox = document.getElementById('showfavs');
-
-    if (swipeCheckbox) {
-        swipeCheckbox.onclick = function() {
-            localStorage.setItem('stat', this.checked ? "true" : "false");
-            if (!this.checked) {
-                CompareDates();
-                showComic();
-            }
-        };
+// Fix CompareDates function to properly handle variable declarations
+function CompareDates() {
+    const favs = JSON.parse(localStorage.getItem('favs')) || [];
+    let startDate, endDate;
+    
+    if(document.getElementById("showfavs").checked) {
+        document.getElementById("DatePicker").disabled = true;
+        startDate = new Date(favs[0]);
+    } else {    
+        document.getElementById("DatePicker").disabled = false;
+        startDate = new Date("1978/06/19");
     }
-
-    if (lastdateCheckbox) {
-        lastdateCheckbox.onclick = function() {
-            localStorage.setItem('lastdate', this.checked ? "true" : "false");
-        };
+    
+    startDate.setHours(0, 0, 0, 0);
+    APP_STATE.currentselectedDate.setHours(0, 0, 0, 0);
+    
+    if(APP_STATE.currentselectedDate.getTime() <= startDate.getTime()) {
+        document.getElementById("Previous").disabled = true;
+        document.getElementById("First").disabled = true;
+        const { year, month, day } = formatDate(startDate);
+        APP_STATE.currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
+    } else {
+        document.getElementById("Previous").disabled = false;
+        document.getElementById("First").disabled = false;
     }
-
-    if (showfavsCheckbox) {
-        showfavsCheckbox.onclick = function() {
-            const favs = JSON.parse(localStorage.getItem('favs')) || [];
-            localStorage.setItem('showfavs', this.checked ? "true" : "false");
-            
-            if(this.checked) {
-                if(favs.indexOf(APP_STATE.formattedComicDate) === -1) {
-                    APP_STATE.currentselectedDate = new Date(favs[0]);
-                }
-                document.getElementById('Today').innerHTML = 'Last';
-            } else {
-                document.getElementById('Today').innerHTML = 'Today';
-            }
-            CompareDates();
-            showComic();
-        };
+    
+    if(document.getElementById("showfavs").checked) {
+        endDate = new Date(favs[favs.length - 1]);
+    } else { 
+        endDate = new Date();
     }
-
-    // Initialize settings from localStorage
-    const swipeEnabled = localStorage.getItem('stat') === "true";
-    const showFavs = localStorage.getItem('showfavs') === "true";
-    const lastDateEnabled = localStorage.getItem('lastdate') === "true";
-
-    if (swipeCheckbox) swipeCheckbox.checked = swipeEnabled;
-    if (showfavsCheckbox) showfavsCheckbox.checked = showFavs;
-    if (lastdateCheckbox) lastdateCheckbox.checked = lastDateEnabled;
-
-    const todayButton = document.getElementById('Today');
-    if (todayButton && showFavs) {
-        todayButton.innerHTML = 'Last';
+    endDate.setHours(0, 0, 0, 0);
+    
+    if(APP_STATE.currentselectedDate.getTime() >= endDate.getTime()) {
+        document.getElementById("Next").disabled = true;
+        document.getElementById("Today").disabled = true;
+        const { year, month, day } = formatDate(endDate);
+        APP_STATE.currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
+    } else {
+        document.getElementById("Next").disabled = false;
+        document.getElementById("Today").disabled = false;
     }
-
-    // Show/hide settings based on localStorage
-    const settingsDiv = document.getElementById("settingsDIV");
-    if (settingsDiv) {
-        settingsDiv.style.display = localStorage.getItem('settings') === "true" ? "block" : "none";
+    
+    if(document.getElementById("showfavs").checked && favs.length === 1) {
+        document.getElementById("Random").disabled = true;
+        document.getElementById("Previous").disabled = true;
+        document.getElementById("First").disabled = true;
+    } else {
+        document.getElementById("Random").disabled = false;
     }
 }
 
@@ -96,19 +117,6 @@ const CORS_PROXIES = [
     url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
 ];
-
-// Service Worker Registration
-if("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./serviceworker.js");
-}
-
-// Format date helper
-function formatDate(datetoFormat) {
-    const day = String(datetoFormat.getDate()).padStart(2, '0');
-    const month = String(datetoFormat.getMonth() + 1).padStart(2, '0');
-    const year = datetoFormat.getFullYear();
-    return { day, month, year };
-}
 
 // Date navigation functions
 function PreviousClick() {
@@ -426,60 +434,6 @@ function showComic() {
     tryNextProxy();
 }
 
-// Fix CompareDates function to properly use formatDate return value
-function CompareDates() {
-    var favs = JSON.parse(localStorage.getItem('favs')) || [];
-    if(document.getElementById("showfavs").checked) {
-        document.getElementById("DatePicker").disabled = true;
-        startDate = new Date(favs[0]);
-    } else {	
-        document.getElementById("DatePicker").disabled = false;
-        startDate = new Date("1978/06/19");
-    }
-    startDate = startDate.setHours(0, 0, 0, 0);
-    APP_STATE.currentselectedDate = APP_STATE.currentselectedDate.setHours(0, 0, 0, 0);
-    startDate = new Date(startDate);
-    APP_STATE.currentselectedDate = new Date(APP_STATE.currentselectedDate);
-    
-    if(APP_STATE.currentselectedDate.getTime() <= startDate.getTime()) {
-        document.getElementById("Previous").disabled = true;
-        document.getElementById("First").disabled = true;
-        const { year, month, day } = formatDate(startDate);
-        startDate = `${year}-${month}-${day}`;
-        APP_STATE.currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
-    } else {
-        document.getElementById("Previous").disabled = false;
-        document.getElementById("First").disabled = false;
-    }
-    
-    if(document.getElementById("showfavs").checked) {
-        endDate = new Date(favs[favs.length - 1]);
-    } else { 
-        endDate = new Date();
-    }
-    endDate = endDate.setHours(0, 0, 0, 0);
-    endDate = new Date(endDate);
-    
-    if(APP_STATE.currentselectedDate.getTime() >= endDate.getTime()) {
-        document.getElementById("Next").disabled = true;
-        document.getElementById("Today").disabled = true;
-        const { year, month, day } = formatDate(endDate);
-        endDate = `${year}-${month}-${day}`;
-        APP_STATE.currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
-    } else {
-        document.getElementById("Next").disabled = false;
-        document.getElementById("Today").disabled = false;
-    }
-    
-    if(document.getElementById("showfavs").checked && favs.length == 1) {
-        document.getElementById("Random").disabled = true;
-        document.getElementById("Previous").disabled = true;
-        document.getElementById("First").disabled = true;
-    } else {
-        document.getElementById("Random").disabled = false;
-    }
-}
-
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
     const comic = document.getElementById('comic');
@@ -625,23 +579,6 @@ function handleImageLoad() {
         }
     }
 }
-
-// Event Listeners for swipe gestures
-document.addEventListener('swiped-down', () => {
-    if(document.getElementById("swipe").checked) RandomClick();
-});
-
-document.addEventListener('swiped-right', () => {
-    if(document.getElementById("swipe").checked) PreviousClick();
-});
-
-document.addEventListener('swiped-left', () => {
-    if(document.getElementById("swipe").checked) NextClick();
-});
-
-document.addEventListener('swiped-up', () => {
-    if(document.getElementById("swipe").checked) CurrentClick();
-});
 
 // Event handler initialization
 function initializeEventHandlers() {
