@@ -22,46 +22,92 @@ async function Share() {
         try {
             console.log("Starting share process...");
             
-            // Get the current comic URL
+            // Get the current comic URL from window or from cache
             if(!window.pictureUrl) {
-                window.pictureUrl = previousUrl;
+                // Try to get from cache first
+                const cacheKey = `comic_${formattedComicDate}`;
+                const cachedData = localStorage.getItem(cacheKey);
                 
+                if (cachedData) {
+                    try {
+                        const data = JSON.parse(cachedData);
+                        if (data && data.url) {
+                            console.log("Using cached URL for sharing:", data.url);
+                            window.pictureUrl = data.url;
+                        }
+                    } catch (e) {
+                        console.warn("Error reading cache for sharing:", e);
+                    }
+                }
+                
+                // Fallback to previous URL if cache fails
+                if (!window.pictureUrl) {
+                    window.pictureUrl = previousUrl;
+                }
+                
+                // If we still have no URL, show error
                 if(!window.pictureUrl) {
                     alert("No comic to share. Please try loading a comic first.");
                     return;
                 }
             }
             
-            // Use the same proxy that was successful in loading the comic
-            // Extract the proxy base from the previous URL
+            // Determine which proxy to use - try active proxy first
             let proxyUrl;
             const comic = document.getElementById('comic');
             const currentImgSrc = comic.src;
             
-            console.log("Current image source:", currentImgSrc);
+            // Try all proxies in sequence if needed
+            const corsProxies = [
+                url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`,
+                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+            ];
             
             // Determine which proxy to use based on the current image source
+            let selectedProxyIndex = 0;
             if (currentImgSrc.includes('corsproxy.garfieldapp.workers.dev')) {
-                proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(window.pictureUrl)}`;
+                selectedProxyIndex = 0;
             } else if (currentImgSrc.includes('corsproxy.io')) {
-                proxyUrl = `https://corsproxy.io/?${encodeURIComponent(window.pictureUrl)}`;
+                selectedProxyIndex = 1;
             } else if (currentImgSrc.includes('allorigins.win')) {
-                proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(window.pictureUrl)}`;
-            } else {
-                // Default to the first proxy if we can't determine which one worked
-                proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(window.pictureUrl)}`;
+                selectedProxyIndex = 2;
             }
             
-            console.log("Using proxy URL for sharing:", proxyUrl);
+            // Try to fetch the image, starting with the current proxy
+            let blob = null;
+            let error = null;
             
-            // Fetch the image through the proxy
-            const response = await fetch(proxyUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            for (let i = 0; i < corsProxies.length; i++) {
+                const proxyIndex = (selectedProxyIndex + i) % corsProxies.length;
+                proxyUrl = corsProxies[proxyIndex](window.pictureUrl);
+                
+                console.log(`Trying proxy ${proxyIndex + 1}/${corsProxies.length} for sharing:`, proxyUrl);
+                
+                try {
+                    const response = await fetch(proxyUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    blob = await response.blob();
+                    if (blob.size > 0) {
+                        console.log(`Successfully fetched image with proxy ${proxyIndex + 1}`);
+                        break;  // Exit the loop if we got a valid blob
+                    } else {
+                        throw new Error("Received empty blob");
+                    }
+                } catch (e) {
+                    console.error(`Error with proxy ${proxyIndex + 1}:`, e);
+                    error = e;
+                    // Continue to the next proxy
+                }
             }
             
-            // Get the image as a blob directly from the response
-            const blob = await response.blob();
+            // If all proxies failed, show error
+            if (!blob) {
+                throw error || new Error("Failed to fetch image through any proxy");
+            }
             
             // Create a file from the blob
             const file = new File([blob], "garfield.jpg", { 
@@ -76,14 +122,14 @@ async function Share() {
                 files: [file]
             });
             
-            console.log("Comic shared successfully with image!");
+            console.log("Comic shared successfully!");
         } catch (error) {
             console.error("Error sharing comic:", error);
             
             // Only if we can't share the image, try with text only
             if (error.name !== 'AbortError') {
                 try {
-                    console.log("Trying text-only share as last resort");
+                    console.log("Trying text-only share as fallback");
                     await navigator.share({
                         text: `Garfield comic for ${formattedComicDate} - Shared from GarfieldApp`,
                         url: 'https://garfieldapp.pages.dev'
@@ -134,9 +180,18 @@ function Addfav()
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
+    
+    // Add load handler before setting the new source
+    comic.onload = function() {
+        comic.classList.remove('dissolve');
+        handleImageLoad(); // Call our orientation handler when loaded
+        
+        // Remove the handler to avoid memory leaks
+        comic.onload = null;
+    };
+    
     setTimeout(() => {
         comic.src = newSrc;
-        comic.classList.remove('dissolve');
     }, 500); // Match the duration of the CSS transition
 }
 
@@ -262,13 +317,39 @@ function showComic() {
     document.getElementById('DatePicker').value = formattedDate;
     updateDateDisplay();
     
+    // Cache key for this comic
+    const cacheKey = `comic_${formattedComicDate}`;
+    
     localStorage.setItem('lastcomic', currentselectedDate);
     const comic = document.getElementById('comic');
     comic.alt = "Loading comic...";
     
+    // Check if we have this comic in localStorage cache
+    const cachedData = localStorage.getItem(cacheKey);
+    if (cachedData) {
+        try {
+            const data = JSON.parse(cachedData);
+            if (data && data.url) {
+                console.log(`Using cached comic URL from ${data.timestamp}: ${data.url}`);
+                window.pictureUrl = data.url;
+                changeComicImage(data.imageUrl);
+                
+                // Update favorites heart
+                const favs = JSON.parse(localStorage.getItem('favs')) || [];
+                document.getElementById("favheart").src = 
+                    (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
+                
+                return; // Exit early if we have a cached comic
+            }
+        } catch (e) {
+            console.warn("Error reading cache:", e);
+            // Continue with normal download if cache read fails
+        }
+    }
+    
     // Define multiple CORS proxies to try in sequence - put garfieldapp.workers.dev first
     const corsProxies = [
-        url => `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`,
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
         url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
     ];
@@ -347,6 +428,22 @@ function showComic() {
                 const imageUrl = corsProxies[currentProxyIndex](pictureUrl);
                 window.pictureUrl = pictureUrl; // Store for Share function
                 
+                // Cache the successful result
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        url: pictureUrl,
+                        imageUrl: imageUrl,
+                        timestamp: Date.now(),
+                        proxy: currentProxyIndex
+                    }));
+                } catch (e) {
+                    console.warn("Failed to cache comic URL:", e);
+                    // If localStorage is full, clear old entries
+                    if (e.name === 'QuotaExceededError') {
+                        clearOldComicCache();
+                    }
+                }
+                
                 if (imageUrl !== previousUrl) {
                     changeComicImage(imageUrl);
                     
@@ -374,6 +471,42 @@ function showComic() {
                 comic.alt = `Trying another source... (${currentProxyIndex + 1}/${corsProxies.length})`;
                 setTimeout(tryNextProxy, 500);
             });
+    }
+    
+    // Function to clear old comic cache entries to free up space
+    function clearOldComicCache() {
+        console.log("Clearing old comic cache entries");
+        const keysToKeep = [];
+        
+        // Get all cache keys
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('comic_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    keysToKeep.push({
+                        key,
+                        date: key.substring(6), // Extract the date part after 'comic_'
+                        timestamp: data.timestamp || 0
+                    });
+                } catch (e) {
+                    // If entry is corrupted, mark for removal by using old timestamp
+                    keysToKeep.push({
+                        key,
+                        date: key.substring(6),
+                        timestamp: 0
+                    });
+                }
+            }
+        }
+        
+        // Sort by timestamp (newest first) and keep only the 20 most recent
+        keysToKeep.sort((a, b) => b.timestamp - a.timestamp);
+        
+        // Remove older entries
+        for (let i = 20; i < keysToKeep.length; i++) {
+            localStorage.removeItem(keysToKeep[i].key);
+        }
     }
     
     // Start the proxy chain
@@ -897,6 +1030,23 @@ function Rotate() {
     } else {
         // Switch back to normal view
         exitRotatedView();
+    }
+}
+
+// Function to handle image loading and detect orientation
+function handleImageLoad() {
+    const comic = document.getElementById('comic');
+    
+    // Wait for image to be fully loaded
+    if (comic.complete && comic.naturalWidth > 0) {
+        // Check if the comic is vertical (tall)
+        if (comic.naturalHeight > comic.naturalWidth * 1.5) {
+            checkImageOrientation();
+        } else {
+            // Regular horizontal comic - just show normally
+            comic.classList.remove('vertical', 'fullscreen-vertical');
+            comic.classList.add('normal');
+        }
     }
 }
 
