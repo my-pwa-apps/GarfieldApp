@@ -43,7 +43,7 @@ async function Share()
             
             // Create a URL with CORS proxy to load the image
             const cacheBuster = Date.now();
-            const imgUrl = `https://corsproxy.io/?${encodeURIComponent(window.pictureUrl)}`;
+            const imgUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
             console.log("Loading image for sharing via:", imgUrl);
             
             // Wait for image to load
