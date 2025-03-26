@@ -20,6 +20,10 @@
     <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="preconnect" href="https://assets.amuniversal.com">
+    
+    <!-- Scripts -->
+    <script src="./swiped-events.min.js"></script>
+    <script src="./app.js"></script>
 </head>
 
 <body>
@@ -74,32 +78,20 @@
         </label>
     </div>
     
-    <!-- Scripts -->
-    <script src="./swiped-events.min.js"></script>
-    <script src="./app.js"></script>
-    
+    <!-- Initialize Ko-fi only after app is fully loaded -->
     <script>
-        // Initialize app only once when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the app
-            initializeApp();
-            initializeEventHandlers();
-            onLoad();
-            
-            // Initialize Ko-fi button
-            const kofiScript = document.createElement('script');
-            kofiScript.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
-            kofiScript.onload = () => {
-                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                kofiwidget2.draw();
-                setTimeout(() => {
-                    const kofiBtn = document.querySelector('.kofi-button');
-                    if (kofiBtn) {
-                        kofiBtn.classList.add('kofi-button-styled');
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const kofiScript = document.createElement('script');
+                kofiScript.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
+                kofiScript.onload = () => {
+                    if (typeof kofiwidget2 !== 'undefined') {
+                        kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                        kofiwidget2.draw();
                     }
-                }, 100);
-            };
-            document.body.appendChild(kofiScript);
+                };
+                document.body.appendChild(kofiScript);
+            }, 1000); // Delay Ko-fi initialization
         });
     </script>
 </body>

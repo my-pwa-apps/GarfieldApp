@@ -27,21 +27,14 @@ function formatDate(datetoFormat) {
 
 // Only have one initialization function that calls everything else
 function initializeApp() {
-    console.log("Initializing app...");
     try {
-        setupSwipeListeners();
-        console.log("Swipe listeners set up.");
-
+        console.log('Initializing app...');
         initializeSettings();
-        console.log("Settings initialized.");
-
+        setupSwipeListeners();
         initializeEventHandlers();
-        console.log("Event handlers initialized.");
-
         onLoad();
-        console.log("App state loaded.");
     } catch (error) {
-        console.error("Error during app initialization:", error);
+        console.error('Error during initialization:', error);
     }
 }
 
@@ -843,14 +836,30 @@ function Addfav() {
     showComic();
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', initializeApp);
-
-// Ensure initializeApp is called only once
+// Remove duplicate initialization listeners
 document.addEventListener('DOMContentLoaded', () => {
-    if (!window.appInitialized) {
-        window.appInitialized = true;
-        initializeApp();
-    }
+    // Initialize the app
+    console.log('Starting app initialization...');
+    initializeApp();
 });
+
+function extractComicUrl(siteBody) {
+    const extractionPatterns = [
+        /<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i,
+        /https:\/\/assets\.amuniversal\.com\/[a-zA-Z0-9]+/i,
+        /https:\/\/featureassets\.amuniversal\.com\/assets\/[a-zA-Z0-9]+/i,
+        /<picture[^>]*class="[^"]*item-comic-image[^"]*"[^>]*>.*?<img[^>]*src="([^"]+)".*?<\/picture>/is
+    ];
+
+    for (const pattern of extractionPatterns) {
+        const match = siteBody.match(pattern);
+        if (match) {
+            const url = match[1] || match[0];
+            if (!url.includes('favicon') && !url.includes('logo')) {
+                return url.startsWith('//') ? 'https:' + url : url;
+            }
+        }
+    }
+    return null;
+}
 

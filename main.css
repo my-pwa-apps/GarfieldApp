@@ -13,6 +13,8 @@ body {
     box-sizing: border-box;
     width: 100%;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Base button styles */
@@ -63,6 +65,9 @@ body {
     box-sizing: border-box;
     width: 100%;
     margin: 0 auto;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
 }
 
 .logo {
@@ -72,6 +77,9 @@ body {
     padding: 0 16px;
     margin: 0 auto;
     max-width: 1200px;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
 }
 
 .logo img {
@@ -92,6 +100,10 @@ body {
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    min-height: 200px;
 }
 
 #comic-wrapper {
@@ -235,10 +247,16 @@ input[type="checkbox"]:checked:after {
     width: 100%;
     box-sizing: border-box;
     padding: 0 10px;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
 }
 
 #support-container {
-    flex: 1;
+    flex: initial;
+    margin-right: auto;
+    position: relative;
+    z-index: 10;
 }
 
 #action-buttons {
@@ -363,9 +381,9 @@ input[type="checkbox"]:checked:after {
 
 /* Ko-fi button styling */
 .kofi-button-styled {
-    position: relative;
-    top: 2px;
-    margin-left: 3px;
+    position: relative !important;
+    margin: 0 !important;
+    top: 0 !important;
 }
 
 /* Mobile specific styles */
@@ -377,6 +395,7 @@ input[type="checkbox"]:checked:after {
     body {
         position: fixed;
         height: 100%;
+        overflow: hidden;
     }
     
     input[type="date"] {
@@ -401,6 +420,11 @@ input[type="checkbox"]:checked:after {
         font-weight: 500;
         pointer-events: none;
     }
+    
+    #support-container {
+        position: relative;
+        z-index: 1;
+    }
 }
 
 /* Desktop specific styles */
@@ -414,4 +438,9 @@ input[type="checkbox"]:checked:after {
     #settingsDIV {
         margin-bottom: 80px;
     }
+}
+
+.logo, .buttongrid, #comic-container, #controls-container {
+    display: block !important;
+    visibility: visible !important;
 }
