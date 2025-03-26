@@ -264,7 +264,7 @@ function showComic() {
     
     // Define multiple CORS proxies to try in sequence - put garfieldapp.workers.dev first
     const corsProxies = [
-        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`,
+        url => `https://corsproxy.garfieldapp.workers.dev/?url=${encodeURIComponent(url)}`,
         url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
         url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
     ];
