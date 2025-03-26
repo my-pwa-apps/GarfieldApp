@@ -12,6 +12,84 @@ const APP_STATE = {
     START_DATE: new Date("1978/06/19")
 };
 
+// Move event listeners and initialization into a main init function
+function initializeApp() {
+    document.addEventListener('swiped-down', () => {
+        if(document.getElementById("swipe").checked) RandomClick();
+    });
+
+    document.addEventListener('swiped-right', () => {
+        if(document.getElementById("swipe").checked) PreviousClick();
+    });
+
+    document.addEventListener('swiped-left', () => {
+        if(document.getElementById("swipe").checked) NextClick();
+    });
+
+    document.addEventListener('swiped-up', () => {
+        if(document.getElementById("swipe").checked) CurrentClick();
+    });
+
+    // Initialize settings
+    const swipeCheckbox = document.getElementById('swipe');
+    const lastdateCheckbox = document.getElementById('lastdate');
+    const showfavsCheckbox = document.getElementById('showfavs');
+
+    if (swipeCheckbox) {
+        swipeCheckbox.onclick = function() {
+            localStorage.setItem('stat', this.checked ? "true" : "false");
+            if (!this.checked) {
+                CompareDates();
+                showComic();
+            }
+        };
+    }
+
+    if (lastdateCheckbox) {
+        lastdateCheckbox.onclick = function() {
+            localStorage.setItem('lastdate', this.checked ? "true" : "false");
+        };
+    }
+
+    if (showfavsCheckbox) {
+        showfavsCheckbox.onclick = function() {
+            const favs = JSON.parse(localStorage.getItem('favs')) || [];
+            localStorage.setItem('showfavs', this.checked ? "true" : "false");
+            
+            if(this.checked) {
+                if(favs.indexOf(APP_STATE.formattedComicDate) === -1) {
+                    APP_STATE.currentselectedDate = new Date(favs[0]);
+                }
+                document.getElementById('Today').innerHTML = 'Last';
+            } else {
+                document.getElementById('Today').innerHTML = 'Today';
+            }
+            CompareDates();
+            showComic();
+        };
+    }
+
+    // Initialize settings from localStorage
+    const swipeEnabled = localStorage.getItem('stat') === "true";
+    const showFavs = localStorage.getItem('showfavs') === "true";
+    const lastDateEnabled = localStorage.getItem('lastdate') === "true";
+
+    if (swipeCheckbox) swipeCheckbox.checked = swipeEnabled;
+    if (showfavsCheckbox) showfavsCheckbox.checked = showFavs;
+    if (lastdateCheckbox) lastdateCheckbox.checked = lastDateEnabled;
+
+    const todayButton = document.getElementById('Today');
+    if (todayButton && showFavs) {
+        todayButton.innerHTML = 'Last';
+    }
+
+    // Show/hide settings based on localStorage
+    const settingsDiv = document.getElementById("settingsDIV");
+    if (settingsDiv) {
+        settingsDiv.style.display = localStorage.getItem('settings') === "true" ? "block" : "none";
+    }
+}
+
 // CORS proxy configuration
 const CORS_PROXIES = [
     url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?url=${encodeURIComponent(url)}`,
@@ -920,4 +998,16 @@ function Addfav() {
     CompareDates();
     showComic();
 }
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Initialize app on DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize the app
+    initializeApp();
+    
+    // Run onload initialization
+    onLoad();
+});
 

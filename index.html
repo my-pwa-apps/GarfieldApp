@@ -24,11 +24,11 @@
     <link rel="preconnect" href="https://assets.amuniversal.com">
     
     <!-- Critical scripts -->
-    <script src="./swiped-events.min.js" defer></script>
-    <script src="https://storage.ko-fi.com/cdn/widget/Widget_2.js" defer></script>
+    <script src="./swiped-events.min.js"></script>
+    <script src="./app.js"></script>
 </head>
 
-<body onload="onLoad()">
+<body>
     <h1 hidden>Daily Garfield Comics App</h1>
     
     <div class="logo">
@@ -55,7 +55,9 @@
     </div>
     
     <div id="controls-container">
-        <div id="support-container"></div>
+        <div id="support-container">
+            <!-- Ko-fi button will be initialized here -->
+        </div>
         <div id="action-buttons">
             <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
             <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
@@ -73,19 +75,33 @@
     </div>
     
     <!-- Scripts -->
-    <script src="./app.js" defer></script>
-    <script defer>
-        // Initialize Ko-fi button after DOM load
-        window.addEventListener('DOMContentLoaded', () => {
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            kofiwidget2.draw();
-            setTimeout(() => {
-                const kofiBtn = document.querySelector('.kofi-button');
-                if (kofiBtn) {
-                    kofiBtn.classList.add('kofi-button-styled');
-                }
-            }, 100);
-        });
+    <script>
+        // Ensure DOM is loaded before initializing
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeAll);
+        } else {
+            initializeAll();
+        }
+
+        function initializeAll() {
+            // Initialize app
+            onLoad();
+            
+            // Initialize Ko-fi button
+            const kofiScript = document.createElement('script');
+            kofiScript.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
+            kofiScript.onload = () => {
+                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                kofiwidget2.draw();
+                setTimeout(() => {
+                    const kofiBtn = document.querySelector('.kofi-button');
+                    if (kofiBtn) {
+                        kofiBtn.classList.add('kofi-button-styled');
+                    }
+                }, 100);
+            };
+            document.body.appendChild(kofiScript);
+        }
     </script>
 </body>
 
