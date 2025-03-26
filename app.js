@@ -20,7 +20,7 @@ if("serviceWorker" in navigator) {
 async function Share() {
     if(navigator.share) {
         try {
-            // Use the existing comic image in the DOM
+            // Use the already loaded comic image in the DOM
             const comic = document.getElementById('comic');
             
             if (!comic.complete || comic.naturalHeight === 0) {
@@ -28,18 +28,61 @@ async function Share() {
                 return;
             }
             
-            console.log("Starting share process using loaded comic image...");
+            console.log("Starting share process using loaded comic...");
             
-            // Create a text description for the share
+            // Since the comic image is already loaded with CORS restrictions,
+            // we need to draw it onto a new canvas and create a shareable blob
+            const canvas = document.createElement('canvas');
+            canvas.width = comic.naturalWidth;
+            canvas.height = comic.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Get the image source URL first to check if it uses our CORS proxy
+            const imgSrc = comic.src;
             const shareText = `Garfield comic for ${formattedComicDate}`;
             
-            // Try to share with text and URL only
-            await navigator.share({
-                text: shareText + " - Shared from GarfieldApp",
-                url: 'https://garfieldapp.pages.dev'
-            });
-            
-            console.log("Comic shared successfully with text!");
+            // Try to draw the image and create a blob for sharing
+            try {
+                // Draw the image on the canvas
+                ctx.drawImage(comic, 0, 0);
+                
+                // Try to export the canvas to a blob
+                const blob = await new Promise((resolve, reject) => {
+                    canvas.toBlob(blob => {
+                        if (blob) resolve(blob);
+                        else reject(new Error("Failed to create blob"));
+                    }, 'image/jpeg', 0.95);
+                    
+                    setTimeout(() => reject(new Error("Blob creation timeout")), 3000);
+                });
+                
+                // Create a file for sharing
+                const file = new File([blob], "garfield.jpg", { 
+                    type: "image/jpeg", 
+                    lastModified: Date.now() 
+                });
+                
+                // Share with the image
+                await navigator.share({
+                    text: shareText + " - Shared from GarfieldApp",
+                    url: 'https://garfieldapp.pages.dev',
+                    files: [file]
+                });
+                
+                console.log("Comic shared successfully with image!");
+            } catch (canvasError) {
+                // If we get a security error, the canvas is tainted due to CORS
+                console.error("Canvas security error:", canvasError);
+                
+                // Fallback to text-only sharing
+                console.log("Falling back to text-only sharing");
+                await navigator.share({
+                    text: shareText + " - Shared from GarfieldApp",
+                    url: 'https://garfieldapp.pages.dev'
+                });
+                
+                console.log("Comic shared successfully with text!");
+            }
         } catch (error) {
             console.error("Error sharing comic:", error);
             
