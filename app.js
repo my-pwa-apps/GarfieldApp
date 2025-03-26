@@ -34,58 +34,86 @@ async function Share()
     
     if(navigator.share) {
         try {
-            // Directly get the current image from the comic element
-            const comic = document.getElementById('comic');
+            console.log("Starting share process...");
             
-            // Check if the image is loaded
-            if (!comic.complete || comic.naturalHeight === 0) {
-                alert("Please wait for the comic to load completely.");
-                return;
-            }
+            // Create a new image element with crossOrigin set to anonymous 
+            // to avoid tainted canvas issues
+            const tempImg = new Image();
+            tempImg.crossOrigin = "anonymous";
             
-            console.log("Sharing current comic...");
+            // Create a URL with CORS proxy to load the image
+            const cacheBuster = Date.now();
+            const imgUrl = `https://corsproxy.io/?${encodeURIComponent(window.pictureUrl)}`;
+            console.log("Loading image for sharing via:", imgUrl);
             
-            // Create a canvas and draw the current image to it
+            // Wait for image to load
+            await new Promise((resolve, reject) => {
+                tempImg.onload = resolve;
+                tempImg.onerror = () => reject(new Error("Failed to load image for sharing"));
+                tempImg.src = imgUrl;
+                
+                // Set a timeout in case the image load hangs
+                setTimeout(() => reject(new Error("Image load timeout")), 5000);
+            });
+            
+            console.log("Image loaded successfully, converting to canvas...");
+            
+            // Create canvas and draw image
             const canvas = document.createElement('canvas');
-            canvas.width = comic.naturalWidth;
-            canvas.height = comic.naturalHeight;
+            canvas.width = tempImg.width;
+            canvas.height = tempImg.height;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(comic, 0, 0);
+            ctx.drawImage(tempImg, 0, 0);
             
-            // Convert to a JPEG blob
-            try {
-                const jpgBlob = await new Promise((resolve, reject) => {
-                    canvas.toBlob(resolve, 'image/jpeg', 0.95);
-                    // Add timeout to avoid hanging
-                    setTimeout(() => reject(new Error("Timed out creating blob")), 3000);
-                });
-                
-                if (!jpgBlob) {
-                    throw new Error("Failed to create image blob");
+            // Convert to blob
+            const jpgBlob = await new Promise((resolve, reject) => {
+                try {
+                    canvas.toBlob(blob => {
+                        if (blob) resolve(blob);
+                        else reject(new Error("Failed to create blob from canvas"));
+                    }, 'image/jpeg', 0.95);
+                } catch (error) {
+                    reject(error);
                 }
-                
-                // Create a file for sharing
-                const file = new File([jpgBlob], "garfield.jpg", { 
-                    type: "image/jpeg", 
-                    lastModified: new Date().getTime() 
-                });
-                
-                // Use the Web Share API directly with the image we already have
-                await navigator.share({
-                    url: 'https://garfieldapp.pages.dev',
-                    text: 'Shared from GarfieldApp',
-                    files: [file]
-                });
-                
-                console.log("Comic shared successfully!");
-            } catch (error) {
-                console.error("Error creating or sharing image:", error);
-                throw error; // Re-throw to be caught by outer catch
-            }
+            });
+            
+            console.log("Canvas converted to blob successfully");
+            
+            // Create file for sharing
+            const file = new File([jpgBlob], "garfield.jpg", { 
+                type: "image/jpeg", 
+                lastModified: Date.now() 
+            });
+            
+            // Share the file
+            console.log("Attempting to share file...");
+            await navigator.share({
+                url: 'https://garfieldapp.pages.dev',
+                text: 'Shared from GarfieldApp',
+                files: [file]
+            });
+            
+            console.log("Comic shared successfully!");
         } catch (error) {
             console.error("Error sharing comic:", error);
             
-            // Don't show alert if sharing was already completed or user canceled
+            // Check if this is a CORS-related error
+            if (error.name === 'SecurityError') {
+                // Try fallback sharing without the image
+                try {
+                    console.log("Trying fallback sharing without image...");
+                    await navigator.share({
+                        url: 'https://garfieldapp.pages.dev',
+                        text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
+                    });
+                    console.log("Fallback sharing successful!");
+                    return;
+                } catch (fallbackError) {
+                    console.error("Fallback sharing failed:", fallbackError);
+                }
+            }
+            
+            // Don't show alert if sharing was canceled by user
             if (error.name !== 'AbortError') {
                 alert("Failed to share the comic. Please try again.");
             }
