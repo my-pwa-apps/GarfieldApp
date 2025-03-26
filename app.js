@@ -295,7 +295,7 @@ function showComic() {
                 return response.text();
             })
             .then(text => {
-                siteBody = text;
+                const siteBody = text; // Fixed: Properly declare siteBody
                 
                 // Try multiple extraction methods in order of reliability
                 const extractionMethods = [
@@ -318,21 +318,21 @@ function showComic() {
                     () => {
                         const match = siteBody.match(/<img[^>]+src="([^"]+?asset[^"]+?)"[^>]*>/i);
                         return match ? match[1] : null;
-                    },
-                    // Method 5: Last resort - construct URL based on date
-                    () => {
-                        return `https://assets.amuniversal.com/garfield_${year}${month}${day}`;
                     }
                 ];
                 
                 // Try each extraction method in order
                 let pictureUrl = null;
-                for (let i = 0; i < extractionMethods.length; i++) {
-                    const url = extractionMethods[i]();
-                    if (url && !url.includes('favicon') && !url.includes('logo')) {
-                        pictureUrl = url;
-                        console.log(`Extraction method ${i+1} succeeded: ${pictureUrl}`);
-                        break;
+                for (let i = 0; i < extractionMethods.length && !pictureUrl; i++) {
+                    try {
+                        const url = extractionMethods[i]();
+                        if (url && !url.includes('favicon') && !url.includes('logo')) {
+                            pictureUrl = url;
+                            console.log(`Extraction method ${i+1} succeeded: ${pictureUrl}`);
+                            break;
+                        }
+                    } catch (e) {
+                        console.warn(`Extraction method ${i+1} failed:`, e);
                     }
                 }
                 
@@ -367,8 +367,7 @@ function showComic() {
                 
                 if (imageUrl !== APP_STATE.previousUrl) {
                     changeComicImage(imageUrl);
-                    
-                    // Add image load error handler
+                    // Add error handling for the image load
                     const comicImg = document.getElementById('comic');
                     comicImg.onerror = function() {
                         console.error(`Failed to load image: ${imageUrl}`);
@@ -382,7 +381,7 @@ function showComic() {
                 APP_STATE.previousUrl = imageUrl;
                 
                 // Update favorites heart
-                var favs = JSON.parse(localStorage.getItem('favs')) || [];
+                const favs = JSON.parse(localStorage.getItem('favs')) || [];
                 document.getElementById("favheart").src = 
                     (favs.indexOf(APP_STATE.formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
             })
@@ -392,42 +391,6 @@ function showComic() {
                 comic.alt = `Trying another source... (${currentProxyIndex + 1}/${CORS_PROXIES.length})`;
                 setTimeout(tryNextProxy, 500);
             });
-    }
-    
-    // Function to clear old comic cache entries to free up space
-    function clearOldComicCache() {
-        console.log("Clearing old comic cache entries");
-        const keysToKeep = [];
-        
-        // Get all cache keys
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key.startsWith('comic_')) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    keysToKeep.push({
-                        key,
-                        date: key.substring(6), // Extract the date part after 'comic_'
-                        timestamp: data.timestamp || 0
-                    });
-                } catch (e) {
-                    // If entry is corrupted, mark for removal by using old timestamp
-                    keysToKeep.push({
-                        key,
-                        date: key.substring(6),
-                        timestamp: 0
-                    });
-                }
-            }
-        }
-        
-        // Sort by timestamp (newest first) and keep only the 20 most recent
-        keysToKeep.sort((a, b) => b.timestamp - a.timestamp);
-        
-        // Remove older entries
-        for (let i = 20; i < keysToKeep.length; i++) {
-            localStorage.removeItem(keysToKeep[i].key);
-        }
     }
     
     // Start the proxy chain
@@ -953,12 +916,9 @@ function Addfav() {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Initialize app on DOMContentLoaded
+// Initialize settings when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize the app
+    // Initialize the app once
     initializeApp();
-    
-    // Run onload initialization
-    onLoad();
 });
 
