@@ -189,6 +189,7 @@ function RandomClick() {
 }
 
 // Comic display functions
+// Update changeComicImage to include a fallback mechanism
 function changeComicImage(newSrc) {
     console.log("Changing comic image to:", newSrc);
     const comic = document.getElementById('comic');
@@ -202,7 +203,8 @@ function changeComicImage(newSrc) {
 
     comic.onerror = () => {
         console.error("Failed to load comic image:", newSrc);
-        comic.alt = "Failed to load comic. Please try again later.";
+        comic.alt = "Failed to load comic. Displaying fallback image.";
+        comic.src = "./garfieldchristmas.png"; // Fallback image
     };
 
     comic.src = newSrc;
