@@ -19,6 +19,19 @@ if("serviceWorker" in navigator) {
 
 async function Share() 
 {
+    if(!window.pictureUrl) {
+        console.warn("No comic URL found in window.pictureUrl, checking previousUrl");
+        // Use previousUrl as fallback
+        window.pictureUrl = previousUrl;
+        
+        // If still no URL, show error
+        if(!window.pictureUrl) {
+            console.error("No comic URL available to share");
+            alert("No comic to share. Please try loading a comic first.");
+            return;
+        }
+    }
+    
     if(navigator.share) {
         try {
             // Define multiple CORS proxies to try in sequence
