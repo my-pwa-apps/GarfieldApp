@@ -898,7 +898,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallPromotion() {
     const installButton = document.createElement('button');
     installButton.innerText = 'Install App';
-    installButton.className = 'button';
+    installButton.className = 'button install-button';
     
     // Match button styling from the app, with more subtle font
     Object.assign(installButton.style, {
@@ -931,10 +931,36 @@ function showInstallPromotion() {
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
+        
+        /* Make install button responsive */
+        @media (min-width: 769px) {
+            .install-button {
+                position: fixed;
+                bottom: 20px !important;
+                right: 20px !important;
+            }
+        }
+        
+        /* Add margin at the bottom on desktop to prevent overlap */
+        @media (min-width: 769px) {
+            #settingsDIV {
+                margin-bottom: 80px;
+            }
+        }
     `;
     document.head.appendChild(style);
     
     document.body.appendChild(installButton);
+    
+    // Check if we're on desktop (wider screen)
+    const isDesktop = window.innerWidth >= 769;
+    if (isDesktop) {
+        // Add extra space at bottom of the page to prevent overlap
+        const extraSpace = document.createElement('div');
+        extraSpace.style.height = '70px';
+        extraSpace.style.width = '100%';
+        document.body.appendChild(extraSpace);
+    }
     
     installButton.addEventListener('click', () => {
         // Hide the app provided install promotion
