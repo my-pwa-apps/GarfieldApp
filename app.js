@@ -187,16 +187,18 @@ function RandomClick() {
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
-    
-    comic.onload = function() {
+
+    comic.onload = () => {
         comic.classList.remove('dissolve');
         handleImageLoad();
-        comic.onload = null;
     };
-    
-    setTimeout(() => {
-        comic.src = newSrc;
-    }, 500);
+
+    comic.onerror = () => {
+        console.error(`Failed to load image: ${newSrc}`);
+        comic.alt = "Failed to load comic. Please try again later.";
+    };
+
+    comic.src = newSrc;
 }
 
 // Settings functions
@@ -916,9 +918,11 @@ function Addfav() {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initializeApp);
 
-// Initialize settings when DOM loads
+// Ensure initializeApp is called only once
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize the app once
-    initializeApp();
+    if (!window.appInitialized) {
+        window.appInitialized = true;
+        initializeApp();
+    }
 });
 
