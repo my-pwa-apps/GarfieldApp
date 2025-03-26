@@ -21,18 +21,73 @@ async function Share()
 {
     if(navigator.share) {
         try {
-            // Properly encode and format the URL for the CORS proxy
-            const cacheBuster = new Date().getTime();
-            const comicurl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(window.pictureUrl)}`;
+            // Define multiple CORS proxies to try in sequence
+            const corsProxies = [
+                // Original proxy
+                url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${Date.now()}&url=${encodeURIComponent(url)}`,
+                // Alternative proxies
+                url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                // Try direct as last resort
+                url => url
+            ];
             
-            console.log("Sharing comic from URL:", comicurl);
+            console.log("Attempting to share comic from URL:", window.pictureUrl);
             
-            const response = await fetch(comicurl);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch comic: ${response.status}`);
+            // Try each proxy in sequence
+            let blob = null;
+            let proxyWorked = false;
+            
+            for (let i = 0; i < corsProxies.length; i++) {
+                try {
+                    const proxyUrl = corsProxies[i](window.pictureUrl);
+                    console.log(`Trying CORS proxy ${i + 1}/${corsProxies.length}: ${proxyUrl}`);
+                    
+                    // Add no-cors mode for CORS-restricted sources
+                    const fetchOptions = i < corsProxies.length - 1 ? {} : { mode: 'no-cors' };
+                    
+                    const response = await fetch(proxyUrl, fetchOptions);
+                    
+                    // Check for opaque response (from no-cors mode)
+                    if (response.type === 'opaque') {
+                        console.log("Got opaque response, using backup approach...");
+                        // For opaque responses, we can't access the blob directly
+                        // Create a temporary image and use canvas to capture it
+                        blob = await new Promise((resolve, reject) => {
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(img, 0, 0);
+                                canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                            };
+                            img.onerror = () => reject(new Error('Failed to load image'));
+                            img.src = proxyUrl;
+                            // Set a timeout to prevent hanging
+                            setTimeout(() => reject(new Error('Image load timeout')), 5000);
+                        });
+                    } else if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    } else {
+                        blob = await response.blob();
+                    }
+                    
+                    proxyWorked = true;
+                    break;
+                } catch (proxyError) {
+                    console.error(`Error with proxy ${i + 1}:`, proxyError);
+                    // Continue to next proxy
+                }
             }
             
-            const blob = await response.blob();
+            if (!proxyWorked || !blob) {
+                throw new Error("All proxies failed to fetch the comic");
+            }
+            
+            // Process the image and share it
             const img = await createImageBitmap(blob);
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
