@@ -20,23 +20,42 @@ if("serviceWorker" in navigator) {
 async function Share() 
 {
     if(navigator.share) {
-        comicurl = "https://corsproxy.garfieldapp.workers.dev/cors-proxy?"+pictureUrl+".png";
-        const response = await fetch(comicurl);
-        const blob = await response.blob();
-        const img = await createImageBitmap(blob);
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        try {
+            // Properly encode and format the URL for the CORS proxy
+            const cacheBuster = new Date().getTime();
+            const comicurl = `https://corsproxy.garfieldapp.workers.dev/cors-proxy?cacheBuster=${cacheBuster}&url=${encodeURIComponent(window.pictureUrl)}`;
+            
+            console.log("Sharing comic from URL:", comicurl);
+            
+            const response = await fetch(comicurl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch comic: ${response.status}`);
+            }
+            
+            const blob = await response.blob();
+            const img = await createImageBitmap(blob);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const jpgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
 
-        const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
-        navigator.share({
-            url: 'https://garfieldapp.pages.dev',
-            text: 'Shared from https://garfieldapp.pages.dev',
-            files: [file]
-        });
+            const file = new File([jpgBlob], "garfield.jpg", { type: "image/jpeg", lastModified: new Date().getTime() });
+            
+            await navigator.share({
+                url: 'https://garfieldapp.pages.dev',
+                text: 'Shared from https://garfieldapp.pages.dev',
+                files: [file]
+            });
+            
+            console.log("Comic shared successfully!");
+        } catch (error) {
+            console.error("Error sharing comic:", error);
+            alert("Failed to share the comic. Please try again.");
+        }
+    } else {
+        alert("Sharing is not supported on this device.");
     }
 }
 
