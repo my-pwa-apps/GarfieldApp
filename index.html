@@ -19,13 +19,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
-    
-    <!-- Preconnect to external domains -->
     <link rel="preconnect" href="https://assets.amuniversal.com">
-    
-    <!-- Critical scripts -->
-    <script src="./swiped-events.min.js"></script>
-    <script src="./app.js"></script>
 </head>
 
 <body>
@@ -66,25 +60,30 @@
     </div>
     
     <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+        <label>
+            <input type="checkbox" id="swipe">
+            <span class="labels">Swipe enabled</span>
+        </label>
+        <label>
+            <input type="checkbox" id="showfavs">
+            <span class="labels">Show only my favorites</span>
+        </label>
+        <label>
+            <input type="checkbox" id="lastdate">
+            <span class="labels">Remember last comic on exit/refresh</span>
+        </label>
     </div>
     
-    <!-- Scripts -->
+    <!-- Critical scripts -->
+    <script src="./swiped-events.min.js"></script>
+    <script src="./app.js"></script>
+    
     <script>
-        // Ensure DOM is loaded before initializing
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeAll);
-        } else {
-            initializeAll();
-        }
-
-        function initializeAll() {
-            // Initialize app
+        // Initialize app only once when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the app
+            initializeApp();
+            initializeEventHandlers();
             onLoad();
             
             // Initialize Ko-fi button
@@ -101,7 +100,7 @@
                 }, 100);
             };
             document.body.appendChild(kofiScript);
-        }
+        });
     </script>
 </body>
 
