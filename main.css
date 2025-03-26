@@ -1,6 +1,5 @@
 html {
     height: 100%;
-    /* Remove overflow: hidden that prevents scrolling */
 }
 
 body {
@@ -9,90 +8,51 @@ body {
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
-    background-color: orange;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
     width: 100%;
-    
-    /* Allow scrolling on desktop */
     overflow-y: auto;
 }
 
-/* Apply fixed layout only on mobile devices */
-@media (max-width: 768px) {
-    html {
-        overflow: hidden;
-    }
-    
-    body {
-        overflow: hidden;
-        position: fixed;
-        height: 100%;
-    }
-}
-
-main {
-    max-width: 900px;
-    margin: auto;
-    padding: 0.5rem;
-    text-align: center;
-}
-
+/* Base button styles */
 .button {
     margin: 5px;
     padding: 12px;
     text-align: center;
-    transition: 0.5s;
-    background-size: 200% auto;
     color: black;
     border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
-    font-size: 0.85rem; /* Slightly smaller font size */
+    font-weight: 500;
+    font-size: 0.85rem;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-size: 200% auto;
     cursor: pointer;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     min-width: 70px;
     height: auto;
-}
-
-.button:active {
-    transform: scale(0.95);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: 0.5s;
 }
 
 .button:hover {
     background-position: right center;
-    color: black;
-    text-decoration: none;
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
+.button:active {
+    transform: scale(0.95);
+}
+
 .button:disabled {
-    background-color: #f39700;
     opacity: 0.5;
-    color: black;
     box-shadow: none;
 }
 
-input {
-    margin: 5px;
-    padding: 10px;
-    appearance: none;
-    max-width: 100%;
-    font-size: 0.75rem;
-    box-sizing: border-box;
-    text-align: center;
-    border-radius: 10px;
-    opacity: 0.9;
-    background-color: #eee239;
-}
-
+/* Grid and layout */
 .buttongrid {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -103,6 +63,63 @@ input {
     box-sizing: border-box;
     width: 100%;
     margin: 0 auto;
+}
+
+.logo {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 0 16px;
+    margin: 0 auto;
+    max-width: 1200px;
+}
+
+.logo img {
+    width: 100%;
+    max-width: 95%;
+    margin: 25px auto 5px;
+    display: block;
+}
+
+/* Comic display styles */
+#comic-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+}
+
+#comic-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+#comic {
+    transition: opacity 1s ease-in-out;
+    opacity: 1;
+}
+
+#comic.dissolve {
+    opacity: 0;
+}
+
+.normal {
+    transform: rotate(0deg);
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    transition: all 0.3s ease;
 }
 
 .rotate {
@@ -124,68 +141,7 @@ input {
     border-radius: 5px;
 }
 
-.normal {
-    transform: rotate(0deg);
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    display: block;
-    margin: 0 auto;
-    transition: all 0.3s ease;
-}
-
-input[type="checkbox"], label {
-    float: left;
-    line-height: 1.6em;
-    height: 1.6em;
-    margin: 0 2px;
-    padding: 0;
-    font-size: small;
-}
-
-input[type=checkbox]:before {
-    content: "";
-    display: block;
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    top: 0;
-    left: 0;
-    border: 2px solid black;
-    border-radius: 5px;
-    background-color: #eee239;
-}
-
-input[type=checkbox]:checked:after {
-    content: "";
-    display: block;
-    width: 5px;
-    height: 10px;
-    border: solid black;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-    position: absolute;
-    top: 2px;
-    left: 6px;
-}
-
-input[type=checkbox] {
-    position: relative;
-    cursor: pointer;
-    clear: left;
-    margin-right: 25px;
-    margin-bottom: 20px;
-}
-
-#comic {
-    transition: opacity 1s ease-in-out;
-    opacity: 1;
-}
-
-#comic.dissolve {
-    opacity: 0;
-}
-
+/* Date picker styles */
 .date-input-container {
     position: relative;
     margin: 5px;
@@ -195,12 +151,6 @@ input[type=checkbox] {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     transition: 0.5s;
     overflow: hidden;
-}
-
-.date-input-container:hover {
-    background-position: right center;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
 }
 
 .date-center-wrapper {
@@ -227,7 +177,6 @@ input[type="date"] {
     text-align: center;
 }
 
-/* Remove default calendar icon but keep functionality */
 input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0;
     width: 100%;
@@ -238,114 +187,47 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-/* Specific center text */
 input[type="date"]::-webkit-datetime-edit {
     width: 100%;
     text-align: center;
 }
 
-/* Use a simpler approach for mobile */
-@media (max-width: 768px) {
-    input[type="date"] {
-        opacity: 0; /* Hide the visual input */
-    }
-    
-    .date-center-wrapper {
-        position: relative;
-    }
-    
-    /* Add a visible date display that matches the styling */
-    .date-center-wrapper::before {
-        content: attr(data-display-date);
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        font-weight: 500;
-        pointer-events: none;
-    }
-}
-
-.logo {
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-    padding: 0 16px; /* Add horizontal padding */
-    margin: 0 auto;
-    max-width: 1200px; /* Limit maximum width for very large screens */
-}
-
-.logo img {
-    width: 100%; /* Fill the container width */
-    max-width: 95%;
-    margin: 25px auto 5px;
-    display: block;
-}
-
-#comic-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0;
-    box-sizing: border-box;
+/* Checkbox styles */
+input[type="checkbox"] {
     position: relative;
-    overflow: hidden;
+    cursor: pointer;
+    clear: left;
+    margin-right: 25px;
+    margin-bottom: 20px;
 }
 
-#comic-container.fullscreen {
-    position: fixed;
+input[type="checkbox"]:before {
+    content: "";
+    display: block;
+    position: absolute;
+    width: 16px;
+    height: 16px;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(#eee239, orange) no-repeat fixed;
-    z-index: 999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+    border: 2px solid black;
+    border-radius: 5px;
+    background-color: #eee239;
 }
 
-#comic-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    transition: all 0.3s ease;
+input[type="checkbox"]:checked:after {
+    content: "";
+    display: block;
+    width: 5px;
+    height: 10px;
+    border: solid black;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    position: absolute;
+    top: 2px;
+    left: 6px;
 }
 
-#comic-container.fullscreen #comic-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#settingsDIV {
-    margin-top: 25px;
-    padding: 0 8px;
-}
-
-.hidden-during-fullscreen {
-    display: none !important;
-}
-
-#exit-fullscreen {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 1100;
-}
-
+/* Controls and settings */
 #controls-container {
     display: flex;
     justify-content: space-between;
@@ -374,10 +256,33 @@ input[type="date"]::-webkit-datetime-edit {
     margin-right: 0;
 }
 
-.kofi-button-styled {
-    position: relative;
-    top: 2px;
-    margin-left: 3px;
+#settingsDIV {
+    margin-top: 25px;
+    padding: 0 8px;
+}
+
+.labels {
+    float: left;
+    line-height: 1.6em;
+    height: 1.6em;
+    margin: 0 2px;
+    padding: 0;
+    font-size: small;
+}
+
+/* Fullscreen and vertical comic styles */
+.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
 }
 
 .vertical {
@@ -409,19 +314,61 @@ input[type="date"]::-webkit-datetime-edit {
     border-radius: 0 0 10px 10px;
 }
 
-.fullscreen-vertical {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    height: auto;
-    max-width: 95vw;
-    max-height: 90vh;
-    object-fit: contain;
-    margin: 0;
-    padding: 0;
-    z-index: 1000;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
+.hidden-during-fullscreen {
+    display: none !important;
+}
+
+/* Ko-fi button styling */
+.kofi-button-styled {
+    position: relative;
+    top: 2px;
+    margin-left: 3px;
+}
+
+/* Mobile specific styles */
+@media (max-width: 768px) {
+    html, body {
+        overflow: hidden;
+    }
+    
+    body {
+        position: fixed;
+        height: 100%;
+    }
+    
+    input[type="date"] {
+        opacity: 0;
+    }
+    
+    .date-center-wrapper {
+        position: relative;
+    }
+    
+    .date-center-wrapper::before {
+        content: attr(data-display-date);
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        font-weight: 500;
+        pointer-events: none;
+    }
+}
+
+/* Desktop specific styles */
+@media (min-width: 769px) {
+    .install-button {
+        position: fixed;
+        bottom: 20px !important;
+        right: 20px !important;
+    }
+    
+    #settingsDIV {
+        margin-bottom: 80px;
+    }
 }

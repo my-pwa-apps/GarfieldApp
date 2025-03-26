@@ -4,30 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
+    <meta name="keywords" content="today on garfield, comics by jim davis, garfield, gocomics, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, pwa, progressive, web, app, ios, android, windows">
     <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
     <meta name="msapplication-TileColor" content="#eee239">
     <meta name="theme-color" content="#eee239">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
     <title>Daily Garfield Comics</title>
+    
+    <!-- Stylesheets and icons -->
     <link rel="stylesheet" href="./main.css">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
+    
+    <!-- Preconnect to external domains -->
     <link rel="preconnect" href="https://assets.amuniversal.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <script src="./swiped-events.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    
+    <!-- Critical scripts -->
+    <script src="./swiped-events.min.js" defer></script>
+    <script src="https://storage.ko-fi.com/cdn/widget/Widget_2.js" defer></script>
 </head>
 
 <body onload="onLoad()">
     <h1 hidden>Daily Garfield Comics App</h1>
     
     <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
+        <img src="./garlogo.webp" alt="Daily Garfield Comics">
     </div>
     
     <div class="buttongrid">
@@ -43,30 +48,14 @@
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>
     </div>
     
-    <br>
-    
     <div id="comic-container">
         <div id="comic-wrapper">
-            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic from https://gocomics.com...">
+            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic...">
         </div>
     </div>
     
-    <br>
-    
     <div id="controls-container">
-        <div id="support-container">
-            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-            <script type='text/javascript'>
-                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                kofiwidget2.draw();
-                setTimeout(() => {
-                    const kofiBtn = document.querySelector('.kofi-button');
-                    if (kofiBtn) {
-                        kofiBtn.classList.add('kofi-button-styled');
-                    }
-                }, 100);
-            </script>
-        </div>
+        <div id="support-container"></div>
         <div id="action-buttons">
             <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
             <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
@@ -74,20 +63,30 @@
         </div>
     </div>
     
-    <br>
-    
     <div id="settingsDIV">
         <input type="checkbox" id="swipe" checked>
         <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
         <input type="checkbox" id="showfavs" checked>
         <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
     
+    <!-- Scripts -->
     <script src="./app.js" defer></script>
+    <script defer>
+        // Initialize Ko-fi button after DOM load
+        window.addEventListener('DOMContentLoaded', () => {
+            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+            kofiwidget2.draw();
+            setTimeout(() => {
+                const kofiBtn = document.querySelector('.kofi-button');
+                if (kofiBtn) {
+                    kofiBtn.classList.add('kofi-button-styled');
+                }
+            }, 100);
+        });
+    </script>
 </body>
 
 </html>
