@@ -381,11 +381,11 @@ function showComic() {
     comic.alt = "Loading comic...";
 
     // Define the URL for fetching comics from arcamax.com
-    const arcamaxUrl = `https://www.arcamax.com/thefunnies/garfield/s-${year}${month}${day}`;
+    const arcamaxBaseUrl = `https://www.arcamax.com/thefunnies/garfield`;
 
-    console.log("Fetching comic from:", arcamaxUrl);
+    console.log("Fetching comic from:", arcamaxBaseUrl);
 
-    fetch(arcamaxUrl)
+    fetch(arcamaxBaseUrl)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -394,14 +394,15 @@ function showComic() {
         })
         .then(html => {
             console.log("Successfully fetched HTML from arcamax.com.");
-            const imageUrl = extractComicUrlFromArcamax(html);
+            const comicId = extractComicIdFromArcamax(html, formattedDate);
 
-            if (imageUrl) {
-                console.log("Found comic URL:", imageUrl);
-                window.pictureUrl = imageUrl;
-                changeComicImage(imageUrl);
+            if (comicId) {
+                const comicUrl = `${arcamaxBaseUrl}/s-${comicId}`;
+                console.log("Found comic URL:", comicUrl);
+                window.pictureUrl = comicUrl;
+                changeComicImage(comicUrl);
             } else {
-                throw new Error("Could not extract comic URL from HTML.");
+                throw new Error("Could not extract comic ID from HTML.");
             }
         })
         .catch(error => {
@@ -410,13 +411,14 @@ function showComic() {
         });
 }
 
-function extractComicUrlFromArcamax(html) {
-    // Extract the comic image URL from the HTML of arcamax.com
-    const match = html.match(/<img[^>]+src=["']([^"']+garfield[^"']+)["']/i);
+function extractComicIdFromArcamax(html, date) {
+    // Extract the comic ID for the given date from the HTML of arcamax.com
+    const regex = new RegExp(`href=["']https://www\\.arcamax\\.com/thefunnies/garfield/s-(\\d+)["'].*?${date}`, 'i');
+    const match = html.match(regex);
     if (match && match[1]) {
         return match[1];
     }
-    console.warn("Failed to extract comic URL from arcamax.com HTML.");
+    console.warn("Failed to extract comic ID from arcamax.com HTML.");
     return null;
 }
 
