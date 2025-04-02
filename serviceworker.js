@@ -13,7 +13,13 @@ self.addEventListener("message", (event) => {
 workbox.routing.registerRoute(
   new RegExp('.*'),
   new workbox.strategies.StaleWhileRevalidate({
-    cacheName: CACHE_NAME
+    cacheName: CACHE_NAME,
+    plugins: [
+      new workbox.expiration.ExpirationPlugin({
+        maxEntries: 50, // Limit the number of cached entries
+        maxAgeSeconds: 7 * 24 * 60 * 60, // Cache for 7 days
+      }),
+    ],
   })
 );
 
@@ -65,7 +71,7 @@ self.addEventListener('fetch', (event) => {
 
         const cache = await caches.open(CACHE_NAME);
         const cachedResponse = await cache.match(OFFLINE_URL);
-        return cachedResponse;
+        return cachedResponse || new Response('Offline content unavailable.', { status: 503 });
       }
     })());
   }

@@ -529,24 +529,22 @@ function showComic() {
     }
     
     function tryGoComicsExtraction() {
-        // GoComics URL to fetch the comic page
         const gocomicsUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
         console.log("Trying GoComics extraction from:", gocomicsUrl);
-        
-        // Track which proxy we're using
+
         let currentProxyIndex = 0;
-        
+
         function tryWithNextProxy() {
             if (currentProxyIndex >= corsProxies.length) {
-                console.error("All proxies failed, trying alternative methods");
+                console.error("All proxies failed. Falling back to alternative methods.");
                 tryAlternativeSources();
                 return;
             }
-            
+
             const proxyFn = corsProxies[currentProxyIndex];
             const proxiedUrl = proxyFn(gocomicsUrl);
             console.log(`Trying with proxy ${currentProxyIndex + 1}:`, proxiedUrl);
-            
+
             fetch(proxiedUrl)
                 .then(response => {
                     if (!response.ok) {
@@ -555,111 +553,15 @@ function showComic() {
                     return response.text();
                 })
                 .then(html => {
-                    // NEW: Check for specific keys in HTML that identify asset IDs
-                    const assetKeys = [
-                        'asset_id',
-                        'assetId',
-                        'strip_id',
-                        'stripId',
-                        'image_path',
-                        'imagePath'
-                    ];
-                    
-                    // Search for each key in the HTML
-                    for (const key of assetKeys) {
-                        const regex = new RegExp(`["']?${key}["']?\\s*:\\s*["']([a-f0-9]{32})["']`, 'i');
-                        const match = html.match(regex);
-                        if (match && match[1]) {
-                            console.log(`Found ${key}:`, match[1]);
-                            const assetUrl = `https://featureassets.gocomics.com/assets/${match[1]}`;
-                            console.log("Constructed asset URL:", assetUrl);
-                            
-                            // Test if this URL works
-                            const testImg = new Image();
-                            testImg.onload = () => {
-                                console.log("Asset URL works!");
-                                window.pictureUrl = assetUrl;
-                                loadComicImage(assetUrl);
-                            };
-                            testImg.onerror = () => {
-                                console.log("Asset URL failed, continuing extraction");
-                                // Continue with regular extraction
-                            };
-                            testImg.src = assetUrl;
-                            
-                            // Brief delay before continuing with regular extraction
-                            // This gives the asset URL a chance to load
-                            setTimeout(() => {
-                                // Continue with regular extraction logic
-                                let imageUrl = extractComicUrl(html);
-                                if (imageUrl) {
-                                    // Fix protocol-relative URLs
-                                    if (imageUrl.startsWith('//')) {
-                                        imageUrl = 'https:' + imageUrl;
-                                    }
-                                    
-                                    console.log("Found comic URL:", imageUrl);
-                                    window.pictureUrl = imageUrl;
-                                    
-                                    // Use the same proxy for the image
-                                    const imgProxiedUrl = proxyFn(imageUrl);
-                                    loadComicImage(imgProxiedUrl);
-                                } else {
-                                    // If we couldn't find the URL, log some additional info for debugging
-                                    console.warn("Failed to extract comic URL, searching for clues...");
-                                    
-                                    // Look for meta tags which might help
-                                    const ogImageMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
-                                    if (ogImageMatch) {
-                                        console.log("Found og:image meta tag:", ogImageMatch[1]);
-                                        
-                                        // Try to use this URL
-                                        const ogImageUrl = ogImageMatch[1];
-                                        window.pictureUrl = ogImageUrl;
-                                        loadComicImage(proxyFn(ogImageUrl));
-                                        return;
-                                    }
-                                    
-                                    throw new Error("Could not find comic image URL in HTML");
-                                }
-                            }, 300);
-                            
-                            return;
-                        }
-                    }
-                    
-                    // If we didn't find any asset keys, continue with regular extraction
-                    let imageUrl = extractComicUrl(html);
-                    
+                    console.log("Successfully fetched HTML from proxy.");
+                    const imageUrl = extractComicUrl(html);
+
                     if (imageUrl) {
-                        // Fix protocol-relative URLs
-                        if (imageUrl.startsWith('//')) {
-                            imageUrl = 'https:' + imageUrl;
-                        }
-                        
                         console.log("Found comic URL:", imageUrl);
                         window.pictureUrl = imageUrl;
-                        
-                        // Use the same proxy for the image
-                        const imgProxiedUrl = proxyFn(imageUrl);
-                        loadComicImage(imgProxiedUrl);
+                        loadComicImage(imageUrl);
                     } else {
-                        // If we couldn't find the URL, log some additional info for debugging
-                        console.warn("Failed to extract comic URL, searching for clues...");
-                        
-                        // Look for meta tags which might help
-                        const ogImageMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
-                        if (ogImageMatch) {
-                            console.log("Found og:image meta tag:", ogImageMatch[1]);
-                            
-                            // Try to use this URL
-                            const ogImageUrl = ogImageMatch[1];
-                            window.pictureUrl = ogImageUrl;
-                            loadComicImage(proxyFn(ogImageUrl));
-                            return;
-                        }
-                        
-                        throw new Error("Could not find comic image URL in HTML");
+                        throw new Error("Could not extract comic URL from HTML.");
                     }
                 })
                 .catch(error => {
@@ -668,8 +570,7 @@ function showComic() {
                     tryWithNextProxy();
                 });
         }
-        
-        // Start with the first proxy
+
         tryWithNextProxy();
     }
 }
