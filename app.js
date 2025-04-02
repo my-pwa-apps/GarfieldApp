@@ -789,83 +789,57 @@ function showInstallPromotion() {
     });
 }
 
-// Apply rotated view with state tracking
-function applyRotatedView() {
+// Add status handling
+function setStatus(message) {
     const comic = document.getElementById('comic');
-    const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
-    const controlsDiv = document.querySelector('#controls-container');
-    
-    // Set rotation state
-    isRotatedMode = true;
-    
-    comic.className = "rotate";
-    container.classList.add('fullscreen');
-    
-    // Hide install button if present
-    const installButtons = document.querySelectorAll('button');
-    installButtons.forEach(button => {
-        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-            button.style.display = 'none';
-        }
-    });
-    
-    // Hide other UI elements
-    elementsToHide.forEach(el => {
-        el.classList.add('hidden-during-fullscreen');
-    });
-    
-    if (controlsDiv) {
-        controlsDiv.classList.add('hidden-during-fullscreen');
-    }
-    
-    // Force recalculation of position for better centering
-    setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-    }, 50);
-}
-
-// Exit rotated view with state tracking
-function exitRotatedView() {
-    const comic = document.getElementById('comic');
-    const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
-    const controlsDiv = document.querySelector('#controls-container');
-    
-    // Reset rotation state
-    isRotatedMode = false;
-    
-    comic.className = 'normal';
-    container.classList.remove('fullscreen');
-    
-    // Show install button again if present
-    const installButtons = document.querySelectorAll('button');
-    installButtons.forEach(button => {
-        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-            button.style.display = '';
-        }
-    });
-    
-    // Show UI elements again
-    elementsToHide.forEach(el => {
-        el.classList.remove('hidden-during-fullscreen');
-    });
-    
-    if (controlsDiv) {
-        controlsDiv.classList.remove('hidden-during-fullscreen');
+    if (comic) {
+        comic.alt = message;
     }
 }
 
-// Clean up the Rotate function to use our new state-aware functions
-function Rotate() {
-    const comic = document.getElementById('comic');
-    
-    if (comic.className === "normal") {
-        // Switch to rotated view
-        applyRotatedView();
-    } else {
-        // Switch back to normal view
-        exitRotatedView();
+// Create handler object
+const handlers = {
+    async onLoad() {
+        try {
+            if (document.getElementById('lastdate')?.checked) {
+                const savedDate = localStorage.getItem('lastDate');
+                if (savedDate) {
+                    await this.loadComicForDate(new Date(savedDate));
+                    return;
+                }
+            }
+            await this.CurrentClick();
+        } catch (error) {
+            setStatus('Failed to load comic');
+            console.error(error);
+        }
+    },
+    // ...existing handlers...
+};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    // Remove inline handlers and add event listeners
+    const elements = {
+        'Previous': handlers.PreviousClick,
+        'Random': handlers.RandomClick,
+        'Next': handlers.NextClick,
+        'First': handlers.FirstClick,
+        'Today': handlers.CurrentClick,
+        'DatePicker': handlers.DateChange,
+        'comic': handlers.Rotate
+    };
+
+    for (const [id, handler] of Object.entries(elements)) {
+        document.getElementById(id)?.addEventListener('click', () => handler.call(handlers));
     }
-}
+
+    // Start loading
+    handlers.onLoad().catch(error => {
+        setStatus('Failed to initialize');
+        console.error(error);
+    });
+});
+
+export default handlers;
 
