@@ -291,6 +291,29 @@ function onLoad() {
     // Initialize the URL pattern cache
     initUrlPatternCache();
 
+    // Restore last date checkbox setting from localStorage
+    const lastDateSetting = localStorage.getItem('lastdate');
+    if (lastDateSetting !== null) {
+        // Only set the checkbox if we have a saved preference
+        document.getElementById("lastdate").checked = lastDateSetting === 'true';
+    }
+    
+    // Add event listener to save lastdate preference when changed
+    document.getElementById("lastdate").addEventListener('change', function() {
+        localStorage.setItem('lastdate', this.checked);
+    });
+
+    // Add event listener for showfavs preference
+    document.getElementById("showfavs").addEventListener('change', function() {
+        localStorage.setItem('showfavs', this.checked);
+    });
+
+    // Restore favorites setting from localStorage
+    const showFavsSetting = localStorage.getItem('showfavs');
+    if (showFavsSetting !== null) {
+        document.getElementById("showfavs").checked = showFavsSetting === 'true';
+    }
+
     // Prevent clearing the date picker
     const datePicker = document.getElementById("DatePicker");
     datePicker.setAttribute("required", "required");
@@ -326,9 +349,11 @@ function onLoad() {
     today = `${year}-${month}-${day}`;
     document.getElementById("DatePicker").setAttribute("max", today);
 
+    // Only load the last comic if the setting is true
     if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic')) {
         currentselectedDate = new Date(localStorage.getItem('lastcomic'));
     }
+    
     CompareDates();
     showComic();
     updateDateDisplay(); // Add this line to update the display
@@ -1037,6 +1062,29 @@ function onLoad() {
     // Initialize the URL pattern cache
     initUrlPatternCache();
 
+    // Restore last date checkbox setting from localStorage
+    const lastDateSetting = localStorage.getItem('lastdate');
+    if (lastDateSetting !== null) {
+        // Only set the checkbox if we have a saved preference
+        document.getElementById("lastdate").checked = lastDateSetting === 'true';
+    }
+    
+    // Add event listener to save lastdate preference when changed
+    document.getElementById("lastdate").addEventListener('change', function() {
+        localStorage.setItem('lastdate', this.checked);
+    });
+
+    // Add event listener for showfavs preference
+    document.getElementById("showfavs").addEventListener('change', function() {
+        localStorage.setItem('showfavs', this.checked);
+    });
+
+    // Restore favorites setting from localStorage
+    const showFavsSetting = localStorage.getItem('showfavs');
+    if (showFavsSetting !== null) {
+        document.getElementById("showfavs").checked = showFavsSetting === 'true';
+    }
+
     // Prevent clearing the date picker
     const datePicker = document.getElementById("DatePicker");
     datePicker.setAttribute("required", "required");
@@ -1072,9 +1120,11 @@ function onLoad() {
     today = `${year}-${month}-${day}`;
     document.getElementById("DatePicker").setAttribute("max", today);
 
+    // Only load the last comic if the setting is true
     if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic')) {
         currentselectedDate = new Date(localStorage.getItem('lastcomic'));
     }
+    
     CompareDates();
     showComic();
     updateDateDisplay(); // Add this line to update the display
