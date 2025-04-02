@@ -27,7 +27,7 @@
     <script src="./app.js"></script>
 </head>
 
-<body onload="onLoad()">
+<body>
     <h1 hidden>Daily Garfield Comics App</h1>
     
     <div class="logo">
@@ -91,6 +91,13 @@
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
     
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (window.onLoad) {
+                await window.onLoad();
+            }
+        });
+    </script>
 </body>
 
 </html>
