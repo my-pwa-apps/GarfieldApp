@@ -279,10 +279,12 @@ function DateChange() {
 
 // Add this to update the display when showing a comic
 function showComic() {
+    const comicContainer = document.getElementById('comic-container');
     const comic = document.getElementById('comic');
     const message = "Unfortunately, GoComics.com has moved to a paywall/signup option, so I can no longer extract the comics from their website.";
-    
-    // Display the message instead of the comic
+    const additionalMessage = "I will see if I can find a workaround, but for now the app is no longer working.";
+
+    // Hide the comic image
     comic.alt = message;
     comic.src = ""; // Clear the comic image
     comic.style.display = "none"; // Hide the comic image
@@ -292,6 +294,10 @@ function showComic() {
     if (!messageContainer) {
         messageContainer = document.createElement('div');
         messageContainer.id = 'comic-message';
+        messageContainer.style.display = 'flex';
+        messageContainer.style.flexDirection = 'column';
+        messageContainer.style.justifyContent = 'center';
+        messageContainer.style.alignItems = 'center';
         messageContainer.style.textAlign = 'center';
         messageContainer.style.padding = '20px';
         messageContainer.style.fontSize = '1rem';
@@ -301,11 +307,21 @@ function showComic() {
         messageContainer.style.borderRadius = '10px';
         messageContainer.style.margin = '20px auto';
         messageContainer.style.maxWidth = '600px';
-        document.getElementById('comic-container').appendChild(messageContainer);
+        messageContainer.style.height = '100%'; // Fill the container height
+        comicContainer.appendChild(messageContainer);
     }
 
     // Set the message text
-    messageContainer.textContent = message;
+    messageContainer.innerHTML = `
+        <p>${message}</p>
+        <p>${additionalMessage}</p>
+    `;
+
+    // Center the message container within the comic container
+    comicContainer.style.display = 'flex';
+    comicContainer.style.justifyContent = 'center';
+    comicContainer.style.alignItems = 'center';
+    comicContainer.style.height = '100vh'; // Full viewport height
 }
 
 function PreviousClick() {
