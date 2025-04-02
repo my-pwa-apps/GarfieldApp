@@ -397,10 +397,9 @@ function showComic() {
             const comicId = extractComicIdFromArcamax(html, formattedDate);
 
             if (comicId) {
-                const comicUrl = `${arcamaxBaseUrl}/s-${comicId}`;
+                const comicUrl = `https://www.arcamax.com/thefunnies/garfield/s-${comicId}`;
                 console.log("Found comic URL:", comicUrl);
-                window.pictureUrl = comicUrl;
-                changeComicImage(comicUrl);
+                loadComicImage(comicUrl);
             } else {
                 throw new Error("Could not extract comic ID from HTML.");
             }
@@ -413,13 +412,21 @@ function showComic() {
 
 function extractComicIdFromArcamax(html, date) {
     // Extract the comic ID for the given date from the HTML of arcamax.com
-    const regex = new RegExp(`href=["']https://www\\.arcamax\\.com/thefunnies/garfield/s-(\\d+)["'].*?${date}`, 'i');
+    const regex = new RegExp(`href=["']https://www\\.arcamax\\.com/thefunnies/garfield/s-(\\d+)["']`, 'i');
     const match = html.match(regex);
     if (match && match[1]) {
+        console.log(`Extracted comic ID for ${date}:`, match[1]);
         return match[1];
     }
     console.warn("Failed to extract comic ID from arcamax.com HTML.");
     return null;
+}
+
+function loadComicImage(url) {
+    const comic = document.getElementById('comic');
+    comic.src = url;
+    comic.alt = "Garfield comic";
+    console.log("Comic image loaded:", url);
 }
 
 // Add these navigation functions
