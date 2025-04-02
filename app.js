@@ -375,414 +375,49 @@ function showComic() {
     formattedComicDate = year + "/" + month + "/" + day;
     document.getElementById('DatePicker').value = formattedDate;
     updateDateDisplay();
-    
+
     localStorage.setItem('lastcomic', currentselectedDate);
     const comic = document.getElementById('comic');
     comic.alt = "Loading comic...";
-    
-    // Define multiple CORS proxies to try in sequence
-    const corsProxies = [
-        // Original proxy
-        url => `https://corsproxy.garfieldapp.workers.dev/cors-proxy?${url}`,
-        // Alternative proxies
-        url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        // Try with more reliable proxies
-        url => `https://cors-anywhere.herokuapp.com/${url}`
-    ];
-    
-    // Check if this is a recent comic (within the last year)
-    const today = new Date();
-    const isRecentComic = new Date(year, parseInt(month)-1, parseInt(day)) > new Date(today.getFullYear()-1, today.getMonth(), today.getDate());
-    
-    // Check if we have a cached successful pattern for this date or nearby dates
-    const dateKey = `${year}${month}${day}`;
-    const cacheWindow = 7; // Check patterns from nearby dates within a week
-    
-    // Create base direct patterns
-    const basePatternsRecent = [
-        // New hash-based format (we can't predict the exact hash)
-        // But we can try the general pattern structure
-        `https://featureassets.gocomics.com/assets/`,
-        
-        // Previous formats we were trying
-        `https://featureassets.gocomics.com/garfield/${year}-${month}-${day}.jpg`,
-        `https://featureassets.gocomics.com/garfield/${year}/${month}/${day}.jpg`,
-        `https://featureassets.gocomics.com/garfield/features/assets/${year}${month}${day}.jpg`,
-        // Fix the TypeError by converting year to string before using substring
-        `https://picayune.uclick.com/comics/ga/${String(year).substring(2)}/ga${String(year).substring(2)}${month}${day}.gif`,
-        `https://www.gocomics.com/cci/images/webcomic/garfield/${year}${month}${day}.jpg`,
-        `https://assets.amuniversal.com/garfield/api/day?date=${year}-${month}-${day}`
-    ];
-    
-    const basePatternsOlder = [
-        // Older patterns first for older comics
-        `https://assets.amuniversal.com/garfield/strips/${year}/${month}/${day}.gif`,
-        `https://assets.amuniversal.com/${year}${month}${day}_gar.gif`,
-        // Fix the TypeError by converting year to string before using substring
-        `https://picayune.uclick.com/comics/ga/${String(year).substring(2)}/ga${String(year).substring(2)}${month}${day}.gif`,
-        `https://www.gocomics.com/cci/images/webcomic/garfield/${year}${month}${day}.jpg`,
-        `https://assets.amuniversal.com/garfield/api/day?date=${year}-${month}-${day}`
-    ];
-    
-    // Start with the appropriate base patterns based on comic age
-    let directPatterns = isRecentComic ? [...basePatternsRecent] : [...basePatternsOlder];
-    
-    // Add more sophisticated patterns for newer comics
-    if (isRecentComic) {
-        // Add pattern for the date-based asset format
-        const datePattern = `${year}${month}${day}`;
-        const additionalPatterns = [
-            // Date-based patterns (more common for recent comics)
-            `https://assets.amuniversal.com/${datePattern}_gar`,
-            `https://assets.amuniversal.com/c${datePattern}`,
-            `https://assets.amuniversal.com/g${datePattern}`,
-            `https://featureassets.gocomics.com/assets/${datePattern}`
-        ];
-        directPatterns = [...additionalPatterns, ...directPatterns];
-    }
-    
-    let cachedPatterns = [];
-    
-    // Try to find patterns that worked for nearby dates
-    for (let i = -cacheWindow; i <= cacheWindow; i++) {
-        const targetDate = new Date(currentselectedDate);
-        targetDate.setDate(targetDate.getDate() + i);
-        
-        const targetYear = targetDate.getFullYear();
-        const targetMonth = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const targetDay = String(targetDate.getDate()).padStart(2, '0');
-        const targetKey = `${targetYear}${targetMonth}${targetDay}`;
-        
-        if (successfulUrlPatterns[targetKey]) {
-            // Found a pattern that worked for a nearby date
-            const pattern = successfulUrlPatterns[targetKey];
-            // Adjust the pattern for our target date
-            const adjustedPattern = pattern
-                .replace(/\d{4}\/\d{2}\/\d{2}/, `${year}/${month}/${day}`)
-                .replace(/\d{8}/, dateKey);
-            
-            cachedPatterns.push(adjustedPattern);
-        }
-    }
-    
-    // Add these cached patterns to the front of our direct patterns
-    if (cachedPatterns.length > 0) {
-        directPatterns = [...cachedPatterns, ...directPatterns];
-    }
-    
-    // Function to handle successful pattern
-    function handleDirectPatternSuccess(directUrl) {
-        console.log("Direct URL pattern success!");
-        // Cache this successful pattern for future use
-        successfulUrlPatterns[dateKey] = directUrl;
-        
-        // Save the cache to localStorage for persistence
-        try {
-            localStorage.setItem('urlPatternCache', JSON.stringify(successfulUrlPatterns));
-        } catch (e) {
-            console.warn("Failed to save URL pattern cache:", e);
-        }
-        
-        window.pictureUrl = directUrl;
-        changeComicImage(directUrl);
-        
-        // Update favorites display
-        var favs = JSON.parse(localStorage.getItem('favs')) || [];
-        document.getElementById("favheart").src = 
-            (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
-    }
-    
-    // Try a few patterns directly without proxies, if they work it's faster
-    tryDirectPatterns();
-    
-    function tryDirectPatterns() {
-        let currentDirectIndex = 0;
-        
-        function tryNextDirectPattern() {
-            if (currentDirectIndex >= directPatterns.length) {
-                console.log("Direct patterns failed, falling back to HTML extraction");
-                tryGoComicsExtraction();
-                return;
+
+    // Define the URL for fetching comics from arcamax.com
+    const arcamaxUrl = `https://www.arcamax.com/thefunnies/garfield/s-${year}${month}${day}`;
+
+    console.log("Fetching comic from:", arcamaxUrl);
+
+    fetch(arcamaxUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
-            
-            const directUrl = directPatterns[currentDirectIndex];
-            console.log(`Trying direct URL pattern ${currentDirectIndex + 1}:`, directUrl);
-            
-            // Test if image loads directly
-            const testImg = new Image();
-            testImg.onload = function() {
-                handleDirectPatternSuccess(directUrl);
-            };
-            
-            testImg.onerror = function() {
-                currentDirectIndex++;
-                tryNextDirectPattern();
-            };
-            
-            // Try loading the image
-            testImg.src = directUrl;
-        }
-        
-        // Start with direct patterns
-        tryNextDirectPattern();
-    }
-    
-    function tryGoComicsExtraction() {
-        const gocomicsUrl = `https://www.gocomics.com/garfield/${formattedComicDate}`;
-        console.log("Trying GoComics extraction from:", gocomicsUrl);
+            return response.text();
+        })
+        .then(html => {
+            console.log("Successfully fetched HTML from arcamax.com.");
+            const imageUrl = extractComicUrlFromArcamax(html);
 
-        let currentProxyIndex = 0;
-
-        function tryWithNextProxy() {
-            if (currentProxyIndex >= corsProxies.length) {
-                console.error("All proxies failed. Falling back to alternative methods.");
-                tryAlternativeSources();
-                return;
+            if (imageUrl) {
+                console.log("Found comic URL:", imageUrl);
+                window.pictureUrl = imageUrl;
+                changeComicImage(imageUrl);
+            } else {
+                throw new Error("Could not extract comic URL from HTML.");
             }
-
-            const proxyFn = corsProxies[currentProxyIndex];
-            const proxiedUrl = proxyFn(gocomicsUrl);
-            console.log(`Trying with proxy ${currentProxyIndex + 1}:`, proxiedUrl);
-
-            fetch(proxiedUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.text();
-                })
-                .then(html => {
-                    console.log("Successfully fetched HTML from proxy.");
-                    const imageUrl = extractComicUrl(html);
-
-                    if (imageUrl) {
-                        console.log("Found comic URL:", imageUrl);
-                        window.pictureUrl = imageUrl;
-                        loadComicImage(imageUrl);
-                    } else {
-                        throw new Error("Could not extract comic URL from HTML.");
-                    }
-                })
-                .catch(error => {
-                    console.error(`Error with proxy ${currentProxyIndex + 1}:`, error);
-                    currentProxyIndex++;
-                    tryWithNextProxy();
-                });
-        }
-
-        tryWithNextProxy();
-    }
-}
-
-// Function to extract the comic URL from HTML using multiple patterns
-function extractComicUrl(html) {
-    // First check if we're hitting a signup wall
-    if (html.includes('create an account') || 
-        html.includes('sign up') || 
-        html.includes('subscribe now') || 
-        html.includes('premium content')) {
-        console.log("Detected signup/paywall page, attempting direct access strategies");
-    }
-    
-    // Log a snippet of the HTML for debugging
-    console.log("HTML snippet for debugging:", html.substring(0, 500));
-    
-    // NEW: Look specifically for asset URLs in the page (common GoComics pattern)
-    const assetMatch = html.match(/["']https:\/\/assets\.amuniversal\.com\/[a-f0-9]{32}["']/i) || 
-                       html.match(/["']https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}["']/i);
-    
-    if (assetMatch) {
-        const url = assetMatch[0].replace(/['"]/g, '');
-        console.log("Found main asset URL:", url);
-        return url;
-    }
-    
-    // NEW: Check specifically for the comic content image tag
-    const imgContentMatch = html.match(/<img[^>]+id=["']?content-cartoon["']?[^>]+src=["']([^"']+)["']/i);
-    if (imgContentMatch && imgContentMatch[1]) {
-        console.log("Found content-cartoon image:", imgContentMatch[1]);
-        return imgContentMatch[1];
-    }
-    
-    // NEW: Look for metadata in structured data
-    const structuredDataMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/i);
-    if (structuredDataMatch && structuredDataMatch[1]) {
-        try {
-            const jsonData = JSON.parse(structuredDataMatch[1]);
-            if (jsonData.image && jsonData.image.url) {
-                console.log("Found structured data image URL:", jsonData.image.url);
-                return jsonData.image.url;
-            }
-        } catch (e) {
-            console.warn("Failed to parse structured data:", e);
-        }
-    }
-    
-    // NEW: Look for asset ID in script tags
-    const assetIdMatch = html.match(/asset_id\s*:\s*["']([a-f0-9]{32})["']/i);
-    if (assetIdMatch && assetIdMatch[1]) {
-        const assetId = assetIdMatch[1];
-        console.log("Found asset ID:", assetId);
-        return `https://featureassets.gocomics.com/assets/${assetId}`;
-    }
-    
-    // Try existing extraction patterns
-    const extractionPatterns = [
-        // NEW: Match featureassets.gocomics.com with precise pattern
-        /["']https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}["']/i,
-        
-        // NEW: Match any featureassets.gocomics.com path
-        /["']https:\/\/featureassets\.gocomics\.com\/[^"'\s]+["']/i,
-        
-        // Previous patterns
-        /https:\/\/featureassets\.gocomics\.com\/[^"'\s]+\.(gif|jpg|jpeg|png)(\?[^"'\s]+)?/i,
-        
-        // Check for any image with comic in the class name
-        /<img[^>]*class="[^"]*comic[^"]*"[^>]*src="([^"]+)"/i,
-        
-        // Check for any image with comic as ID
-        /<img[^>]*id="[^"]*comic[^"]*"[^>]*src="([^"]+)"/i,
-        
-        // Check data attributes which often contain image URLs
-        /<img[^>]*data-image="([^"]+)"[^>]*>/i,
-        /<img[^>]*data-src="([^"]+)"[^>]*>/i,
-        /<img[^>]*data-srcset="([^"]+)"[^>]*>/i,
-        
-        // Look for og:image meta tag
-        /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
-        
-        // Look for any image URL in JSON 
-        /"image"\s*:\s*"(https:\/\/[^"]+)"/i
-    ];
-    
-    // Try each pattern and return the first match
-    for (let i = 0; i < extractionPatterns.length; i++) {
-        const match = html.match(extractionPatterns[i]);
-        if (match) {
-            // Get URL - either the first capture group or the whole match
-            const url = match[1] || match[0];
-            
-            // Skip URLs containing probable non-comic images
-            if (url.includes('favicon') || 
-                url.includes('logo') || 
-                url.includes('missing') ||
-                url.includes('placeholder')) {
-                console.log(`Skipping non-comic URL (pattern ${i+1}):`, url);
-                continue;
-            }
-            
-            console.log(`Found comic URL with pattern ${i+1}:`, url);
-            return url;
-        }
-    }
-    
-    // For debugging: Log a portion of the HTML to see what we're working with
-    console.log("HTML sample for debugging:", html.substring(0, 1000));
-    
-    // Look for any JSON blocks that might contain the image URL
-    const jsonBlocks = html.match(/\{[^\{]*?"image"[^\}]*?\}/g) || [];
-    if (jsonBlocks.length > 0) {
-        console.log("Found JSON blocks with 'image' property:", jsonBlocks);
-        for (const block of jsonBlocks) {
-            const urlMatch = block.match(/"(https:\/\/[^"]+)"/);
-            if (urlMatch && urlMatch[1]) {
-                console.log("Extracted URL from JSON:", urlMatch[1]);
-                return urlMatch[1];
-            }
-        }
-    }
-    
-    return null;
-}
-
-function tryAlternativeSources() {
-    console.log("Trying alternative comic sources...");
-    const comic = document.getElementById('comic');
-    comic.alt = "Trying alternative sources...";
-    
-    // For newer comics, try these alternative URLs with special formatting
-    const alternativeBaseUrls = [
-        // NEW: Latest comics domain
-        `https://featureassets.gocomics.com/garfield/${year}-${month}-${day}.jpg`,
-        `https://featureassets.gocomics.com/garfield/${year}/${month}/${day}.jpg`,
-        // Then try other established patterns
-        `https://cdn.gocomics.org/i/comics/ck/production/content/garfield/content-${year}-${month}-${day}.jpg`,
-        // Universal Uclick has some comics
-        `https://www.universaluclick.com/comics/strip/${year}/garfield/${year}${month}${day}.jpg`,
-        // Another assets pattern
-        `https://assets.gocomics.com/content-${year}-${month}-${day}.jpg`,
-        // Try with different date formatting
-        `https://assets.amuniversal.com/${year}/${month}/${day}/garfield.jpg`
-    ];
-    
-    let alternativeIndex = 0;
-    
-    function tryNextAlternative() {
-        if (alternativeIndex >= alternativeBaseUrls.length) {
+        })
+        .catch(error => {
+            console.error("Error fetching comic from arcamax.com:", error);
             comic.alt = "Comic not found. Please try another date.";
-            return;
-        }
-        
-        const altUrl = alternativeBaseUrls[alternativeIndex];
-        console.log(`Trying alternative URL ${alternativeIndex + 1}:`, altUrl);
-        
-        // Try loading the image
-        const testImg = new Image();
-        testImg.onload = function() {
-            console.log("Alternative URL success!");
-            window.pictureUrl = altUrl;
-            changeComicImage(altUrl);
-            
-            // Update favorites display
-            var favs = JSON.parse(localStorage.getItem('favs')) || [];
-            document.getElementById("favheart").src = 
-                (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
-        };
-        
-        testImg.onerror = function() {
-            alternativeIndex++;
-            tryNextAlternative();
-        };
-        
-        testImg.src = altUrl;
-    }
-    
-    tryNextAlternative();
+        });
 }
 
-// Helper function to load a comic image
-function loadComicImage(url) {
-    console.log("Loading comic image:", url);
-    
-    // Create a temporary image to check if it loads
-    const tempImg = new Image();
-    
-    tempImg.onload = function() {
-        console.log("Comic image loaded successfully");
-        if (url !== previousUrl) {
-            changeComicImage(url);
-        } else if (previousclicked) {
-            PreviousClick();
-        }
-        
-        previousclicked = false;
-        previousUrl = url;
-        
-        // Update favorites display
-        var favs = JSON.parse(localStorage.getItem('favs')) || [];
-        document.getElementById("favheart").src = 
-            (favs.indexOf(formattedComicDate) === -1) ? "./heartborder.svg" : "./heart.svg";
-    };
-    
-    tempImg.onerror = function() {
-        console.error("Failed to load comic image:", url);
-        // Don't reference currentProxyIndex which is not in this scope
-        // Instead, try alternate sources directly
-        tryAlternativeSources();
-    };
-    
-    tempImg.src = url;
+function extractComicUrlFromArcamax(html) {
+    // Extract the comic image URL from the HTML of arcamax.com
+    const match = html.match(/<img[^>]+src=["']([^"']+garfield[^"']+)["']/i);
+    if (match && match[1]) {
+        return match[1];
+    }
+    console.warn("Failed to extract comic URL from arcamax.com HTML.");
+    return null;
 }
 
 // Add these navigation functions
