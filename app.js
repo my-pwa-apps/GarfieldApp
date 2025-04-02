@@ -360,6 +360,229 @@ function onLoad() {
 }
 
 // Call this function when the date changes
+async function DateChange() {
+    const date = new Date(document.getElementById('DatePicker').value);
+    await loadComicForDate(date);
+}
+
+async function RandomClick() {
+    await loadRandomComic();
+}
+
+async function CurrentClick() {
+    await loadComicForDate(new Date());
+}
+
+async function PreviousClick() {
+    const currentDate = parseArcamaxDate(document.getElementById('DatePicker').value);
+    currentDate.setDate(currentDate.getDate() - 1);
+    await loadComicForDate(currentDate);
+}
+
+async function NextClick() {
+    const currentDate = parseArcamaxDate(document.getElementById('DatePicker').value);
+    currentDate.setDate(currentDate.getDate() + 1);
+    await loadComicForDate(currentDate);
+}
+
+async function FirstClick() {
+    const firstDate = new Date(1978, 5, 19); // June 19, 1978
+    await loadComicForDate(firstDate);
+}
+
+async function onLoad() {
+    if (document.getElementById('lastdate').checked) {
+        const savedDate = localStorage.getItem('lastDate');
+        if (savedDate) {
+            await loadComicForDate(new Date(savedDate));
+            return;
+        }
+    }
+    await CurrentClick();
+}
+
+// Add this function to handle the rotate action referenced in the HTML
+function Rotate() {
+    const comic = document.getElementById('comic');
+    
+    if (comic.className === "normal") {
+        // Switch to rotated view
+        applyRotatedView();
+    } else {
+        // Switch back to normal view
+        exitRotatedView();
+    }
+}
+
+// Apply rotated view with state tracking
+function applyRotatedView() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Set rotation state
+    isRotatedMode = true;
+    
+    comic.className = "rotate";
+    container.classList.add('fullscreen');
+    
+    // Hide install button if present
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = 'none';
+        }
+    });
+    
+    // Hide other UI elements
+    elementsToHide.forEach(el => {
+        el.classList.add('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.add('hidden-during-fullscreen');
+    }
+    
+    // Force recalculation of position for better centering
+    setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+    }, 50);
+}
+
+// Exit rotated view with state tracking
+function exitRotatedView() {
+    const comic = document.getElementById('comic');
+    const container = document.getElementById('comic-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const controlsDiv = document.querySelector('#controls-container');
+    
+    // Reset rotation state
+    isRotatedMode = false;
+    
+    comic.className = 'normal';
+    container.classList.remove('fullscreen');
+    
+    // Show install button again if present
+    const installButtons = document.querySelectorAll('button');
+    installButtons.forEach(button => {
+        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
+            button.style.display = '';
+        }
+    });
+    
+    // Show UI elements again
+    elementsToHide.forEach(el => {
+        el.classList.remove('hidden-during-fullscreen');
+    });
+    
+    if (controlsDiv) {
+        controlsDiv.classList.remove('hidden-during-fullscreen');
+    }
+}
+
+// Add a URL pattern cache to remember successful patterns
+let successfulUrlPatterns = {};
+
+// Initialize pattern cache from localStorage when page loads
+function initUrlPatternCache() {
+    try {
+        const cachedPatterns = localStorage.getItem('urlPatternCache');
+        if (cachedPatterns) {
+            successfulUrlPatterns = JSON.parse(cachedPatterns);
+            console.log("Loaded URL pattern cache with", Object.keys(successfulUrlPatterns).length, "patterns");
+        }
+    } catch (e) {
+        console.warn("Failed to load URL pattern cache:", e);
+        successfulUrlPatterns = {};
+    }
+}
+
+// Function that will be called when the page loads
+function onLoad() {
+    var favs = JSON.parse(localStorage.getItem('favs')) || [];
+
+    // Set minimum body height at load time to prevent gradient shift
+    document.body.style.minHeight = "100vh";
+
+    // Set proper body overflow to prevent scrolling
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+
+    // Initialize the URL pattern cache
+    initUrlPatternCache();
+
+    // Restore last date checkbox setting from localStorage
+    const lastDateSetting = localStorage.getItem('lastdate');
+    if (lastDateSetting !== null) {
+        // Only set the checkbox if we have a saved preference
+        document.getElementById("lastdate").checked = lastDateSetting === 'true';
+    }
+    
+    // Add event listener to save lastdate preference when changed
+    document.getElementById("lastdate").addEventListener('change', function() {
+        localStorage.setItem('lastdate', this.checked);
+    });
+
+    // Add event listener for showfavs preference
+    document.getElementById("showfavs").addEventListener('change', function() {
+        localStorage.setItem('showfavs', this.checked);
+    });
+
+    // Restore favorites setting from localStorage
+    const showFavsSetting = localStorage.getItem('showfavs');
+    if (showFavsSetting !== null) {
+        document.getElementById("showfavs").checked = showFavsSetting === 'true';
+    }
+
+    // Prevent clearing the date picker
+    const datePicker = document.getElementById("DatePicker");
+    datePicker.setAttribute("required", "required");
+    
+    // Add event listener to prevent emptying the date
+    datePicker.addEventListener('change', function(e) {
+        if (!this.value) {
+            // If cleared, reset to current date
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            this.value = `${yyyy}-${mm}-${dd}`;
+        }
+    });
+
+    if (document.getElementById("showfavs").checked) {
+        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        if (!favs.length) {
+            document.getElementById("showfavs").checked = false;
+            document.getElementById("showfavs").disabled = true;
+        }
+    } else {
+        currentselectedDate = new Date();
+        if (!favs.length) {
+            document.getElementById("showfavs").checked = false;
+            document.getElementById("showfavs").disabled = true;
+        }
+        document.getElementById("Next").disabled = true;
+        document.getElementById("Today").disabled = true;
+    }
+    formatDate(new Date());
+    today = `${year}-${month}-${day}`;
+    document.getElementById("DatePicker").setAttribute("max", today);
+
+    // Only load the last comic if the setting is true
+    if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic')) {
+        currentselectedDate = new Date(localStorage.getItem('lastcomic'));
+    }
+    
+    CompareDates();
+    showComic();
+    updateDateDisplay(); // Add this line to update the display
+}
+
+// Call this function when the date changes
 function DateChange() {
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = new Date(currentselectedDate.value);
