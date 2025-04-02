@@ -91,11 +91,10 @@
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
     
-    <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            if (window.onLoad) {
-                await window.onLoad();
-            }
+    <script type="module">
+        import { initialize } from './init.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            initialize().catch(console.error);
         });
     </script>
 </body>
