@@ -21,10 +21,10 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="./swiped-events.min.js"></script>
-    <script src="./dateUtils.js"></script>
-    <script src="./scraper.js"></script>
-    <script src="./comicLoader.js"></script>
-    <script src="./app.js"></script>
+    <script src="./dateUtils.js" type="module"></script>
+    <script src="./scraper.js" type="module"></script>
+    <script src="./comicLoader.js" type="module"></script>
+    <script src="./app.js" type="module"></script>
 </head>
 
 <body>
@@ -90,13 +90,6 @@
         <input type="checkbox" id="lastdate" checked>
         <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
     </div>
-    
-    <script type="module">
-        import { initialize } from './init.js';
-        document.addEventListener('DOMContentLoaded', () => {
-            initialize().catch(console.error);
-        });
-    </script>
 </body>
 
 </html>
