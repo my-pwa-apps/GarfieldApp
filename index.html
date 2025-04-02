@@ -35,16 +35,16 @@
     </div>
     
     <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
+        <button class="button" id="Previous">Previous</button>
+        <button class="button" id="Random">Random</button>
+        <button class="button" id="Next">Next</button>
+        <button class="button" id="First">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+                <input id="DatePicker" type="date" min="1978-06-19">
             </div>
         </div>
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+        <button class="button" id="Today">Today</button>
     </div>
     
     <br>
@@ -72,9 +72,9 @@
             </script>
         </div>
         <div id="action-buttons">
-            <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
-            <img onclick="Share()" src="./share.svg" alt="Share" class="action-icon">
+            <img id="settings" src="./tune.svg" alt="Settings" class="action-icon">
+            <img id="favheart" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
+            <img id="share" src="./share.svg" alt="Share" class="action-icon">
         </div>
     </div>
     
