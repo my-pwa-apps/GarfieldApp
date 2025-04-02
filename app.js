@@ -530,17 +530,80 @@ function showComic() {
                     return response.text();
                 })
                 .then(html => {
-                    // Look for specific patterns in the HTML that might indicate where the comic image is
-                    const assetIndexStart = html.indexOf('featureassets.gocomics.com/assets/');
-                    if (assetIndexStart > -1) {
-                        console.log("Found asset URL reference at position:", assetIndexStart);
-                        // Extract 100 characters around this position for debugging
-                        const context = html.substring(Math.max(0, assetIndexStart - 50), 
-                                                     Math.min(html.length, assetIndexStart + 150));
-                        console.log("URL context:", context);
+                    // NEW: Check for specific keys in HTML that identify asset IDs
+                    const assetKeys = [
+                        'asset_id',
+                        'assetId',
+                        'strip_id',
+                        'stripId',
+                        'image_path',
+                        'imagePath'
+                    ];
+                    
+                    // Search for each key in the HTML
+                    for (const key of assetKeys) {
+                        const regex = new RegExp(`["']?${key}["']?\\s*:\\s*["']([a-f0-9]{32})["']`, 'i');
+                        const match = html.match(regex);
+                        if (match && match[1]) {
+                            console.log(`Found ${key}:`, match[1]);
+                            const assetUrl = `https://featureassets.gocomics.com/assets/${match[1]}`;
+                            console.log("Constructed asset URL:", assetUrl);
+                            
+                            // Test if this URL works
+                            const testImg = new Image();
+                            testImg.onload = () => {
+                                console.log("Asset URL works!");
+                                window.pictureUrl = assetUrl;
+                                loadComicImage(assetUrl);
+                            };
+                            testImg.onerror = () => {
+                                console.log("Asset URL failed, continuing extraction");
+                                // Continue with regular extraction
+                            };
+                            testImg.src = assetUrl;
+                            
+                            // Brief delay before continuing with regular extraction
+                            // This gives the asset URL a chance to load
+                            setTimeout(() => {
+                                // Continue with regular extraction logic
+                                let imageUrl = extractComicUrl(html);
+                                if (imageUrl) {
+                                    // Fix protocol-relative URLs
+                                    if (imageUrl.startsWith('//')) {
+                                        imageUrl = 'https:' + imageUrl;
+                                    }
+                                    
+                                    console.log("Found comic URL:", imageUrl);
+                                    window.pictureUrl = imageUrl;
+                                    
+                                    // Use the same proxy for the image
+                                    const imgProxiedUrl = proxyFn(imageUrl);
+                                    loadComicImage(imgProxiedUrl);
+                                } else {
+                                    // If we couldn't find the URL, log some additional info for debugging
+                                    console.warn("Failed to extract comic URL, searching for clues...");
+                                    
+                                    // Look for meta tags which might help
+                                    const ogImageMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
+                                    if (ogImageMatch) {
+                                        console.log("Found og:image meta tag:", ogImageMatch[1]);
+                                        
+                                        // Try to use this URL
+                                        const ogImageUrl = ogImageMatch[1];
+                                        window.pictureUrl = ogImageUrl;
+                                        loadComicImage(proxyFn(ogImageUrl));
+                                        return;
+                                    }
+                                    
+                                    throw new Error("Could not find comic image URL in HTML");
+                                }
+                            }, 300);
+                            
+                            return;
+                        }
                     }
                     
-                    // Try to extract the comic image URL using updated patterns
+                    // If we didn't find any asset keys, continue with regular extraction
                     let imageUrl = extractComicUrl(html);
                     
                     if (imageUrl) {
@@ -588,41 +651,83 @@ function showComic() {
 
 // Function to extract the comic URL from HTML using multiple patterns
 function extractComicUrl(html) {
-    // Try different extraction patterns, ordered from most to least specific
+    // First check if we're hitting a signup wall
+    if (html.includes('create an account') || 
+        html.includes('sign up') || 
+        html.includes('subscribe now') || 
+        html.includes('premium content')) {
+        console.log("Detected signup/paywall page, attempting direct access strategies");
+    }
+    
+    // Log a snippet of the HTML for debugging
+    console.log("HTML snippet for debugging:", html.substring(0, 500));
+    
+    // NEW: Look specifically for asset URLs in the page (common GoComics pattern)
+    const assetMatch = html.match(/["']https:\/\/assets\.amuniversal\.com\/[a-f0-9]{32}["']/i) || 
+                       html.match(/["']https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}["']/i);
+    
+    if (assetMatch) {
+        const url = assetMatch[0].replace(/['"]/g, '');
+        console.log("Found main asset URL:", url);
+        return url;
+    }
+    
+    // NEW: Check specifically for the comic content image tag
+    const imgContentMatch = html.match(/<img[^>]+id=["']?content-cartoon["']?[^>]+src=["']([^"']+)["']/i);
+    if (imgContentMatch && imgContentMatch[1]) {
+        console.log("Found content-cartoon image:", imgContentMatch[1]);
+        return imgContentMatch[1];
+    }
+    
+    // NEW: Look for metadata in structured data
+    const structuredDataMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/i);
+    if (structuredDataMatch && structuredDataMatch[1]) {
+        try {
+            const jsonData = JSON.parse(structuredDataMatch[1]);
+            if (jsonData.image && jsonData.image.url) {
+                console.log("Found structured data image URL:", jsonData.image.url);
+                return jsonData.image.url;
+            }
+        } catch (e) {
+            console.warn("Failed to parse structured data:", e);
+        }
+    }
+    
+    // NEW: Look for asset ID in script tags
+    const assetIdMatch = html.match(/asset_id\s*:\s*["']([a-f0-9]{32})["']/i);
+    if (assetIdMatch && assetIdMatch[1]) {
+        const assetId = assetIdMatch[1];
+        console.log("Found asset ID:", assetId);
+        return `https://featureassets.gocomics.com/assets/${assetId}`;
+    }
+    
+    // Try existing extraction patterns
     const extractionPatterns = [
-        // NEW: Match the specific asset hash format shown in the example
-        /https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/i,
+        // NEW: Match featureassets.gocomics.com with precise pattern
+        /["']https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}["']/i,
         
-        // NEW: Match any featureassets.gocomics.com with /assets/ path
-        /https:\/\/featureassets\.gocomics\.com\/assets\/[^"'\s]+/i,
+        // NEW: Match any featureassets.gocomics.com path
+        /["']https:\/\/featureassets\.gocomics\.com\/[^"'\s]+["']/i,
         
         // Previous patterns
         /https:\/\/featureassets\.gocomics\.com\/[^"'\s]+\.(gif|jpg|jpeg|png)(\?[^"'\s]+)?/i,
         
-        // NEW: Look for URLs in JSON data which often contains the comic URL
-        /"image"\s*:\s*"(https:\/\/[^"]+)"/i,
-        /"content"\s*:\s*"(https:\/\/[^"]+)"/i,
+        // Check for any image with comic in the class name
+        /<img[^>]*class="[^"]*comic[^"]*"[^>]*src="([^"]+)"/i,
         
-        // Look for data-image attribute which often has the full URL in newer layouts
-        /<img[^>]*data-image="([^"]+)"[^>]*class="[^"]*comic[^"]*"[^>]*>/i,
+        // Check for any image with comic as ID
+        /<img[^>]*id="[^"]*comic[^"]*"[^>]*src="([^"]+)"/i,
         
-        // Match data-srcset attribute - used in responsive layouts
-        /<picture[^>]*>.*?<img[^>]*data-srcset="([^"]+)"[^>]*>.*?<\/picture>/is,
+        // Check data attributes which often contain image URLs
+        /<img[^>]*data-image="([^"]+)"[^>]*>/i,
+        /<img[^>]*data-src="([^"]+)"[^>]*>/i,
+        /<img[^>]*data-srcset="([^"]+)"[^>]*>/i,
         
-        // Updated classic pattern - match any img with src containing assets.amuniversal.com
-        /<img[^>]*src="(https?:\/\/assets\.amuniversal\.com[^"]+)"[^>]*>/i,
+        // Look for og:image meta tag
+        /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i,
         
-        // Look in the og:image meta tag which often contains the comic
-        /<meta\s+property="og:image"\s+content="([^"]+)"/i,
-        
-        // Match JSON data that might contain the image URL
-        /content['"]?\s*:\s*['"]?(https:\/\/[^'"]+\.(gif|jpg|jpeg|png))/i,
-        
-        // Look for any image URL in a class containing 'comic'
-        /<[^>]*class="[^"]*comic[^"]*"[^>]*>.*?<img[^>]*src="([^"]+)"[^>]*>/is,
-        
-        // Very generic catch-all for any image URL
-        /https:\/\/[^"'\s]+\.(gif|jpg|jpeg|png)(\?[^"'\s]+)?/i
+        // Look for any image URL in JSON 
+        /"image"\s*:\s*"(https:\/\/[^"]+)"/i
     ];
     
     // Try each pattern and return the first match
@@ -745,9 +850,10 @@ function loadComicImage(url) {
     };
     
     tempImg.onerror = function() {
-        console.error("Failed to load image:", url);
-        currentProxyIndex++;
-        tryWithNextProxy();
+        console.error("Failed to load comic image:", url);
+        // Don't reference currentProxyIndex which is not in this scope
+        // Instead, try alternate sources directly
+        tryAlternativeSources();
     };
     
     tempImg.src = url;
