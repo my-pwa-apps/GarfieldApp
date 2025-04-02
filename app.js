@@ -1,3 +1,5 @@
+import { extractGoComicsImage } from './comicExtractor.js';
+
 //garfieldapp.pages.dev
 
 // Global variables for app functionality
@@ -213,6 +215,29 @@ function updateDateDisplay() {
     }
 }
 
+async function loadComic(date) {
+    try {
+        // Try GoComics first
+        const imageUrl = await extractGoComicsImage(date);
+        if (imageUrl) {
+            document.getElementById('comic').src = imageUrl;
+            return true;
+        }
+        
+        // Fallback to other sources if needed
+        const arcamaxComic = await getGarfieldComic(date);
+        if (arcamaxComic.success) {
+            document.getElementById('comic').src = arcamaxComic.imageUrl;
+            return true;
+        }
+        
+        throw new Error('Comic not available from any source');
+    } catch (error) {
+        console.error('Failed to load comic:', error);
+        return false;
+    }
+}
+
 function onLoad() {
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
@@ -328,7 +353,7 @@ function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
 		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);}}
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);} }
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
@@ -341,7 +366,7 @@ function NextClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
 		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);}}
+			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);} }
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
@@ -436,7 +461,7 @@ function CompareDates() {
 			document.getElementById("Random").disabled = true;
 			document.getElementById("Previous").disabled = true;
 			document.getElementById("First").disabled = true;
-		}}
+		} }
 	else {
 		document.getElementById("Random").disabled = false;}
 }
@@ -451,23 +476,23 @@ function formatDate(datetoFormat) {
 
 document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
-		RandomClick()}
+		RandomClick() }
 })
 
 document.addEventListener('swiped-right', function(e) {
 	if(document.getElementById("swipe").checked) {
-		PreviousClick()}
+		PreviousClick() }
 })
 
 
 document.addEventListener('swiped-left', function(e) {
 	if(document.getElementById("swipe").checked) {
-		NextClick()}
+		NextClick() }
 })
 
 document.addEventListener('swiped-up', function(e) {
 	if(document.getElementById("swipe").checked) {
-		CurrentClick()}
+		CurrentClick() }
 })
 
 setStatus = document.getElementById('swipe');
