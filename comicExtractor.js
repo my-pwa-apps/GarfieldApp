@@ -2,13 +2,14 @@ import goComicsAuth from './auth.js';
 
 // Function to parse comic from HTML
 function parseComicFromHTML(html, proxyIndex) {
-    // Debug: log a snippet of the HTML
-    console.log(`Received ${html.length} characters from ${proxyIndex === 0 ? 'direct fetch' : `proxy ${proxyIndex}`}`);
+    const source = proxyIndex === 0 ? 'direct fetch' : `proxy ${proxyIndex}`;
+    console.log(`Received ${html.length} characters from ${source}`);
+    
+    // Always log snippet for debugging
+    console.log(`HTML snippet from ${source}:`, html.substring(0, 500));
     
     // Log a sample to see the structure
     if (html.length > 1000) {
-        console.log('HTML snippet (first 1000 chars):', html.substring(0, 1000));
-        
         const imgSample = html.match(/<img[^>]{0,200}>/gi);
         if (imgSample && imgSample.length > 0) {
             console.log('Found img tags:', imgSample.slice(0, 5));
@@ -18,6 +19,8 @@ function parseComicFromHTML(html, proxyIndex) {
             const amuniversalUrls = html.match(/https:\/\/[^\s"']*amuniversal\.com[^\s"']*/gi);
             if (amuniversalUrls) {
                 console.log('Found amuniversal URLs:', amuniversalUrls.slice(0, 3));
+            } else {
+                console.log('No amuniversal URLs found either');
             }
         }
     }
