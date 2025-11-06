@@ -31,17 +31,49 @@
         <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
     
-    <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
+    <!-- Modern Draggable Toolbar -->
+    <div class="toolbar-container">
+        <div class="toolbar">
+            <button class="toolbar-button" id="First" onclick="FirstClick()" title="First comic" aria-label="First">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+            </button>
+            <button class="toolbar-button" id="Previous" onclick="PreviousClick()" title="Previous comic" aria-label="Previous">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="toolbar-button" id="Random" onclick="RandomClick()" title="Random comic" aria-label="Random">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+                    <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
+                    <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
+                    <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="toolbar-button" id="Next" onclick="NextClick()" title="Next comic" aria-label="Next">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div class="toolbar-button toolbar-datepicker-btn" title="Select date" aria-label="Choose date">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="2"/></svg>
+                <input id="DatePicker" class="toolbar-datepicker" oninput="DateChange()" type="date" min="1978-06-19" title="Select date" aria-label="Date" />
+            </div>
+            <button class="toolbar-button" id="Today" onclick="CurrentClick()" title="Today's comic" aria-label="Today">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Keep old buttongrid hidden for backwards compatibility -->
+    <div class="buttongrid buttongrid-hidden">
+        <button class="button" id="Previous-old" onclick="PreviousClick()">Previous</button>
+        <button class="button" id="Random-old" onclick="RandomClick()">Random</button>
+        <button class="button" id="Next-old" onclick="NextClick()">Next</button>
+        <button class="button" id="First-old" onclick="FirstClick()">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+                <input id="DatePicker-old" oninput="DateChange()" type="date" min="1978-06-19">
             </div>
         </div>
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+        <button class="button" id="Today-old" onclick="CurrentClick()">Today</button>
     </div>
     
     <br>
@@ -77,16 +109,25 @@
     
     <br>
     
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
-        <br>
+    <div id="settingsDIV" class="settings-panel" role="region" aria-label="Settings">
+        <div class="settings-header" id="settingsHeader">
+            <h3>Settings</h3>
+            <button class="settings-close" onclick="HideSettings()" aria-label="Close">&times;</button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <input type="checkbox" id="swipe" checked>
+                <label for="swipe" class="labels">Swipe enabled</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="showfavs">
+                <label for="showfavs" class="labels">Show only my favorites</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="lastdate" checked>
+                <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+            </div>
+        </div>
     </div>
     
 </body>

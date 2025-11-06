@@ -88,6 +88,224 @@ const UTILS = {
 };
 
 // ========================================
+// UI UTILITIES
+// ========================================
+
+/**
+ * Makes an element draggable by its header
+ * @param {HTMLElement} element - The element to make draggable
+ * @param {string} headerSelector - CSS selector for the drag handle
+ * @param {string} storageKey - localStorage key for position persistence
+ */
+function makeDraggable(element, headerSelector, storageKey) {
+  const header = element.querySelector(headerSelector);
+  if (!header) return;
+  
+  let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  
+  // Load saved position from localStorage
+  const savedPos = localStorage.getItem(storageKey);
+  if (savedPos) {
+    try {
+      const { top, left } = JSON.parse(savedPos);
+      element.style.top = top;
+      element.style.left = left;
+      element.style.transform = 'none'; // Override default centering
+    } catch (e) {
+      console.error('Failed to restore position:', e);
+    }
+  }
+  
+  header.onmousedown = dragMouseDown;
+  
+  function dragMouseDown(e) {
+    e = e || window.event;
+    
+    // Don't initiate drag if clicking on a button or interactive element
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+      return;
+    }
+    
+    e.preventDefault();
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    document.onmouseup = closeDragElement;
+    document.onmousemove = elementDrag;
+  }
+  
+  function elementDrag(e) {
+    e = e || window.event;
+    e.preventDefault();
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    
+    const newTop = (element.offsetTop - pos2);
+    const newLeft = (element.offsetLeft - pos1);
+    
+    element.style.top = newTop + "px";
+    element.style.left = newLeft + "px";
+    element.style.transform = 'none'; // Remove centering transform
+  }
+  
+  function closeDragElement() {
+    document.onmouseup = null;
+    document.onmousemove = null;
+    
+    // Save position to localStorage
+    const position = {
+      top: element.style.top,
+      left: element.style.left
+    };
+    localStorage.setItem(storageKey, JSON.stringify(position));
+  }
+}
+
+/**
+ * Positions toolbar centered between logo and comic
+ * @param {HTMLElement} toolbar - The toolbar element
+ * @param {boolean} savePosition - Whether to save the position
+ */
+function positionToolbarCentered(toolbar, savePosition = false) {
+  if (!toolbar || toolbar.offsetHeight === 0) return;
+  
+  const logo = document.querySelector('.logo');
+  const comic = document.getElementById('comic');
+  
+  if (!logo || !comic) return;
+  
+  const logoRect = logo.getBoundingClientRect();
+  const comicRect = comic.getBoundingClientRect();
+  const toolbarHeight = toolbar.offsetHeight;
+  
+  const logoBottom = logoRect.bottom;
+  const comicTop = comicRect.top;
+  const availableSpace = comicTop - logoBottom;
+  
+  // Center vertically with minimum 15px gap
+  const topPosition = Math.max(logoBottom + 15, logoBottom + (availableSpace - toolbarHeight) / 2);
+  
+  // Center horizontally
+  const leftPosition = (window.innerWidth - toolbar.offsetWidth) / 2;
+  
+  toolbar.style.top = topPosition + 'px';
+  toolbar.style.left = leftPosition + 'px';
+  toolbar.style.transform = 'none';
+  
+  if (savePosition) {
+    const position = { top: topPosition, left: leftPosition };
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(position));
+    } catch (e) {
+      console.error('Failed to save toolbar position:', e);
+    }
+  }
+}
+
+/**
+ * Keeps toolbar within viewport bounds on resize
+ */
+function clampToolbarInView() {
+  const toolbar = document.querySelector('.toolbar');
+  if (!toolbar) return;
+  
+  const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+  const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
+  
+  if (!hasSavedPosition) {
+    positionToolbarCentered(toolbar);
+    return;
+  }
+  
+  const hasExplicitPosition = toolbar.style.top && toolbar.style.left;
+  if (!hasExplicitPosition) return;
+  
+  const rect = toolbar.getBoundingClientRect();
+  let top = parseFloat(toolbar.style.top);
+  let left = parseFloat(toolbar.style.left);
+  const maxLeft = window.innerWidth - rect.width;
+  const maxTop = window.innerHeight - rect.height;
+  let changed = false;
+  
+  if (left < 0) { left = 0; changed = true; }
+  if (top < 0) { top = 0; changed = true; }
+  if (left > maxLeft) { left = Math.max(0, maxLeft); changed = true; }
+  if (top > maxTop) { top = Math.max(0, maxTop); changed = true; }
+  
+  if (changed) {
+    toolbar.style.left = left + 'px';
+    toolbar.style.top = top + 'px';
+    try {
+      localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify({ top, left }));
+    } catch (e) {
+      console.error('Failed to save toolbar position:', e);
+    }
+  }
+}
+
+/**
+ * Initialize toolbar positioning and dragging
+ */
+function initializeToolbar() {
+  const toolbar = document.querySelector('.toolbar');
+  if (!toolbar) return;
+  
+  // Load saved position
+  const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+  const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+  
+  if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+    toolbar.style.top = savedPos.top + 'px';
+    toolbar.style.left = savedPos.left + 'px';
+    toolbar.style.transform = 'none';
+  } else {
+    // Position centered between logo and comic
+    const logo = document.querySelector('.logo');
+    if (logo) {
+      const logoRect = logo.getBoundingClientRect();
+      toolbar.style.top = (logoRect.bottom + 15) + 'px';
+      toolbar.style.left = '50%';
+      toolbar.style.transform = 'translateX(-50%)';
+    }
+    
+    // Position correctly after elements load
+    const tryPosition = () => {
+      toolbar.style.transform = 'none';
+      positionToolbarCentered(toolbar, false);
+    };
+    
+    const finalPosition = () => {
+      toolbar.style.transform = 'none';
+      positionToolbarCentered(toolbar, true);
+    };
+    
+    setTimeout(tryPosition, 0);
+    setTimeout(tryPosition, 50);
+    setTimeout(tryPosition, 100);
+    window.addEventListener('load', () => {
+      tryPosition();
+      setTimeout(tryPosition, 100);
+      setTimeout(finalPosition, 300);
+    });
+  }
+  
+  // Make toolbar draggable
+  makeDraggable(toolbar, toolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+  toolbar.style.cursor = 'grab';
+  
+  // Clamp on resize
+  window.addEventListener('resize', clampToolbarInView);
+}
+
+// Initialize toolbar when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeToolbar);
+} else {
+  initializeToolbar();
+}
+
+// ========================================
 // GLOBAL STATE
 // ========================================
 
@@ -372,14 +590,17 @@ function changeComicImage(newSrc) {
 }
 
 function HideSettings() {
-    var x = document.getElementById("settingsDIV");
-    if (x.style.display === "none" || x.style.display === "") {
-        x.style.display = "block";
-        localStorage.setItem('settings', "true");
-    } else {
-        x.style.display = "none";
+    const settingsPanel = document.getElementById("settingsDIV");
+    const isVisible = settingsPanel.classList.contains('visible');
+    
+    if (isVisible) {
+        settingsPanel.classList.remove('visible');
         localStorage.setItem('settings', "false");
+    } else {
+        settingsPanel.classList.add('visible');
+        localStorage.setItem('settings', "true");
     }
+    
     // Remove the fixed height that was causing scrolling
     document.body.style.minHeight = "";
 }
@@ -1093,13 +1314,20 @@ else
 }	
 
 getStatus = localStorage.getItem('settings');
-if (getStatus == "true")
-{
-	document.getElementById("settingsDIV").style.display = "block";
+const settingsPanel = document.getElementById("settingsDIV");
+if (getStatus == "true") {
+	settingsPanel.classList.add('visible');
+} else {
+	settingsPanel.classList.remove('visible');
 }
-else
-{
-	document.getElementById("settingsDIV").style.display = "none";
+
+// Initialize draggable settings panel
+makeDraggable(settingsPanel, '.settings-header', 'settingsPanelPosition');
+
+// Set up close button
+const closeButton = settingsPanel.querySelector('.settings-close');
+if (closeButton) {
+    closeButton.addEventListener('click', HideSettings);
 }
 
 // Set up app install prompt
