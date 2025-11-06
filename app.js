@@ -121,12 +121,20 @@ function makeDraggable(element, headerSelector, storageKey) {
   }
   
   header.onmousedown = dragMouseDown;
+  header.ontouchstart = dragTouchStart;
   
   function dragMouseDown(e) {
     e = e || window.event;
     
-    // Don't initiate drag if clicking on a button or interactive element
-    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+    // Don't initiate drag if clicking on a button, input, or interactive element
+    const target = e.target;
+    if (target.tagName === 'BUTTON' || 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'SELECT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.classList.contains('settings-close')) {
       return;
     }
     
@@ -135,6 +143,27 @@ function makeDraggable(element, headerSelector, storageKey) {
     pos4 = e.clientY;
     document.onmouseup = closeDragElement;
     document.onmousemove = elementDrag;
+  }
+  
+  function dragTouchStart(e) {
+    // Don't initiate drag if touching on a button, input, or interactive element
+    const target = e.target;
+    if (target.tagName === 'BUTTON' || 
+        target.tagName === 'INPUT' || 
+        target.tagName === 'SELECT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.closest('button') ||
+        target.closest('input') ||
+        target.classList.contains('settings-close')) {
+      return;
+    }
+    
+    if (e.touches && e.touches.length > 0) {
+      pos3 = e.touches[0].clientX;
+      pos4 = e.touches[0].clientY;
+      document.ontouchend = closeDragElement;
+      document.ontouchmove = elementTouchDrag;
+    }
   }
   
   function elementDrag(e) {
@@ -153,9 +182,28 @@ function makeDraggable(element, headerSelector, storageKey) {
     element.style.transform = 'none'; // Remove centering transform
   }
   
+  function elementTouchDrag(e) {
+    if (e.touches && e.touches.length > 0) {
+      e.preventDefault();
+      pos1 = pos3 - e.touches[0].clientX;
+      pos2 = pos4 - e.touches[0].clientY;
+      pos3 = e.touches[0].clientX;
+      pos4 = e.touches[0].clientY;
+      
+      const newTop = (element.offsetTop - pos2);
+      const newLeft = (element.offsetLeft - pos1);
+      
+      element.style.top = newTop + "px";
+      element.style.left = newLeft + "px";
+      element.style.transform = 'none';
+    }
+  }
+  
   function closeDragElement() {
     document.onmouseup = null;
     document.onmousemove = null;
+    document.ontouchend = null;
+    document.ontouchmove = null;
     
     // Save position to localStorage
     const position = {
