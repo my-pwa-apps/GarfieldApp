@@ -1758,10 +1758,26 @@ if (getStatus == "true") {
 // Initialize draggable settings panel
 makeDraggable(settingsPanel, '.settings-header', 'settingsPanelPosition');
 
-// Set up close button
-const closeButton = settingsPanel.querySelector('.settings-close');
+// Set up close button with strong event handling
+const closeButton = document.getElementById('settingsCloseBtn');
 if (closeButton) {
-    closeButton.addEventListener('click', HideSettings);
+    // Remove any existing onclick to avoid conflicts
+    closeButton.onclick = null;
+    
+    // Add event listeners that stop propagation to prevent drag interference
+    closeButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        HideSettings();
+    }, true); // Use capture phase
+    
+    closeButton.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    }, true);
+    
+    closeButton.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+    }, true);
 }
 
 // Set up app install prompt
