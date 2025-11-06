@@ -891,16 +891,15 @@ input[type="date"]::-webkit-datetime-edit {
     padding: 0 10px;
 }
 
-/* Settings icons container - positioned bottom right of comic */
+/* Settings icons container - positioned below comic, right-aligned */
 .settings-icons-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
+    position: relative;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 16px; /* Desktop: 16px gap */
-    z-index: 100;
+    padding: 15px 0;
+    width: 100%;
 }
 
 /* Icon buttons - Settings, Favorites, Share */
