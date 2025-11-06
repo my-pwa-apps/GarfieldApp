@@ -502,16 +502,19 @@ async function preloadComic(date) {
  * Handles image sharing, text fallbacks, and clipboard copying
  * @returns {Promise<void>}
  */
+/**
+ * Shares the current comic using Web Share API
+ * Handles image loading, CORS proxy, and canvas conversion
+ * @returns {Promise<void>}
+ */
 async function Share() 
 {
     if(!window.pictureUrl) {
-        console.warn("No comic URL found in window.pictureUrl, checking previousUrl");
         // Use previousUrl as fallback
         window.pictureUrl = previousUrl;
         
         // If still no URL, show error
         if(!window.pictureUrl) {
-            console.error("No comic URL available to share");
             alert("No comic to share. Please try loading a comic first.");
             return;
         }
@@ -1533,13 +1536,12 @@ function CompareDates() {
 		document.getElementById("Random").disabled = false;}
 }
 
-function formatDate(datetoFormat) {
-	day = datetoFormat.getDate();
-	month = datetoFormat.getMonth() + 1;
-	year = datetoFormat.getFullYear();
-	month = ("0" + month).slice(-2);
-	day = ("0" + day).slice(-2);
-}
+// Backward compatibility wrapper for formatDate
+const formatDate = (datetoFormat) => UTILS.formatDate(datetoFormat);
+
+// ========================================
+// SWIPE EVENT HANDLERS
+// ========================================
 
 document.addEventListener('swiped-down', function(e) {
 	if(document.getElementById("swipe").checked) {
