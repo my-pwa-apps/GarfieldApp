@@ -2,23 +2,221 @@ import { getAuthenticatedComic } from './comicExtractor.js';
 
 //garfieldapp.pages.dev
 
-// Global variables for app functionality
-let translationEnabled = localStorage.getItem('translation') === 'true';
-let userLanguage = navigator.language || navigator.userLanguage || 'en';
-let translationInProgress = false;
+// ========================================
+// CONFIGURATION & CONSTANTS
+// ========================================
+
+/**
+ * Centralized configuration object
+ * All magic numbers and constants in one place
+ */
+const CONFIG = Object.freeze({
+  // Timing constants
+  ROTATION_DEBOUNCE: 300,              // Debounce time for rotation in ms
+  SHARE_TIMEOUT: 5000,                 // Share image load timeout in ms
+  PRELOAD_DELAY: 500,                  // Delay before preloading adjacent comics in ms
+  
+  // Swipe & Touch constants
+  SWIPE_MIN_DISTANCE: 50,              // Minimum swipe distance in px
+  SWIPE_MAX_TIME: 500,                 // Maximum swipe time in ms
+  TAP_MAX_MOVEMENT: 10,                // Maximum movement for tap detection in px
+  TAP_MAX_TIME: 300,                   // Maximum time for tap detection in ms
+  
+  // Cache limits
+  MAX_PRELOAD_CACHE: 20,               // Maximum preloaded comics
+  
+  // Comic dates
+  COMIC_START_DATE: "1978-06-19",      // First Garfield comic date
+  
+  // Storage keys
+  STORAGE_KEYS: Object.freeze({
+    TRANSLATION: 'translation',
+    LAST_COMIC: 'lastcomic',
+    TOOLBAR_POS: 'mainToolbarPosition',
+    SETTINGS_POS: 'settingsPosition',
+    SWIPE: 'stat',
+    SHOW_FAVS: 'showfavs',
+    LAST_DATE: 'lastdate',
+    SETTINGS: 'settings',
+    FAVS: 'favs'
+  }),
+  
+  // CORS Proxies (from comicExtractor)
+  CORS_PROXIES: Object.freeze([
+    'https://corsproxy.garfieldapp.workers.dev/?',
+    'https://api.codetabs.com/v1/proxy?quest=',
+    'https://api.allorigins.win/raw?url='
+  ])
+});
+
+/**
+ * Utility Functions
+ */
+const UTILS = {
+  /**
+   * Safely parses JSON with fallback
+   * @param {string} str - JSON string to parse
+   * @param {*} fallback - Fallback value if parse fails
+   * @returns {*} Parsed value or fallback
+   */
+  safeJSONParse(str, fallback) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return fallback;
+    }
+  },
+  
+  /**
+   * Formats a date object into YYYY-MM-DD components
+   * @param {Date} datetoFormat - Date to format
+   * @returns {void} Sets global year, month, day variables
+   */
+  formatDate(datetoFormat) {
+    day = ("0" + datetoFormat.getDate()).slice(-2);
+    month = ("0" + (datetoFormat.getMonth() + 1)).slice(-2);
+    year = datetoFormat.getFullYear();
+  },
+  
+  /**
+   * Checks if device is mobile or touch-enabled
+   * @returns {boolean} True if mobile/touch device
+   */
+  isMobileOrTouch() {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }
+};
+
+// ========================================
+// GLOBAL STATE
+// ========================================
+
+// Comic state
+let pictureUrl;                  // Current comic image URL
+let formattedDate = '';          // Current formatted date for sharing (YYYY-MM-DD)
+let formattedComicDate = '';     // Date formatted for API calls
+let currentselectedDate;         // Currently selected date object
+let day, month, year;            // Date components
+
+// Navigation state
 let previousclicked = false;
 let previousUrl = "";
-let currentselectedDate;
-let day, month, year;
-let pictureUrl;
-let formattedComicDate;
-let formattedDate;
-let isRotatedMode = false; // Track if we're in rotated mode
+
+// UI state
+let translationEnabled = localStorage.getItem(CONFIG.STORAGE_KEYS.TRANSLATION) === 'true';
+let userLanguage = navigator.language || navigator.userLanguage || 'en';
+let translationInProgress = false;
+let isRotatedMode = false;       // Track if we're in rotated mode
+let isRotating = false;          // Debounce flag for rotation
+
+// Favorites cache
+let _cachedFavs = null;
+
+// ========================================
+// SERVICE WORKER REGISTRATION
+// ========================================
 
 if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
 }
 
+// ========================================
+// FAVORITES MANAGEMENT
+// ========================================
+
+/**
+ * Loads favorites from localStorage with caching
+ * @returns {Array<string>} Array of favorite comic dates
+ */
+function loadFavs() {
+  if (_cachedFavs !== null) {
+    return _cachedFavs;
+  }
+  const stored = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS);
+  _cachedFavs = stored ? UTILS.safeJSONParse(stored, []) : [];
+  return _cachedFavs;
+}
+
+/**
+ * Saves favorites to localStorage with deduplication
+ * @param {Array<string>} arr - Array of favorite dates to save
+ */
+function saveFavs(arr) {
+  const uniqueFavs = [...new Set(arr)].sort();
+  localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(uniqueFavs));
+  _cachedFavs = uniqueFavs;
+}
+
+/**
+ * Invalidates the favorites cache (forces reload from localStorage)
+ */
+function invalidateFavsCache() {
+  _cachedFavs = null;
+}
+
+// ========================================
+// COMIC PRELOADING
+// ========================================
+
+const MAX_PRELOAD_CACHE = CONFIG.MAX_PRELOAD_CACHE;
+let preloadedComics = new Map();
+
+/**
+ * Preloads adjacent comics for smoother navigation
+ */
+function preloadAdjacentComics() {
+  if (!currentselectedDate) return;
+  
+  // Clean up old preloaded comics if cache is full
+  if (preloadedComics.size >= MAX_PRELOAD_CACHE) {
+    const keysToDelete = Array.from(preloadedComics.keys()).slice(0, 5);
+    keysToDelete.forEach(key => preloadedComics.delete(key));
+  }
+  
+  // Preload previous comic
+  const prevDate = new Date(currentselectedDate);
+  prevDate.setDate(prevDate.getDate() - 1);
+  preloadComic(prevDate);
+  
+  // Preload next comic
+  const nextDate = new Date(currentselectedDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  preloadComic(nextDate);
+}
+
+/**
+ * Preloads a comic in the background
+ * @param {Date} date - Date of the comic to preload
+ */
+async function preloadComic(date) {
+  UTILS.formatDate(date);
+  const preloadKey = `${year}-${month}-${day}`;
+  
+  // Don't preload if already cached
+  if (preloadedComics.has(preloadKey)) return;
+  
+  try {
+    const result = await getAuthenticatedComic(date);
+    if (result.success && result.imageUrl) {
+      // Preload the actual image
+      const img = new Image();
+      img.onload = () => preloadedComics.set(preloadKey, result.imageUrl);
+      img.src = result.imageUrl;
+    }
+  } catch (error) {
+    // Silently fail for background preloading
+  }
+}
+
+// ========================================
+// SHARING FUNCTIONALITY
+// ========================================
+
+/**
+ * Shares the current comic using Web Share API with extensive fallbacks
+ * Handles image sharing, text fallbacks, and clipboard copying
+ * @returns {Promise<void>}
+ */
 async function Share() 
 {
     if(!window.pictureUrl) {
@@ -127,15 +325,20 @@ async function Share()
 
 window.Share = Share;
 
+// ========================================
+// FAVORITES & UI FUNCTIONS
+// ========================================
+
+/**
+ * Toggles favorite status for current comic
+ * Updates UI and localStorage
+ */
 function Addfav()
 {
     formattedComicDate = year + "/" + month + "/" + day;
-    var favs = JSON.parse(localStorage.getItem('favs'));
-    if(favs == null)
-    {
-        favs = [];
-    }
-    if(favs.indexOf(formattedComicDate) == -1)
+    let favs = loadFavs();
+    
+    if(!favs.includes(formattedComicDate))
     {
         favs.push(formattedComicDate);
         document.getElementById("favheart").src="./heart.svg";
@@ -143,7 +346,7 @@ function Addfav()
     }
     else
     {
-        favs.splice(favs.indexOf(formattedComicDate), 1);
+        favs = favs.filter(f => f !== formattedComicDate);
         document.getElementById("favheart").src="./heartborder.svg";
         if(favs.length === 0)
         {
@@ -152,8 +355,7 @@ function Addfav()
             document.getElementById("Today").innerHTML = 'Today';
         }
     }
-    favs.sort();
-    localStorage.setItem('favs', JSON.stringify(favs));
+    saveFavs(favs);
     CompareDates();
     showComic();
 }
@@ -236,15 +438,36 @@ function updateDateDisplay() {
     }
 }
 
+/**
+ * Loads and displays a comic for the given date
+ * @param {Date} date - The date of the comic to load
+ * @returns {Promise<boolean>} True if comic loaded successfully
+ */
 async function loadComic(date) {
+    const comicImg = document.getElementById('comic');
+    
     try {
+        // Show loading state
+        comicImg.classList.add('loading');
+        comicImg.classList.remove('loaded');
+        
         // Try GoComics with authentication
         const result = await getAuthenticatedComic(date);
         
         if (result.success && result.imageUrl) {
-            const comicImg = document.getElementById('comic');
-            comicImg.src = result.imageUrl;
-            comicImg.style.display = 'block';
+            // Preload image for smooth transition
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                comicImg.src = result.imageUrl;
+                comicImg.style.display = 'block';
+                comicImg.classList.remove('loading');
+                comicImg.classList.add('loaded');
+            };
+            tempImg.onerror = function() {
+                comicImg.classList.remove('loading');
+                throw new Error('Failed to load comic image');
+            };
+            tempImg.src = result.imageUrl;
             
             // Store the image URL for sharing
             window.pictureUrl = result.imageUrl;
@@ -255,11 +478,18 @@ async function loadComic(date) {
             if (messageContainer) {
                 messageContainer.style.display = 'none';
             }
+            
+            // Preload adjacent comics after a short delay
+            setTimeout(() => {
+                preloadAdjacentComics();
+            }, CONFIG.PRELOAD_DELAY);
+            
             return true;
         }
         
         // Handle paywall
         if (result.isPaywalled) {
+            comicImg.classList.remove('loading');
             showPaywallMessage();
             return false;
         }
@@ -267,6 +497,7 @@ async function loadComic(date) {
         throw new Error('Comic not available from any source');
     } catch (error) {
         console.error('Failed to load comic:', error);
+        comicImg.classList.remove('loading');
         showErrorMessage('Failed to load comic. Please try again.');
         return false;
     }
@@ -446,11 +677,22 @@ async function showComic() {
     await loadComic(currentselectedDate);
 }
 
+// ========================================
+// NAVIGATION FUNCTIONS
+// ========================================
+
+/**
+ * Navigates to the previous comic
+ * Handles both normal and favorites-only mode
+ */
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);} }
+		const favs = loadFavs();
+		const currentIndex = favs.indexOf(formattedComicDate);
+		if(currentIndex > 0){
+			currentselectedDate = new Date(favs[currentIndex - 1]);
+		}
+	}
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
@@ -461,11 +703,18 @@ function PreviousClick() {
 
 window.PreviousClick = PreviousClick;
 
+/**
+ * Navigates to the next comic
+ * Handles both normal and favorites-only mode
+ */
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);} }
+		const favs = loadFavs();
+		const currentIndex = favs.indexOf(formattedComicDate);
+		if(currentIndex < favs.length - 1){
+			currentselectedDate = new Date(favs[currentIndex + 1]);
+		}
+	}
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
@@ -475,12 +724,19 @@ function NextClick() {
 
 window.NextClick = NextClick;
 
+/**
+ * Navigates to the first comic
+ * In favorites mode, goes to first favorite
+ */
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
+		const favs = loadFavs();
+		if(favs.length > 0) {
+			currentselectedDate = new Date(favs[0]);
+		}
+	}
 	else{
-	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
+		currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
 	}
 	CompareDates();
 	showComic();
@@ -488,16 +744,22 @@ function FirstClick() {
 
 window.FirstClick = FirstClick;
 
+/**
+ * Navigates to the current/latest comic (today)
+ * In favorites mode, goes to last favorite
+ */
 function CurrentClick() {
 	if(document.getElementById("showfavs").checked)
 	 {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		let favslength = favs.length - 1;
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[favslength]);
+		const favs = loadFavs();
+		const favslength = favs.length - 1;
+		if(favslength >= 0) {
+			currentselectedDate = new Date(favs[favslength]);
+		}
 	 }
 	else
 	{
-	currentselectedDate = new Date();
+		currentselectedDate = new Date();
 	}
 	CompareDates();
 	showComic();
@@ -505,14 +767,22 @@ function CurrentClick() {
 
 window.CurrentClick = CurrentClick;
 
-
+/**
+ * Navigates to a random comic
+ * In favorites mode, picks random favorite
+ */
 function RandomClick()
 {
 	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
+		const favs = loadFavs();
+		if(favs.length > 0) {
+			const randomIndex = Math.floor(Math.random() * favs.length);
+			currentselectedDate = new Date(favs[randomIndex]);
+		}
+	}
 	else{
-		let start = new Date("1978-06-19");
-		let end = new Date();
+		const start = new Date(CONFIG.COMIC_START_DATE);
+		const end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
 	CompareDates();
@@ -521,8 +791,12 @@ function RandomClick()
 
 window.RandomClick = RandomClick;
 
+/**
+ * Compares current date with comic date range
+ * Updates navigation button states accordingly
+ */
 function CompareDates() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
+	const favs = loadFavs();
 	let startDate;
 	if(document.getElementById("showfavs").checked)
 	{
@@ -924,5 +1198,81 @@ const handlers = {
         }
     }
 };
+
+// ========================================
+// KEYBOARD SHORTCUTS
+// ========================================
+
+/**
+ * Keyboard shortcuts for navigation
+ * Arrow Left/Right: Previous/Next comic
+ * Home: First comic
+ * End: Today's comic
+ * Space/R: Random comic
+ * F: Toggle favorite
+ */
+document.addEventListener('keydown', function(e) {
+  // Don't trigger shortcuts when typing in input fields
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    return;
+  }
+  
+  // Prevent default for keys we're handling
+  const handledKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', ' ', 'r', 'R', 'f', 'F'];
+  if (handledKeys.includes(e.key)) {
+    e.preventDefault();
+  }
+  
+  switch(e.key) {
+    case 'ArrowLeft':
+      // Left arrow - Previous comic
+      if (!document.getElementById('Previous')?.disabled) {
+        PreviousClick();
+      }
+      break;
+      
+    case 'ArrowRight':
+      // Right arrow - Next comic
+      if (!document.getElementById('Next')?.disabled) {
+        NextClick();
+      }
+      break;
+      
+    case 'Home':
+      // Home key - First comic
+      if (!document.getElementById('First')?.disabled) {
+        FirstClick();
+      }
+      break;
+      
+    case 'End':
+      // End key - Today's comic
+      if (!document.getElementById('Today')?.disabled) {
+        CurrentClick();
+      }
+      break;
+      
+    case ' ':
+      // Spacebar - Random comic
+      if (!document.getElementById('Random')?.disabled) {
+        RandomClick();
+      }
+      break;
+      
+    case 'r':
+    case 'R':
+      // R key - Random comic (alternative)
+      if (!document.getElementById('Random')?.disabled) {
+        RandomClick();
+      }
+      break;
+      
+    case 'f':
+    case 'F':
+      // F key - Toggle favorite
+      Addfav();
+      break;
+  }
+});
 
 export default handlers;

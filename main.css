@@ -456,3 +456,93 @@ input[type="date"]::-webkit-datetime-edit {
     display: block;
     margin-bottom: 10px;
 }
+
+/* ========================================
+   LOADING STATES & ANIMATIONS
+   ======================================== */
+
+/* Loading spinner */
+@keyframes spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Container for comic image with loading state */
+#comic-container {
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Smooth fade-in transition for comics */
+.comic-fade-enter {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.comic-fade-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+}
+
+.comic-fade-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.comic-fade-exit-active {
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+}
+
+/* Loading state for comic image */
+img#comic.loading {
+  opacity: 0.3;
+  cursor: wait;
+}
+
+img#comic.loaded {
+  opacity: 1;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Loading indicator overlay */
+#comic-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #F09819;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* GPU acceleration for smooth animations */
+.button,
+img#comic {
+  will-change: transform, opacity;
+}
+
+.button:hover,
+.button:active {
+  will-change: transform, box-shadow;
+}
