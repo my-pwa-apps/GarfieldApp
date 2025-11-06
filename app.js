@@ -1,5 +1,4 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
-import goComicsAuth from './auth.js';
 
 //garfieldapp.pages.dev
 
@@ -291,8 +290,6 @@ function showPaywallMessage() {
     
     messageContainer.style.display = 'flex';
     
-    const isLoggedIn = goComicsAuth.isLoggedIn();
-    
     // Calculate if this is an older comic
     const comicDate = currentselectedDate;
     const today = new Date();
@@ -300,39 +297,18 @@ function showPaywallMessage() {
     
     if (daysDiff > 30) {
         // Older comics are paywalled
-        if (isLoggedIn) {
-            messageContainer.innerHTML = `
-                <p><strong>Archive comics require a GoComics membership</strong></p>
-                <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics requires a paid subscription to access comics older than 30 days.</p>
-                <p>You are logged in, but may need an active GoComics subscription to view archive comics.</p>
-                <p>Try viewing more recent comics (last 30 days), which are free!</p>
-            `;
-        } else {
-            messageContainer.innerHTML = `
-                <p><strong>Archive comics require a GoComics membership</strong></p>
-                <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics requires a paid subscription to access comics older than 30 days.</p>
-                <p>To view archive comics, login with your GoComics credentials in the Settings menu.</p>
-                <p>Or try viewing more recent comics (last 30 days), which are free!</p>
-                <p>Don't have an account? <a href="https://www.gocomics.com/signup" target="_blank" rel="noopener">Sign up at GoComics.com</a></p>
-            `;
-        }
+        messageContainer.innerHTML = `
+            <p><strong>Unable to load this archive comic</strong></p>
+            <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
+            <p>Try viewing more recent comics (last 30 days), which are free!</p>
+        `;
     } else {
         // Recent comics should be free - something else went wrong
-        if (isLoggedIn) {
-            messageContainer.innerHTML = `
-                <p><strong>Unable to load this comic</strong></p>
-                <p>This recent comic should be free, but we're having trouble loading it.</p>
-                <p>You are logged in. Please try again later or try a different date.</p>
-            `;
-        } else {
-            messageContainer.innerHTML = `
-                <p><strong>Unable to load this comic</strong></p>
-                <p>This recent comic should normally be free, but we're having trouble loading it.</p>
-                <p>Please try again later or try a different date.</p>
-                <p>If you want to view archive comics (older than 30 days), you'll need to login with GoComics credentials in the Settings menu.</p>
-                <p>Don't have an account? <a href="https://www.gocomics.com/signup" target="_blank" rel="noopener">Sign up at GoComics.com</a></p>
-            `;
-        }
+        messageContainer.innerHTML = `
+            <p><strong>Unable to load this comic</strong></p>
+            <p>This recent comic should normally be free, but we're having trouble loading it.</p>
+            <p>Please try again later or try a different date.</p>
+        `;
     }
 }
 
@@ -950,86 +926,3 @@ const handlers = {
 };
 
 export default handlers;
-
-// Authentication functions
-window.loginGoComics = async function() {
-    const email = document.getElementById('gocomics-email').value;
-    const password = document.getElementById('gocomics-password').value;
-    const statusDiv = document.getElementById('auth-status');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    
-    if (!email || !password) {
-        statusDiv.textContent = 'Please enter both email and password';
-        statusDiv.style.color = 'red';
-        return;
-    }
-    
-    loginBtn.disabled = true;
-    statusDiv.textContent = 'Logging in...';
-    statusDiv.style.color = 'black';
-    
-    try {
-        const result = await goComicsAuth.login(email, password);
-        
-        if (result.success) {
-            statusDiv.textContent = '✓ ' + result.message;
-            statusDiv.style.color = 'green';
-            
-            // Hide login form, show logout button
-            document.getElementById('gocomics-email').style.display = 'none';
-            document.getElementById('gocomics-password').style.display = 'none';
-            loginBtn.style.display = 'none';
-            logoutBtn.style.display = 'block';
-            
-            // Reload current comic with authentication
-            await showComic();
-        } else {
-            statusDiv.textContent = '✗ ' + result.message;
-            statusDiv.style.color = 'red';
-            loginBtn.disabled = false;
-        }
-    } catch (error) {
-        statusDiv.textContent = '✗ Login failed';
-        statusDiv.style.color = 'red';
-        loginBtn.disabled = false;
-    }
-};
-
-window.logoutGoComics = function() {
-    const result = goComicsAuth.logout();
-    const statusDiv = document.getElementById('auth-status');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    
-    if (result.success) {
-        statusDiv.textContent = result.message;
-        statusDiv.style.color = 'black';
-        
-        // Show login form, hide logout button
-        document.getElementById('gocomics-email').style.display = 'block';
-        document.getElementById('gocomics-password').style.display = 'block';
-        document.getElementById('gocomics-email').value = '';
-        document.getElementById('gocomics-password').value = '';
-        loginBtn.style.display = 'block';
-        loginBtn.disabled = false;
-        logoutBtn.style.display = 'none';
-        
-        // Reload current comic without authentication
-        showComic();
-    }
-};
-
-// Check login status on page load
-window.addEventListener('DOMContentLoaded', () => {
-    if (goComicsAuth.isLoggedIn()) {
-        const credentials = goComicsAuth.getCredentials();
-        document.getElementById('gocomics-email').value = credentials.email;
-        document.getElementById('gocomics-email').style.display = 'none';
-        document.getElementById('gocomics-password').style.display = 'none';
-        document.getElementById('login-btn').style.display = 'none';
-        document.getElementById('logout-btn').style.display = 'block';
-        document.getElementById('auth-status').textContent = '✓ Logged in as ' + credentials.email;
-        document.getElementById('auth-status').style.color = 'green';
-    }
-});
