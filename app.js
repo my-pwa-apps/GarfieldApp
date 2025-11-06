@@ -608,17 +608,27 @@ function Addfav()
 {
     formattedComicDate = year + "/" + month + "/" + day;
     let favs = loadFavs();
+    const heartButton = document.getElementById("favheart");
+    const heartSvg = heartButton ? heartButton.querySelector('svg') : null;
     
     if(!favs.includes(formattedComicDate))
     {
         favs.push(formattedComicDate);
-        document.getElementById("favheart").src="./heart.svg";
+        // Fill the heart
+        if (heartSvg) {
+            heartSvg.style.fill = 'currentColor';
+            heartSvg.style.stroke = 'currentColor';
+        }
         document.getElementById("showfavs").disabled = false;
     }
     else
     {
         favs = favs.filter(f => f !== formattedComicDate);
-        document.getElementById("favheart").src="./heartborder.svg";
+        // Unfill the heart
+        if (heartSvg) {
+            heartSvg.style.fill = 'none';
+            heartSvg.style.stroke = 'currentColor';
+        }
         if(favs.length === 0)
         {
             document.getElementById("showfavs").checked = false;
@@ -1316,12 +1326,23 @@ async function showComic() {
     document.getElementById("DatePicker").value = formattedDate;
     updateDateDisplay();
     
-    // Check if date is in favorites
-    var favs = JSON.parse(localStorage.getItem('favs'));
-    if(favs && favs.indexOf(formattedComicDate) !== -1) {
-        document.getElementById("favheart").src = "./heart.svg";
+    // Update heart icon based on favorite status
+    const heartButton = document.getElementById("favheart");
+    const heartSvg = heartButton ? heartButton.querySelector('svg') : null;
+    const favs = loadFavs();
+    
+    if (favs && favs.indexOf(formattedComicDate) !== -1) {
+        // Is a favorite - filled heart
+        if (heartSvg) {
+            heartSvg.style.fill = 'currentColor';
+            heartSvg.style.stroke = 'currentColor';
+        }
     } else {
-        document.getElementById("favheart").src = "./heartborder.svg";
+        // Not a favorite - unfilled heart
+        if (heartSvg) {
+            heartSvg.style.fill = 'none';
+            heartSvg.style.stroke = 'currentColor';
+        }
     }
     
     // Save last viewed comic

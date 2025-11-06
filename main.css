@@ -258,11 +258,18 @@ input {
     padding: 0;
     border: none;
     background: none;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .toolbar-datepicker::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     opacity: 0;
-    display: none;
+    cursor: pointer;
 }
 
 .toolbar-datepicker::placeholder {
@@ -884,15 +891,16 @@ input[type="date"]::-webkit-datetime-edit {
     padding: 0 10px;
 }
 
-/* Settings icons container */
+/* Settings icons container - positioned bottom right of comic */
 .settings-icons-container {
-    position: relative;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
     gap: 16px; /* Desktop: 16px gap */
-    padding: 15px 0;
-    width: 100%;
+    z-index: 100;
 }
 
 /* Icon buttons - Settings, Favorites, Share */
@@ -967,9 +975,9 @@ input[type="date"]::-webkit-datetime-edit {
     stroke: #000000;
 }
 
-/* Heart button - white icon */
+/* Heart button - black icon */
 #favheart svg {
-    stroke: #ffffff;
+    stroke: #000000;
 }
 
 /* Share button - black icon */
@@ -995,8 +1003,8 @@ input[type="date"]::-webkit-datetime-edit {
 /* When favorited - filled heart */
 #favheart svg[style*="fill: currentColor"],
 #favheart svg[style*="fill:currentColor"] {
-    fill: #ffffff !important;
-    stroke: #ffffff !important;
+    fill: currentColor !important;
+    stroke: currentColor !important;
 }
 
 @keyframes heart-beat {
