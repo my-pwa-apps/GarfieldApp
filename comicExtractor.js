@@ -161,20 +161,38 @@ const CORS_PROXIES = [
 
 export async function extractGoComicsImage(date, credentials = null) {
     const formattedDate = date.toISOString().split('T')[0];
-    const originalUrl = `https://www.gocomics.com/garfield/${formattedDate}`;
     
-    // Try direct fetch first (might work on deployed site)
-    try {
-        console.log('Attempting direct fetch (no proxy)...');
-        const response = await fetch(originalUrl, { mode: 'cors' });
-        if (response.ok) {
-            const html = await response.text();
-            const result = parseComicFromHTML(html, 0);
-            if (result) return result;
+    // Try multiple URL formats - GoComics might have changed their URL structure
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    const urlFormats = [
+        `https://www.gocomics.com/garfield/${year}/${month}/${day}`,  // NEW FORMAT: /garfield/2025/11/06
+        `https://www.gocomics.com/garfield/${formattedDate}`,  // OLD FORMAT: /garfield/2025-11-06 (fallback)
+        `https://www.gocomics.com/garfield`  // Today's comic (no date)
+    ];
+    
+    // Try direct fetch first with different URL formats
+    for (const originalUrl of urlFormats) {
+        try {
+            console.log(`Attempting direct fetch: ${originalUrl}`);
+            const response = await fetch(originalUrl, { mode: 'cors' });
+            if (response.ok) {
+                const html = await response.text();
+                const result = parseComicFromHTML(html, 0);
+                if (result) {
+                    console.log(`Success with URL format: ${originalUrl}`);
+                    return result;
+                }
+            }
+        } catch (error) {
+            console.log(`Direct fetch failed for ${originalUrl}:`, error.message);
         }
-    } catch (error) {
-        console.log('Direct fetch failed, trying proxies...', error.message);
     }
+    
+    // Use the first URL format for proxy attempts
+    const originalUrl = urlFormats[0];
     
     // Try each proxy in sequence
     for (let i = 0; i < CORS_PROXIES.length; i++) {
