@@ -654,6 +654,9 @@ function changeComicImage(newSrc) {
 
 function HideSettings() {
     const settingsPanel = document.getElementById("settingsDIV");
+    
+    if (!settingsPanel) return;
+    
     const isVisible = settingsPanel.classList.contains('visible');
     
     if (isVisible) {
