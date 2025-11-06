@@ -15,6 +15,8 @@ const CONFIG = Object.freeze({
   ROTATION_DEBOUNCE: 300,              // Debounce time for rotation in ms
   SHARE_TIMEOUT: 5000,                 // Share image load timeout in ms
   PRELOAD_DELAY: 500,                  // Delay before preloading adjacent comics in ms
+  NOTIFICATION_AUTO_HIDE: 8000,        // Auto-hide notification after 8s
+  KEYBOARD_HINT_DELAY: 2000,           // Show keyboard hint after 2s
   
   // Swipe & Touch constants
   SWIPE_MIN_DISTANCE: 50,              // Minimum swipe distance in px
@@ -515,8 +517,6 @@ async function Share()
     
     if(navigator.share) {
         try {
-            console.log("Starting share process...");
-            
             // Create a new image element with crossOrigin set to anonymous 
             // to avoid tainted canvas issues
             const tempImg = new Image();
@@ -525,7 +525,6 @@ async function Share()
             // Create a URL with CORS proxy to load the image
             const cacheBuster = Date.now();
             const imgUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
-            console.log("Loading image for sharing via:", imgUrl);
             
             // Wait for image to load
             await new Promise((resolve, reject) => {
@@ -536,8 +535,6 @@ async function Share()
                 // Set a timeout in case the image load hangs
                 setTimeout(() => reject(new Error("Image load timeout")), 5000);
             });
-            
-            console.log("Image loaded successfully, converting to canvas...");
             
             // Create canvas and draw image
             const canvas = document.createElement('canvas');
@@ -558,8 +555,6 @@ async function Share()
                 }
             });
             
-            console.log("Canvas converted to blob successfully");
-            
             // Create file for sharing
             const file = new File([jpgBlob], "garfield.jpg", { 
                 type: "image/jpeg", 
@@ -567,14 +562,11 @@ async function Share()
             });
             
             // Share the file
-            console.log("Attempting to share file...");
             await navigator.share({
                 url: 'https://garfieldapp.pages.dev',
                 text: 'Shared from GarfieldApp',
                 files: [file]
             });
-            
-            console.log("Comic shared successfully!");
         } catch (error) {
             console.error("Error sharing comic:", error);
             
@@ -582,12 +574,10 @@ async function Share()
             if (error.name === 'SecurityError') {
                 // Try fallback sharing without the image
                 try {
-                    console.log("Trying fallback sharing without image...");
                     await navigator.share({
                         url: 'https://garfieldapp.pages.dev',
                         text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                     });
-                    console.log("Fallback sharing successful!");
                     return;
                 } catch (fallbackError) {
                     console.error("Fallback sharing failed:", fallbackError);
@@ -1837,11 +1827,6 @@ function showInstallPromotion() {
         deferredPrompt.prompt();
         // Wait for the user to respond to the prompt
         deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the install prompt');
-          } else {
-            console.log('User dismissed the install prompt');
-          }
           deferredPrompt = null;
         });
     });
@@ -1949,5 +1934,68 @@ document.addEventListener('keydown', function(e) {
       break;
   }
 });
+
+// ========================================
+// VISUAL FEEDBACK - KEYBOARD SHORTCUTS HINT
+// ========================================
+
+/**
+ * Shows keyboard shortcuts hint on first load (desktop only)
+ * Displays for 8 seconds then auto-hides
+ * Never shows again after user dismisses or auto-hide
+ */
+function showKeyboardShortcutsHint() {
+  // Don't show on mobile/touch devices
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  if (isMobile || isTouch) {
+    return; // Skip showing hint on mobile/touch devices
+  }
+  
+  const hasSeenHint = localStorage.getItem('keyboardHintSeen');
+  
+  if (!hasSeenHint) {
+    setTimeout(() => {
+      const hint = document.createElement('div');
+      hint.id = 'keyboard-hint';
+      hint.innerHTML = `
+        <div style="position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.85); color: white; padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 10003; max-width: 300px; font-size: 14px; backdrop-filter: blur(10px);">
+          <div style="font-weight: bold; margin-bottom: 10px; font-size: 16px;">⌨️ Keyboard Shortcuts</div>
+          <div style="line-height: 1.6;">
+            ← → : Previous/Next<br>
+            Home/End : First/Latest<br>
+            Space/R : Random<br>
+            F : Favorite
+          </div>
+          <button onclick="this.parentElement.parentElement.remove(); localStorage.setItem('keyboardHintSeen', 'true');" style="margin-top: 12px; padding: 6px 12px; background: linear-gradient(45deg, #f09819 0%, #ff8c00 100%); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; width: 100%;">Got it!</button>
+        </div>
+      `;
+      document.body.appendChild(hint);
+      
+      // Auto-hide after 8 seconds
+      setTimeout(() => {
+        const hintEl = document.getElementById('keyboard-hint');
+        if (hintEl) {
+          hintEl.style.transition = 'opacity 0.5s';
+          hintEl.style.opacity = '0';
+          setTimeout(() => {
+            if (hintEl.parentElement) {
+              hintEl.parentElement.removeChild(hintEl);
+            }
+            localStorage.setItem('keyboardHintSeen', 'true');
+          }, 500);
+        }
+      }, CONFIG.NOTIFICATION_AUTO_HIDE || 8000);
+    }, CONFIG.KEYBOARD_HINT_DELAY || 2000); // Show after 2 seconds
+  }
+}
+
+// Show hint on page load (desktop only)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', showKeyboardShortcutsHint);
+} else {
+  showKeyboardShortcutsHint();
+}
 
 export default handlers;
