@@ -139,8 +139,9 @@ function makeDraggable(element, headerSelector, storageKey) {
         target.tagName === 'TEXTAREA' ||
         target.closest('button') ||
         target.closest('input') ||
-        target.classList.contains('settings-close')) {
-      return;
+        target.classList.contains('settings-close') ||
+        target.closest('.settings-close')) {
+      return; // Let the button click through
     }
     
     e.preventDefault();
@@ -159,8 +160,9 @@ function makeDraggable(element, headerSelector, storageKey) {
         target.tagName === 'TEXTAREA' ||
         target.closest('button') ||
         target.closest('input') ||
-        target.classList.contains('settings-close')) {
-      return;
+        target.classList.contains('settings-close') ||
+        target.closest('.settings-close')) {
+      return; // Let the button click through
     }
     
     if (e.touches && e.touches.length > 0) {
