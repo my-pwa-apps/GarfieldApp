@@ -5,6 +5,14 @@ function parseComicFromHTML(html, proxyIndex) {
     // Debug: log a snippet of the HTML
     console.log(`Received ${html.length} characters from ${proxyIndex === 0 ? 'direct fetch' : `proxy ${proxyIndex}`}`);
     
+    // Log a sample to see the structure
+    if (html.length > 1000) {
+        const imgSample = html.match(/<img[^>]{0,200}>/gi);
+        if (imgSample) {
+            console.log('Found img tags:', imgSample.slice(0, 5));
+        }
+    }
+    
     // Check for paywall indicators - be more specific
     const hasPaywallButton = html.includes('gc-link-button') || html.includes('gc-card__link');
     const hasSubscribeText = html.includes('Subscribe to read the full') || html.includes('Subscription Required');
@@ -13,8 +21,8 @@ function parseComicFromHTML(html, proxyIndex) {
     
     console.log('Paywall detected:', isPaywalled);
     
-    // Look for the specific asset URL pattern
-    const assetMatch = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]{32}/);
+    // Look for assets.amuniversal.com pattern (most common)
+    const assetMatch = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (assetMatch) {
         console.log(`Successfully found comic (assets.amuniversal):`, assetMatch[0]);
         return { 
@@ -30,6 +38,17 @@ function parseComicFromHTML(html, proxyIndex) {
         console.log(`Successfully found comic (featureassets):`, featureAssetMatch[0]);
         return { 
             imageUrl: featureAssetMatch[0], 
+            isPaywalled: false,
+            success: true 
+        };
+    }
+
+    // Try to find any amuniversal.com image
+    const amuniversalMatch = html.match(/https:\/\/[^"'\s]*amuniversal\.com[^"'\s]*/);
+    if (amuniversalMatch) {
+        console.log(`Successfully found comic (any amuniversal):`, amuniversalMatch[0]);
+        return { 
+            imageUrl: amuniversalMatch[0], 
             isPaywalled: false,
             success: true 
         };
