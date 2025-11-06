@@ -94,11 +94,15 @@ const UTILS = {
 /**
  * Makes an element draggable by its header
  * @param {HTMLElement} element - The element to make draggable
- * @param {string} headerSelector - CSS selector for the drag handle
+ * @param {string|HTMLElement} headerSelector - CSS selector for the drag handle or the element itself
  * @param {string} storageKey - localStorage key for position persistence
  */
 function makeDraggable(element, headerSelector, storageKey) {
-  const header = element.querySelector(headerSelector);
+  // Handle both selector string and element reference
+  const header = typeof headerSelector === 'string' 
+    ? element.querySelector(headerSelector) 
+    : headerSelector;
+  
   if (!header) return;
   
   let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
@@ -806,7 +810,7 @@ function showErrorMessage(message) {
     }
 }
 
-window.onLoad = function() {
+function onLoad() {
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
     // Set minimum body height at load time to prevent gradient shift
@@ -897,6 +901,8 @@ async function showComic() {
     // Load the comic
     await loadComic(currentselectedDate);
 }
+
+window.onLoad = onLoad;
 
 // ========================================
 // NAVIGATION FUNCTIONS
