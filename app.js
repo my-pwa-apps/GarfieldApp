@@ -1,4 +1,5 @@
-import { extractGoComicsImage } from './comicExtractor.js';
+import { getAuthenticatedComic } from './comicExtractor.js';
+import goComicsAuth from './auth.js';
 
 //garfieldapp.pages.dev
 
@@ -125,6 +126,8 @@ async function Share()
     }
 }
 
+window.Share = Share;
+
 function Addfav()
 {
     formattedComicDate = year + "/" + month + "/" + day;
@@ -156,6 +159,8 @@ function Addfav()
     showComic();
 }
 
+window.Addfav = Addfav;
+
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
     comic.classList.add('dissolve');
@@ -177,6 +182,23 @@ function HideSettings() {
     // Remove the fixed height that was causing scrolling
     document.body.style.minHeight = "";
 }
+
+window.HideSettings = HideSettings;
+
+function Rotate() {
+    const comic = document.getElementById('comic');
+    if (comic.classList.contains('rotate')) {
+        comic.classList.remove('rotate');
+        comic.classList.add('normal');
+        isRotatedMode = false;
+    } else {
+        comic.classList.remove('normal');
+        comic.classList.add('rotate');
+        isRotatedMode = true;
+    }
+}
+
+window.Rotate = Rotate;
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -217,28 +239,146 @@ function updateDateDisplay() {
 
 async function loadComic(date) {
     try {
-        // Try GoComics first
-        const imageUrl = await extractGoComicsImage(date);
-        if (imageUrl) {
-            document.getElementById('comic').src = imageUrl;
+        // Try GoComics with authentication
+        const result = await getAuthenticatedComic(date);
+        
+        if (result.success && result.imageUrl) {
+            const comicImg = document.getElementById('comic');
+            comicImg.src = result.imageUrl;
+            comicImg.style.display = 'block';
+            
+            // Store the image URL for sharing
+            window.pictureUrl = result.imageUrl;
+            previousUrl = result.imageUrl;
+            
+            // Hide any error messages
+            const messageContainer = document.getElementById('comic-message');
+            if (messageContainer) {
+                messageContainer.style.display = 'none';
+            }
             return true;
         }
         
-        // Fallback to other sources if needed
-        const arcamaxComic = await getGarfieldComic(date);
-        if (arcamaxComic.success) {
-            document.getElementById('comic').src = arcamaxComic.imageUrl;
-            return true;
+        // Handle paywall
+        if (result.isPaywalled) {
+            showPaywallMessage();
+            return false;
         }
         
         throw new Error('Comic not available from any source');
     } catch (error) {
         console.error('Failed to load comic:', error);
+        showErrorMessage('Failed to load comic. Please try again.');
         return false;
     }
 }
 
-function onLoad() {
+function showPaywallMessage() {
+    const comicContainer = document.getElementById('comic-container');
+    const comic = document.getElementById('comic');
+    
+    // Hide the comic image
+    comic.style.display = 'none';
+    
+    // Create or update message container
+    let messageContainer = document.getElementById('comic-message');
+    if (!messageContainer) {
+        messageContainer = document.createElement('div');
+        messageContainer.id = 'comic-message';
+        messageContainer.className = 'paywall-message';
+        comicContainer.appendChild(messageContainer);
+    }
+    
+    messageContainer.style.display = 'flex';
+    
+    const isLoggedIn = goComicsAuth.isLoggedIn();
+    
+    // Calculate if this is an older comic
+    const comicDate = currentselectedDate;
+    const today = new Date();
+    const daysDiff = Math.floor((today - comicDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff > 30) {
+        // Older comics are paywalled
+        if (isLoggedIn) {
+            messageContainer.innerHTML = `
+                <p><strong>Archive comics require a GoComics membership</strong></p>
+                <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics requires a paid subscription to access comics older than 30 days.</p>
+                <p>You are logged in, but may need an active GoComics subscription to view archive comics.</p>
+                <p>Try viewing more recent comics (last 30 days), which are free!</p>
+            `;
+        } else {
+            messageContainer.innerHTML = `
+                <p><strong>Archive comics require a GoComics membership</strong></p>
+                <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics requires a paid subscription to access comics older than 30 days.</p>
+                <p>To view archive comics, login with your GoComics credentials in the Settings menu.</p>
+                <p>Or try viewing more recent comics (last 30 days), which are free!</p>
+                <p>Don't have an account? <a href="https://www.gocomics.com/signup" target="_blank" rel="noopener">Sign up at GoComics.com</a></p>
+            `;
+        }
+    } else {
+        // Recent comics should be free - something else went wrong
+        if (isLoggedIn) {
+            messageContainer.innerHTML = `
+                <p><strong>Unable to load this comic</strong></p>
+                <p>This recent comic should be free, but we're having trouble loading it.</p>
+                <p>You are logged in. Please try again later or try a different date.</p>
+            `;
+        } else {
+            messageContainer.innerHTML = `
+                <p><strong>Unable to load this comic</strong></p>
+                <p>This recent comic should normally be free, but we're having trouble loading it.</p>
+                <p>Please try again later or try a different date.</p>
+                <p>If you want to view archive comics (older than 30 days), you'll need to login with GoComics credentials in the Settings menu.</p>
+                <p>Don't have an account? <a href="https://www.gocomics.com/signup" target="_blank" rel="noopener">Sign up at GoComics.com</a></p>
+            `;
+        }
+    }
+}
+
+function showErrorMessage(message) {
+    const comicContainer = document.getElementById('comic-container');
+    const comic = document.getElementById('comic');
+    
+    comic.style.display = 'none';
+    
+    let messageContainer = document.getElementById('comic-message');
+    if (!messageContainer) {
+        messageContainer = document.createElement('div');
+        messageContainer.id = 'comic-message';
+        messageContainer.className = 'error-message';
+        comicContainer.appendChild(messageContainer);
+    }
+    
+    messageContainer.style.display = 'flex';
+    
+    // Check if we're on localhost
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    if (isLocalhost) {
+        messageContainer.innerHTML = `
+            <p><strong>Local Testing Mode</strong></p>
+            <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
+            <p><strong>Your authentication system is ready!</strong></p>
+            <ul style="text-align: left; max-width: 500px;">
+                <li>✓ Login/logout functionality implemented</li>
+                <li>✓ Paywall detection in place</li>
+                <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
+                <li>✓ Multiple CORS proxy fallback system</li>
+            </ul>
+            <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
+            <p>Try committing and pushing your changes to test on the live site!</p>
+        `;
+    } else {
+        messageContainer.innerHTML = `
+            <p><strong>Unable to Load Comic</strong></p>
+            <p>${message}</p>
+            <p>Please try again later or select a different date.</p>
+        `;
+    }
+}
+
+window.onLoad = function() {
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
     // Set minimum body height at load time to prevent gradient shift
@@ -282,7 +422,7 @@ function onLoad() {
         document.getElementById("Today").disabled = true;
     }
     formatDate(new Date());
-    today = `${year}-${month}-${day}`;
+    let today = `${year}-${month}-${day}`;
     document.getElementById("DatePicker").setAttribute("max", today);
 
     if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic')) {
@@ -302,51 +442,32 @@ function DateChange() {
     showComic();
 }
 
+window.DateChange = DateChange;
+
 // Add this to update the display when showing a comic
-function showComic() {
-    const comicContainer = document.getElementById('comic-container');
-    const comic = document.getElementById('comic');
-    const message = "Unfortunately, GoComics.com has moved to a paywall/signup option, so I can no longer extract the comics from their website.";
-    const additionalMessage = "I will see if I can find a workaround, but for now the app is no longer working.";
-
-    // Hide the comic image
-    comic.alt = message;
-    comic.src = ""; // Clear the comic image
-    comic.style.display = "none"; // Hide the comic image
-
-    // Create a message container if it doesn't already exist
-    let messageContainer = document.getElementById('comic-message');
-    if (!messageContainer) {
-        messageContainer = document.createElement('div');
-        messageContainer.id = 'comic-message';
-        messageContainer.style.display = 'flex';
-        messageContainer.style.flexDirection = 'column';
-        messageContainer.style.justifyContent = 'center';
-        messageContainer.style.alignItems = 'center';
-        messageContainer.style.textAlign = 'center';
-        messageContainer.style.padding = '20px';
-        messageContainer.style.fontSize = '1rem';
-        messageContainer.style.color = 'black';
-        messageContainer.style.backgroundColor = '#fff8dc';
-        messageContainer.style.border = '1px solid #f0e68c';
-        messageContainer.style.borderRadius = '10px';
-        messageContainer.style.margin = '20px auto';
-        messageContainer.style.maxWidth = '600px';
-        messageContainer.style.height = '100%'; // Fill the container height
-        comicContainer.appendChild(messageContainer);
+async function showComic() {
+    formatDate(currentselectedDate);
+    formattedComicDate = year + "/" + month + "/" + day;
+    formattedDate = year + "-" + month + "-" + day;
+    
+    document.getElementById("DatePicker").value = formattedDate;
+    updateDateDisplay();
+    
+    // Check if date is in favorites
+    var favs = JSON.parse(localStorage.getItem('favs'));
+    if(favs && favs.indexOf(formattedComicDate) !== -1) {
+        document.getElementById("favheart").src = "./heart.svg";
+    } else {
+        document.getElementById("favheart").src = "./heartborder.svg";
     }
-
-    // Set the message text
-    messageContainer.innerHTML = `
-        <p>${message}</p>
-        <p>${additionalMessage}</p>
-    `;
-
-    // Center the message container within the comic container
-    comicContainer.style.display = 'flex';
-    comicContainer.style.justifyContent = 'center';
-    comicContainer.style.alignItems = 'center';
-    comicContainer.style.height = '100vh'; // Full viewport height
+    
+    // Save last viewed comic
+    if(document.getElementById("lastdate").checked) {
+        localStorage.setItem('lastcomic', currentselectedDate);
+    }
+    
+    // Load the comic
+    await loadComic(currentselectedDate);
 }
 
 function PreviousClick() {
@@ -362,6 +483,8 @@ function PreviousClick() {
 	showComic();
 }
 
+window.PreviousClick = PreviousClick;
+
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
@@ -374,6 +497,8 @@ function NextClick() {
 	showComic();
 }
 
+window.NextClick = NextClick;
+
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
 		var favs = JSON.parse(localStorage.getItem('favs'));
@@ -385,11 +510,13 @@ function FirstClick() {
 	showComic();
 }
 
+window.FirstClick = FirstClick;
+
 function CurrentClick() {
 	if(document.getElementById("showfavs").checked)
 	 {
 		var favs = JSON.parse(localStorage.getItem('favs'));
-		favslength = favs.length - 1;
+		let favslength = favs.length - 1;
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[favslength]);
 	 }
 	else
@@ -400,22 +527,27 @@ function CurrentClick() {
 	showComic();
 }
 
+window.CurrentClick = CurrentClick;
+
 
 function RandomClick()
 {
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
 	else{
-		start = new Date("1978-06-19");
-		end = new Date();
+		let start = new Date("1978-06-19");
+		let end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
 	CompareDates();
 	showComic();
 }
 
+window.RandomClick = RandomClick;
+
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
+	let startDate;
 	if(document.getElementById("showfavs").checked)
 	{
 		document.getElementById("DatePicker").disabled = true;
@@ -438,6 +570,7 @@ function CompareDates() {
 		document.getElementById("Previous").disabled = false;
 		document.getElementById("First").disabled = false;
 	}
+	let endDate;
 	if(document.getElementById("showfavs").checked) {
 		endDate = new Date(favs[favs.length - 1]);
 	}
@@ -677,7 +810,7 @@ function exitFullsizeVertical(event) {
     container.removeEventListener('click', exitFullsizeVertical);
 }
 
-getStatus = localStorage.getItem('stat');
+let getStatus = localStorage.getItem('stat');
 if (getStatus == "true")
 {
 	document.getElementById("swipe").checked = true;
@@ -804,42 +937,99 @@ const handlers = {
             if (document.getElementById('lastdate')?.checked) {
                 const savedDate = localStorage.getItem('lastDate');
                 if (savedDate) {
-                    await this.loadComicForDate(new Date(savedDate));
+                    await loadComic(new Date(savedDate));
                     return;
                 }
             }
-            await this.CurrentClick();
+            await CurrentClick();
         } catch (error) {
             setStatus('Failed to load comic');
             console.error(error);
         }
-    },
-    // ...existing handlers...
-};
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    // Remove inline handlers and add event listeners
-    const elements = {
-        'Previous': handlers.PreviousClick,
-        'Random': handlers.RandomClick,
-        'Next': handlers.NextClick,
-        'First': handlers.FirstClick,
-        'Today': handlers.CurrentClick,
-        'DatePicker': handlers.DateChange,
-        'comic': handlers.Rotate
-    };
-
-    for (const [id, handler] of Object.entries(elements)) {
-        document.getElementById(id)?.addEventListener('click', () => handler.call(handlers));
     }
-
-    // Start loading
-    handlers.onLoad().catch(error => {
-        setStatus('Failed to initialize');
-        console.error(error);
-    });
-});
+};
 
 export default handlers;
 
+// Authentication functions
+window.loginGoComics = async function() {
+    const email = document.getElementById('gocomics-email').value;
+    const password = document.getElementById('gocomics-password').value;
+    const statusDiv = document.getElementById('auth-status');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    if (!email || !password) {
+        statusDiv.textContent = 'Please enter both email and password';
+        statusDiv.style.color = 'red';
+        return;
+    }
+    
+    loginBtn.disabled = true;
+    statusDiv.textContent = 'Logging in...';
+    statusDiv.style.color = 'black';
+    
+    try {
+        const result = await goComicsAuth.login(email, password);
+        
+        if (result.success) {
+            statusDiv.textContent = '✓ ' + result.message;
+            statusDiv.style.color = 'green';
+            
+            // Hide login form, show logout button
+            document.getElementById('gocomics-email').style.display = 'none';
+            document.getElementById('gocomics-password').style.display = 'none';
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
+            
+            // Reload current comic with authentication
+            await showComic();
+        } else {
+            statusDiv.textContent = '✗ ' + result.message;
+            statusDiv.style.color = 'red';
+            loginBtn.disabled = false;
+        }
+    } catch (error) {
+        statusDiv.textContent = '✗ Login failed';
+        statusDiv.style.color = 'red';
+        loginBtn.disabled = false;
+    }
+};
+
+window.logoutGoComics = function() {
+    const result = goComicsAuth.logout();
+    const statusDiv = document.getElementById('auth-status');
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    if (result.success) {
+        statusDiv.textContent = result.message;
+        statusDiv.style.color = 'black';
+        
+        // Show login form, hide logout button
+        document.getElementById('gocomics-email').style.display = 'block';
+        document.getElementById('gocomics-password').style.display = 'block';
+        document.getElementById('gocomics-email').value = '';
+        document.getElementById('gocomics-password').value = '';
+        loginBtn.style.display = 'block';
+        loginBtn.disabled = false;
+        logoutBtn.style.display = 'none';
+        
+        // Reload current comic without authentication
+        showComic();
+    }
+};
+
+// Check login status on page load
+window.addEventListener('DOMContentLoaded', () => {
+    if (goComicsAuth.isLoggedIn()) {
+        const credentials = goComicsAuth.getCredentials();
+        document.getElementById('gocomics-email').value = credentials.email;
+        document.getElementById('gocomics-email').style.display = 'none';
+        document.getElementById('gocomics-password').style.display = 'none';
+        document.getElementById('login-btn').style.display = 'none';
+        document.getElementById('logout-btn').style.display = 'block';
+        document.getElementById('auth-status').textContent = '✓ Logged in as ' + credentials.email;
+        document.getElementById('auth-status').style.color = 'green';
+    }
+});

@@ -408,3 +408,108 @@ input[type="date"]::-webkit-datetime-edit {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border-radius: 5px;
 }
+
+/* Authentication UI Styles */
+#gocomics-auth-section {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.auth-heading {
+    margin: 10px 0;
+    font-size: 1rem;
+    color: black;
+    text-align: center;
+}
+
+.auth-description {
+    font-size: 0.85rem;
+    margin: 5px 0;
+    color: #333;
+    text-align: center;
+}
+
+.auth-status {
+    margin: 10px 0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+    min-height: 20px;
+}
+
+.auth-input {
+    width: 90%;
+    margin: 5px auto;
+    display: block;
+    padding: 12px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.auth-input:focus {
+    outline: none;
+    border-color: #F09819;
+    background-color: white;
+}
+
+.auth-button {
+    width: 90%;
+    margin: 10px auto;
+    display: block;
+}
+
+#logout-btn {
+    display: none;
+}
+
+/* Message container styles */
+#comic-message {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    font-size: 1rem;
+    color: black;
+    background-color: #fff8dc;
+    border: 1px solid #f0e68c;
+    border-radius: 10px;
+    margin: 20px auto;
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+#comic-message a {
+    color: #F09819;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+#comic-message a:hover {
+    color: #eee239;
+}
+
+.paywall-message {
+    background-color: #fffacd;
+    border-color: #ffd700;
+}
+
+.error-message {
+    background-color: #ffe4e1;
+    border-color: #ff6b6b;
+}
+
+#comic-message p {
+    margin: 10px 0;
+}
+
+#comic-message strong {
+    font-size: 1.1rem;
+    display: block;
+    margin-bottom: 10px;
+}
