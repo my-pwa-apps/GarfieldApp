@@ -348,10 +348,30 @@ input {
     object-fit: contain;
     margin: 0;
     padding: 0;
-    z-index: 1000;
+    z-index: 10001;
     transition: transform 0.3s ease;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border-radius: 5px;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Fullscreen mode without rotation (for landscape device orientation) */
+.fullscreen-landscape {
+    max-height: 95vh;
+    max-width: 95vw;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+    border-radius: 4px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10001;
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 .normal {
@@ -362,6 +382,170 @@ input {
     display: block;
     margin: 0 auto;
     transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* ========================================
+   FULLSCREEN OVERLAY & TOOLBAR
+   ======================================== */
+
+#comic-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    display: block;
+}
+
+.fullscreen-toolbar {
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(80, 80, 80, 0.7) 51%, rgba(0, 0, 0, 0.8) 100%);
+    border-radius: 20px;
+    padding: 16px;
+    margin: 0;
+    width: auto;
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 4px 12px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(25px);
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    position: fixed;
+    z-index: 10002;
+}
+
+/* Ensure all buttons in fullscreen toolbar look consistent */
+.fullscreen-toolbar .toolbar-button {
+    width: 48px;
+    height: 48px;
+    margin: 0;
+    border-radius: 14px;
+}
+
+.fullscreen-toolbar .toolbar-svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Responsive styles for the fullscreen toolbar */
+@media (max-width: 480px) {
+    .fullscreen-toolbar {
+        padding: 12px 16px;
+        border-radius: 16px;
+    }
+    
+    .fullscreen-toolbar .toolbar-button {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+    }
+    
+    .fullscreen-toolbar .toolbar-svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+/* Rotated comic toolbar - always on the left side */
+.fullscreen-toolbar.rotated {
+    flex-direction: column;
+    padding: 16px 10px;
+    max-height: 80vh;
+    max-width: 70px;
+    top: 50%;
+    left: 20px;
+    bottom: auto;
+    transform: translateY(-50%);
+    gap: 10px;
+}
+
+.fullscreen-toolbar.rotated .toolbar-button {
+    margin: 0;
+}
+
+/* Rotated comic positioning */
+#rotated-comic {
+    left: calc(50% + 40px) !important;
+    margin-left: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Landscape fullscreen comic positioning (avoid toolbar overlap) */
+#rotated-comic.fullscreen-landscape {
+    left: 50% !important;
+    top: 40% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* Rotate toolbar SVGs for proper direction in rotated mode */
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(1) .toolbar-svg {
+    transform: rotate(90deg);
+}
+
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(2) .toolbar-svg {
+    transform: rotate(90deg);
+}
+
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(4) .toolbar-svg {
+    transform: rotate(-90deg);
+}
+
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(5) .toolbar-svg {
+    transform: rotate(-90deg);
+}
+
+/* Ensure no rotation in normal mode */
+.fullscreen-toolbar:not(.rotated) .toolbar-svg {
+    transform: none;
+}
+
+/* Landscape toolbar (device is landscape, no rotation needed) */
+.fullscreen-toolbar.landscape-toolbar {
+    flex-direction: row;
+    padding: 10px 15px;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    max-width: 90vw;
+    gap: 8px;
+}
+
+.fullscreen-toolbar.landscape-toolbar .toolbar-button {
+    margin: 0;
+}
+
+.fullscreen-toolbar.landscape-toolbar .toolbar-svg {
+    transform: none;
+}
+
+/* Additional responsive styles for rotated toolbar on small height screens */
+@media (max-height: 420px) {
+    .fullscreen-toolbar.rotated {
+        gap: 4px;
+        padding: 8px 4px;
+        left: 10px;
+    }
+    
+    .fullscreen-toolbar.rotated .toolbar-button,
+    .fullscreen-toolbar.rotated .toolbar-datepicker-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+    }
+    
+    .fullscreen-toolbar.rotated .toolbar-svg {
+        width: 18px;
+        height: 18px;
+    }
 }
 
 input[type="checkbox"], label {

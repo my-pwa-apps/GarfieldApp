@@ -25,6 +25,9 @@ const CONFIG = Object.freeze({
   // Cache limits
   MAX_PRELOAD_CACHE: 20,               // Maximum preloaded comics
   
+  // Image scaling
+  ROTATED_IMAGE_SCALE: 0.9,            // Scale factor for rotated images (90%)
+  
   // Comic dates
   COMIC_START_DATE: "1978-06-19",      // First Garfield comic date
   
@@ -382,6 +385,13 @@ let isRotating = false;          // Debounce flag for rotation
 // Favorites cache
 let _cachedFavs = null;
 
+// Touch tracking variables for swipe detection
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+let touchStartTime = 0;
+
 // ========================================
 // SERVICE WORKER REGISTRATION
 // ========================================
@@ -659,16 +669,379 @@ function HideSettings() {
 
 window.HideSettings = HideSettings;
 
-function Rotate() {
-    const comic = document.getElementById('comic');
-    if (comic.classList.contains('rotate')) {
-        comic.classList.remove('rotate');
-        comic.classList.add('normal');
-        isRotatedMode = false;
+// ========================================
+// FULLSCREEN HELPER FUNCTIONS
+// ========================================
+
+/**
+ * Helper function to maximize image size for rotated images
+ * @param {HTMLImageElement} imgElement - The image element to size
+ */
+function maximizeRotatedImage(imgElement) {
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    const naturalWidth = imgElement.naturalWidth;
+    const naturalHeight = imgElement.naturalHeight;
+    
+    if (!naturalWidth || !naturalHeight) {
+        return;
+    }
+    
+    const isLandscapeMode = imgElement.className.includes('fullscreen-landscape');
+    const isRotatedMode = imgElement.className.includes('rotate');
+    
+    const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
+    const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
+    
+    let scale;
+    if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
+        scale = viewportWidth / rotatedWidth;
     } else {
-        comic.classList.remove('normal');
-        comic.classList.add('rotate');
-        isRotatedMode = true;
+        scale = viewportHeight / rotatedHeight;
+    }
+    
+    scale = scale * CONFIG.ROTATED_IMAGE_SCALE;
+    
+    imgElement.style.width = `${naturalWidth * scale}px`;
+    imgElement.style.height = `${naturalHeight * scale}px`;
+    imgElement.style.position = 'fixed';
+    
+    if (isLandscapeMode) {
+        imgElement.style.top = '40%';
+        imgElement.style.left = '50%';
+        imgElement.style.transformOrigin = 'center center';
+    } else if (isRotatedMode) {
+        imgElement.style.top = '';
+        imgElement.style.left = '';
+        imgElement.style.transformOrigin = '';
+    }
+    imgElement.style.maxWidth = 'none';
+    imgElement.style.maxHeight = 'none';
+    imgElement.style.zIndex = '10001';
+    imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+}
+
+/**
+ * Position the fullscreen toolbar based on device orientation
+ */
+function positionFullscreenToolbar() {
+    const toolbar = document.getElementById('fullscreen-toolbar');
+    if (!toolbar) return;
+    
+    toolbar.style.position = 'fixed';
+    toolbar.style.zIndex = '10002';
+    
+    toolbar.style.left = '';
+    toolbar.style.bottom = '';
+    toolbar.style.top = '';
+    toolbar.style.transform = '';
+    toolbar.style.flexDirection = '';
+    toolbar.style.width = '';
+    toolbar.style.maxWidth = '';
+    toolbar.style.height = '';
+}
+
+/**
+ * Sets button disabled states (both main and rotated versions)
+ * @param {Object} states - Object mapping button IDs to disabled state booleans
+ */
+function setButtonStates(states) {
+    Object.keys(states).forEach(buttonId => {
+        const mainButton = document.getElementById(buttonId);
+        const rotatedButton = document.getElementById(`rotated-${buttonId}`);
+        
+        if (mainButton) {
+            mainButton.disabled = states[buttonId];
+        }
+        if (rotatedButton) {
+            rotatedButton.disabled = states[buttonId];
+        }
+    });
+}
+
+/**
+ * Handles resize and orientation change in rotated view
+ */
+function handleRotatedViewResize() {
+    const rotatedComic = document.getElementById('rotated-comic');
+    if (rotatedComic) {
+        maximizeRotatedImage(rotatedComic);
+    }
+    positionFullscreenToolbar();
+}
+
+/**
+ * Handles touch start event for swipe gesture detection
+ * @param {TouchEvent} e - The touch event
+ */
+function handleTouchStart(e) {
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+}
+
+/**
+ * Handles touch move event to prevent default scrolling during swipe
+ * @param {TouchEvent} e - The touch event
+ */
+function handleTouchMove(e) {
+    // Prevent default scrolling during swipe
+    if (Math.abs(e.touches[0].clientX - touchStartX) > 10) {
+        e.preventDefault();
+    }
+}
+
+/**
+ * Handles touch end event to detect tap vs swipe and navigate accordingly
+ * @param {TouchEvent} e - The touch event
+ */
+function handleTouchEnd(e) {
+    const touch = e.changedTouches[0];
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
+    
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    const deltaTime = Date.now() - touchStartTime;
+    
+    // Detect swipe (not tap)
+    const isSwipe = Math.abs(deltaX) > 50 && deltaTime < 300;
+    
+    if (isSwipe) {
+        e.stopPropagation();
+        
+        if (deltaX > 0) {
+            // Swipe right - go to previous comic
+            PreviousClick();
+        } else {
+            // Swipe left - go to next comic
+            NextClick();
+        }
+    }
+    // If it's not a swipe, the click handler on overlay will handle it
+}
+
+/**
+ * Initializes mobile button states to prevent stuck active/focus states
+ * Should be called once at app initialization
+ */
+function initializeMobileButtonStates() {
+    const allButtons = document.querySelectorAll('button, .toolbar-button');
+    
+    allButtons.forEach(button => {
+        // Clear active state on touchend
+        button.addEventListener('touchend', function() {
+            this.blur();
+            setTimeout(() => {
+                this.classList.remove('active');
+            }, 100);
+        }, { passive: true });
+        
+        // Ensure buttons don't stay focused on click
+        button.addEventListener('click', function() {
+            setTimeout(() => {
+                this.blur();
+            }, 50);
+        });
+    });
+}
+
+// ========================================
+// COMIC ROTATION & FULLSCREEN
+// ========================================
+
+/**
+ * Toggles comic rotation to fullscreen mode
+ * Handles both entering and exiting fullscreen with optional 90-degree rotation
+ * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
+ */
+function Rotate(applyRotation = true) {
+    if (isRotating) {
+        return;
+    }
+    
+    isRotating = true;
+    
+    try {
+        const element = document.getElementById('comic');
+        
+        if (!element) {
+            isRotating = false;
+            return;
+        }
+        
+        const existingOverlay = document.getElementById('comic-overlay');
+        if (existingOverlay) {
+            // Exit fullscreen mode
+            document.body.removeChild(existingOverlay);
+            
+            const rotatedComic = document.getElementById('rotated-comic');
+            if (rotatedComic) {
+                document.body.removeChild(rotatedComic);
+            }
+            
+            const fullscreenToolbar = document.getElementById('fullscreen-toolbar');
+            if (fullscreenToolbar) {
+                document.body.removeChild(fullscreenToolbar);
+            }
+            
+            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
+            hiddenElements.forEach(el => {
+                el.style.display = el.dataset.originalDisplay || '';
+                delete el.dataset.wasHidden;
+                delete el.dataset.originalDisplay;
+            });
+            
+            const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
+            if (mainToolbar) {
+                mainToolbar.style.visibility = 'hidden';
+            }
+            
+            element.className = "normal";
+            isRotatedMode = false;
+            
+            window.removeEventListener('resize', handleRotatedViewResize);
+            window.removeEventListener('orientationchange', handleRotatedViewResize);
+            
+            isRotating = false;
+            
+            setTimeout(() => {
+                const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
+                const comic = document.getElementById('comic');
+                if (toolbar && comic) {
+                    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+                    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+                    
+                    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+                        const comicRect = comic.getBoundingClientRect();
+                        let newTop, newLeft;
+                        newLeft = savedPos.left;
+                        
+                        toolbar.style.left = newLeft + 'px';
+                        toolbar.style.top = savedPos.top + 'px';
+                        toolbar.style.visibility = 'visible';
+                    } else {
+                        toolbar.style.visibility = 'visible';
+                    }
+                }
+            }, 250);
+            
+            return;
+        }
+        
+        if (element.className.includes("normal")) {
+            const elementsToHideInitial = document.querySelectorAll('body > *');
+            elementsToHideInitial.forEach(el => {
+                el.dataset.originalDisplay = window.getComputedStyle(el).display;
+                el.dataset.wasHidden = "true";
+                el.style.setProperty('display', 'none', 'important');
+            });
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'comic-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
+            overlay.style.zIndex = '10000';
+            
+            const clonedComic = element.cloneNode(true);
+            clonedComic.id = 'rotated-comic';
+            clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
+            clonedComic.style.display = 'block';
+            
+            const fullscreenToolbar = document.createElement('div');
+            fullscreenToolbar.id = 'fullscreen-toolbar';
+            fullscreenToolbar.className = 'toolbar fullscreen-toolbar';
+            fullscreenToolbar.innerHTML = `
+                <button id="rotated-First" class="toolbar-button" onclick="FirstClick(); return false;" title="First comic">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+                </button>
+                <button id="rotated-Previous" class="toolbar-button" onclick="PreviousClick(); return false;" title="Previous comic">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button id="rotated-Random" class="toolbar-button" onclick="RandomClick(); return false;" title="Random comic">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+                        <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
+                        <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
+                        <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/>
+                    </svg>
+                </button>
+                <button class="toolbar-button toolbar-datepicker-btn" title="Select date">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="2"/></svg>
+                    <input id="rotated-DatePicker" class="toolbar-datepicker" oninput="DateChange()" type="date" min="1978-06-19" title="Select date">
+                </button>
+                <button id="rotated-Next" class="toolbar-button" onclick="NextClick(); return false;" title="Next comic">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button id="rotated-Today" class="toolbar-button" onclick="CurrentClick(); return false;" title="Today's comic">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </button>
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(clonedComic);
+            document.body.appendChild(fullscreenToolbar);
+            
+            if (applyRotation) {
+                fullscreenToolbar.classList.add('rotated');
+            } else {
+                fullscreenToolbar.classList.add('landscape-toolbar');
+            }
+            
+            CompareDates();
+            
+            clonedComic.style.display = 'block';
+            fullscreenToolbar.style.display = 'flex';
+            
+            positionFullscreenToolbar();
+            
+            window.addEventListener('resize', handleRotatedViewResize);
+            window.addEventListener('orientationchange', handleRotatedViewResize);
+            
+            if (clonedComic.complete) {
+                maximizeRotatedImage(clonedComic);
+            } else {
+                clonedComic.onload = function() {
+                    maximizeRotatedImage(clonedComic);
+                };
+            }
+            
+            fullscreenToolbar.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
+            overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
+            overlay.addEventListener('touchend', function(e) {
+                handleTouchEnd(e);
+                e.stopPropagation();
+            }, { passive: true });
+            
+            overlay.addEventListener('click', function() {
+                Rotate();
+            });
+            
+            isRotatedMode = true;
+        }
+        else if (element.className.includes("rotate")) {
+            element.className = 'normal';
+            isRotatedMode = false;
+        }
+        
+    } catch (error) {
+        console.error('Error in Rotate():', error);
+        isRotating = false;
+    } finally {
+        setTimeout(() => {
+            isRotating = false;
+        }, CONFIG.ROTATION_DEBOUNCE);
     }
 }
 
@@ -885,6 +1258,22 @@ function onLoad() {
             this.value = `${yyyy}-${mm}-${dd}`;
         }
     });
+    
+    // Add orientation change handler for automatic fullscreen
+    window.addEventListener('orientationchange', function() {
+        setTimeout(function() {
+            const isLandscape = window.orientation === 90 || window.orientation === -90;
+            const overlay = document.getElementById('comic-overlay');
+            
+            if (isLandscape && !overlay) {
+                // Enter landscape fullscreen (no rotation)
+                Rotate(false);
+            } else if (!isLandscape && overlay) {
+                // Exit fullscreen when returning to portrait
+                Rotate();
+            }
+        }, 100);
+    });
 
     if (document.getElementById("showfavs").checked) {
         currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
@@ -911,6 +1300,9 @@ function onLoad() {
     CompareDates();
     showComic();
     updateDateDisplay(); // Add this line to update the display
+    
+    // Initialize mobile button states
+    initializeMobileButtonStates();
 }
 
 // Call this function when the date changes
