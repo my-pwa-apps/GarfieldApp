@@ -5,8 +5,49 @@ function parseComicFromHTML(html, proxyIndex) {
     const source = proxyIndex === 0 ? 'direct fetch' : `proxy ${proxyIndex}`;
     console.log(`Received ${html.length} characters from ${source}`);
     
-    // Always log snippet for debugging
-    console.log(`HTML snippet from ${source}:`, html.substring(0, 500));
+    // Check if it's a Next.js error page
+    if (html.includes('__next_error__')) {
+        console.error(`${source} returned a Next.js error page (404)`);
+        return null;
+    }
+    
+    // Try to find Next.js page props data which might contain the image URL
+    const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
+    if (nextDataMatch) {
+        try {
+            const jsonData = JSON.parse(nextDataMatch[1]);
+            console.log('Found Next.js data, searching for image URL...');
+            
+            // Search through the JSON for image URLs (multiple patterns)
+            const jsonStr = JSON.stringify(jsonData);
+            
+            // Try featureassets.gocomics.com first (new CDN)
+            let imageUrlMatch = jsonStr.match(/https:\\\/\\\/featureassets\.gocomics\.com\\\/assets\\\/[a-f0-9]+[^"\\]*/);
+            if (imageUrlMatch) {
+                const imageUrl = imageUrlMatch[0].replace(/\\\//g, '/').replace(/\\u0026/g, '&');
+                console.log(`Successfully found comic in Next.js data (featureassets):`, imageUrl);
+                return { 
+                    imageUrl: imageUrl, 
+                    isPaywalled: false,
+                    success: true 
+                };
+            }
+            
+            // Try assets.amuniversal.com (older CDN)
+            imageUrlMatch = jsonStr.match(/https:\\\/\\\/assets\.amuniversal\.com\\\/[a-f0-9]+/);
+            if (imageUrlMatch) {
+                const imageUrl = imageUrlMatch[0].replace(/\\\//g, '/');
+                console.log(`Successfully found comic in Next.js data (amuniversal):`, imageUrl);
+                return { 
+                    imageUrl: imageUrl, 
+                    isPaywalled: false,
+                    success: true 
+                };
+            }
+        } catch (e) {
+            console.log('Failed to parse Next.js data:', e.message);
+        }
+    }
     
     // Log a sample to see the structure
     if (html.length > 1000) {
@@ -15,13 +56,22 @@ function parseComicFromHTML(html, proxyIndex) {
             console.log('Found img tags:', imgSample.slice(0, 5));
         } else {
             console.log('No img tags found with standard pattern');
-            // Try finding any amuniversal URLs
-            const amuniversalUrls = html.match(/https:\/\/[^\s"']*amuniversal\.com[^\s"']*/gi);
-            if (amuniversalUrls) {
-                console.log('Found amuniversal URLs:', amuniversalUrls.slice(0, 3));
-            } else {
-                console.log('No amuniversal URLs found either');
-            }
+        }
+        
+        // Try finding featureassets URLs (new CDN)
+        const featureassetUrls = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+[^\s"']*/gi);
+        if (featureassetUrls) {
+            console.log('Found featureassets URLs:', featureassetUrls.slice(0, 3));
+        }
+        
+        // Try finding amuniversal URLs (old CDN)
+        const amuniversalUrls = html.match(/https:\/\/[^\s"']*amuniversal\.com[^\s"']*/gi);
+        if (amuniversalUrls) {
+            console.log('Found amuniversal URLs:', amuniversalUrls.slice(0, 3));
+        }
+        
+        if (!featureassetUrls && !amuniversalUrls) {
+            console.log('No comic CDN URLs found');
         }
     }
     
@@ -33,23 +83,23 @@ function parseComicFromHTML(html, proxyIndex) {
     
     console.log('Paywall detected:', isPaywalled);
     
-    // Look for assets.amuniversal.com pattern (most common)
+    // Look for featureassets.gocomics.com pattern (NEW CDN - most common now)
+    const featureAssetMatch = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+(?:\?[^"'\s]*)?/);
+    if (featureAssetMatch) {
+        console.log(`Successfully found comic (featureassets):`, featureAssetMatch[0]);
+        return { 
+            imageUrl: featureAssetMatch[0], 
+            isPaywalled: false,
+            success: true 
+        };
+    };
+    
+    // Look for assets.amuniversal.com pattern (older CDN)
     const assetMatch = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (assetMatch) {
         console.log(`Successfully found comic (assets.amuniversal):`, assetMatch[0]);
         return { 
             imageUrl: assetMatch[0], 
-            isPaywalled: false,
-            success: true 
-        };
-    }
-    
-    // Also check for featureassets
-    const featureAssetMatch = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}/);
-    if (featureAssetMatch) {
-        console.log(`Successfully found comic (featureassets):`, featureAssetMatch[0]);
-        return { 
-            imageUrl: featureAssetMatch[0], 
             isPaywalled: false,
             success: true 
         };
@@ -134,10 +184,16 @@ export async function extractGoComicsImage(date, credentials = null) {
             
             console.log(`Attempting to fetch from proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
             
-            // Prepare fetch options
+            // Prepare fetch options with better headers to avoid bot detection
             const fetchOptions = {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Referer': 'https://www.gocomics.com/',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1'
                 }
             };
 
