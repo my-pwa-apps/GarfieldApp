@@ -504,7 +504,7 @@ async function preloadComic(date) {
  */
 /**
  * Shares the current comic using Web Share API
- * Handles image loading, CORS proxy, and canvas conversion
+ * Simplified implementation like DirkJanApp - directly fetch and share the blob
  * @returns {Promise<void>}
  */
 async function Share() 
@@ -522,47 +522,20 @@ async function Share()
     
     if(navigator.share) {
         try {
-            // Create a new image element with crossOrigin set to anonymous 
-            // to avoid tainted canvas issues
-            const tempImg = new Image();
-            tempImg.crossOrigin = "anonymous";
+            // Use CORS proxy to fetch the image
+            const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
+            const response = await fetch(proxyUrl);
             
-            // Create a URL with CORS proxy to load the image
-            const cacheBuster = Date.now();
-            const imgUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
+            if (!response.ok) {
+                throw new Error('Failed to fetch comic image');
+            }
             
-            // Wait for image to load
-            await new Promise((resolve, reject) => {
-                tempImg.onload = resolve;
-                tempImg.onerror = () => reject(new Error("Failed to load image for sharing"));
-                tempImg.src = imgUrl;
-                
-                // Set a timeout in case the image load hangs
-                setTimeout(() => reject(new Error("Image load timeout")), 5000);
-            });
-            
-            // Create canvas and draw image
-            const canvas = document.createElement('canvas');
-            canvas.width = tempImg.width;
-            canvas.height = tempImg.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, 0, 0);
-            
-            // Convert to blob
-            const jpgBlob = await new Promise((resolve, reject) => {
-                try {
-                    canvas.toBlob(blob => {
-                        if (blob) resolve(blob);
-                        else reject(new Error("Failed to create blob from canvas"));
-                    }, 'image/jpeg', 0.95);
-                } catch (error) {
-                    reject(error);
-                }
-            });
+            // Get the blob directly from response
+            const blob = await response.blob();
             
             // Create file for sharing
-            const file = new File([jpgBlob], "garfield.jpg", { 
-                type: "image/jpeg", 
+            const file = new File([blob], "garfield.jpg", { 
+                type: blob.type || "image/jpeg", 
                 lastModified: Date.now() 
             });
             
@@ -573,25 +546,21 @@ async function Share()
                 files: [file]
             });
         } catch (error) {
-            console.error("Error sharing comic:", error);
-            
-            // Check if this is a CORS-related error
-            if (error.name === 'SecurityError') {
-                // Try fallback sharing without the image
-                try {
-                    await navigator.share({
-                        url: 'https://garfieldapp.pages.dev',
-                        text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
-                    });
-                    return;
-                } catch (fallbackError) {
-                    console.error("Fallback sharing failed:", fallbackError);
-                }
+            // Don't show alert if sharing was canceled by user
+            if (error.name === 'AbortError') {
+                return;
             }
             
-            // Don't show alert if sharing was canceled by user
-            if (error.name !== 'AbortError') {
-                alert("Failed to share the comic. Please try again.");
+            // Try fallback sharing without the image
+            try {
+                await navigator.share({
+                    url: 'https://garfieldapp.pages.dev',
+                    text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
+                });
+            } catch (fallbackError) {
+                if (fallbackError.name !== 'AbortError') {
+                    alert("Sharing is not supported or failed. Please try again.");
+                }
             }
         }
     } else {
