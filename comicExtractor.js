@@ -7,9 +7,18 @@ function parseComicFromHTML(html, proxyIndex) {
     
     // Log a sample to see the structure
     if (html.length > 1000) {
+        console.log('HTML snippet (first 1000 chars):', html.substring(0, 1000));
+        
         const imgSample = html.match(/<img[^>]{0,200}>/gi);
-        if (imgSample) {
+        if (imgSample && imgSample.length > 0) {
             console.log('Found img tags:', imgSample.slice(0, 5));
+        } else {
+            console.log('No img tags found with standard pattern');
+            // Try finding any amuniversal URLs
+            const amuniversalUrls = html.match(/https:\/\/[^\s"']*amuniversal\.com[^\s"']*/gi);
+            if (amuniversalUrls) {
+                console.log('Found amuniversal URLs:', amuniversalUrls.slice(0, 3));
+            }
         }
     }
     
