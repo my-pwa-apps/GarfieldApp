@@ -1,15 +1,99 @@
 import goComicsAuth from './auth.js';
 
+// Function to parse comic from HTML
+function parseComicFromHTML(html, proxyIndex) {
+    // Debug: log a snippet of the HTML
+    console.log(`Received ${html.length} characters from ${proxyIndex === 0 ? 'direct fetch' : `proxy ${proxyIndex}`}`);
+    
+    // Check for paywall indicators - be more specific
+    const hasPaywallButton = html.includes('gc-link-button') || html.includes('gc-card__link');
+    const hasSubscribeText = html.includes('Subscribe to read the full') || html.includes('Subscription Required');
+    const hasSignUpWall = html.includes('Create a free account') && html.includes('to view this comic');
+    const isPaywalled = hasPaywallButton || hasSubscribeText || hasSignUpWall;
+    
+    console.log('Paywall detected:', isPaywalled);
+    
+    // Look for the specific asset URL pattern
+    const assetMatch = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]{32}/);
+    if (assetMatch) {
+        console.log(`Successfully found comic (assets.amuniversal):`, assetMatch[0]);
+        return { 
+            imageUrl: assetMatch[0], 
+            isPaywalled: false,
+            success: true 
+        };
+    }
+    
+    // Also check for featureassets
+    const featureAssetMatch = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}/);
+    if (featureAssetMatch) {
+        console.log(`Successfully found comic (featureassets):`, featureAssetMatch[0]);
+        return { 
+            imageUrl: featureAssetMatch[0], 
+            isPaywalled: false,
+            success: true 
+        };
+    }
+
+    // Fallback to picture tag if asset URL not found
+    const pictureMatch = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
+    if (pictureMatch && pictureMatch[1]) {
+        console.log(`Successfully found comic (picture tag):`, pictureMatch[1]);
+        return { 
+            imageUrl: pictureMatch[1], 
+            isPaywalled: false,
+            success: true 
+        };
+    }
+    
+    // Also try to find img with data-image attribute
+    const dataImageMatch = html.match(/data-image="([^"]*)"/i);
+    if (dataImageMatch && dataImageMatch[1]) {
+        console.log(`Successfully found comic (data-image):`, dataImageMatch[1]);
+        return { 
+            imageUrl: dataImageMatch[1], 
+            isPaywalled: false,
+            success: true 
+        };
+    }
+    
+    // If no comic found but paywall detected, return paywall status
+    if (isPaywalled) {
+        console.log(`Paywall detected`);
+        return {
+            imageUrl: null,
+            isPaywalled: true,
+            success: false,
+            message: 'This comic requires a GoComics membership'
+        };
+    }
+    
+    return null;
+}
+
 // List of CORS proxies to try in order
 const CORS_PROXIES = [
     'https://corsproxy.garfieldapp.workers.dev/?',
-    'https://api.allorigins.win/raw?url=',
-    'https://corsproxy.io/?'
+    'https://api.codetabs.com/v1/proxy?quest=',
+    'https://api.allorigins.win/raw?url='
 ];
 
 export async function extractGoComicsImage(date, credentials = null) {
     const formattedDate = date.toISOString().split('T')[0];
     const originalUrl = `https://www.gocomics.com/garfield/${formattedDate}`;
+    
+    // Try direct fetch first (might work on deployed site)
+    try {
+        console.log('Attempting direct fetch (no proxy)...');
+        const response = await fetch(originalUrl, { mode: 'cors' });
+        if (response.ok) {
+            const html = await response.text();
+            const result = parseComicFromHTML(html, 0);
+            if (result) return result;
+        }
+    } catch (error) {
+        console.log('Direct fetch failed, trying proxies...', error.message);
+    }
     
     // Try each proxy in sequence
     for (let i = 0; i < CORS_PROXIES.length; i++) {
@@ -40,65 +124,10 @@ export async function extractGoComicsImage(date, credentials = null) {
             }
             
             const html = await response.text();
+            const result = parseComicFromHTML(html, i + 1);
+            if (result) return result;
             
-            // Debug: log a snippet of the HTML to see what we're getting
-            console.log(`Received ${html.length} characters from proxy ${i + 1}`);
-            console.log('HTML snippet:', html.substring(0, 500));
-            
-            // Check for paywall indicators - be more specific
-            const hasPaywallButton = html.includes('gc-link-button') || html.includes('gc-card__link');
-            const hasSubscribeText = html.includes('Subscribe to read the full') || html.includes('Subscription Required');
-            const hasSignUpWall = html.includes('Create a free account') && html.includes('to view this comic');
-            const isPaywalled = hasPaywallButton || hasSubscribeText || hasSignUpWall;
-            
-            console.log('Paywall detected:', isPaywalled);
-            
-            // Look for the specific asset URL pattern
-            const assetMatch = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}/);
-            if (assetMatch) {
-                console.log(`Successfully found comic from proxy ${i + 1}:`, assetMatch[0]);
-                return { 
-                    imageUrl: assetMatch[0], 
-                    isPaywalled: false,
-                    success: true 
-                };
-            }
-
-            // Fallback to picture tag if asset URL not found
-            const pictureMatch = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-            if (pictureMatch && pictureMatch[1]) {
-                console.log(`Successfully found comic from proxy ${i + 1} (picture tag):`, pictureMatch[1]);
-                return { 
-                    imageUrl: pictureMatch[1], 
-                    isPaywalled: false,
-                    success: true 
-                };
-            }
-            
-            // Also try to find img with class containing 'comic'
-            const comicImgMatch = html.match(/<img[^>]*class="[^"]*comic[^"]*"[^>]*src="([^"]*)"[^>]*>/i) || 
-                                 html.match(/<img[^>]*src="([^"]*)"[^>]*class="[^"]*comic[^"]*"[^>]*>/i);
-            if (comicImgMatch && comicImgMatch[1]) {
-                console.log(`Successfully found comic from proxy ${i + 1} (via comic class):`, comicImgMatch[1]);
-                return { 
-                    imageUrl: comicImgMatch[1], 
-                    isPaywalled: false,
-                    success: true 
-                };
-            }
-            
-            // If no comic found and paywall detected, return paywall status
-            if (isPaywalled) {
-                console.log(`Paywall detected from proxy ${i + 1}`);
-                return {
-                    imageUrl: null,
-                    isPaywalled: true,
-                    success: false,
-                    message: 'This comic requires a GoComics membership'
-                };
-            }
-            
-            // If this proxy didn't work, try the next one
+            // If this proxy didn't find anything, try the next one
             console.warn(`Proxy ${i + 1} didn't find comic, trying next...`);
             
         } catch (error) {
