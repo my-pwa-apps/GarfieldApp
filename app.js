@@ -124,7 +124,7 @@ function makeDraggable(element, headerSelector, storageKey) {
   }
   
   header.onmousedown = dragMouseDown;
-  header.ontouchstart = dragTouchStart;
+  header.addEventListener('touchstart', dragTouchStart, { passive: false });
   
   function dragMouseDown(e) {
     e = e || window.event;
@@ -162,6 +162,7 @@ function makeDraggable(element, headerSelector, storageKey) {
     }
     
     if (e.touches && e.touches.length > 0) {
+      e.preventDefault();
       pos3 = e.touches[0].clientX;
       pos4 = e.touches[0].clientY;
       document.ontouchend = closeDragElement;
