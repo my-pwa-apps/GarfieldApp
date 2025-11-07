@@ -174,8 +174,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 98vh;
-    max-height: 98vw;
+    max-width: 100vh;
+    max-height: 100vw;
     object-fit: contain;
     margin: 0;
     padding: 0;
