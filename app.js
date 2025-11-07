@@ -18,7 +18,8 @@ const translations = {
         loadingComic: 'Loading comic...',
         settings: 'Settings',
         favorites: 'Add to favorites',
-        share: 'Share'
+        share: 'Share',
+        selectDate: 'Select comic date'
     },
     es: {
         previous: 'Anterior',
@@ -34,7 +35,8 @@ const translations = {
         loadingComic: 'Cargando cómic...',
         settings: 'Configuración',
         favorites: 'Agregar a favoritos',
-        share: 'Compartir'
+        share: 'Compartir',
+        selectDate: 'Seleccionar fecha del cómic'
     }
 };
 
@@ -68,6 +70,13 @@ function translateInterface(lang) {
     for (const [id, text] of Object.entries(labels)) {
         const label = document.querySelector(`label[for="${id}"]`);
         if (label) label.textContent = text;
+    }
+    
+    // Translate date picker
+    const datePicker = document.getElementById('DatePicker');
+    if (datePicker) {
+        datePicker.title = t.selectDate;
+        datePicker.setAttribute('aria-label', t.selectDate);
     }
     
     // Translate comic alt text

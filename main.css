@@ -177,7 +177,7 @@ input {
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 0 auto;
+    margin: 0;
     transition: all 0.3s ease;
 }
 
@@ -322,13 +322,14 @@ input[type="date"]::-webkit-datetime-edit {
     width: 100%;
     box-sizing: border-box;
     text-align: center;
-    padding: 0;
-    margin: 0 auto;
+    padding: 10px 15px 0;
+    margin: 0;
 }
 
 .logo img {
-    max-width: 95%;
-    margin: 25px auto 5px;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
     display: block;
 }
 
@@ -337,7 +338,7 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: center;
     align-items: center;
     width: 100%;
-    margin: 0 auto;
+    margin: 0;
     padding: 0;
     box-sizing: border-box;
     position: relative;
@@ -377,23 +378,27 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Settings Panel */
 #settingsDIV {
-    margin-top: 25px;
-    padding: 0 8px;
+    margin-top: 30px;
+    padding: 20px 15px;
 }
 
 .settings-group {
-    margin: 10px 0;
+    margin: 15px 0;
+    display: flex;
+    align-items: center;
 }
 
 .settings-group input[type="checkbox"] {
-    margin-right: 8px;
+    margin-right: 12px;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .labels {
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
+    flex: 1;
 }
 
 .hidden-during-fullscreen {
