@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Daily Garfield Comics</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(#eee239, orange) no-repeat fixed;
+            background-size: 100% 100vh;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .offline-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .offline-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            color: #555;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+            background-size: 200% auto;
+            color: black;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .button:hover {
+            background-position: right center;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .tips {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+        
+        .tips h2 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .tips ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .tips li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            font-size: 0.95rem;
+            color: #555;
+        }
+        
+        .tips li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #F09819;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <div class="offline-icon">📡❌</div>
+        <h1>You're Offline</h1>
+        <p>It looks like you've lost your internet connection. Please check your network and try again.</p>
+        
+        <button class="button" onclick="window.location.reload()">Try Again</button>
+        
+        <div class="tips">
+            <h2>Troubleshooting Tips:</h2>
+            <ul>
+                <li>Check your WiFi or mobile data connection</li>
+                <li>Make sure airplane mode is turned off</li>
+                <li>Try moving to an area with better signal</li>
+                <li>Restart your router if using WiFi</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

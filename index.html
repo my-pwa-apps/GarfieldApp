@@ -6,25 +6,82 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
     <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Garfield">
+    
+    <!-- Windows Tile -->
     <meta name="msapplication-TileColor" content="#eee239">
+    <meta name="msapplication-config" content="./browserconfig.xml">
+    
+    <!-- Theme Colors -->
     <meta name="theme-color" content="#eee239">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#eee239">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#eee239">
+    
+    <!-- Verification -->
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
+    
     <title>Daily Garfield Comics</title>
+    
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="./main.css">
+    
+    <!-- Icons and Manifest -->
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="preconnect" href="https://assets.amuniversal.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <script src="./swiped-events.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    
+    <!-- Resource Hints for Performance -->
+    <link rel="dns-prefetch" href="https://assets.amuniversal.com">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://ajax.googleapis.com">
+    <link rel="dns-prefetch" href="https://corsproxy.garfieldapp.workers.dev">
+    <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
+    
+    <!-- Scripts -->
+    <script src="./swiped-events.min.js" defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js" defer></script>
     <script src="./app.js" type="module"></script>
+    
+    <!-- Structured Data for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Daily Garfield Comics",
+      "description": "Daily Garfield comic strips from GoComics. Browse current, previous, random comics or pick a specific date.",
+      "url": "https://garfieldapp.pages.dev",
+      "applicationCategory": "Entertainment",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "GarfieldApp"
+      }
+    }
+    </script>
 </head>
 
 <body onload="onLoad()">
+    <noscript>
+        <div style="padding: 20px; text-align: center; background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 5px; margin: 20px;">
+            <strong>JavaScript Required:</strong> This app requires JavaScript to be enabled for full functionality. Please enable JavaScript in your browser settings.
+        </div>
+    </noscript>
+    
     <h1 hidden>Daily Garfield Comics App</h1>
     
     <div class="logo">
@@ -38,7 +95,7 @@
         <button class="button" id="First" onclick="FirstClick()">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" title="Select comic date" aria-label="Select comic date">
             </div>
         </div>
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>

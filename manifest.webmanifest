@@ -1,15 +1,16 @@
 {
-  "name": "Daily Garfield",
-  "description": "Garfield Comics, Current, Next, Previous, Random, First, Specific Date, Swipe",
+  "name": "Daily Garfield Comics",
+  "description": "Daily Garfield comic strips from GoComics. Browse current, previous, random comics or pick a specific date. Features swipe navigation and favorites.",
   "short_name": "Garfield",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background": "background: linear-gradient(#eee239, orange) no-repeat",
   "background_color": "#eee239",
   "theme_color": "#eee239",
   "categories": [
-    "entertainment"
+    "entertainment",
+    "lifestyle"
   ],
   "icons": [
     {
@@ -335,16 +336,20 @@
     {
       "src": "android/android-launchericon-512-512.png",
       "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any"
     },
     {
       "src": "android/maskable_icon_x512.png",
       "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
       "src": "android/android-launchericon-192-192.png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "android/android-launchericon-144-144.png",
@@ -481,11 +486,5 @@
   ],
   "dir": "ltr",
   "lang": "en",
-  "display_override": [
-    "window-controls-overlay"
-  ],
-  "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 400
-  }
+  "prefer_related_applications": false
 }

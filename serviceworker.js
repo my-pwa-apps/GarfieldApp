@@ -1,6 +1,6 @@
-const OFFLINE_VERSION = 2;
-const CACHE_NAME = "offline";
-const OFFLINE_URL = "index.html";
+const OFFLINE_VERSION = 3;
+const CACHE_NAME = "offline-v3";
+const OFFLINE_URL = "offline.html";
 
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
