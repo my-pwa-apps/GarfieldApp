@@ -51,11 +51,20 @@ main {
     margin: 0 auto;
     padding: 0;
     text-align: center;
+    width: 100%;
 }
 
 main.fullscreen-mode {
     max-width: none !important;
     width: 100vw !important;
+}
+
+/* Responsive: use full width on larger screens */
+@media (min-width: 901px) {
+    main {
+        max-width: 100%;
+        width: 100%;
+    }
 }
 
 header {
@@ -426,7 +435,7 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     width: 100%;
     box-sizing: border-box;
-    padding: 0 15px;
+    padding: 0 10px;
 }
 
 #support-container {
