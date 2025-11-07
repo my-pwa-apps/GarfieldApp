@@ -799,6 +799,7 @@ if (setStatus) {
 			if (datePicker) datePicker.min = "1978-06-19";
 		}
 		// Reload the current comic in the selected language
+		CompareDates();
 		showComic();
 	}
 }
