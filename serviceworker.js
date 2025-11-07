@@ -9,6 +9,7 @@ const PRECACHE_ASSETS = [
   './offline.html',
   './main.css',
   './app.js',
+  './init.js',
   './comicExtractor.js',
   './garlogo.png',
   './manifest.webmanifest'

@@ -66,95 +66,16 @@
     
     <!-- Resource Hints for Performance -->
     <link rel="dns-prefetch" href="https://assets.amuniversal.com">
-    <link rel="dns-prefetch" href="https://ajax.googleapis.com">
     <link rel="dns-prefetch" href="https://corsproxy.garfieldapp.workers.dev">
+    <link rel="dns-prefetch" href="https://storage.ko-fi.com">
     <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
-    <link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://storage.ko-fi.com" crossorigin>
     
-    <!-- Language Detection - Set HTML lang attribute based on user preference -->
-    <script>
-        (function() {
-            const savedLang = localStorage.getItem('spanish');
-            if (savedLang === 'true') {
-                document.documentElement.lang = 'es';
-            } else if (savedLang === null) {
-                // Auto-detect on first visit
-                const userLang = navigator.language || navigator.userLanguage;
-                if (userLang.startsWith('es')) {
-                    document.documentElement.lang = 'es';
-                }
-            }
-        })();
-    </script>
-    
-    <!-- Service Worker Registration - Inline for immediate execution -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('./serviceworker.js')
-                    .then(function(registration) {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                        
-                        // Check for updates
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // New service worker available, show update notification
-                                    showUpdateNotification(registration);
-                                }
-                            });
-                        });
-                    }, function(err) {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-        
-        function showUpdateNotification(registration) {
-            const notification = document.getElementById('updateNotification');
-            const updateBtn = document.getElementById('updateBtn');
-            const dismissBtn = document.getElementById('dismissBtn');
-            
-            notification.style.display = 'block';
-            
-            updateBtn.onclick = function() {
-                // Tell the new service worker to skip waiting
-                if (registration.waiting) {
-                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                }
-                notification.style.display = 'none';
-                // Reload the page to activate the new service worker
-                window.location.reload();
-            };
-            
-            dismissBtn.onclick = function() {
-                notification.style.display = 'none';
-            };
-        }
-    </script>
-    
-    <!-- Fullscreen detection -->
-    <script>
-        function updateFullscreenClass() {
-            const main = document.querySelector('main');
-            if (document.fullscreenElement || document.webkitFullscreenElement || 
-                document.mozFullScreenElement || document.msFullscreenElement) {
-                main.classList.add('fullscreen-mode');
-            } else {
-                main.classList.remove('fullscreen-mode');
-            }
-        }
-        
-        document.addEventListener('fullscreenchange', updateFullscreenClass);
-        document.addEventListener('webkitfullscreenchange', updateFullscreenClass);
-        document.addEventListener('mozfullscreenchange', updateFullscreenClass);
-        document.addEventListener('MSFullscreenChange', updateFullscreenClass);
-    </script>
+    <!-- Initialization Script - Must run before page load -->
+    <script src="./init.js"></script>
     
     <!-- Scripts -->
     <script src="./swiped-events.min.js" defer></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js" defer></script>
     <script src="./app.js" type="module"></script>
     
     <!-- Structured Data for SEO -->
@@ -235,14 +156,6 @@
         <aside id="controls-container">
             <div id="support-container">
                 <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-                <script>
-                    kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                    kofiwidget2.draw();
-                    setTimeout(() => {
-                        const kofiBtn = document.querySelector('.kofi-button');
-                        if (kofiBtn) kofiBtn.classList.add('kofi-button-styled');
-                    }, 100);
-                </script>
             </div>
             <div id="action-buttons">
                 <button onclick="HideSettings()" class="action-icon-btn" aria-label="Open settings">
