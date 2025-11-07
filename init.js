@@ -82,18 +82,6 @@ function showUpdateNotification(registration) {
     };
 }
 
-// Ko-fi Widget Initialization
-window.addEventListener('load', function() {
-    if (typeof kofiwidget2 !== 'undefined') {
-        kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-        kofiwidget2.draw();
-        setTimeout(() => {
-            const kofiBtn = document.querySelector('.kofi-button');
-            if (kofiBtn) kofiBtn.classList.add('kofi-button-styled');
-        }, 100);
-    }
-});
-
 
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
