@@ -131,8 +131,13 @@ export async function getAuthenticatedComic(date, language = 'en') {
         console.log(`Fetching comic: ${url}`);
         const html = await fetchWithProxyFallback(url);
         
-        // Check if we got a 404 page by looking for error indicators
-        if (html.includes('404') || html.includes('Page Not Found') || html.includes('not found')) {
+        // Check if we got a 404 page by looking for specific error indicators
+        const is404 = html.includes('<title>404') || 
+                      html.includes('Page Not Found') || 
+                      (html.includes('404') && html.includes('error')) ||
+                      html.includes('does not exist');
+        
+        if (is404) {
             console.warn(`Comic page not found: ${url}`);
             return { success: false, imageUrl: null, notFound: true };
         }
