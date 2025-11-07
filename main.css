@@ -498,19 +498,23 @@ input[type="date"]::-webkit-datetime-edit {
 .toolbar {
     position: fixed;
     display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--toolbar-gradient);
-    border-radius: 16px;
-    box-shadow: var(--shadow-lg),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    border: 2px solid rgba(240, 152, 25, 0.3);
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(80, 80, 80, 0.4) 51%, rgba(0, 0, 0, 0.6) 100%);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 100;
     cursor: grab;
     -webkit-user-select: none;
     user-select: none;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    box-sizing: border-box;
 }
 
 .toolbar:active {
@@ -522,7 +526,7 @@ input[type="date"]::-webkit-datetime-edit {
     background: var(--primary-gradient);
     background-size: 200% auto;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
+    border-radius: 14px;
     width: 48px;
     height: 48px;
     min-width: 48px;
@@ -530,12 +534,14 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    box-shadow: var(--shadow-sm),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(240, 152, 25, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
     position: relative;
     overflow: hidden;
-    will-change: transform;
+    will-change: transform, background-position;
+    flex-shrink: 0;
 }
 
 .toolbar-button::before {
@@ -547,6 +553,7 @@ input[type="date"]::-webkit-datetime-edit {
     height: 100%;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     transition: left 0.6s ease;
+    z-index: 0;
 }
 
 .toolbar-button:hover::before {
@@ -555,25 +562,28 @@ input[type="date"]::-webkit-datetime-edit {
 
 .toolbar-button:hover,
 .toolbar-datepicker-btn:hover {
-    transform: translateY(-2px) scale(1.05);
+    transform: translateY(-3px) scale(1.05);
     background-position: right center;
-    box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3),
-                var(--shadow-sm),
-                inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(240, 152, 25, 0.4),
+                0 4px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .toolbar-button:active,
 .toolbar-datepicker-btn:active {
     transform: translateY(-1px) scale(1.02);
-    box-shadow: var(--shadow-sm),
+    box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2),
                 inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-position: right center;
 }
 
 .toolbar-button:focus-visible,
 .toolbar-datepicker-btn:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
+    transform: translateY(-2px) scale(1.03);
 }
 
 .toolbar-button:disabled {
@@ -581,6 +591,21 @@ input[type="date"]::-webkit-datetime-edit {
     cursor: not-allowed;
     transform: none;
     background: linear-gradient(45deg, #999 0%, #666 51%, #999 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toolbar-button:disabled:hover {
+    transform: none;
+    background-position: left center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toolbar-button:disabled::before {
+    display: none;
 }
 
 .toolbar-svg {
@@ -589,6 +614,8 @@ input[type="date"]::-webkit-datetime-edit {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
     color: #333;
     stroke: #333;
+    fill: none;
+    display: block;
 }
 
 .toolbar-svg path,
@@ -597,6 +624,13 @@ input[type="date"]::-webkit-datetime-edit {
 .toolbar-svg circle,
 .toolbar-svg rect {
     stroke: #333;
+    color: #333;
+}
+
+.toolbar-svg circle[fill="currentColor"],
+.toolbar-svg rect[fill="currentColor"],
+.toolbar-svg path[fill="currentColor"] {
+    fill: #333;
 }
 
 .toolbar-datepicker-btn {
@@ -820,11 +854,12 @@ input[type="date"]::-webkit-datetime-edit {
 /* Mobile responsive */
 @media (max-width: 768px) {
     .toolbar {
+        width: calc(100vw - 20px);
+        padding: 12px 10px;
         gap: 6px;
-        padding: 10px 12px;
-        max-width: calc(100vw - 20px);
-        flex-wrap: wrap;
-        justify-content: center;
+        border-radius: 16px;
+        left: 10px;
+        transform: none;
     }
     
     .toolbar-button,
@@ -832,7 +867,43 @@ input[type="date"]::-webkit-datetime-edit {
         width: 44px;
         height: 44px;
         min-width: 44px;
+        border-radius: 12px;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        outline: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    
+    .toolbar-button:active,
+    .toolbar-datepicker-btn:active {
+        transform: translateY(-1px) scale(1.02);
+        background-position: right center;
+        box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.1s ease;
+    }
+    
+    .toolbar-button:focus-visible,
+    .toolbar-datepicker-btn:focus-visible {
+        outline: none;
+        transform: translateY(-3px) scale(1.05);
+    }
+    
+    .toolbar-svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    /* Touch device specific - reset hover on pure touch */
+    @media (hover: none) and (pointer: coarse) {
+        .toolbar-button:hover,
+        .toolbar-datepicker-btn:hover {
+            transform: none;
+            background-position: left center;
+        }
+    }
+}
     
     .toolbar-svg {
         width: 22px;
@@ -858,12 +929,13 @@ input[type="date"]::-webkit-datetime-edit {
     }
 }
 
+/* Extra small mobile devices */
 @media (max-width: 480px) {
     .toolbar {
+        width: calc(100vw - 16px);
+        padding: 10px 8px;
         gap: 4px;
-        padding: 8px 10px;
-        max-width: calc(100vw - 16px);
-        left: 8px !important;
+        left: 8px;
     }
     
     .toolbar-button,
@@ -871,6 +943,7 @@ input[type="date"]::-webkit-datetime-edit {
         width: 40px;
         height: 40px;
         min-width: 40px;
+        border-radius: 10px;
     }
     
     .toolbar-svg {
