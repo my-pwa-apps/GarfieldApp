@@ -467,6 +467,44 @@
       "sizes": "1024x1024"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Today's Comic",
+      "short_name": "Today",
+      "description": "View today's Garfield comic",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "./android/android-launchericon-96-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Random Comic",
+      "short_name": "Random",
+      "description": "View a random Garfield comic",
+      "url": "./index.html?action=random",
+      "icons": [
+        {
+          "src": "./android/android-launchericon-96-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "short_name": "Favorites",
+      "description": "View your favorite comics",
+      "url": "./index.html?view=favorites",
+      "icons": [
+        {
+          "src": "./android/android-launchericon-96-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
   "screenshots": [
     {
       "src": "./garscreenshot1.png",

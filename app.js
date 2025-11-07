@@ -21,7 +21,8 @@ const translations = {
         share: 'Share',
         selectDate: 'Select comic date',
         installApp: 'Install App',
-        supportApp: 'Support this App'
+        supportApp: 'Support this App',
+        notifyNewComics: 'Notify me of new comics'
     },
     es: {
         previous: 'Anterior',
@@ -40,7 +41,8 @@ const translations = {
         share: 'Compartir',
         selectDate: 'Seleccionar fecha del cómic',
         installApp: 'Instalar App',
-        supportApp: 'Apoyar esta App'
+        supportApp: 'Apoyar esta App',
+        notifyNewComics: 'Notificar nuevos cómics'
     }
 };
 
@@ -68,7 +70,8 @@ function translateInterface(lang) {
         'swipe': t.swipeEnabled,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
-        'spanish': t.spanish
+        'spanish': t.spanish,
+        'notifications': t.notifyNewComics
     };
     
     for (const [id, text] of Object.entries(labels)) {
@@ -479,7 +482,20 @@ window.onLoad = function() {
         }
     });
 
-    if (document.getElementById("showfavs").checked) {
+    // Handle URL parameters from shortcuts
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    const view = urlParams.get('view');
+
+    if (view === 'favorites' && favs.length > 0) {
+        document.getElementById("showfavs").checked = true;
+        localStorage.setItem('showfavs', "true");
+        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+    } else if (action === 'random') {
+        // Will trigger random after loading
+        setTimeout(() => RandomClick(), 500);
+        currentselectedDate = new Date();
+    } else if (document.getElementById("showfavs").checked) {
         currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
         if (!favs.length) {
             document.getElementById("showfavs").checked = false;
@@ -494,11 +510,12 @@ window.onLoad = function() {
         document.getElementById("Next").disabled = true;
         document.getElementById("Today").disabled = true;
     }
+    
     formatDate(new Date());
     let today = `${year}-${month}-${day}`;
     document.getElementById("DatePicker").setAttribute("max", today);
 
-    if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic')) {
+    if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic') && !action && !view) {
         currentselectedDate = new Date(localStorage.getItem('lastcomic'));
     }
     CompareDates();
@@ -798,6 +815,29 @@ if (setStatus) {
 	}
 }
 
+setStatus = document.getElementById('notifications');
+if (setStatus) {
+	setStatus.onclick = async function()
+	{
+		if(document.getElementById('notifications').checked)
+		{
+			const permitted = await requestNotificationPermission();
+			if (permitted) {
+				localStorage.setItem('notifications', "true");
+				setupNotifications();
+			} else {
+				// Permission denied
+				document.getElementById('notifications').checked = false;
+				alert('Notification permission is required to enable this feature. Please allow notifications in your browser settings.');
+			}
+		}
+		else
+		{
+			localStorage.setItem('notifications', "false");
+		}
+	}
+}
+
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
     const comic = document.getElementById('comic');
@@ -997,6 +1037,16 @@ else
 	if (datePicker) datePicker.min = "1978-06-19";
 }
 
+getStatus = localStorage.getItem('notifications');
+if (getStatus == "true")
+{
+	document.getElementById("notifications").checked = true;
+}
+else
+{
+	document.getElementById("notifications").checked = false;
+}
+
 getStatus = localStorage.getItem('settings');
 if (getStatus == "true")
 {
@@ -1083,3 +1133,106 @@ const handlers = {
 };
 
 export default handlers;
+
+// Notification functions
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        console.log('This browser does not support notifications');
+        return false;
+    }
+    
+    if (Notification.permission === 'granted') {
+        return true;
+    }
+    
+    if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+    }
+    
+    return false;
+}
+
+async function setupNotifications() {
+    const notificationsEnabled = localStorage.getItem('notifications') === 'true';
+    
+    if (notificationsEnabled) {
+        const permitted = await requestNotificationPermission();
+        
+        if (permitted) {
+            // Schedule daily check
+            scheduleDailyCheck();
+            
+            // Try to register periodic background sync if supported
+            if ('serviceWorker' in navigator && 'periodicSync' in navigator.serviceWorker) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.periodicSync.register('check-new-comic', {
+                        minInterval: 24 * 60 * 60 * 1000 // 24 hours
+                    });
+                    console.log('Periodic background sync registered');
+                } catch (error) {
+                    console.log('Periodic background sync not available:', error);
+                }
+            }
+        } else {
+            // Permission denied, disable notifications
+            document.getElementById('notifications').checked = false;
+            localStorage.setItem('notifications', 'false');
+        }
+    }
+}
+
+function scheduleDailyCheck() {
+    // Calculate time until next check
+    // GoComics publishes around 12:05 AM EST, so we check at 12:10 AM EST
+    // Convert to user's local time
+    
+    const now = new Date();
+    
+    // Create a date object for 12:10 AM EST today
+    const estCheckTime = new Date();
+    estCheckTime.setUTCHours(5, 10, 0, 0); // 12:10 AM EST = 5:10 AM UTC (EST is UTC-5)
+    
+    // If we've already passed that time today, schedule for tomorrow
+    if (now >= estCheckTime) {
+        estCheckTime.setDate(estCheckTime.getDate() + 1);
+    }
+    
+    const timeUntilCheck = estCheckTime.getTime() - now.getTime();
+    
+    console.log(`Next comic check scheduled for: ${estCheckTime.toLocaleString()}`);
+    
+    setTimeout(() => {
+        checkForNewComicNow();
+        // Schedule next check in 24 hours
+        setInterval(checkForNewComicNow, 24 * 60 * 60 * 1000);
+    }, timeUntilCheck);
+}
+
+async function checkForNewComicNow() {
+    if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+            registration.active.postMessage({ type: 'CHECK_NEW_COMIC' });
+        }
+    }
+}
+
+// Initialize notifications on load
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(() => {
+        setupNotifications();
+        
+        // iOS doesn't support background sync, so check when app opens
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        if (isIOS && localStorage.getItem('notifications') === 'true') {
+            console.log('iOS detected: checking for new comic on app open');
+            // Small delay to ensure service worker is ready
+            setTimeout(() => checkForNewComicNow(), 1000);
+        }
+    });
+}
+
+window.requestNotificationPermission = requestNotificationPermission;
+window.setupNotifications = setupNotifications;
