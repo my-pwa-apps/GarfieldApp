@@ -662,13 +662,11 @@ let formattedDate;
 async function Share() 
 {
     if(!window.pictureUrl) {
-        console.warn("No comic URL found in window.pictureUrl, checking previousUrl");
         // Use previousUrl as fallback
         window.pictureUrl = previousUrl;
         
         // If still no URL, show error
         if(!window.pictureUrl) {
-            console.error("No comic URL available to share");
             alert("No comic to share. Please try loading a comic first.");
             return;
         }
@@ -676,8 +674,6 @@ async function Share()
     
     if(navigator.share) {
         try {
-            console.log("Starting share process...");
-            
             // Create a new image element with crossOrigin set to anonymous 
             // to avoid tainted canvas issues
             const tempImg = new Image();
@@ -686,8 +682,6 @@ async function Share()
             // Try direct image URL first, then fallback to proxy
             let imgUrl = window.pictureUrl;
             let loadError = null;
-            
-            console.log("Attempting to load image directly:", imgUrl);
             
             // Try loading the image directly first
             await new Promise((resolve, reject) => {
@@ -698,7 +692,6 @@ async function Share()
                 
                 tempImg.onload = () => {
                     clearTimeout(directTimeout);
-                    console.log("✓ Direct image load successful");
                     resolve();
                 };
                 
@@ -711,9 +704,7 @@ async function Share()
                 tempImg.src = imgUrl;
             }).catch(async (error) => {
                 // Direct load failed, try with working proxy
-                console.log("Direct load failed, trying with proxy...");
                 const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(window.pictureUrl)}`;
-                console.log("Loading image for sharing via proxy:", proxyUrl);
                 
                 return new Promise((resolve, reject) => {
                     const proxyTimeout = setTimeout(() => {
@@ -722,7 +713,6 @@ async function Share()
                     
                     tempImg.onload = () => {
                         clearTimeout(proxyTimeout);
-                        console.log("✓ Proxy image load successful");
                         resolve();
                     };
                     
@@ -734,8 +724,6 @@ async function Share()
                     tempImg.src = proxyUrl;
                 });
             });
-            
-            console.log("Image loaded successfully, converting to canvas...");
             
             // Create canvas and draw image
             const canvas = document.createElement('canvas');
@@ -756,8 +744,6 @@ async function Share()
                 }
             });
             
-            console.log("Canvas converted to blob successfully");
-            
             // Create file for sharing
             const file = new File([jpgBlob], "garfield.jpg", { 
                 type: "image/jpeg", 
@@ -765,30 +751,23 @@ async function Share()
             });
             
             // Share the file
-            console.log("Attempting to share file...");
             await navigator.share({
                 url: 'https://garfieldapp.pages.dev',
                 text: 'Shared from GarfieldApp',
                 files: [file]
             });
-            
-            console.log("Comic shared successfully!");
         } catch (error) {
-            console.error("Error sharing comic:", error);
-            
             // Check if this is a CORS-related error
             if (error.name === 'SecurityError') {
                 // Try fallback sharing without the image
                 try {
-                    console.log("Trying fallback sharing without image...");
                     await navigator.share({
                         url: 'https://garfieldapp.pages.dev',
                         text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                     });
-                    console.log("Fallback sharing successful!");
                     return;
                 } catch (fallbackError) {
-                    console.error("Fallback sharing failed:", fallbackError);
+                    // Fallback failed
                 }
             }
             
@@ -1091,7 +1070,6 @@ async function loadComic(date, silentMode = false) {
         
         throw new Error('Comic not available from any source');
     } catch (error) {
-        console.log('Comic not available for this date:', error.message);
         // Only show error message if not in silent mode (auto-skipping)
         if (!silentMode) {
             showErrorMessage('Failed to load comic. Please try again.');
@@ -1315,8 +1293,6 @@ async function showComic(skipOnFailure = false, direction = null) {
     
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
-        console.log(`Comic not available, auto-skipping ${direction}...`);
-        
         // Prevent infinite loops by limiting attempts
         const maxAttempts = 10;
         let attempts = 0;
@@ -1336,12 +1312,10 @@ async function showComic(skipOnFailure = false, direction = null) {
             
             // Check if we've reached the boundaries
             if (document.getElementById("Next")?.disabled && direction === 'next') {
-                console.log('Reached end of available comics');
                 showErrorMessage('No more comics available in this direction.');
                 break;
             }
             if (document.getElementById("Previous")?.disabled && direction === 'previous') {
-                console.log('Reached start of available comics');
                 showErrorMessage('No more comics available in this direction.');
                 break;
             }
@@ -1355,7 +1329,6 @@ async function showComic(skipOnFailure = false, direction = null) {
             
             const retrySuccess = await loadComic(currentselectedDate, true);
             if (retrySuccess) {
-                console.log(`✓ Found available comic after skipping ${attempts} date(s)`);
                 // Update favorites heart status for the new date
                 var favs = JSON.parse(localStorage.getItem('favs'));
                 const heartBtn = document.getElementById("favheart");
@@ -1370,7 +1343,6 @@ async function showComic(skipOnFailure = false, direction = null) {
         }
         
         if (attempts >= maxAttempts) {
-            console.warn('Max skip attempts reached');
             showErrorMessage('Unable to find an available comic after multiple attempts.');
         }
     }
@@ -1898,10 +1870,7 @@ function showInstallButton() {
       const choiceResult = await deferredPrompt.userChoice;
       
       if (choiceResult.outcome === 'accepted') {
-        console.log('User accepted the install prompt');
         installBtn.style.display = 'none';
-      } else {
-        console.log('User dismissed the install prompt');
       }
       
       deferredPrompt = null;
@@ -1931,7 +1900,6 @@ const handlers = {
             await CurrentClick();
         } catch (error) {
             setStatus('Failed to load comic');
-            console.error(error);
         }
     }
 };
@@ -1941,7 +1909,6 @@ export default handlers;
 // Notification functions
 async function requestNotificationPermission() {
     if (!('Notification' in window)) {
-        console.log('This browser does not support notifications');
         return false;
     }
     
@@ -1974,9 +1941,8 @@ async function setupNotifications() {
                     await registration.periodicSync.register('check-new-comic', {
                         minInterval: 24 * 60 * 60 * 1000 // 24 hours
                     });
-                    console.log('Periodic background sync registered');
                 } catch (error) {
-                    console.log('Periodic background sync not available:', error);
+                    // Periodic background sync not available
                 }
             }
         } else {
@@ -2005,8 +1971,6 @@ function scheduleDailyCheck() {
     
     const timeUntilCheck = estCheckTime.getTime() - now.getTime();
     
-    console.log(`Next comic check scheduled for: ${estCheckTime.toLocaleString()}`);
-    
     setTimeout(() => {
         checkForNewComicNow();
         // Schedule next check in 24 hours
@@ -2031,7 +1995,6 @@ if ('serviceWorker' in navigator) {
         // iOS doesn't support background sync, so check when app opens
         const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
         if (isIOS && localStorage.getItem('notifications') === 'true') {
-            console.log('iOS detected: checking for new comic on app open');
             // Small delay to ensure service worker is ready
             setTimeout(() => checkForNewComicNow(), 1000);
         }

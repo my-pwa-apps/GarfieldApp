@@ -431,16 +431,6 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
 }
 
-.action-icon {
-    width: 30px;
-    margin-right: 20px;
-    cursor: pointer;
-}
-
-.action-icon:last-child {
-    margin-right: 0;
-}
-
 .kofi-button-styled {
     position: relative;
     top: 2px;
@@ -1093,18 +1083,4 @@ input[type="date"]::-webkit-datetime-edit {
     .notification-content {
         font-size: 13px;
     }
-}
-
-/* Utility classes */
-.hidden-old {
-    display: none !important;
-}
-
-/* Hidden date picker for toolbar */
-#DatePicker {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-    pointer-events: none;
 }
