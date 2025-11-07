@@ -622,7 +622,9 @@ function CompareDates() {
 		startDate = new Date(favs[0])}
 	else{	
 		document.getElementById("DatePicker").disabled = false;
-		startDate = new Date("1978/06/19");
+		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+		const isSpanish = document.getElementById('spanish').checked;
+		startDate = isSpanish ? new Date("1999/12/06") : new Date("1978/06/19");
 	}
 	startDate = startDate.setHours(0, 0, 0, 0);
 	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
@@ -756,15 +758,23 @@ if (setStatus) {
 	setStatus.onclick = function()
 	{
 		const isSpanish = document.getElementById('spanish').checked;
+		const datePicker = document.getElementById('DatePicker');
+		
 		if(isSpanish)
 		{
 			localStorage.setItem('spanish', "true");
 			translateInterface('es');
+			document.documentElement.lang = 'es';
+			// Update date picker min to Spanish comics start date
+			if (datePicker) datePicker.min = "1999-12-06";
 		}
 		else
 		{
 			localStorage.setItem('spanish', "false");
 			translateInterface('en');
+			document.documentElement.lang = 'en';
+			// Update date picker min to English comics start date
+			if (datePicker) datePicker.min = "1978-06-19";
 		}
 		// Reload the current comic in the selected language
 		showComic();
@@ -933,15 +943,39 @@ else
 }	
 
 getStatus = localStorage.getItem('spanish');
-if (getStatus == "true")
+const datePicker = document.getElementById('DatePicker');
+
+// Auto-detect Spanish language on first visit
+if (getStatus === null) {
+	// Check browser/OS language
+	const userLang = navigator.language || navigator.userLanguage;
+	const isSpanishLocale = userLang.startsWith('es');
+	
+	if (isSpanishLocale) {
+		document.getElementById("spanish").checked = true;
+		localStorage.setItem('spanish', "true");
+		translateInterface('es');
+		if (datePicker) datePicker.min = "1999-12-06";
+	} else {
+		document.getElementById("spanish").checked = false;
+		localStorage.setItem('spanish', "false");
+		translateInterface('en');
+		if (datePicker) datePicker.min = "1978-06-19";
+	}
+}
+else if (getStatus == "true")
 {
 	document.getElementById("spanish").checked = true;
 	translateInterface('es');
+	// Set date picker min to Spanish comics start date
+	if (datePicker) datePicker.min = "1999-12-06";
 }
 else
 {
 	document.getElementById("spanish").checked = false;
 	translateInterface('en');
+	// Set date picker min to English comics start date
+	if (datePicker) datePicker.min = "1978-06-19";
 }
 
 getStatus = localStorage.getItem('settings');

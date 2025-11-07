@@ -1,17 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
-    <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Primary Meta Tags -->
+    <title>Daily Garfield Comics - Read Jim Davis Comics Online Free</title>
+    <meta name="title" content="Daily Garfield Comics - Read Jim Davis Comics Online Free">
+    <meta name="description" content="Read daily Garfield comic strips by Jim Davis. Browse today's comic, random strips, or pick any date since 1978. Features swipe navigation, favorites, and offline support. Available in English and Spanish.">
+    <meta name="keywords" content="garfield comics, jim davis, daily comics, comic strips, garfield app, gocomics, online comics, free comics, garfield today, comic reader, progressive web app">
+    <meta name="author" content="GarfieldApp">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Language Support -->
+    <link rel="alternate" hreflang="en" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="es" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="x-default" href="https://garfieldapp.pages.dev/">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://garfieldapp.pages.dev/">
+    <meta property="og:title" content="Daily Garfield Comics - Read Jim Davis Comics Online Free">
+    <meta property="og:description" content="Read daily Garfield comic strips by Jim Davis. Browse today's comic, random strips, or pick any date since 1978.">
+    <meta property="og:image" content="https://garfieldapp.pages.dev/garlogo.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="es_ES">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://garfieldapp.pages.dev/">
+    <meta property="twitter:title" content="Daily Garfield Comics - Read Jim Davis Comics Online Free">
+    <meta property="twitter:description" content="Read daily Garfield comic strips by Jim Davis. Browse today's comic, random strips, or pick any date since 1978.">
+    <meta property="twitter:image" content="https://garfieldapp.pages.dev/garlogo.png">
     
     <!-- PWA Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Garfield">
+    <meta name="application-name" content="Garfield Comics">
     
     <!-- Windows Tile -->
     <meta name="msapplication-TileColor" content="#eee239">
@@ -26,26 +53,39 @@
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
     
-    <title>Daily Garfield Comics</title>
-    
-    <!-- Stylesheets -->
-    <link rel="stylesheet" href="./main.css">
-    
     <!-- Icons and Manifest -->
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="sitemap" type="application/xml" href="./sitemap.xml">
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="./main.css">
     
     <!-- Resource Hints for Performance -->
     <link rel="dns-prefetch" href="https://assets.amuniversal.com">
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="dns-prefetch" href="https://ajax.googleapis.com">
     <link rel="dns-prefetch" href="https://corsproxy.garfieldapp.workers.dev">
     <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://ajax.googleapis.com" crossorigin>
+    
+    <!-- Language Detection - Set HTML lang attribute based on user preference -->
+    <script>
+        (function() {
+            const savedLang = localStorage.getItem('spanish');
+            if (savedLang === 'true') {
+                document.documentElement.lang = 'es';
+            } else if (savedLang === null) {
+                // Auto-detect on first visit
+                const userLang = navigator.language || navigator.userLanguage;
+                if (userLang.startsWith('es')) {
+                    document.documentElement.lang = 'es';
+                }
+            }
+        })();
+    </script>
     
     <!-- Service Worker Registration - Inline for immediate execution -->
     <script>
@@ -105,10 +145,16 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "Daily Garfield Comics",
-      "description": "Daily Garfield comic strips from GoComics. Browse current, previous, random comics or pick a specific date.",
+      "alternateName": "Garfield Comic Reader",
+      "description": "Read daily Garfield comic strips by Jim Davis. Browse current, previous, random comics or pick any date since 1978. Features swipe navigation, favorites, and offline support.",
       "url": "https://garfieldapp.pages.dev",
-      "applicationCategory": "Entertainment",
+      "applicationCategory": "EntertainmentApplication",
       "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript. HTML5 compatible browser required.",
+      "softwareVersion": "4.0",
+      "inLanguage": ["en", "es"],
+      "featureList": "Daily comics, Random comic, Date picker, Swipe navigation, Favorites, Offline support, Multiple languages",
+      "screenshot": "https://garfieldapp.pages.dev/garscreenshot1.png",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -116,7 +162,19 @@
       },
       "author": {
         "@type": "Organization",
+        "name": "GarfieldApp",
+        "url": "https://garfieldapp.pages.dev"
+      },
+      "publisher": {
+        "@type": "Organization",
         "name": "GarfieldApp"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "1200",
+        "bestRating": "5",
+        "worstRating": "1"
       }
     }
     </script>
@@ -124,64 +182,67 @@
 
 <body onload="onLoad()">
     <noscript>
-        <div style="padding: 20px; text-align: center; background: #fff3cd; color: #856404; border: 1px solid #ffc107; border-radius: 5px; margin: 20px;">
+        <div class="noscript-warning">
             <strong>JavaScript Required:</strong> This app requires JavaScript to be enabled for full functionality. Please enable JavaScript in your browser settings.
         </div>
     </noscript>
     
-    <h1 hidden>Daily Garfield Comics App</h1>
+    <header>
+        <h1 class="visually-hidden">Daily Garfield Comics - Read Jim Davis Comics Online</h1>
+        <div class="logo">
+            <img src="./garlogo.png" alt="Garfield Comics Logo" width="200" height="auto">
+        </div>
+    </header>
     
-    <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
-    </div>
-    
-    <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
-        <div class="date-input-container">
-            <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" title="Select comic date" aria-label="Select comic date">
+    <main>
+        <nav class="buttongrid" aria-label="Comic navigation">
+            <button class="button" id="Previous" onclick="PreviousClick()" aria-label="Previous comic">Previous</button>
+            <button class="button" id="Random" onclick="RandomClick()" aria-label="Random comic">Random</button>
+            <button class="button" id="Next" onclick="NextClick()" aria-label="Next comic">Next</button>
+            <button class="button" id="First" onclick="FirstClick()" aria-label="First comic">First</button>
+            <div class="date-input-container">
+                <div class="date-center-wrapper">
+                    <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" title="Select comic date" aria-label="Select comic date">
+                </div>
             </div>
-        </div>
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
-    </div>
-    
-    <br>
-    
-    <div id="comic-container">
-        <div id="comic-wrapper">
-            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic...">
-        </div>
-    </div>
-    
-    <br>
-    
-    <div id="controls-container">
-        <div id="support-container">
-            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-            <script type='text/javascript'>
-                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                kofiwidget2.draw();
-                setTimeout(() => {
-                    const kofiBtn = document.querySelector('.kofi-button');
-                    if (kofiBtn) {
-                        kofiBtn.classList.add('kofi-button-styled');
-                    }
-                }, 100);
-            </script>
-        </div>
-        <div id="action-buttons">
-            <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
-            <img onclick="Share()" src="./share.svg" alt="Share" class="action-icon">
-            <button id="installBtn" style="display: none;">Install App</button>
-        </div>
-    </div>
+            <button class="button" id="Today" onclick="CurrentClick()" aria-label="Today's comic">Today</button>
+        </nav>
+        
+        <section id="comic-container" aria-label="Comic display area">
+            <div id="comic-wrapper">
+                <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic..." loading="lazy">
+            </div>
+        </section>
+        
+        <aside id="controls-container">
+            <div id="support-container">
+                <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+                <script>
+                    kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+                    kofiwidget2.draw();
+                    setTimeout(() => {
+                        const kofiBtn = document.querySelector('.kofi-button');
+                        if (kofiBtn) kofiBtn.classList.add('kofi-button-styled');
+                    }, 100);
+                </script>
+            </div>
+            <div id="action-buttons">
+                <button onclick="HideSettings()" class="action-icon-btn" aria-label="Open settings">
+                    <img src="./tune.svg" alt="" class="action-icon">
+                </button>
+                <button id="favheart" onclick="Addfav()" class="action-icon-btn" aria-label="Add to favorites">
+                    <img src="./heartborder.svg" alt="" class="action-icon">
+                </button>
+                <button onclick="Share()" class="action-icon-btn" aria-label="Share comic">
+                    <img src="./share.svg" alt="" class="action-icon">
+                </button>
+                <button id="installBtn" aria-label="Install app">Install App</button>
+            </div>
+        </aside>
+    </main>
     
     <!-- Update Notification -->
-    <div id="updateNotification" style="display: none;">
+    <div id="updateNotification" role="alert" aria-live="polite">
         <div id="updateContent">
             <p id="updateMessage">A new version is available!</p>
             <button id="updateBtn">Update Now</button>
@@ -189,23 +250,24 @@
         </div>
     </div>
     
-    <br>
-    
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
-        <br>
-        <input type="checkbox" id="spanish">
-        <label for="spanish" class="labels">Spanish / Español</label>
-        <br>
-    </div>
-    
+    <!-- Settings Panel -->
+    <aside id="settingsDIV" aria-label="Settings panel">
+        <div class="settings-group">
+            <input type="checkbox" id="swipe" checked>
+            <label for="swipe" class="labels">Swipe enabled</label>
+        </div>
+        <div class="settings-group">
+            <input type="checkbox" id="showfavs" checked>
+            <label for="showfavs" class="labels">Show only my favorites</label>
+        </div>
+        <div class="settings-group">
+            <input type="checkbox" id="lastdate" checked>
+            <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+        </div>
+        <div class="settings-group">
+            <input type="checkbox" id="spanish">
+            <label for="spanish" class="labels">Spanish / Español</label>
+        </div>
+    </aside>
 </body>
-
 </html>

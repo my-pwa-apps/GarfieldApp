@@ -1,3 +1,10 @@
+/* Base Styles */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
 html {
     height: 100%;
     overflow: hidden;
@@ -8,36 +15,64 @@ body {
     background-size: 100% 100vh;
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: black;
-    background-color: orange;
+    color: #000;
     margin: 0;
     padding: 0;
     overflow: hidden;
-    box-sizing: border-box;
     width: 100%;
 }
 
+/* Accessibility */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.noscript-warning {
+    padding: 20px;
+    text-align: center;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+    border-radius: 5px;
+    margin: 20px;
+}
+
+/* Layout */
 main {
     max-width: 900px;
-    margin: auto;
+    margin: 0 auto;
     padding: 0.5rem;
     text-align: center;
 }
 
+header {
+    text-align: center;
+}
+
+/* Buttons */
 .button {
     margin: 5px;
     padding: 12px;
     text-align: center;
-    transition: 0.5s;
+    transition: all 0.3s ease;
     background-size: 200% auto;
-    color: black;
+    color: #000;
     border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
-    font-size: 0.85rem; /* Slightly smaller font size */
+    font-weight: 500;
+    font-size: 0.85rem;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -45,9 +80,36 @@ main {
     height: auto;
 }
 
+.button:hover {
+    background-position: right center;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+}
+
 .button:active {
     transform: scale(0.95);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.action-icon-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.action-icon-btn:hover {
+    transform: scale(1.1);
+}
+
+.action-icon-btn:active {
+    transform: scale(0.95);
 }
 
 .button:hover {
@@ -313,9 +375,25 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
 }
 
+/* Settings Panel */
 #settingsDIV {
     margin-top: 25px;
     padding: 0 8px;
+}
+
+.settings-group {
+    margin: 10px 0;
+}
+
+.settings-group input[type="checkbox"] {
+    margin-right: 8px;
+    cursor: pointer;
+}
+
+.labels {
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .hidden-during-fullscreen {
@@ -459,7 +537,10 @@ input[type="date"]::-webkit-datetime-edit {
 /* Install Button */
 #installBtn {
     display: none;
-    margin: 10px auto;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
     padding: 12px 24px;
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     background-size: 200% auto;
