@@ -130,6 +130,13 @@ export async function getAuthenticatedComic(date, language = 'en') {
     try {
         console.log(`Fetching comic: ${url}`);
         const html = await fetchWithProxyFallback(url);
+        
+        // Check if we got a 404 page by looking for error indicators
+        if (html.includes('404') || html.includes('Page Not Found') || html.includes('not found')) {
+            console.warn(`Comic page not found: ${url}`);
+            return { success: false, imageUrl: null, notFound: true };
+        }
+        
         const imageUrl = extractImageFromHTML(html);
         
         if (imageUrl) {
@@ -137,6 +144,7 @@ export async function getAuthenticatedComic(date, language = 'en') {
             return { success: true, imageUrl };
         }
         
+        console.warn(`No image found in HTML for: ${url}`);
         return { success: false, imageUrl: null };
     } catch (error) {
         console.error('Failed to fetch comic:', error);
@@ -145,18 +153,35 @@ export async function getAuthenticatedComic(date, language = 'en') {
 }
 
 function extractImageFromHTML(html) {
-    // Try featureassets.gocomics.com first (new CDN)
-    let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]{32}/);
-    if (match) return match[0];
+    // Try featureassets.gocomics.com first (new CDN) - flexible length hash
+    let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
+    if (match) {
+        console.log(`✓ Extracted from featureassets CDN`);
+        return match[0];
+    }
     
     // Try assets.amuniversal.com (older CDN)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
-    if (match) return match[0];
+    if (match) {
+        console.log(`✓ Extracted from amuniversal CDN`);
+        return match[0];
+    }
+    
+    // Try meta property og:image
+    match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+    if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
+        console.log(`✓ Extracted from og:image meta tag`);
+        return match[1];
+    }
     
     // Fallback to picture tag
     match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-    if (match && match[1]) return match[1];
+    if (match && match[1]) {
+        console.log(`✓ Extracted from picture tag`);
+        return match[1];
+    }
     
+    console.warn(`✗ No comic image found in HTML (length: ${html.length} chars)`);
     return null;
 }
 
