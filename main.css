@@ -346,7 +346,7 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: center;
     align-items: center;
     width: 100%;
-    margin: 0 auto;
+    margin: 100px auto 0;
     padding: 0;
     box-sizing: border-box;
     position: relative;
@@ -880,6 +880,10 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+    #comic-container {
+        margin-top: 80px;
+    }
+    
     .toolbar {
         width: calc(100vw - 20px);
         padding: 12px 10px;
@@ -948,6 +952,10 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Extra small mobile devices */
 @media (max-width: 480px) {
+    #comic-container {
+        margin-top: 70px;
+    }
+    
     .toolbar {
         width: calc(100vw - 16px);
         padding: 10px 8px;
