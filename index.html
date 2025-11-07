@@ -111,17 +111,7 @@
     
     <div id="controls-container">
         <div id="support-container">
-            <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-            <script type='text/javascript'>
-                kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-                kofiwidget2.draw();
-                setTimeout(() => {
-                    const kofiBtn = document.querySelector('.kofi-button');
-                    if (kofiBtn) {
-                        kofiBtn.classList.add('kofi-button-styled');
-                    }
-                }, 100);
-            </script>
+            <!-- Ko-fi widget loaded via modern DOM insertion -->
         </div>
         <div class="settings-icons-container">
             <button class="icon-button" onclick="HideSettings()" aria-label="Settings" title="Settings">

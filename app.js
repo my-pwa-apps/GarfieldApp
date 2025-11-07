@@ -394,17 +394,53 @@ function initializeMobileButtonStates() {
     }, { passive: true });
 }
 
+/**
+ * Loads Ko-fi widget without document.write()
+ */
+function loadKofiWidget() {
+    const container = document.getElementById('support-container');
+    if (!container) return;
+    
+    // Create widget container
+    const widgetDiv = document.createElement('div');
+    widgetDiv.id = 'kofi-widget-container';
+    
+    // Load Ko-fi widget script
+    const script = document.createElement('script');
+    script.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
+    script.onload = () => {
+        if (typeof kofiwidget2 !== 'undefined') {
+            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
+            // Insert widget HTML into container instead of using document.write()
+            widgetDiv.innerHTML = kofiwidget2.getHTML();
+            
+            // Apply custom styling
+            setTimeout(() => {
+                const kofiBtn = widgetDiv.querySelector('.kofi-button');
+                if (kofiBtn) {
+                    kofiBtn.classList.add('kofi-button-styled');
+                }
+            }, 100);
+        }
+    };
+    
+    container.appendChild(widgetDiv);
+    document.head.appendChild(script);
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         initializeToolbar();
         initializeDraggableSettings();
         initializeMobileButtonStates();
+        loadKofiWidget();
     });
 } else {
     initializeToolbar();
     initializeDraggableSettings();
     initializeMobileButtonStates();
+    loadKofiWidget();
 }
 
 // Translation dictionaries
