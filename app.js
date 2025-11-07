@@ -1050,7 +1050,7 @@ window.onLoad = function() {
             document.getElementById("showfavs").disabled = true;
         }
         document.getElementById("Next").disabled = true;
-        document.getElementById("Today").disabled = true;
+        document.getElementById("Last").disabled = true;
     }
     
     formatDate(new Date());
