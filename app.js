@@ -2,6 +2,19 @@ import { getAuthenticatedComic } from './comicExtractor.js';
 
 //garfieldapp.pages.dev
 
+// Service Worker Registration with proper error handling
+if("serviceWorker" in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register("./serviceworker.js")
+            .then(registration => {
+                console.log('ServiceWorker registration successful:', registration.scope);
+            })
+            .catch(err => {
+                console.error('ServiceWorker registration failed:', err);
+            });
+    });
+}
+
 // Global variables for app functionality
 let translationEnabled = localStorage.getItem('translation') === 'true';
 let userLanguage = navigator.language || navigator.userLanguage || 'en';
@@ -14,10 +27,6 @@ let pictureUrl;
 let formattedComicDate;
 let formattedDate;
 let isRotatedMode = false; // Track if we're in rotated mode
-
-if("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./serviceworker.js");
-}
 
 async function Share() 
 {
