@@ -547,6 +547,24 @@ function translateInterface(lang) {
         if (label) label.textContent = text;
     }
     
+    // Translate toolbar button tooltips
+    const toolbarButtons = {
+        'First': t.first,
+        'Previous': t.previous,
+        'Random': t.random,
+        'DatePickerBtn': t.selectDate,
+        'Next': t.next,
+        'Last': t.last
+    };
+    
+    for (const [id, tooltip] of Object.entries(toolbarButtons)) {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.title = tooltip;
+            btn.setAttribute('aria-label', tooltip);
+        }
+    }
+    
     // Translate date picker
     const datePicker = document.getElementById('DatePicker');
     if (datePicker) {
@@ -758,7 +776,6 @@ function Addfav()
         {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
-            document.getElementById("Today").innerHTML = 'Today';
         }
     }
     favs.sort();
@@ -1223,7 +1240,7 @@ function FirstClick() {
 
 window.FirstClick = FirstClick;
 
-function CurrentClick() {
+function LastClick() {
 	if(document.getElementById("showfavs").checked)
 	 {
 		var favs = JSON.parse(localStorage.getItem('favs'));
@@ -1238,7 +1255,7 @@ function CurrentClick() {
 	showComic();
 }
 
-window.CurrentClick = CurrentClick;
+window.LastClick = LastClick;
 
 
 function RandomClick()
@@ -1296,13 +1313,13 @@ function CompareDates() {
 	endDate = new Date(endDate);
 	if(currentselectedDate.getTime() >= endDate.getTime()) {
 		document.getElementById("Next").disabled = true;
-		document.getElementById("Today").disabled = true;
+		document.getElementById("Last").disabled = true;
 		formatDate(endDate);
 		endDate = year + '-' + month + '-' + day;
 		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
 	} else {
 		document.getElementById("Next").disabled = false;
-		document.getElementById("Today").disabled = false;
+		document.getElementById("Last").disabled = false;
 	}
 	if(document.getElementById("showfavs").checked) {
 		if(favs.length == 1) {
