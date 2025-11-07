@@ -4,13 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="keywords" content="today on garfield, comics by jim davis, garfieldapp.tk, https://garfieldapp.tk, garfield, gocomics, gocomics.com, gocomics.com/garfield, online, daily, comic, comics, strip, strips, cartoon, cartoons, cat, jim, davis, webapp, mobile, responsive, paws, pwa, progressive, web, app, ios, android, windows, garfield.com">
-    <meta name="description" content="Garfield Comics App, Current, Next, Previous, Random, First, Specific Date, Swipe, Favorites">
-    <meta name="msapplication-TileColor" content="#eee239">
+    <meta name="description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!">
+    <meta name="keywords" content="garfield comics, jim davis, daily comic strip, garfield app, comic viewer, garfield english, garfield spanish, garfield pwa, garfield español, tiras cómicas de garfield">
+    <meta name="author" content="GarfieldApp">
+    <meta name="language" content="English, Spanish">
     <meta name="theme-color" content="#eee239">
+    <meta name="msapplication-TileColor" content="#eee239">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
-    <title>Daily Garfield Comics</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://garfieldapp.pages.dev/">
+    <meta property="og:title" content="Daily Garfield Comics - English & Spanish">
+    <meta property="og:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta property="og:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:locale:alternate" content="es_ES">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://garfieldapp.pages.dev/">
+    <meta property="twitter:title" content="Daily Garfield Comics - English & Spanish">
+    <meta property="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta property="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
+    
+    <title>Daily Garfield Comics - English & Spanish</title>
     <link rel="stylesheet" href="./main.css">
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
@@ -40,7 +59,7 @@
         <button class="button" id="First" onclick="FirstClick()">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19">
+                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date" title="Select a date to view that day's comic">
             </div>
         </div>
         <button class="button" id="Today" onclick="CurrentClick()">Today</button>

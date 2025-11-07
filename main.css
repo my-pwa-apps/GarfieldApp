@@ -38,6 +38,9 @@ main {
     font-size: 0.85rem; /* Slightly smaller font size */
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);

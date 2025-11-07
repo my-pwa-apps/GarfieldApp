@@ -1,94 +1,83 @@
-const OFFLINE_VERSION = 2;
-const CACHE_NAME = "offline";
-const OFFLINE_URL = "index.html";
+const VERSION = 'v5';
+const CACHE_NAME = `garfield-${VERSION}`;
+const OFFLINE_URL = 'index.html';
 
-importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+// Assets to precache
+const PRECACHE_ASSETS = [
+  './',
+  './index.html',
+  './main.css',
+  './app.js',
+  './init.js',
+  './comicExtractor.js',
+  './swiped-events.min.js',
+  './garlogo.png',
+  './heartborder.svg',
+  './heart.svg',
+  './tune.svg',
+  './share.svg'
+];
 
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+// Message handler for skip waiting
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
-// Exclude specific URLs (e.g., fonts) from being cached or proxied
-const excludedUrls = [
-  /https:\/\/corsproxy\.io\/_next\/static\/media\/.*\.woff2/,
-  /https:\/\/fonts\.googleapis\.com/,
-  /https:\/\/fonts\.gstatic\.com/
-];
-
-workbox.routing.registerRoute(
-  ({ url }) => {
-    // Skip caching for excluded URLs
-    return !excludedUrls.some((pattern) => pattern.test(url.href));
-  },
-  new workbox.strategies.StaleWhileRevalidate({
-    cacheName: CACHE_NAME,
-    plugins: [
-      new workbox.expiration.ExpirationPlugin({
-        maxEntries: 50, // Limit the number of cached entries
-        maxAgeSeconds: 7 * 24 * 60 * 60, // Cache for 7 days
-      }),
-    ],
-  })
-);
-
+// Install - precache assets
 self.addEventListener('install', (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
-  })());
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(PRECACHE_ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
 
+// Activate - clean old caches
 self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    // Clean up old caches
-    const cacheNames = await caches.keys();
-    await Promise.all(
-      cacheNames
-        .filter(name => name !== CACHE_NAME)
-        .map(name => caches.delete(name))
-    );
-
-    if ('navigationPreload' in self.registration) {
-      await self.registration.navigationPreload.enable();
-    }
-  })());
-
-  self.clients.claim();
+  event.waitUntil(
+    caches.keys()
+      .then(cacheNames => {
+        return Promise.all(
+          cacheNames
+            .filter(name => name.startsWith('garfield-') && name !== CACHE_NAME)
+            .map(name => caches.delete(name))
+        );
+      })
+      .then(() => self.clients.claim())
+  );
 });
 
+// Fetch - network first, cache fallback
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const preloadResponse = await event.preloadResponse;
-        if (preloadResponse) {
-          return preloadResponse;
-        }
-
-        const networkResponse = await fetch(event.request);
-        return networkResponse;
-      } catch (error) {
-        console.log('Fetch failed; returning offline page instead.', error);
-
-        const cache = await caches.open(CACHE_NAME);
-        const cachedResponse = await cache.match(OFFLINE_URL);
-        return cachedResponse || new Response('Offline content unavailable.', { status: 503 });
-      }
-    })());
-  } else if (excludedUrls.some((pattern) => pattern.test(event.request.url))) {
-    // Skip handling excluded URLs
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+  
+  // Skip external resources
+  const url = new URL(event.request.url);
+  if (!url.origin.includes('garfieldapp.pages.dev') && !url.origin.includes('localhost')) {
     return;
-  } else {
-    event.respondWith((async () => {
-      try {
-        const networkResponse = await fetch(event.request);
-        return networkResponse;
-      } catch (error) {
-        console.log('Fetch failed for non-navigation request:', event.request.url, error);
-        return new Response('Resource unavailable.', { status: 503 });
-      }
-    })());
   }
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // Clone and cache successful responses
+        if (response.ok) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cache
+        return caches.match(event.request)
+          .then(cachedResponse => {
+            return cachedResponse || caches.match(OFFLINE_URL);
+          });
+      })
+  );
 });

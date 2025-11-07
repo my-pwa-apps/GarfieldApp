@@ -1,11 +1,10 @@
 {
-  "name": "Daily Garfield",
-  "description": "Garfield Comics, Current, Next, Previous, Random, First, Specific Date, Swipe",
+  "name": "Daily Garfield Comics",
+  "description": "View daily Garfield comic strips in English and Spanish. Navigate through comics, save favorites, and enjoy the classic cat!",
   "short_name": "Garfield",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background": "background: linear-gradient(#eee239, orange) no-repeat",
   "background_color": "#eee239",
   "theme_color": "#eee239",
   "categories": [
@@ -481,11 +480,5 @@
   ],
   "dir": "ltr",
   "lang": "en",
-  "display_override": [
-    "window-controls-overlay"
-  ],
-  "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 400
-  }
+  "prefer_related_applications": false
 }
