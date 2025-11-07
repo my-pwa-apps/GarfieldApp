@@ -160,8 +160,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 95vh;
-    max-height: 95vw;
+    max-width: 98vh;
+    max-height: 98vw;
     object-fit: contain;
     margin: 0;
     padding: 0;
@@ -650,4 +650,32 @@ input[type="date"]::-webkit-datetime-edit {
 #updateBtn:active,
 #dismissBtn:active {
     transform: scale(0.95);
+}
+
+/* Fullscreen browser mode support */
+@media (display-mode: fullscreen) {
+    main {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    #comic-container {
+        padding: 10px 0 15px 0;
+    }
+}
+
+/* Additional fullscreen API support */
+body:fullscreen main,
+body:-webkit-full-screen main,
+body:-moz-full-screen main,
+body:-ms-fullscreen main {
+    max-width: 100%;
+    width: 100%;
+}
+
+body:fullscreen #comic-container,
+body:-webkit-full-screen #comic-container,
+body:-moz-full-screen #comic-container,
+body:-ms-fullscreen #comic-container {
+    padding: 10px 0 15px 0;
 }

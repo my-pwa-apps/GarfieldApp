@@ -84,14 +84,16 @@ function translateInterface(lang) {
     }
     
     // Translate install and support buttons
-    const installBtn = document.getElementById('install-button');
+    const installBtn = document.getElementById('installBtn');
     if (installBtn) {
         installBtn.textContent = t.installApp;
+        installBtn.setAttribute('aria-label', t.installApp);
     }
     
-    const supportBtn = document.getElementById('support-button');
-    if (supportBtn) {
-        supportBtn.textContent = t.supportApp;
+    // Update Ko-fi button text
+    const kofiBtn = document.querySelector('.kofi-button');
+    if (kofiBtn) {
+        kofiBtn.textContent = t.supportApp;
     }
     
     // Translate comic alt text
