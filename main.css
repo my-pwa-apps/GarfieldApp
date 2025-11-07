@@ -96,22 +96,31 @@ input {
     left: 50% !important;
     transform: translate(-50%, -50%) rotate(90deg) !important;
     transform-origin: center center !important;
-    width: min(100vh - 40px, 100vw - 40px) !important;
+    width: 100vh !important;
     height: auto !important;
     max-width: none !important;
-    max-height: none !important;
+    max-height: 100vw !important;
     object-fit: contain !important;
     margin: 0 !important;
-    padding: 20px !important;
-    z-index: 1000 !important;
+    padding: 0 !important;
+    z-index: 10000 !important;
     transition: transform 0.3s ease !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
     border-radius: 5px !important;
     background: transparent !important;
 }
 
-body.rotated-state {
-    background: #000;
+body.rotated-state .logo,
+body.rotated-state .buttongrid,
+body.rotated-state #controls-container,
+body.rotated-state #settingsDIV,
+body.rotated-state br,
+body.rotated-state #comic-container {
+    display: none !important;
+}
+
+body.rotated-state #comic {
+    display: block !important;
 }
 
 .normal {
@@ -346,8 +355,13 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 #installBtn {
-    margin: 5px auto;
-    max-width: 200px;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    margin: 0;
+    max-width: 150px;
+    z-index: 1000;
+    display: none;
 }
 
 #support-container {
