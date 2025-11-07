@@ -1,96 +1,94 @@
-const CACHE_VERSION = 'v4';
-const CACHE_NAME = `garfield-app-${CACHE_VERSION}`;
-const OFFLINE_URL = 'offline.html';
+const OFFLINE_VERSION = 2;
+const CACHE_NAME = "offline";
+const OFFLINE_URL = "index.html";
 
-// Assets to cache on install
-const PRECACHE_ASSETS = [
-  './',
-  './index.html',
-  './offline.html',
-  './main.css',
-  './app.js',
-  './init.js',
-  './comicExtractor.js',
-  './garlogo.png',
-  './manifest.webmanifest'
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// Exclude specific URLs (e.g., fonts) from being cached or proxied
+const excludedUrls = [
+  /https:\/\/corsproxy\.io\/_next\/static\/media\/.*\.woff2/,
+  /https:\/\/fonts\.googleapis\.com/,
+  /https:\/\/fonts\.gstatic\.com/
 ];
 
-// Install event - cache essential assets
+workbox.routing.registerRoute(
+  ({ url }) => {
+    // Skip caching for excluded URLs
+    return !excludedUrls.some((pattern) => pattern.test(url.href));
+  },
+  new workbox.strategies.StaleWhileRevalidate({
+    cacheName: CACHE_NAME,
+    plugins: [
+      new workbox.expiration.ExpirationPlugin({
+        maxEntries: 50, // Limit the number of cached entries
+        maxAgeSeconds: 7 * 24 * 60 * 60, // Cache for 7 days
+      }),
+    ],
+  })
+);
+
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Install');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[ServiceWorker] Precaching app shell');
-        return cache.addAll(PRECACHE_ASSETS);
-      })
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+  })());
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activate');
-  event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((cacheName) => cacheName.startsWith('garfield-app-') && cacheName !== CACHE_NAME)
-            .map((cacheName) => {
-              console.log('[ServiceWorker] Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            })
-        );
-      })
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    // Clean up old caches
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name !== CACHE_NAME)
+        .map(name => caches.delete(name))
+    );
+
+    if ('navigationPreload' in self.registration) {
+      await self.registration.navigationPreload.enable();
+    }
+  })());
+
+  self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          return response;
+  if (event.request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const preloadResponse = await event.preloadResponse;
+        if (preloadResponse) {
+          return preloadResponse;
         }
 
-        return fetch(event.request)
-          .then((response) => {
-            // Don't cache if not a valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
+        const networkResponse = await fetch(event.request);
+        return networkResponse;
+      } catch (error) {
+        console.log('Fetch failed; returning offline page instead.', error);
 
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // If both cache and network fail, show offline page for navigation requests
-            if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
-            }
-          });
-      })
-  );
-});
-
-// Handle messages from clients
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+        const cache = await caches.open(CACHE_NAME);
+        const cachedResponse = await cache.match(OFFLINE_URL);
+        return cachedResponse || new Response('Offline content unavailable.', { status: 503 });
+      }
+    })());
+  } else if (excludedUrls.some((pattern) => pattern.test(event.request.url))) {
+    // Skip handling excluded URLs
+    return;
+  } else {
+    event.respondWith((async () => {
+      try {
+        const networkResponse = await fetch(event.request);
+        return networkResponse;
+      } catch (error) {
+        console.log('Fetch failed for non-navigation request:', event.request.url, error);
+        return new Response('Resource unavailable.', { status: 503 });
+      }
+    })());
   }
 });

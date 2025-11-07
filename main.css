@@ -1,10 +1,3 @@
-/* Base Styles */
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
 html {
     height: 100%;
     overflow: hidden;
@@ -15,78 +8,36 @@ body {
     background-size: 100% 100vh;
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: #000;
+    color: black;
+    background-color: orange;
     margin: 0;
     padding: 0;
     overflow: hidden;
+    box-sizing: border-box;
     width: 100%;
 }
 
-/* Accessibility */
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-.noscript-warning {
-    padding: 20px;
-    text-align: center;
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffc107;
-    border-radius: 5px;
-    margin: 20px;
-}
-
-/* Layout */
 main {
     max-width: 900px;
-    margin: 0 auto;
-    padding: 0;
-    text-align: center;
-    width: 100%;
-}
-
-main.fullscreen-mode {
-    max-width: none !important;
-    width: 100vw !important;
-}
-
-/* Responsive: use full width on larger screens */
-@media (min-width: 901px) {
-    main {
-        max-width: 100%;
-        width: 100%;
-    }
-}
-
-header {
+    margin: auto;
+    padding: 0.5rem;
     text-align: center;
 }
 
-/* Buttons */
 .button {
     margin: 5px;
     padding: 12px;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: 0.5s;
     background-size: 200% auto;
-    color: #000;
+    color: black;
     border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 500;
-    font-size: 0.85rem;
+    font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
+    font-size: 0.85rem; /* Slightly smaller font size */
     background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
     cursor: pointer;
-    -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
@@ -94,36 +45,9 @@ header {
     height: auto;
 }
 
-.button:hover {
-    background-position: right center;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-}
-
 .button:active {
     transform: scale(0.95);
-}
-
-.button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.action-icon-btn {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.action-icon-btn:hover {
-    transform: scale(1.1);
-}
-
-.action-icon-btn:active {
-    transform: scale(0.95);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 .button:hover {
@@ -167,23 +91,23 @@ input {
 }
 
 .rotate {
-    position: fixed;
-    inset: 0;
-    margin: auto;
-    transform: rotate(90deg);
-    transform-origin: center center;
-    width: min(100vh - 40px, 100vw - 40px);
-    height: auto;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
+    width: min(100vh - 40px, 100vw - 40px) !important;
+    height: auto !important;
     max-width: none !important;
     max-height: none !important;
-    object-fit: contain;
-    z-index: 1000;
-    transition: transform 0.3s ease;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border-radius: 12px;
-    background: transparent;
-    padding: 20px;
-    box-sizing: border-box;
+    object-fit: contain !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    z-index: 1000 !important;
+    transition: transform 0.3s ease !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border-radius: 5px !important;
+    background: transparent !important;
 }
 
 body.rotated-state {
@@ -196,39 +120,30 @@ body.rotated-state {
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 0;
+    margin: 0 auto;
     transition: all 0.3s ease;
 }
 
 input[type="checkbox"], label {
+    float: left;
     line-height: 1.6em;
-    margin: 0;
+    height: 1.6em;
+    margin: 0 2px;
     padding: 0;
     font-size: small;
-}
-
-input[type=checkbox] {
-    position: relative;
-    cursor: pointer;
-    margin: 0;
-    margin-right: 12px;
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
 }
 
 input[type=checkbox]:before {
     content: "";
     display: block;
     position: absolute;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     top: 0;
     left: 0;
     border: 2px solid black;
     border-radius: 5px;
     background-color: #eee239;
-    box-sizing: border-box;
 }
 
 input[type=checkbox]:checked:after {
@@ -244,13 +159,17 @@ input[type=checkbox]:checked:after {
     left: 6px;
 }
 
+input[type=checkbox] {
+    position: relative;
+    cursor: pointer;
+    clear: left;
+    margin-right: 25px;
+    margin-bottom: 20px;
+}
+
 #comic {
     transition: opacity 1s ease-in-out;
     opacity: 1;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    display: block;
 }
 
 #comic.dissolve {
@@ -346,24 +265,26 @@ input[type="date"]::-webkit-datetime-edit {
     width: 100%;
     box-sizing: border-box;
     text-align: center;
-    padding: 10px 15px 0;
-    margin: 0;
+    padding: 0;
+    margin: 0 auto;
 }
 
 .logo img {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
+    max-width: 95%;
+    margin: 25px auto 5px;
     display: block;
 }
 
 #comic-container {
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
-    margin: 0;
-    padding: 10px 0 15px 0;
+    margin: 0 auto;
+    padding: 0;
     box-sizing: border-box;
     position: relative;
+    overflow: hidden;
 }
 
 #comic-container.fullscreen {
@@ -378,11 +299,12 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: center;
     align-items: center;
     overflow: hidden;
-    padding: 0;
 }
 
 #comic-wrapper {
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     height: 100%;
     transition: all 0.3s ease;
@@ -396,29 +318,9 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
 }
 
-/* Settings Panel */
 #settingsDIV {
-    margin-top: 30px;
-    padding: 20px 15px;
-}
-
-.settings-group {
-    margin: 15px 0;
-    display: flex;
-    align-items: center;
-}
-
-.settings-group input[type="checkbox"] {
-    margin-right: 12px;
-    cursor: pointer;
-    flex-shrink: 0;
-}
-
-.labels {
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-    flex: 1;
+    margin-top: 25px;
+    padding: 0 8px;
 }
 
 .hidden-during-fullscreen {
@@ -443,14 +345,11 @@ input[type="date"]::-webkit-datetime-edit {
 
 #support-container {
     flex: 1;
-    display: flex;
-    justify-content: flex-start;
 }
 
 #action-buttons {
     display: flex;
     align-items: center;
-    gap: 15px;
 }
 
 .action-icon {
@@ -470,10 +369,9 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .vertical {
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    margin: 0;
+    max-height: 300px;
+    width: auto;
+    margin: 0 auto;
     cursor: pointer;
     transition: all 0.3s ease;
     display: block;
@@ -481,13 +379,22 @@ input[type="date"]::-webkit-datetime-edit {
 
 .thumbnail-container {
     position: relative;
-    display: block;
-    width: 100%;
-    margin: 0;
+    display: inline-block;
+    margin: 0 auto;
 }
 
 .thumbnail-notice {
-    display: none;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(238, 226, 57, 0.8);
+    color: black;
+    padding: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+    border-radius: 0 0 10px 10px;
 }
 
 .fullscreen-vertical {
@@ -505,203 +412,4 @@ input[type="date"]::-webkit-datetime-edit {
     z-index: 1000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border-radius: 5px;
-}
-
-/* Message container styles */
-#comic-message {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 20px;
-    font-size: 1rem;
-    color: black;
-    background-color: #fff8dc;
-    border: 1px solid #f0e68c;
-    border-radius: 10px;
-    margin: 20px auto;
-    max-width: 600px;
-    line-height: 1.6;
-}
-
-#comic-message a {
-    color: #F09819;
-    font-weight: 600;
-    text-decoration: underline;
-}
-
-#comic-message a:hover {
-    color: #eee239;
-}
-
-.paywall-message {
-    background-color: #fffacd;
-    border-color: #ffd700;
-}
-
-.error-message {
-    background-color: #ffe4e1;
-    border-color: #ff6b6b;
-}
-
-#comic-message p {
-    margin: 10px 0;
-}
-
-#comic-message strong {
-    font-size: 1.1rem;
-    display: block;
-    margin-bottom: 10px;
-}
-/* Install Button */
-#installBtn {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 999;
-    padding: 12px 24px;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
-    background-size: 200% auto;
-    color: black;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.9rem;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    transition: 0.3s;
-}
-
-#installBtn:hover {
-    background-position: right center;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-}
-
-#installBtn:active {
-    transform: scale(0.95);
-}
-
-/* Update Notification */
-#updateNotification {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    animation: slideUp 0.3s ease-out;
-}
-
-@keyframes slideUp {
-    from {
-        bottom: -100px;
-        opacity: 0;
-    }
-    to {
-        bottom: 20px;
-        opacity: 1;
-    }
-}
-
-#updateContent {
-    background: linear-gradient(135deg, #eee239 0%, #F09819 100%);
-    padding: 20px 30px;
-    border-radius: 15px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    text-align: center;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    min-width: 300px;
-}
-
-#updateMessage {
-    margin: 0 0 15px 0;
-    font-size: 1rem;
-    font-weight: 600;
-    color: black;
-}
-
-#updateBtn,
-#dismissBtn {
-    margin: 5px;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: 0.3s;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-}
-
-#updateBtn {
-    background: white;
-    color: #F09819;
-}
-
-#updateBtn:hover {
-    background: #f5f5f5;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-#dismissBtn {
-    background: rgba(0, 0, 0, 0.2);
-    color: white;
-}
-
-#dismissBtn:hover {
-    background: rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
-}
-
-#updateBtn:active,
-#dismissBtn:active {
-    transform: scale(0.95);
-}
-
-/* Fullscreen browser mode support */
-@media (display-mode: fullscreen) {
-    main {
-        max-width: none !important;
-        width: 100vw !important;
-    }
-    
-    #comic-container {
-        padding: 10px 0 15px 0;
-    }
-}
-
-/* PWA standalone mode - also use full width */
-@media (display-mode: standalone) {
-    main {
-        max-width: none !important;
-        width: 100vw !important;
-    }
-}
-
-/* Additional fullscreen API support */
-html:fullscreen main,
-html:-webkit-full-screen main,
-html:-moz-full-screen main,
-html:-ms-fullscreen main,
-body:fullscreen main,
-body:-webkit-full-screen main,
-body:-moz-full-screen main,
-body:-ms-fullscreen main {
-    max-width: none !important;
-    width: 100vw !important;
-}
-
-html:fullscreen #comic-container,
-html:-webkit-full-screen #comic-container,
-html:-moz-full-screen #comic-container,
-html:-ms-fullscreen #comic-container,
-body:fullscreen #comic-container,
-body:-webkit-full-screen #comic-container,
-body:-moz-full-screen #comic-container,
-body:-ms-fullscreen #comic-container {
-    padding: 10px 0 15px 0;
 }
