@@ -131,10 +131,15 @@ export async function getAuthenticatedComic(date, language = 'en') {
         console.log(`Fetching comic: ${url}`);
         const html = await fetchWithProxyFallback(url);
         
+        // Debug: Check if we got the proxy's own page instead of GoComics
+        if (html.includes('_next/static') || html.includes('__next')) {
+            console.error(`Proxy returned its own page instead of GoComics HTML`);
+            return { success: false, imageUrl: null, proxyError: true };
+        }
+        
         // Check if we got a 404 page by looking for specific error indicators
         const is404 = html.includes('<title>404') || 
                       html.includes('Page Not Found') || 
-                      (html.includes('404') && html.includes('error')) ||
                       html.includes('does not exist');
         
         if (is404) {
@@ -149,7 +154,9 @@ export async function getAuthenticatedComic(date, language = 'en') {
             return { success: true, imageUrl };
         }
         
-        console.warn(`No image found in HTML for: ${url}`);
+        console.warn(`No image found in HTML for: ${url} (HTML length: ${html.length})`);
+        // Log first 500 chars to help debug
+        console.log(`HTML preview: ${html.substring(0, 500)}`);
         return { success: false, imageUrl: null };
     } catch (error) {
         console.error('Failed to fetch comic:', error);
