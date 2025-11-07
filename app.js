@@ -171,21 +171,34 @@ function positionToolbarCentered(toolbar) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
     
     const logo = document.querySelector('.logo');
+    const comic = document.getElementById('comic-container');
+    
     if (!logo) return;
     
     const logoRect = logo.getBoundingClientRect();
+    const comicRect = comic ? comic.getBoundingClientRect() : null;
     const toolbarWidth = toolbar.offsetWidth;
+    const toolbarHeight = toolbar.offsetHeight;
     
-    // Center horizontally, but ensure it fits on screen
-    let left = (window.innerWidth - toolbarWidth) / 2;
+    // Center horizontally with responsive padding
+    const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
+    let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
+    left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
     
-    // On narrow screens, just add some padding from edges
-    if (window.innerWidth < 768) {
-        left = Math.max(10, Math.min(left, window.innerWidth - toolbarWidth - 10));
+    // Position between logo and comic
+    let top;
+    if (comicRect && comicRect.top > logoRect.bottom + toolbarHeight + 30) {
+        // Center between logo and comic if there's enough space
+        const availableSpace = comicRect.top - logoRect.bottom;
+        top = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
+    } else {
+        // Default: just below logo
+        top = logoRect.bottom + 15;
     }
     
-    // Position below logo with 15px gap
-    const top = logoRect.bottom + 15;
+    // Ensure toolbar stays in viewport
+    const maxTop = window.innerHeight - toolbarHeight - 10;
+    top = Math.min(top, maxTop);
     
     toolbar.style.left = left + 'px';
     toolbar.style.top = top + 'px';
