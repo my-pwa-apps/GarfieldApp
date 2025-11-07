@@ -159,7 +159,7 @@ const CORS_PROXIES = [
     'https://api.allorigins.win/raw?url='
 ];
 
-export async function extractGoComicsImage(date, credentials = null) {
+export async function extractGoComicsImage(date, credentials = null, language = 'en') {
     const formattedDate = date.toISOString().split('T')[0];
     
     // Try multiple URL formats - GoComics might have changed their URL structure
@@ -167,10 +167,13 @@ export async function extractGoComicsImage(date, credentials = null) {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     
+    // Choose comic path based on language
+    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
+    
     const urlFormats = [
-        `https://www.gocomics.com/garfield/${year}/${month}/${day}`,  // NEW FORMAT: /garfield/2025/11/06
-        `https://www.gocomics.com/garfield/${formattedDate}`,  // OLD FORMAT: /garfield/2025-11-06 (fallback)
-        `https://www.gocomics.com/garfield`  // Today's comic (no date)
+        `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`,  // NEW FORMAT: /garfield/2025/11/06
+        `https://www.gocomics.com/${comicPath}/${formattedDate}`,  // OLD FORMAT: /garfield/2025-11-06 (fallback)
+        `https://www.gocomics.com/${comicPath}`  // Today's comic (no date)
     ];
     
     // Try direct fetch first with different URL formats
@@ -252,7 +255,7 @@ export async function extractGoComicsImage(date, credentials = null) {
 }
 
 // Try to extract comic with authentication if available
-export async function getAuthenticatedComic(date) {
+export async function getAuthenticatedComic(date, language = 'en') {
     const credentials = goComicsAuth.getCredentials();
-    return await extractGoComicsImage(date, credentials);
+    return await extractGoComicsImage(date, credentials, language);
 }

@@ -247,8 +247,12 @@ function updateDateDisplay() {
 
 async function loadComic(date) {
     try {
-        // Try GoComics with authentication
-        const result = await getAuthenticatedComic(date);
+        // Check if Spanish is enabled
+        const useSpanish = document.getElementById("spanish")?.checked || false;
+        const language = useSpanish ? 'es' : 'en';
+        
+        // Try GoComics with authentication and language
+        const result = await getAuthenticatedComic(date, language);
         
         if (result.success && result.imageUrl) {
             const comicImg = document.getElementById('comic');
@@ -666,6 +670,23 @@ setStatus.onclick = function()
 	showComic();
 }
 
+setStatus = document.getElementById('spanish');
+if (setStatus) {
+	setStatus.onclick = function()
+	{
+		if(document.getElementById('spanish').checked)
+		{
+			localStorage.setItem('spanish', "true");
+		}
+		else
+		{
+			localStorage.setItem('spanish', "false");
+		}
+		// Reload the current comic in the selected language
+		showComic();
+	}
+}
+
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
     const comic = document.getElementById('comic');
@@ -826,6 +847,16 @@ else
 {
 	document.getElementById("lastdate").checked = false;
 }	
+
+getStatus = localStorage.getItem('spanish');
+if (getStatus == "true")
+{
+	document.getElementById("spanish").checked = true;
+}
+else
+{
+	document.getElementById("spanish").checked = false;
+}
 
 getStatus = localStorage.getItem('settings');
 if (getStatus == "true")
