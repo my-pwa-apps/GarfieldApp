@@ -3,7 +3,7 @@
   "name": "Daily Garfield Comics",
   "description": "View daily Garfield comic strips in English and Spanish. Navigate through comics, save favorites, and enjoy the classic cat!",
   "short_name": "Garfield",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#eee239",
@@ -472,7 +472,7 @@
       "name": "Today's Comic",
       "short_name": "Today",
       "description": "View today's Garfield comic",
-      "url": "./index.html",
+      "url": "/",
       "icons": [
         {
           "src": "./android/android-launchericon-96-96.png",
@@ -484,7 +484,7 @@
       "name": "Random Comic",
       "short_name": "Random",
       "description": "View a random Garfield comic",
-      "url": "./index.html?action=random",
+      "url": "/?action=random",
       "icons": [
         {
           "src": "./android/android-launchericon-96-96.png",
@@ -496,7 +496,7 @@
       "name": "Favorites",
       "short_name": "Favorites",
       "description": "View your favorite comics",
-      "url": "./index.html?view=favorites",
+      "url": "/?view=favorites",
       "icons": [
         {
           "src": "./android/android-launchericon-96-96.png",
