@@ -160,8 +160,8 @@ input {
     transform-origin: center center;
     width: auto;
     height: auto;
-    max-width: 90vh;
-    max-height: 85vw;
+    max-width: 95vh;
+    max-height: 95vw;
     object-fit: contain;
     margin: 0;
     padding: 0;

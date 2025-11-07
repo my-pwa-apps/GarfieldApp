@@ -19,7 +19,9 @@ const translations = {
         settings: 'Settings',
         favorites: 'Add to favorites',
         share: 'Share',
-        selectDate: 'Select comic date'
+        selectDate: 'Select comic date',
+        installApp: 'Install App',
+        supportApp: 'Support this App'
     },
     es: {
         previous: 'Anterior',
@@ -36,7 +38,9 @@ const translations = {
         settings: 'Configuración',
         favorites: 'Agregar a favoritos',
         share: 'Compartir',
-        selectDate: 'Seleccionar fecha del cómic'
+        selectDate: 'Seleccionar fecha del cómic',
+        installApp: 'Instalar App',
+        supportApp: 'Apoyar esta App'
     }
 };
 
@@ -77,6 +81,17 @@ function translateInterface(lang) {
     if (datePicker) {
         datePicker.title = t.selectDate;
         datePicker.setAttribute('aria-label', t.selectDate);
+    }
+    
+    // Translate install and support buttons
+    const installBtn = document.getElementById('install-button');
+    if (installBtn) {
+        installBtn.textContent = t.installApp;
+    }
+    
+    const supportBtn = document.getElementById('support-button');
+    if (supportBtn) {
+        supportBtn.textContent = t.supportApp;
     }
     
     // Translate comic alt text
