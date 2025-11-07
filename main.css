@@ -428,7 +428,7 @@ input[type="date"]::-webkit-datetime-edit {
     flex: 1;
     display: flex;
     justify-content: flex-start;
-    padding-left: 5px;
+    padding-left: 15px;
 }
 
 #action-buttons {
@@ -657,8 +657,8 @@ input[type="date"]::-webkit-datetime-edit {
 /* Fullscreen browser mode support */
 @media (display-mode: fullscreen) {
     main {
-        max-width: 100%;
-        width: 100%;
+        max-width: 100% !important;
+        width: 100% !important;
     }
     
     #comic-container {
@@ -666,15 +666,31 @@ input[type="date"]::-webkit-datetime-edit {
     }
 }
 
+/* PWA standalone mode - also use full width */
+@media (display-mode: standalone) {
+    main {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+}
+
 /* Additional fullscreen API support */
+html:fullscreen main,
+html:-webkit-full-screen main,
+html:-moz-full-screen main,
+html:-ms-fullscreen main,
 body:fullscreen main,
 body:-webkit-full-screen main,
 body:-moz-full-screen main,
 body:-ms-fullscreen main {
-    max-width: 100%;
-    width: 100%;
+    max-width: 100% !important;
+    width: 100% !important;
 }
 
+html:fullscreen #comic-container,
+html:-webkit-full-screen #comic-container,
+html:-moz-full-screen #comic-container,
+html:-ms-fullscreen #comic-container,
 body:fullscreen #comic-container,
 body:-webkit-full-screen #comic-container,
 body:-moz-full-screen #comic-container,
