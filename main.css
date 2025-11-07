@@ -721,6 +721,12 @@ input[type="date"]::-webkit-datetime-edit {
     position: static;
 }
 
+/* Disable old checkbox pseudo-elements for settings panel */
+.setting-item input[type="checkbox"]::before,
+.setting-item input[type="checkbox"]::after {
+    display: none !important;
+}
+
 .setting-item label {
     cursor: pointer;
     font-size: 15px;
