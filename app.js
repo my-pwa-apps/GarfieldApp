@@ -442,20 +442,8 @@ const translations = {
 function translateInterface(lang) {
     const t = translations[lang] || translations.en;
     
-    // Translate buttons
-    document.getElementById('Previous').textContent = t.previous;
-    document.getElementById('Random').textContent = t.random;
-    document.getElementById('Next').textContent = t.next;
-    document.getElementById('First').textContent = t.first;
-    
-    // Handle Today/Last button
-    const todayBtn = document.getElementById('Today');
-    const showFavs = document.getElementById('showfavs');
-    if (showFavs && showFavs.checked) {
-        todayBtn.textContent = t.last;
-    } else {
-        todayBtn.textContent = t.today;
-    }
+    // NOTE: Buttons now use SVG icons only, no text labels
+    // Previous button labels were removed to show icons instead
     
     // Translate labels
     const labels = {
@@ -1175,14 +1163,12 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		const currentLang = document.getElementById('spanish').checked ? 'es' : 'en';
-		document.getElementById('Today').innerHTML = translations[currentLang].last;
+		// NOTE: Button now uses SVG icon only, no text label change needed
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		const currentLang = document.getElementById('spanish').checked ? 'es' : 'en';
-		document.getElementById('Today').innerHTML = translations[currentLang].today;
+		// NOTE: Button now uses SVG icon only, no text label change needed
 	}
 	CompareDates();
 	showComic();
@@ -1392,12 +1378,12 @@ getStatus = localStorage.getItem('showfavs');
 if (getStatus == "true") 
 {
 	document.getElementById("showfavs").checked = true;
-	document.getElementById('Today').innerHTML = 'Last'
+	// NOTE: Button now uses SVG icon only, no text label
 }
 else
 {
 	document.getElementById("showfavs").checked = false;
-	document.getElementById('Today').innerHTML = 'Today'
+	// NOTE: Button now uses SVG icon only, no text label
 }
 
 getStatus = localStorage.getItem('lastdate');
