@@ -1016,7 +1016,7 @@ function DateChange() {
 window.DateChange = DateChange;
 
 // Add this to update the display when showing a comic
-async function showComic() {
+async function showComic(skipOnFailure = false, direction = null) {
     formatDate(currentselectedDate);
     formattedComicDate = year + "/" + month + "/" + day;
     formattedDate = year + "-" + month + "-" + day;
@@ -1040,7 +1040,57 @@ async function showComic() {
     }
     
     // Load the comic
-    await loadComic(currentselectedDate);
+    const success = await loadComic(currentselectedDate);
+    
+    // If comic failed to load and we should skip, try the next one
+    if (!success && skipOnFailure && direction) {
+        console.log(`Comic not available, skipping ${direction}...`);
+        
+        // Prevent infinite loops by limiting attempts
+        const maxAttempts = 10;
+        let attempts = 0;
+        
+        while (!success && attempts < maxAttempts) {
+            attempts++;
+            
+            if (direction === 'next') {
+                currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+            } else if (direction === 'previous') {
+                currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            } else {
+                break; // Unknown direction, stop trying
+            }
+            
+            CompareDates();
+            
+            // Check if we've reached the boundaries
+            if (document.getElementById("Next")?.disabled && direction === 'next') {
+                console.log('Reached end of available comics');
+                break;
+            }
+            if (document.getElementById("Previous")?.disabled && direction === 'previous') {
+                console.log('Reached start of available comics');
+                break;
+            }
+            
+            // Try loading this comic
+            formatDate(currentselectedDate);
+            formattedComicDate = year + "/" + month + "/" + day;
+            formattedDate = year + "-" + month + "-" + day;
+            document.getElementById("DatePicker").value = formattedDate;
+            updateDateDisplay();
+            
+            const retrySuccess = await loadComic(currentselectedDate);
+            if (retrySuccess) {
+                console.log(`Found available comic after ${attempts} attempt(s)`);
+                return;
+            }
+        }
+        
+        if (attempts >= maxAttempts) {
+            console.warn('Max skip attempts reached');
+        }
+    }
 }
 
 function PreviousClick() {
@@ -1053,7 +1103,7 @@ function PreviousClick() {
 	}
 	previousclicked = true;
 	CompareDates();
-	showComic();
+	showComic(true, 'previous'); // Auto-skip unavailable comics going backwards
 }
 
 window.PreviousClick = PreviousClick;
@@ -1067,7 +1117,7 @@ function NextClick() {
 		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
 	}
 	CompareDates();
-	showComic();
+	showComic(true, 'next'); // Auto-skip unavailable comics going forward
 }
 
 window.NextClick = NextClick;
