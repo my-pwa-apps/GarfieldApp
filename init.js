@@ -88,19 +88,47 @@ function showUpdateNotification() {
         top: 0;
         left: 0;
         right: 0;
-        background: #F09819;
-        color: white;
+        background: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+        background-size: 200% auto;
+        color: black;
         padding: 15px;
         text-align: center;
         z-index: 9999;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     `;
-    updateBanner.innerHTML = `
-        <p style="margin: 0 0 10px 0;">A new version is available!</p>
-        <button onclick="location.reload()" style="background: white; color: #F09819; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold;">
-            Refresh Now
-        </button>
+    
+    const updateButton = document.createElement('button');
+    updateButton.textContent = 'Refresh Now';
+    updateButton.style.cssText = `
+        background: white;
+        color: #F09819;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s;
+        margin-top: 10px;
     `;
+    updateButton.onmouseover = function() {
+        this.style.transform = 'translateY(-2px)';
+        this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+    };
+    updateButton.onmouseout = function() {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+    };
+    updateButton.onclick = function() {
+        location.reload();
+    };
+    
+    const message = document.createElement('p');
+    message.textContent = 'A new version is available!';
+    message.style.cssText = 'margin: 0 0 10px 0; font-weight: 600;';
+    
+    updateBanner.appendChild(message);
+    updateBanner.appendChild(updateButton);
     
     const body = document.body;
     if (body) {

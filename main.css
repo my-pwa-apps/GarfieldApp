@@ -341,6 +341,13 @@ input[type="date"]::-webkit-datetime-edit {
     width: 100%;
     box-sizing: border-box;
     padding: 0 10px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#installBtn {
+    margin: 5px auto;
+    max-width: 200px;
 }
 
 #support-container {
