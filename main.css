@@ -53,6 +53,11 @@ main {
     text-align: center;
 }
 
+main.fullscreen-mode {
+    max-width: none !important;
+    width: 100vw !important;
+}
+
 header {
     text-align: center;
 }
@@ -428,7 +433,6 @@ input[type="date"]::-webkit-datetime-edit {
     flex: 1;
     display: flex;
     justify-content: flex-start;
-    padding-left: 15px;
 }
 
 #action-buttons {
@@ -657,8 +661,8 @@ input[type="date"]::-webkit-datetime-edit {
 /* Fullscreen browser mode support */
 @media (display-mode: fullscreen) {
     main {
-        max-width: 100% !important;
-        width: 100% !important;
+        max-width: none !important;
+        width: 100vw !important;
     }
     
     #comic-container {
@@ -669,8 +673,8 @@ input[type="date"]::-webkit-datetime-edit {
 /* PWA standalone mode - also use full width */
 @media (display-mode: standalone) {
     main {
-        max-width: 100% !important;
-        width: 100% !important;
+        max-width: none !important;
+        width: 100vw !important;
     }
 }
 
@@ -683,8 +687,8 @@ body:fullscreen main,
 body:-webkit-full-screen main,
 body:-moz-full-screen main,
 body:-ms-fullscreen main {
-    max-width: 100% !important;
-    width: 100% !important;
+    max-width: none !important;
+    width: 100vw !important;
 }
 
 html:fullscreen #comic-container,
