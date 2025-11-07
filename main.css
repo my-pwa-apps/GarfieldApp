@@ -1,3 +1,18 @@
+/* CSS Custom Properties */
+:root {
+    --primary-gradient: linear-gradient(135deg, #F09819 0%, #FF5E00 100%);
+    --toolbar-gradient: linear-gradient(135deg, #F09819 0%, #FFD700 100%);
+    --button-gradient: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    --dark-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%);
+    --focus-ring: 0 0 0 3px rgba(240, 152, 25, 0.4);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+}
+
 html {
     height: 100%;
     overflow-x: hidden;
@@ -30,43 +45,76 @@ main {
     margin: 5px;
     padding: 12px;
     text-align: center;
-    transition: 0.5s;
+    transition: all var(--transition-slow);
     background-size: 200% auto;
     color: black;
     border-radius: 10px;
     border: none;
     display: block;
-    font-weight: 500; /* Changed from 700 to 500 for more subtle appearance */
-    font-size: 0.85rem; /* Slightly smaller font size */
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    font-weight: 500;
+    font-size: 0.85rem;
+    background-image: var(--button-gradient);
     cursor: pointer;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
     touch-action: manipulation;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
     min-width: 70px;
     height: auto;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    will-change: transform, box-shadow;
+}
+
+/* Shimmer effect */
+.button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.button:hover::before {
+    left: 100%;
 }
 
 .button:active {
     transform: scale(0.95);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 .button:hover {
     background-position: right center;
     color: black;
     text-decoration: none;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 16px rgba(240, 152, 25, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .button:disabled {
     background-color: #f39700;
-    opacity: 0.5;
+    opacity: 0.4;
     color: black;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.button:disabled:hover {
+    transform: none;
     box-shadow: none;
 }
 
@@ -442,4 +490,378 @@ input[type="date"]::-webkit-datetime-edit {
     z-index: 1000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     border-radius: 5px;
+}
+
+/* ========================================
+   DRAGGABLE TOOLBAR
+   ======================================== */
+.toolbar {
+    position: fixed;
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--toolbar-gradient);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    border: 2px solid rgba(240, 152, 25, 0.3);
+    z-index: 100;
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.toolbar:active {
+    cursor: grabbing;
+}
+
+.toolbar-button,
+.toolbar-datepicker-btn {
+    background: var(--primary-gradient);
+    background-size: 200% auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
+}
+
+.toolbar-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.toolbar-button:hover::before {
+    left: 100%;
+}
+
+.toolbar-button:hover,
+.toolbar-datepicker-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    background-position: right center;
+    box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3),
+                var(--shadow-sm),
+                inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.toolbar-button:active,
+.toolbar-datepicker-btn:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: var(--shadow-sm),
+                inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toolbar-button:focus-visible,
+.toolbar-datepicker-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.toolbar-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    background: linear-gradient(45deg, #999 0%, #666 51%, #999 100%);
+}
+
+.toolbar-svg {
+    width: 24px;
+    height: 24px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+.toolbar-datepicker-btn {
+    width: auto;
+    min-width: 48px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #333;
+}
+
+/* ========================================
+   MODERN SETTINGS PANEL
+   ======================================== */
+.settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
+                0 10px 30px rgba(0, 0, 0, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    z-index: 10000;
+    width: 320px;
+    max-width: 90vw;
+    display: none;
+    flex-direction: column;
+    border: 2px solid rgba(240, 152, 25, 0.3);
+    overflow: hidden;
+    transition: none;
+}
+
+.settings-panel.visible {
+    display: flex;
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.settings-header {
+    background: var(--toolbar-gradient);
+    padding: 16px 20px;
+    cursor: move;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    -webkit-user-select: none;
+    user-select: none;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: var(--shadow-sm);
+}
+
+.settings-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+.settings-close {
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    color: #333;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 300;
+}
+
+.settings-close:hover {
+    background: rgba(0, 0, 0, 0.2);
+    transform: rotate(90deg);
+}
+
+.settings-content {
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(240, 152, 25, 0.05);
+    border-radius: 10px;
+    transition: all var(--transition-fast);
+}
+
+.setting-item:hover {
+    background: rgba(240, 152, 25, 0.1);
+    transform: translateX(2px);
+}
+
+.setting-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    cursor: pointer;
+    accent-color: #F09819;
+    margin: 0;
+    flex-shrink: 0;
+    -webkit-appearance: checkbox;
+    -moz-appearance: checkbox;
+    appearance: auto;
+    position: static;
+}
+
+.setting-item label {
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+    margin: 0;
+    flex: 1;
+    line-height: 20px;
+    display: flex;
+    align-items: center;
+}
+
+/* ========================================
+   ICON BUTTONS CONTAINER
+   ======================================== */
+.settings-icons-container {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 16px;
+    padding-right: 16px;
+}
+
+.icon-button {
+    background: var(--primary-gradient);
+    background-size: 200% auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
+}
+
+.icon-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.icon-button:hover::before {
+    left: 100%;
+}
+
+.icon-button:hover {
+    transform: translateY(-3px) scale(1.08);
+    background-position: right center;
+    box-shadow: 0 8px 20px rgba(240, 152, 25, 0.4),
+                var(--shadow-sm);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.icon-button:active {
+    transform: translateY(-1px) scale(1.03);
+}
+
+.icon-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.icon-button svg {
+    width: 24px;
+    height: 24px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .toolbar {
+        gap: 6px;
+        padding: 10px 12px;
+    }
+    
+    .toolbar-button,
+    .toolbar-datepicker-btn {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+    }
+    
+    .toolbar-svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .settings-panel {
+        width: 280px;
+    }
+    
+    .settings-icons-container {
+        gap: 12px;
+    }
+    
+    .icon-button {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .icon-button svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+@media (max-width: 480px) {
+    .toolbar {
+        gap: 4px;
+        padding: 8px 10px;
+    }
+    
+    .toolbar-button,
+    .toolbar-datepicker-btn {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+    }
+    
+    .toolbar-svg {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .settings-panel {
+        width: 260px;
+    }
+}
+
+/* Utility classes */
+.hidden-old {
+    display: none !important;
+}
+
+/* Hidden date picker for toolbar */
+#DatePicker {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
 }

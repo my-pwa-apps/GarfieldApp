@@ -39,6 +39,300 @@ const CONFIG = Object.freeze({
     })
 });
 
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
+
+/**
+ * Utility Functions
+ */
+const UTILS = {
+    /**
+     * Safely parses JSON with fallback
+     * @param {string} str - JSON string to parse
+     * @param {*} fallback - Fallback value if parse fails
+     * @returns {*} Parsed value or fallback
+     */
+    safeJSONParse(str, fallback) {
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            return fallback;
+        }
+    },
+    
+    /**
+     * Checks if device is mobile or touch-enabled
+     * @returns {boolean} True if mobile/touch device
+     */
+    isMobileOrTouch() {
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        return isMobile || isTouch;
+    }
+};
+
+// ========================================
+// DRAGGABLE ELEMENT FUNCTIONALITY
+// ========================================
+
+/**
+ * Generic draggable element maker
+ * @param {HTMLElement} element - Element to make draggable
+ * @param {HTMLElement} dragHandle - Element that triggers dragging (usually header)
+ * @param {string} storageKey - localStorage key for saving position
+ */
+function makeDraggable(element, dragHandle, storageKey) {
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    function onDown(e) {
+        // For mouse events, only drag with the left button
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        
+        // Prevent dragging when interacting with buttons or inputs
+        if (e.target.closest('button, input')) return;
+        
+        // Check if target is the handle or within it
+        if (!(e.target === dragHandle || dragHandle.contains(e.target))) return;
+        
+        isDragging = true;
+        element.style.cursor = dragHandle === element ? 'grabbing' : '';
+        
+        const event = e.touches ? e.touches[0] : e;
+        const elementStartX = parseFloat(element.style.left) || element.offsetLeft;
+        const elementStartY = parseFloat(element.style.top) || element.offsetTop;
+        
+        // Calculate offset from touch/click point to element's top-left
+        offsetX = event.clientX + window.scrollX - elementStartX;
+        offsetY = event.clientY + window.scrollY - elementStartY;
+        
+        document.addEventListener('mousemove', onMove, { passive: false });
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchend', onUp);
+        
+        e.preventDefault();
+    }
+    
+    function onMove(e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        
+        const event = e.touches ? e.touches[0] : e;
+        
+        // Calculate new position
+        let newLeft = event.clientX - offsetX + window.scrollX;
+        let newTop = event.clientY - offsetY + window.scrollY;
+        
+        // Get element dimensions for boundary checking
+        const width = element.offsetWidth;
+        const height = element.offsetHeight;
+        
+        // Constrain within document bounds
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
+        newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
+        
+        element.style.left = newLeft + 'px';
+        element.style.top = newTop + 'px';
+        element.style.transform = 'none';
+    }
+    
+    function onUp() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        element.style.cursor = dragHandle === element ? 'grab' : '';
+        
+        // Save position
+        const numericTop = parseFloat(element.style.top) || 0;
+        const numericLeft = parseFloat(element.style.left) || 0;
+        
+        try {
+            localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
+        } catch (_) {}
+        
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchend', onUp);
+    }
+    
+    dragHandle.addEventListener('mousedown', onDown);
+    dragHandle.addEventListener('touchstart', onDown, { passive: false });
+}
+
+/**
+ * Positions toolbar centered below logo
+ * @param {HTMLElement} toolbar - The toolbar element to position
+ */
+function positionToolbarCentered(toolbar) {
+    if (!toolbar || toolbar.offsetHeight === 0) return;
+    
+    const logo = document.querySelector('.logo');
+    if (!logo) return;
+    
+    const logoRect = logo.getBoundingClientRect();
+    const toolbarWidth = toolbar.offsetWidth;
+    
+    // Center horizontally
+    const left = (window.innerWidth - toolbarWidth) / 2;
+    
+    // Position below logo with 15px gap
+    const top = logoRect.bottom + 15;
+    
+    toolbar.style.left = left + 'px';
+    toolbar.style.top = top + 'px';
+    toolbar.style.transform = 'none';
+}
+
+/**
+ * Initializes draggable settings panel
+ */
+function initializeDraggableSettings() {
+    const panel = document.getElementById("settingsDIV");
+    const header = document.getElementById("settingsHeader");
+    
+    if (!panel || !header) return;
+    
+    // Load and apply saved position
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+        panel.style.animation = 'none';
+        panel.style.top = savedPos.top + 'px';
+        panel.style.left = savedPos.left + 'px';
+        panel.style.transform = 'none';
+        
+        requestAnimationFrame(() => {
+            panel.style.animation = '';
+        });
+    }
+    
+    // Make draggable
+    makeDraggable(panel, header, CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+}
+
+/**
+ * Initialize toolbar positioning and dragging
+ */
+function initializeToolbar() {
+    const mainToolbar = document.getElementById('mainToolbar');
+    if (!mainToolbar) return;
+    
+    // Check for saved position
+    const savedPosRaw = localStorage.getItem('toolbarPosition');
+    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+    
+    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+        // Apply saved position immediately
+        mainToolbar.style.top = savedPos.top + 'px';
+        mainToolbar.style.left = savedPos.left + 'px';
+        mainToolbar.style.transform = 'none';
+    } else {
+        // No saved position - calculate centered position
+        positionToolbarCentered(mainToolbar);
+    }
+    
+    // Make toolbar draggable
+    makeDraggable(mainToolbar, mainToolbar, 'toolbarPosition');
+}
+
+// ========================================
+// MOBILE BUTTON STATE MANAGEMENT
+// ========================================
+
+/**
+ * Unified mobile button state management
+ * Fixes "stuck" or "popped out" button states on touch devices
+ */
+function initializeMobileButtonStates() {
+    // Only run on mobile/touch devices
+    if (!UTILS.isMobileOrTouch()) return;
+    
+    const toolbarButtons = document.querySelectorAll('.toolbar-button, .toolbar-datepicker-btn, .icon-button');
+    
+    toolbarButtons.forEach(button => {
+        let isPressed = false;
+        
+        // Touch start - mark as pressed
+        button.addEventListener('touchstart', () => {
+            isPressed = true;
+            button.style.transition = 'all 0.1s ease';
+        }, { passive: true });
+        
+        // Touch end - reset state with delay for visual feedback
+        button.addEventListener('touchend', () => {
+            if (isPressed) {
+                setTimeout(() => {
+                    button.style.transform = '';
+                    button.style.transition = '';
+                    button.blur();
+                    isPressed = false;
+                }, 150);
+            }
+        }, { passive: true });
+        
+        // Touch cancel - immediate reset
+        button.addEventListener('touchcancel', () => {
+            button.style.transform = '';
+            button.style.transition = '';
+            button.blur();
+            isPressed = false;
+        }, { passive: true });
+        
+        // Click handler - cleanup
+        button.addEventListener('click', () => {
+            setTimeout(() => {
+                button.blur();
+                button.style.transform = '';
+            }, 150);
+        });
+        
+        // Blur - cleanup transforms
+        button.addEventListener('blur', () => {
+            button.style.transform = '';
+            if (isPressed) {
+                button.style.transition = '';
+                isPressed = false;
+            }
+        });
+        
+        // Mouse leave - reset if pressed (hybrid devices)
+        button.addEventListener('mouseleave', () => {
+            if (isPressed) {
+                button.style.transform = '';
+                button.style.transition = '';
+                isPressed = false;
+            }
+        });
+    });
+    
+    // Global safeguard - reset any stuck buttons on touch end
+    document.addEventListener('touchend', () => {
+        setTimeout(() => {
+            toolbarButtons.forEach(button => {
+                button.style.transform = '';
+                button.blur();
+            });
+        }, 200);
+    }, { passive: true });
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeToolbar();
+        initializeDraggableSettings();
+        initializeMobileButtonStates();
+    });
+} else {
+    initializeToolbar();
+    initializeDraggableSettings();
+    initializeMobileButtonStates();
+}
+
 // Translation dictionaries
 const translations = {
     en: {
@@ -275,13 +569,17 @@ function Addfav()
     if(favs.indexOf(formattedComicDate) == -1)
     {
         favs.push(formattedComicDate);
-        document.getElementById("favheart").src="./heart.svg";
+        const heartBtn = document.getElementById("favheart");
+        const heartSvg = heartBtn?.querySelector('svg path');
+        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
         document.getElementById("showfavs").disabled = false;
     }
     else
     {
         favs.splice(favs.indexOf(formattedComicDate), 1);
-        document.getElementById("favheart").src="./heartborder.svg";
+        const heartBtn = document.getElementById("favheart");
+        const heartSvg = heartBtn?.querySelector('svg path');
+        if (heartSvg) heartSvg.setAttribute('fill', 'none');
         if(favs.length === 0)
         {
             document.getElementById("showfavs").checked = false;
@@ -307,16 +605,27 @@ function changeComicImage(newSrc) {
 }
 
 function HideSettings() {
-    var x = document.getElementById("settingsDIV");
-    if (x.style.display === "none" || x.style.display === "") {
-        x.style.display = "block";
-        localStorage.setItem('settings', "true");
+    const panel = document.getElementById("settingsDIV");
+    
+    if (!panel) return;
+    
+    // Toggle visibility using class
+    if (panel.classList.contains('visible')) {
+        panel.classList.remove('visible');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
     } else {
-        x.style.display = "none";
-        localStorage.setItem('settings', "false");
+        // Before showing, ensure saved position is applied
+        const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+        const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+        if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+            panel.style.top = savedPos.top + 'px';
+            panel.style.left = savedPos.left + 'px';
+            panel.style.transform = 'none';
+        }
+        
+        panel.classList.add('visible');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
     }
-    // Remove the fixed height that was causing scrolling
-    document.body.style.minHeight = "";
 }
 
 window.HideSettings = HideSettings;
@@ -582,10 +891,12 @@ async function showComic() {
     
     // Check if date is in favorites
     var favs = JSON.parse(localStorage.getItem('favs'));
+    const heartBtn = document.getElementById("favheart");
+    const heartSvg = heartBtn?.querySelector('svg path');
     if(favs && favs.indexOf(formattedComicDate) !== -1) {
-        document.getElementById("favheart").src = "./heart.svg";
+        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
     } else {
-        document.getElementById("favheart").src = "./heartborder.svg";
+        if (heartSvg) heartSvg.setAttribute('fill', 'none');
     }
     
     // Save last viewed comic
@@ -925,7 +1236,7 @@ function showFullsizeVertical(event) {
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, br');
     const controlsDiv = document.querySelector('#controls-container');
     
     // Switch to fullscreen view
@@ -970,7 +1281,7 @@ function exitFullsizeVertical(event) {
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, br');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, br');
     const controlsDiv = document.querySelector('#controls-container');
     
     // Reset container background
@@ -1084,14 +1395,16 @@ else
 	document.getElementById("notifications").checked = false;
 }
 
-getStatus = localStorage.getItem('settings');
+getStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
 if (getStatus == "true")
 {
-	document.getElementById("settingsDIV").style.display = "block";
+	const panel = document.getElementById("settingsDIV");
+	if (panel) panel.classList.add('visible');
 }
 else
 {
-	document.getElementById("settingsDIV").style.display = "none";
+	const panel = document.getElementById("settingsDIV");
+	if (panel) panel.classList.remove('visible');
 }
 
 // Set up app install prompt

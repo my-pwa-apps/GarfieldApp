@@ -52,17 +52,54 @@
         <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
     
-    <div class="buttongrid">
-        <button class="button" id="Previous" onclick="PreviousClick()">Previous</button>
-        <button class="button" id="Random" onclick="RandomClick()">Random</button>
-        <button class="button" id="Next" onclick="NextClick()">Next</button>
-        <button class="button" id="First" onclick="FirstClick()">First</button>
+    <!-- Draggable Toolbar -->
+    <div class="toolbar" id="mainToolbar">
+        <button class="toolbar-button" id="First" onclick="FirstClick()" aria-label="First comic" title="First">
+            <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="11 17 6 12 11 7"></polyline>
+                <line x1="18" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="7" x2="18" y2="17"></line>
+            </svg>
+        </button>
+        <button class="toolbar-button" id="Previous" onclick="PreviousClick()" aria-label="Previous comic" title="Previous">
+            <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+        <button class="toolbar-button" id="Random" onclick="RandomClick()" aria-label="Random comic" title="Random">
+            <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"></polyline>
+                <line x1="4" y1="20" x2="21" y2="3"></line>
+                <polyline points="21 16 21 21 16 21"></polyline>
+                <line x1="15" y1="15" x2="21" y2="21"></line>
+                <line x1="4" y1="4" x2="9" y2="9"></line>
+            </svg>
+        </button>
+        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date">
+        <button class="toolbar-button" id="Next" onclick="NextClick()" aria-label="Next comic" title="Next">
+            <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </button>
+        <button class="toolbar-button" id="Today" onclick="CurrentClick()" aria-label="Today's comic" title="Today">
+            <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 11 12 14 22 4"></polyline>
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+        </button>
+    </div>
+    
+    <div class="buttongrid hidden-old">
+        <button class="button" id="Previous-old" onclick="PreviousClick()">Previous</button>
+        <button class="button" id="Random-old" onclick="RandomClick()">Random</button>
+        <button class="button" id="Next-old" onclick="NextClick()">Next</button>
+        <button class="button" id="First-old" onclick="FirstClick()">First</button>
         <div class="date-input-container">
             <div class="date-center-wrapper">
-                <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date" title="Select a date to view that day's comic">
+                <input id="DatePicker-old" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date" title="Select a date to view that day's comic">
             </div>
         </div>
-        <button class="button" id="Today" onclick="CurrentClick()">Today</button>
+        <button class="button" id="Today-old" onclick="CurrentClick()">Today</button>
     </div>
     
     <br>
@@ -89,9 +126,32 @@
                 }, 100);
             </script>
         </div>
-        <div id="action-buttons">
+        <div class="settings-icons-container">
+            <button class="icon-button" onclick="HideSettings()" aria-label="Settings" title="Settings">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m-6-6H0m6 0h6m6 0h6M7.05 7.05L2.93 2.93m16.14 0L14.95 7.05m0 9.9l4.12 4.12M2.93 21.07l4.12-4.12"></path>
+                </svg>
+            </button>
+            <button class="icon-button" id="favheart" onclick="Addfav()" aria-label="Add to favorites" title="Favorite">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+            </button>
+            <button class="icon-button" onclick="Share()" aria-label="Share" title="Share">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+            </button>
+        </div>
+        <!-- Old action buttons hidden -->
+        <div id="action-buttons" class="hidden-old">
             <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
-            <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
+            <img id="favheart-old" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
             <img onclick="Share()" src="./share.svg" alt="Share" class="action-icon">
         </div>
     </div>
@@ -100,21 +160,34 @@
     
     <button id="installBtn" class="button">Install App</button>
     
-    <div id="settingsDIV">
-        <input type="checkbox" id="swipe" checked>
-        <label for="swipe" class="labels">Swipe enabled</label>
-        <br>
-        <input type="checkbox" id="spanish">
-        <label for="spanish" class="labels">Spanish</label>
-        <br>
-        <input type="checkbox" id="notifications">
-        <label for="notifications" class="labels">Notify me of new comics</label>
-        <br>
-        <input type="checkbox" id="showfavs" checked>
-        <label for="showfavs" class="labels">Show only my favorites</label>
-        <br>
-        <input type="checkbox" id="lastdate" checked>
-        <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+    <!-- Modern Floating Settings Panel -->
+    <div id="settingsDIV" class="settings-panel" aria-label="Settings" role="region">
+        <div class="settings-header" id="settingsHeader">
+            <h3>Settings</h3>
+            <button class="settings-close" onclick="HideSettings()" aria-label="Close">&times;</button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <input type="checkbox" id="swipe" checked>
+                <label for="swipe" class="labels">Swipe enabled</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="spanish">
+                <label for="spanish" class="labels">Spanish</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="notifications">
+                <label for="notifications" class="labels">Notify me of new comics</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="showfavs" checked>
+                <label for="showfavs" class="labels">Show only my favorites</label>
+            </div>
+            <div class="setting-item">
+                <input type="checkbox" id="lastdate" checked>
+                <label for="lastdate" class="labels">Remember last comic on exit/refresh</label>
+            </div>
+        </div>
     </div>
     
 </body>
