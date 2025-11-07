@@ -54,9 +54,9 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
   
-  // Skip external resources
+  // Skip cross-origin requests (except for same-origin)
   const url = new URL(event.request.url);
-  if (!url.origin.includes('garfieldapp.pages.dev') && !url.origin.includes('localhost')) {
+  if (url.origin !== location.origin) {
     return;
   }
 
