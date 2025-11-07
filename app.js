@@ -572,19 +572,56 @@ async function Share()
             const tempImg = new Image();
             tempImg.crossOrigin = "anonymous";
             
-            // Create a URL with CORS proxy to load the image
-            const cacheBuster = Date.now();
-            const imgUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(window.pictureUrl)}`;
-            console.log("Loading image for sharing via:", imgUrl);
+            // Try direct image URL first, then fallback to proxy
+            let imgUrl = window.pictureUrl;
+            let loadError = null;
             
-            // Wait for image to load
+            console.log("Attempting to load image directly:", imgUrl);
+            
+            // Try loading the image directly first
             await new Promise((resolve, reject) => {
-                tempImg.onload = resolve;
-                tempImg.onerror = () => reject(new Error("Failed to load image for sharing"));
-                tempImg.src = imgUrl;
+                const directTimeout = setTimeout(() => {
+                    loadError = new Error("Direct image load timeout");
+                    reject(loadError);
+                }, 5000);
                 
-                // Set a timeout in case the image load hangs
-                setTimeout(() => reject(new Error("Image load timeout")), 5000);
+                tempImg.onload = () => {
+                    clearTimeout(directTimeout);
+                    console.log("✓ Direct image load successful");
+                    resolve();
+                };
+                
+                tempImg.onerror = (error) => {
+                    clearTimeout(directTimeout);
+                    loadError = new Error("Direct image load failed");
+                    reject(loadError);
+                };
+                
+                tempImg.src = imgUrl;
+            }).catch(async (error) => {
+                // Direct load failed, try with working proxy
+                console.log("Direct load failed, trying with proxy...");
+                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(window.pictureUrl)}`;
+                console.log("Loading image for sharing via proxy:", proxyUrl);
+                
+                return new Promise((resolve, reject) => {
+                    const proxyTimeout = setTimeout(() => {
+                        reject(new Error("Proxy image load timeout"));
+                    }, 5000);
+                    
+                    tempImg.onload = () => {
+                        clearTimeout(proxyTimeout);
+                        console.log("✓ Proxy image load successful");
+                        resolve();
+                    };
+                    
+                    tempImg.onerror = () => {
+                        clearTimeout(proxyTimeout);
+                        reject(new Error("Failed to load image via proxy"));
+                    };
+                    
+                    tempImg.src = proxyUrl;
+                });
             });
             
             console.log("Image loaded successfully, converting to canvas...");
