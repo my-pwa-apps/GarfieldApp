@@ -502,10 +502,8 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     gap: 12px;
     padding: 16px 20px;
-    width: auto;
-    min-width: -webkit-fill-available;
-    min-width: fit-content;
-    max-width: min(600px, calc(100vw - 40px));
+    width: calc(100vw - 40px);
+    max-width: 600px;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(80, 80, 80, 0.4) 51%, rgba(0, 0, 0, 0.6) 100%);
     border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
@@ -889,7 +887,7 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar {
-        width: auto;
+        width: calc(100vw - 20px);
         max-width: calc(100vw - 20px);
         padding: 12px 10px;
         gap: 6px;
@@ -962,7 +960,7 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar {
-        width: auto;
+        width: calc(100vw - 16px);
         max-width: calc(100vw - 16px);
         padding: 10px 8px;
         gap: 4px;
