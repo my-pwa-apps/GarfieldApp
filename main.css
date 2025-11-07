@@ -962,7 +962,8 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar {
-        width: calc(100vw - 16px);
+        width: auto;
+        max-width: calc(100vw - 16px);
         padding: 10px 8px;
         gap: 4px;
         left: 8px;
