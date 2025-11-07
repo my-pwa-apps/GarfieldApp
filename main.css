@@ -172,10 +172,10 @@ input {
     left: 50%;
     transform: translate(-50%, -50%) rotate(90deg);
     transform-origin: center center;
-    width: 95vh;
-    height: 95vw;
-    max-width: none;
-    max-height: none;
+    width: 100vh !important;
+    height: auto;
+    max-width: none !important;
+    max-height: none !important;
     object-fit: contain;
     z-index: 1000;
     transition: transform 0.3s ease;
