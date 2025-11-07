@@ -128,7 +128,31 @@ export async function getAuthenticatedComic(date, language = 'en') {
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
     
     try {
-        console.log(`Fetching comic: ${url}`);
+        console.log(`Attempting direct fetch: ${url}`);
+        
+        // Try direct fetch first (works without CORS proxy)
+        try {
+            const directResponse = await fetch(url, {
+                signal: AbortSignal.timeout(10000),
+                mode: 'cors',
+                credentials: 'omit',
+                cache: 'default'
+            });
+            
+            if (directResponse.ok) {
+                const html = await directResponse.text();
+                const imageUrl = extractImageFromHTML(html);
+                
+                if (imageUrl) {
+                    console.log(`Success with URL format: ${url}`);
+                    return { success: true, imageUrl };
+                }
+            }
+        } catch (directError) {
+            console.log(`Direct fetch failed, trying proxies...`);
+        }
+        
+        // Fall back to proxy if direct fetch fails
         const html = await fetchWithProxyFallback(url);
         
         // Debug: Check if we got the proxy's own page instead of GoComics
@@ -155,8 +179,6 @@ export async function getAuthenticatedComic(date, language = 'en') {
         }
         
         console.warn(`No image found in HTML for: ${url} (HTML length: ${html.length})`);
-        // Log first 500 chars to help debug
-        console.log(`HTML preview: ${html.substring(0, 500)}`);
         return { success: false, imageUrl: null };
     } catch (error) {
         console.error('Failed to fetch comic:', error);
