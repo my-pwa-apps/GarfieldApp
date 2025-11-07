@@ -1,4 +1,4 @@
-const VERSION = 'v28';
+const VERSION = 'v29';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -16,7 +16,6 @@ const PRECACHE_ASSETS = [
   './app.js',
   './init.js',
   './comicExtractor.js',
-  './swiped-events.min.js',
   './garlogo.png',
   './heartborder.svg',
   './heart.svg',
