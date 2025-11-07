@@ -428,6 +428,43 @@ function loadKofiWidget() {
     document.head.appendChild(script);
 }
 
+/**
+ * Show in-app notification toast
+ */
+function showNotification(message, duration = 5000) {
+    const toast = document.getElementById('notificationToast');
+    const content = document.getElementById('notificationContent');
+    const closeBtn = document.getElementById('notificationClose');
+    
+    if (!toast || !content) return;
+    
+    content.textContent = message;
+    toast.classList.add('show');
+    
+    // Auto-hide after duration
+    const autoHideTimeout = setTimeout(() => {
+        hideNotification();
+    }, duration);
+    
+    // Close button handler
+    const closeHandler = () => {
+        clearTimeout(autoHideTimeout);
+        hideNotification();
+    };
+    
+    closeBtn.onclick = closeHandler;
+}
+
+/**
+ * Hide notification toast
+ */
+function hideNotification() {
+    const toast = document.getElementById('notificationToast');
+    if (toast) {
+        toast.classList.remove('show');
+    }
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -819,7 +856,7 @@ function updateDateDisplay() {
     }
 }
 
-async function loadComic(date) {
+async function loadComic(date, silentMode = false) {
     try {
         // Check if Spanish is enabled
         const useSpanish = document.getElementById("spanish")?.checked || false;
@@ -847,14 +884,19 @@ async function loadComic(date) {
         
         // Handle paywall
         if (result.isPaywalled) {
-            showPaywallMessage();
+            if (!silentMode) {
+                showPaywallMessage();
+            }
             return false;
         }
         
         throw new Error('Comic not available from any source');
     } catch (error) {
-        console.error('Failed to load comic:', error);
-        showErrorMessage('Failed to load comic. Please try again.');
+        console.log('Comic not available for this date:', error.message);
+        // Only show error message if not in silent mode (auto-skipping)
+        if (!silentMode) {
+            showErrorMessage('Failed to load comic. Please try again.');
+        }
         return false;
     }
 }
@@ -1005,12 +1047,40 @@ window.onLoad = function() {
 }
 
 // Call this function when the date changes
-function DateChange() {
+async function DateChange() {
+    const previousDate = new Date(currentselectedDate);
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = new Date(currentselectedDate.value);
-    updateDateDisplay(); // Add this line to update the display
+    updateDateDisplay();
     CompareDates();
-    showComic();
+    
+    // Check if user selected a Sunday in Spanish mode
+    const isSpanish = document.getElementById('spanish')?.checked || false;
+    const isSunday = currentselectedDate.getDay() === 0;
+    
+    if (isSpanish && isSunday) {
+        // Try to load the comic
+        formatDate(currentselectedDate);
+        formattedComicDate = year + "/" + month + "/" + day;
+        formattedDate = year + "-" + month + "-" + day;
+        document.getElementById("DatePicker").value = formattedDate;
+        
+        const success = await loadComic(currentselectedDate, true);
+        
+        if (!success) {
+            // Comic doesn't exist, show notification and revert to previous date
+            showNotification('Sunday comics are not always available in Spanish. The comic for this date does not exist.', 6000);
+            currentselectedDate = previousDate;
+            formatDate(currentselectedDate);
+            formattedComicDate = year + "/" + month + "/" + day;
+            formattedDate = year + "-" + month + "-" + day;
+            document.getElementById("DatePicker").value = formattedDate;
+            updateDateDisplay();
+            return;
+        }
+    }
+    
+    await showComic();
 }
 
 window.DateChange = DateChange;
@@ -1039,12 +1109,12 @@ async function showComic(skipOnFailure = false, direction = null) {
         localStorage.setItem('lastcomic', currentselectedDate);
     }
     
-    // Load the comic
-    const success = await loadComic(currentselectedDate);
+    // Load the comic (silent mode off for first attempt)
+    const success = await loadComic(currentselectedDate, false);
     
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
-        console.log(`Comic not available, skipping ${direction}...`);
+        console.log(`Comic not available, auto-skipping ${direction}...`);
         
         // Prevent infinite loops by limiting attempts
         const maxAttempts = 10;
@@ -1066,29 +1136,41 @@ async function showComic(skipOnFailure = false, direction = null) {
             // Check if we've reached the boundaries
             if (document.getElementById("Next")?.disabled && direction === 'next') {
                 console.log('Reached end of available comics');
+                showErrorMessage('No more comics available in this direction.');
                 break;
             }
             if (document.getElementById("Previous")?.disabled && direction === 'previous') {
                 console.log('Reached start of available comics');
+                showErrorMessage('No more comics available in this direction.');
                 break;
             }
             
-            // Try loading this comic
+            // Try loading this comic in silent mode (no error messages)
             formatDate(currentselectedDate);
             formattedComicDate = year + "/" + month + "/" + day;
             formattedDate = year + "-" + month + "-" + day;
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
             
-            const retrySuccess = await loadComic(currentselectedDate);
+            const retrySuccess = await loadComic(currentselectedDate, true);
             if (retrySuccess) {
-                console.log(`Found available comic after ${attempts} attempt(s)`);
+                console.log(`✓ Found available comic after skipping ${attempts} date(s)`);
+                // Update favorites heart status for the new date
+                var favs = JSON.parse(localStorage.getItem('favs'));
+                const heartBtn = document.getElementById("favheart");
+                const heartSvg = heartBtn?.querySelector('svg path');
+                if(favs && favs.indexOf(formattedComicDate) !== -1) {
+                    if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
+                } else {
+                    if (heartSvg) heartSvg.setAttribute('fill', 'none');
+                }
                 return;
             }
         }
         
         if (attempts >= maxAttempts) {
             console.warn('Max skip attempts reached');
+            showErrorMessage('Unable to find an available comic after multiple attempts.');
         }
     }
 }
