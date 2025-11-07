@@ -628,6 +628,24 @@ function translateInterface(lang) {
         datePicker.setAttribute('aria-label', t.selectDate);
     }
     
+    // Translate icon buttons (Settings, Favorites, Share)
+    const iconButtons = document.querySelectorAll('.icon-button');
+    iconButtons.forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick');
+        if (onclickAttr) {
+            if (onclickAttr.includes('HideSettings')) {
+                btn.title = t.settings;
+                btn.setAttribute('aria-label', t.settings);
+            } else if (onclickAttr.includes('Addfav')) {
+                btn.title = t.favorites;
+                btn.setAttribute('aria-label', t.favorites);
+            } else if (onclickAttr.includes('Share')) {
+                btn.title = t.share;
+                btn.setAttribute('aria-label', t.share);
+            }
+        }
+    });
+    
     // Translate install and support buttons
     const installBtn = document.getElementById('installBtn');
     if (installBtn) {
