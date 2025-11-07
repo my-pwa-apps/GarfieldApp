@@ -108,6 +108,7 @@ input {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
     border-radius: 5px !important;
     background: transparent !important;
+    display: block !important;
 }
 
 body.rotated-state .logo,
@@ -115,12 +116,13 @@ body.rotated-state .buttongrid,
 body.rotated-state #controls-container,
 body.rotated-state #settingsDIV,
 body.rotated-state br,
-body.rotated-state #comic-container {
+body.rotated-state #comic-wrapper,
+body.rotated-state #installBtn {
     display: none !important;
 }
 
-body.rotated-state #comic {
-    display: block !important;
+body.rotated-state #comic-container {
+    background: transparent !important;
 }
 
 .normal {
