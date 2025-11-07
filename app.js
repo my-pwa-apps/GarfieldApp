@@ -15,9 +15,16 @@ const CONFIG = Object.freeze({
     UPDATE_CHECK_INTERVAL: 3600000,       // Check for updates every 1 hour (in ms)
     FADE_TRANSITION_TIME: 500,            // Image fade transition duration (in ms)
     NOTIFICATION_CHECK_TIME: '12:10',     // Time to check for new comics (EST)
+    ROTATION_DEBOUNCE: 300,               // Debounce time for rotation (in ms)
     
     // Fetch timeouts
     FETCH_TIMEOUT: 15000,                 // 15 second timeout for fetch requests
+    
+    // Swipe & touch detection
+    SWIPE_MIN_DISTANCE: 50,               // Minimum swipe distance in px
+    SWIPE_MAX_TIME: 500,                  // Maximum swipe time in ms
+    TAP_MAX_MOVEMENT: 10,                 // Maximum movement for tap detection in px
+    TAP_MAX_TIME: 300,                    // Maximum time for tap detection in ms
     
     // Comic dates
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
@@ -71,6 +78,21 @@ const UTILS = {
         return isMobile || isTouch;
     }
 };
+
+// ========================================
+// TOUCH & SWIPE TRACKING VARIABLES
+// ========================================
+
+// Touch tracking variables for swipe detection
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+let touchStartTime = 0;
+
+// Rotation state tracking
+let isRotating = false;
+let isRotatedMode = false;
 
 // ========================================
 // DRAGGABLE ELEMENT FUNCTIONALITY
@@ -149,6 +171,39 @@ function makeDraggable(element, dragHandle, storageKey) {
         const numericTop = parseFloat(element.style.top) || 0;
         const numericLeft = parseFloat(element.style.left) || 0;
         
+        // Special handling for toolbar: detect if it's in the default zone (between logo and comic)
+        if (storageKey === 'toolbarPosition') {
+            const logo = document.querySelector('.logo');
+            const comic = document.getElementById('comic-container');
+            
+            if (logo && comic) {
+                const logoRect = logo.getBoundingClientRect();
+                const comicRect = comic.getBoundingClientRect();
+                const toolbarRect = element.getBoundingClientRect();
+                
+                // Check if toolbar is positioned between logo and comic
+                const isInDefaultZone = 
+                    toolbarRect.bottom > logoRect.bottom && 
+                    toolbarRect.top < comicRect.top;
+                
+                if (isInDefaultZone) {
+                    // Toolbar is in default zone - clear saved position so it auto-centers on resize
+                    try {
+                        localStorage.removeItem(storageKey);
+                    } catch (_) {}
+                    // Reposition to centered default
+                    positionToolbarCentered(element);
+                    
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.removeEventListener('touchend', onUp);
+                    return;
+                }
+            }
+        }
+        
+        // Save custom position for all other cases
         try {
             localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
         } catch (_) {}
@@ -603,7 +658,6 @@ let day, month, year;
 let pictureUrl;
 let formattedComicDate;
 let formattedDate;
-let isRotatedMode = false; // Track if we're in rotated mode
 
 async function Share() 
 {
@@ -822,6 +876,11 @@ function HideSettings() {
 window.HideSettings = HideSettings;
 
 function Rotate() {
+    // Prevent rapid double-calls
+    if (isRotating) return;
+    
+    isRotating = true;
+    
     const comic = document.getElementById('comic');
     if (comic.classList.contains('rotate')) {
         comic.classList.remove('rotate');
@@ -834,9 +893,130 @@ function Rotate() {
         document.body.classList.add('rotated-state');
         isRotatedMode = true;
     }
+    
+    // Reset flag after debounce period
+    setTimeout(() => {
+        isRotating = false;
+    }, CONFIG.ROTATION_DEBOUNCE);
 }
 
 window.Rotate = Rotate;
+
+// ========================================
+// TOUCH & SWIPE HANDLING
+// ========================================
+
+/**
+ * Handles touch start event
+ * Records initial touch position and time for swipe/tap detection
+ * @param {TouchEvent} e - Touch event
+ */
+function handleTouchStart(e) {
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchStartTime = Date.now();
+    
+    // Early return for swipe gesture handling, but keep tracking for tap detection
+    if (!document.getElementById("swipe").checked) return;
+}
+
+/**
+ * Handles touch move event
+ * Prevents default scrolling during horizontal swipes
+ * @param {TouchEvent} e - Touch event
+ */
+function handleTouchMove(e) {
+    if (!document.getElementById("swipe").checked) return;
+    
+    // Prevent default scrolling behavior during swipe
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+    const deltaY = Math.abs(touch.clientY - touchStartY);
+    
+    // If horizontal swipe is more significant than vertical, prevent vertical scrolling
+    if (deltaX > deltaY && deltaX > 20) {
+        e.preventDefault();
+    }
+}
+
+/**
+ * Handles touch end event
+ * Detects taps (for rotation) and swipes (for navigation)
+ * In rotated mode, swipe directions are mapped differently to match visual orientation
+ * @param {TouchEvent} e - Touch event
+ */
+function handleTouchEnd(e) {
+    const touch = e.changedTouches[0];
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
+    
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    const deltaTime = Date.now() - touchStartTime;
+    
+    // Check if this was a tap (not a swipe) - used for rotation toggle
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    const isTap = absX < CONFIG.TAP_MAX_MOVEMENT && absY < CONFIG.TAP_MAX_MOVEMENT && deltaTime < CONFIG.TAP_MAX_TIME;
+    
+    // For swipe navigation, check if swipe is enabled
+    if (!document.getElementById("swipe").checked) return;
+    
+    // Check if the swipe is valid (meets distance and time requirements)
+    if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
+    
+    // Determine swipe direction based on mode
+    if (isRotatedMode) {
+        // Rotated mode (90° clockwise): Swipe gestures follow the rotation
+        // Physical up/down becomes logical left/right, physical left/right becomes logical up/down
+        if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Vertical swipe (becomes horizontal navigation due to rotation)
+            if (deltaY < 0) {
+                // Swipe Up -> visually moves right -> Next
+                NextClick();
+            } else {
+                // Swipe Down -> visually moves left -> Previous
+                PreviousClick();
+            }
+        } else if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Horizontal swipe (becomes vertical navigation due to rotation)
+            if (deltaX < 0) {
+                // Swipe Left -> visually moves down -> Random
+                RandomClick();
+            } else {
+                // Swipe Right -> visually moves up -> Last
+                LastClick();
+            }
+        }
+    } else {
+        // Normal portrait mode: Horizontal for Next/Prev, Vertical for Random/Last
+        if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Horizontal swipe
+            if (deltaX > 0) {
+                // Swipe right -> Previous
+                PreviousClick();
+            } else {
+                // Swipe left -> Next
+                NextClick();
+            }
+        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Vertical swipe
+            if (deltaY > 0) {
+                // Swipe down -> Random
+                RandomClick();
+            } else {
+                // Swipe up -> Last
+                LastClick();
+            }
+        }
+    }
+}
+
+// Add touch event listeners to the document
+document.addEventListener('touchstart', handleTouchStart, { passive: false });
+document.addEventListener('touchmove', handleTouchMove, { passive: false });
+document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -1339,26 +1519,14 @@ function formatDate(datetoFormat) {
 	day = ("0" + day).slice(-2);
 }
 
-document.addEventListener('swiped-down', function(e) {
-	if(document.getElementById("swipe").checked) {
-		RandomClick() }
-})
-
-document.addEventListener('swiped-right', function(e) {
-	if(document.getElementById("swipe").checked) {
-		PreviousClick() }
-})
-
-
-document.addEventListener('swiped-left', function(e) {
-	if(document.getElementById("swipe").checked) {
-		NextClick() }
-})
-
-document.addEventListener('swiped-up', function(e) {
-	if(document.getElementById("swipe").checked) {
-		CurrentClick() }
-})
+// ========================================
+// LEGACY SWIPE EVENT HANDLERS
+// ========================================
+// NOTE: These old swiped-events library handlers have been replaced by native
+// touch handlers (handleTouchStart, handleTouchMove, handleTouchEnd) defined earlier.
+// The new handlers provide better performance, rotation-aware swipe mapping,
+// and work seamlessly in both normal and rotated comic views.
+// The swiped-events.min.js library can be removed from index.html if desired.
 
 setStatus = document.getElementById('swipe');
 setStatus.onclick = function()

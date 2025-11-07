@@ -169,6 +169,7 @@ body.rotated-state .logo,
 body.rotated-state .buttongrid,
 body.rotated-state #controls-container,
 body.rotated-state #settingsDIV,
+body.rotated-state .toolbar,
 body.rotated-state br,
 body.rotated-state #installBtn {
     visibility: hidden !important;
