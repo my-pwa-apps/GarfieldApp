@@ -594,7 +594,8 @@ input[type="date"]::-webkit-datetime-edit {
 .toolbar-svg path,
 .toolbar-svg polyline,
 .toolbar-svg line,
-.toolbar-svg circle {
+.toolbar-svg circle,
+.toolbar-svg rect {
     stroke: #333;
 }
 
@@ -805,7 +806,8 @@ input[type="date"]::-webkit-datetime-edit {
 .icon-button svg path,
 .icon-button svg polyline,
 .icon-button svg line,
-.icon-button svg circle {
+.icon-button svg circle,
+.icon-button svg rect {
     stroke: #333;
 }
 
