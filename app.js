@@ -89,6 +89,7 @@ let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
 let touchStartTime = 0;
+let lastSwipeTime = 0; // Track last swipe to prevent click events
 
 // Rotation state tracking
 let isRotating = false;
@@ -855,6 +856,9 @@ function HideSettings() {
 window.HideSettings = HideSettings;
 
 function Rotate() {
+    // Prevent rotation if a swipe just occurred (within 300ms)
+    if (Date.now() - lastSwipeTime < 300) return;
+    
     // Prevent rapid double-calls
     if (isRotating) return;
     
@@ -945,12 +949,16 @@ function handleTouchEnd(e) {
     // Check if the swipe is valid (meets distance and time requirements)
     if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
     
+    let swipeDetected = false;
+    
     // Determine swipe direction based on mode
     if (isRotatedMode) {
         // Rotated mode (90° clockwise): Swipe gestures follow the rotation
         // Physical up/down becomes logical left/right, physical left/right becomes logical up/down
         if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
             // Vertical swipe (becomes horizontal navigation due to rotation)
+            swipeDetected = true;
+            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
             if (deltaY < 0) {
                 // Swipe Up -> visually moves right -> Next
                 NextClick();
@@ -960,6 +968,8 @@ function handleTouchEnd(e) {
             }
         } else if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             // Horizontal swipe (becomes vertical navigation due to rotation)
+            swipeDetected = true;
+            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
             if (deltaX < 0) {
                 // Swipe Left -> visually moves down -> Random
                 RandomClick();
@@ -972,6 +982,8 @@ function handleTouchEnd(e) {
         // Normal portrait mode: Horizontal for Next/Prev, Vertical for Random/Last
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             // Horizontal swipe
+            swipeDetected = true;
+            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
             if (deltaX > 0) {
                 // Swipe right -> Previous
                 PreviousClick();
@@ -981,6 +993,8 @@ function handleTouchEnd(e) {
             }
         } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
             // Vertical swipe
+            swipeDetected = true;
+            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
             if (deltaY > 0) {
                 // Swipe down -> Random
                 RandomClick();
