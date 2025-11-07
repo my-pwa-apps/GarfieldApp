@@ -12,7 +12,7 @@ export async function getAuthenticatedComic(date, language = 'en') {
     const day = String(date.getDate()).padStart(2, '0');
     
     // Choose comic path based on language
-    const comicPath = language === 'es' ? 'garfield-spanish' : 'garfield';
+    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
     
     const urlFormats = [
         `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`,
