@@ -500,7 +500,8 @@ const translations = {
         selectDate: 'Select comic date',
         installApp: 'Install App',
         supportApp: 'Support this App',
-        notifyNewComics: 'Notify me of new comics'
+        notifyNewComics: 'Notify me of new comics',
+        sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.'
     },
     es: {
         previous: 'Anterior',
@@ -520,7 +521,8 @@ const translations = {
         selectDate: 'Seleccionar fecha del cómic',
         installApp: 'Instalar App',
         supportApp: 'Apoyar esta App',
-        notifyNewComics: 'Notificar nuevos cómics'
+        notifyNewComics: 'Notificar nuevos cómics',
+        sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.'
     }
 };
 
@@ -1069,7 +1071,9 @@ async function DateChange() {
         
         if (!success) {
             // Comic doesn't exist, show notification and revert to previous date
-            showNotification('Sunday comics are not always available in Spanish. The comic for this date does not exist.', 6000);
+            const currentLang = isSpanish ? 'es' : 'en';
+            const message = translations[currentLang].sundayNotAvailable;
+            showNotification(message, 6000);
             currentselectedDate = previousDate;
             formatDate(currentselectedDate);
             formattedComicDate = year + "/" + month + "/" + day;
@@ -1109,8 +1113,8 @@ async function showComic(skipOnFailure = false, direction = null) {
         localStorage.setItem('lastcomic', currentselectedDate);
     }
     
-    // Load the comic (silent mode off for first attempt)
-    const success = await loadComic(currentselectedDate, false);
+    // Load the comic (silent mode off for first attempt when not auto-skipping)
+    const success = await loadComic(currentselectedDate, skipOnFailure);
     
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
