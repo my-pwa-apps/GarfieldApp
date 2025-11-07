@@ -463,9 +463,10 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .vertical {
-    max-height: 300px;
-    width: auto;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
     cursor: pointer;
     transition: all 0.3s ease;
     display: block;
@@ -473,22 +474,13 @@ input[type="date"]::-webkit-datetime-edit {
 
 .thumbnail-container {
     position: relative;
-    display: inline-block;
-    margin: 0 auto;
+    display: block;
+    width: 100%;
+    margin: 0;
 }
 
 .thumbnail-notice {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(238, 226, 57, 0.8);
-    color: black;
-    padding: 8px;
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-align: center;
-    border-radius: 0 0 10px 10px;
+    display: none;
 }
 
 .fullscreen-vertical {
