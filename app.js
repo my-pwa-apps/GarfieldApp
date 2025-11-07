@@ -2,6 +2,81 @@ import { getAuthenticatedComic } from './comicExtractor.js';
 
 //garfieldapp.pages.dev
 
+// Translation dictionaries
+const translations = {
+    en: {
+        previous: 'Previous',
+        random: 'Random',
+        next: 'Next',
+        first: 'First',
+        today: 'Today',
+        last: 'Last',
+        swipeEnabled: 'Swipe enabled',
+        showFavorites: 'Show only my favorites',
+        rememberComic: 'Remember last comic on exit/refresh',
+        spanish: 'Spanish / Español',
+        loadingComic: 'Loading comic...',
+        settings: 'Settings',
+        favorites: 'Add to favorites',
+        share: 'Share'
+    },
+    es: {
+        previous: 'Anterior',
+        random: 'Aleatorio',
+        next: 'Siguiente',
+        first: 'Primero',
+        today: 'Hoy',
+        last: 'Último',
+        swipeEnabled: 'Deslizar habilitado',
+        showFavorites: 'Mostrar solo mis favoritos',
+        rememberComic: 'Recordar último cómic al salir/actualizar',
+        spanish: 'Spanish / Español',
+        loadingComic: 'Cargando cómic...',
+        settings: 'Configuración',
+        favorites: 'Agregar a favoritos',
+        share: 'Compartir'
+    }
+};
+
+// Function to translate the interface
+function translateInterface(lang) {
+    const t = translations[lang] || translations.en;
+    
+    // Translate buttons
+    document.getElementById('Previous').textContent = t.previous;
+    document.getElementById('Random').textContent = t.random;
+    document.getElementById('Next').textContent = t.next;
+    document.getElementById('First').textContent = t.first;
+    
+    // Handle Today/Last button
+    const todayBtn = document.getElementById('Today');
+    const showFavs = document.getElementById('showfavs');
+    if (showFavs && showFavs.checked) {
+        todayBtn.textContent = t.last;
+    } else {
+        todayBtn.textContent = t.today;
+    }
+    
+    // Translate labels
+    const labels = {
+        'swipe': t.swipeEnabled,
+        'showfavs': t.showFavorites,
+        'lastdate': t.rememberComic,
+        'spanish': t.spanish
+    };
+    
+    for (const [id, text] of Object.entries(labels)) {
+        const label = document.querySelector(`label[for="${id}"]`);
+        if (label) label.textContent = text;
+    }
+    
+    // Translate comic alt text
+    const comic = document.getElementById('comic');
+    if (comic && comic.alt === 'Loading comic...') {
+        comic.alt = t.loadingComic;
+    }
+}
+
 // Service Worker Registration with proper error handling
 if("serviceWorker" in navigator) {
     window.addEventListener('load', () => {
@@ -493,7 +568,9 @@ function FirstClick() {
 		var favs = JSON.parse(localStorage.getItem('favs'));
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
 	else{
-	currentselectedDate = new Date(Date.UTC(1978, 5, 19,12));
+		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+		const isSpanish = document.getElementById('spanish').checked;
+		currentselectedDate = isSpanish ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
 	}
 	CompareDates();
 	showComic();
@@ -524,7 +601,9 @@ function RandomClick()
 	if(document.getElementById("showfavs").checked) {
 		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
 	else{
-		let start = new Date("1978-06-19");
+		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+		const isSpanish = document.getElementById('spanish').checked;
+		let start = isSpanish ? new Date("1999-12-06") : new Date("1978-06-19");
 		let end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
@@ -659,12 +738,14 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		document.getElementById('Today').innerHTML = 'Last'
+		const currentLang = document.getElementById('spanish').checked ? 'es' : 'en';
+		document.getElementById('Today').innerHTML = translations[currentLang].last;
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		document.getElementById('Today').innerHTML = 'Today'
+		const currentLang = document.getElementById('spanish').checked ? 'es' : 'en';
+		document.getElementById('Today').innerHTML = translations[currentLang].today;
 	}
 	CompareDates();
 	showComic();
@@ -674,13 +755,16 @@ setStatus = document.getElementById('spanish');
 if (setStatus) {
 	setStatus.onclick = function()
 	{
-		if(document.getElementById('spanish').checked)
+		const isSpanish = document.getElementById('spanish').checked;
+		if(isSpanish)
 		{
 			localStorage.setItem('spanish', "true");
+			translateInterface('es');
 		}
 		else
 		{
 			localStorage.setItem('spanish', "false");
+			translateInterface('en');
 		}
 		// Reload the current comic in the selected language
 		showComic();
@@ -852,10 +936,12 @@ getStatus = localStorage.getItem('spanish');
 if (getStatus == "true")
 {
 	document.getElementById("spanish").checked = true;
+	translateInterface('es');
 }
 else
 {
 	document.getElementById("spanish").checked = false;
+	translateInterface('en');
 }
 
 getStatus = localStorage.getItem('settings');
@@ -871,71 +957,49 @@ else
 // Set up app install prompt
 let deferredPrompt;
 
+// Check if app is already installed (standalone or window controls overlay)
+const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                   window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+                   window.navigator.standalone === true;
+
 window.addEventListener('beforeinstallprompt', (e) => {
   // Prevent the mini-infobar from appearing on mobile
   e.preventDefault();
   // Stash the event so it can be triggered later.
   deferredPrompt = e;
-  // Update UI notify the user they can install the PWA
-  showInstallPromotion();
+  
+  // Only show install button if not already installed
+  if (!isInstalled) {
+    showInstallButton();
+  }
 });
 
-function showInstallPromotion() {
-    const installButton = document.createElement('button');
-    installButton.innerText = 'Install App';
-    installButton.className = 'button';
+function showInstallButton() {
+  const installBtn = document.getElementById('installBtn');
+  if (installBtn) {
+    installBtn.style.display = 'block';
     
-    // Match button styling from the app, with more subtle font
-    Object.assign(installButton.style, {
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        zIndex: '1000',
-        margin: '0',
-        padding: '10px 20px',
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        fontSize: '0.85rem',
-        fontWeight: '500',
-        color: 'black',
-        borderRadius: '10px',
-        border: 'none',
-        backgroundImage: 'linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%)',
-        backgroundSize: '200% auto',
-        boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)',
-        cursor: 'pointer',
-        transition: '0.5s',
-        userSelect: 'none',
-        animation: 'pulse 2s infinite'
-    });
-    
-    // Add pulse animation style
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    document.body.appendChild(installButton);
-    
-    installButton.addEventListener('click', () => {
-        // Hide the app provided install promotion
-        installButton.style.display = 'none';
-        // Show the install prompt
-        deferredPrompt.prompt();
-        // Wait for the user to respond to the prompt
-        deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('User accepted the install prompt');
-          } else {
-            console.log('User dismissed the install prompt');
-          }
-          deferredPrompt = null;
-        });
-    });
+    installBtn.onclick = async function() {
+      if (!deferredPrompt) {
+        return;
+      }
+      
+      // Show the install prompt
+      deferredPrompt.prompt();
+      
+      // Wait for the user to respond
+      const choiceResult = await deferredPrompt.userChoice;
+      
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        installBtn.style.display = 'none';
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      
+      deferredPrompt = null;
+    };
+  }
 }
 
 // Add status handling

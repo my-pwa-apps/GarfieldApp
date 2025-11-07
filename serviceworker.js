@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `garfield-app-${CACHE_VERSION}`;
 const OFFLINE_URL = 'offline.html';
 

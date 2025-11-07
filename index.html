@@ -54,10 +54,43 @@
                 navigator.serviceWorker.register('./serviceworker.js')
                     .then(function(registration) {
                         console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New service worker available, show update notification
+                                    showUpdateNotification(registration);
+                                }
+                            });
+                        });
                     }, function(err) {
                         console.log('ServiceWorker registration failed: ', err);
                     });
             });
+        }
+        
+        function showUpdateNotification(registration) {
+            const notification = document.getElementById('updateNotification');
+            const updateBtn = document.getElementById('updateBtn');
+            const dismissBtn = document.getElementById('dismissBtn');
+            
+            notification.style.display = 'block';
+            
+            updateBtn.onclick = function() {
+                // Tell the new service worker to skip waiting
+                if (registration.waiting) {
+                    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                }
+                notification.style.display = 'none';
+                // Reload the page to activate the new service worker
+                window.location.reload();
+            };
+            
+            dismissBtn.onclick = function() {
+                notification.style.display = 'none';
+            };
         }
     </script>
     
@@ -143,6 +176,16 @@
             <img onclick="HideSettings()" src="./tune.svg" alt="Settings" class="action-icon">
             <img id="favheart" onclick="Addfav()" src="./heartborder.svg" alt="Add to favorites" class="action-icon">
             <img onclick="Share()" src="./share.svg" alt="Share" class="action-icon">
+            <button id="installBtn" style="display: none;">Install App</button>
+        </div>
+    </div>
+    
+    <!-- Update Notification -->
+    <div id="updateNotification" style="display: none;">
+        <div id="updateContent">
+            <p id="updateMessage">A new version is available!</p>
+            <button id="updateBtn">Update Now</button>
+            <button id="dismissBtn">Later</button>
         </div>
     </div>
     
