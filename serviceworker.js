@@ -1,6 +1,12 @@
 const VERSION = 'v6';
 const CACHE_NAME = `garfield-${VERSION}`;
+const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
+const IMAGE_CACHE = `garfield-images-${VERSION}`;
 const OFFLINE_URL = 'index.html';
+
+// Maximum cache sizes
+const MAX_IMAGE_CACHE_SIZE = 50; // Keep last 50 comic images
+const MAX_RUNTIME_CACHE_SIZE = 30;
 
 // Assets to precache
 const PRECACHE_ASSETS = [
@@ -44,7 +50,10 @@ self.addEventListener('activate', (event) => {
       .then(cacheNames => {
         return Promise.all(
           cacheNames
-            .filter(name => name.startsWith('garfield-') && name !== CACHE_NAME)
+            .filter(name => name.startsWith('garfield-') && 
+                          name !== CACHE_NAME && 
+                          name !== RUNTIME_CACHE && 
+                          name !== IMAGE_CACHE)
             .map(name => caches.delete(name))
         );
       })
@@ -62,28 +71,102 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== location.origin) {
     return;
   }
-
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // Clone and cache successful responses
-        if (response.ok) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        // Fallback to cache
-        return caches.match(event.request)
-          .then(cachedResponse => {
-            return cachedResponse || caches.match(OFFLINE_URL);
-          });
-      })
-  );
+  
+  const { destination } = event.request;
+  
+  // Strategy: Cache First for app shell (HTML, CSS, JS, SVG)
+  if (['document', 'style', 'script'].includes(destination) || url.pathname.endsWith('.svg')) {
+    event.respondWith(cacheFirstStrategy(event.request, CACHE_NAME));
+    return;
+  }
+  
+  // Strategy: Cache First with size limit for images
+  if (destination === 'image') {
+    event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
+    return;
+  }
+  
+  // Strategy: Network First for everything else
+  event.respondWith(networkFirstStrategy(event.request, RUNTIME_CACHE));
 });
+
+// Cache First Strategy - for app shell
+async function cacheFirstStrategy(request, cacheName) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse?.status === 200) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    // If fetch fails and it's an HTML request, return offline page
+    if (request.headers.get('accept')?.includes('text/html')) {
+      return caches.match('./offline.html');
+    }
+    throw error;
+  }
+}
+
+// Cache First with cache size limit - for images
+async function cacheFirstWithLimit(request, cacheName, maxSize) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse?.status === 200) {
+      const cache = await caches.open(cacheName);
+      
+      // Manage cache size - remove oldest entries when limit reached
+      const keys = await cache.keys();
+      while (keys.length >= maxSize) {
+        await cache.delete(keys.shift()); // Remove oldest (FIFO)
+      }
+      
+      // Cache the new response
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    return new Response('Image not available offline', { 
+      status: 503,
+      statusText: 'Service Unavailable'
+    });
+  }
+}
+
+// Network First Strategy - for API calls and external resources
+async function networkFirstStrategy(request, cacheName) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse?.status === 200) {
+      const cache = await caches.open(cacheName);
+      
+      // Limit runtime cache size too
+      const keys = await cache.keys();
+      while (keys.length >= MAX_RUNTIME_CACHE_SIZE) {
+        await cache.delete(keys.shift());
+      }
+      
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    throw error;
+  }
+}
 
 // Check for new comic
 async function checkForNewComic() {

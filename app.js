@@ -2,6 +2,43 @@ import { getAuthenticatedComic } from './comicExtractor.js';
 
 //garfieldapp.pages.dev
 
+// ========================================
+// CONFIGURATION & CONSTANTS
+// ========================================
+
+/**
+ * Application Configuration
+ * Central location for all magic numbers and configuration values
+ */
+const CONFIG = Object.freeze({
+    // Timing
+    UPDATE_CHECK_INTERVAL: 3600000,       // Check for updates every 1 hour (in ms)
+    FADE_TRANSITION_TIME: 500,            // Image fade transition duration (in ms)
+    NOTIFICATION_CHECK_TIME: '12:10',     // Time to check for new comics (EST)
+    
+    // Fetch timeouts
+    FETCH_TIMEOUT: 15000,                 // 15 second timeout for fetch requests
+    
+    // Comic dates
+    GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
+    GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
+    
+    // Cache limits
+    MAX_IMAGE_CACHE_SIZE: 50,             // Maximum cached comic images
+    
+    // Storage keys
+    STORAGE_KEYS: Object.freeze({
+        FAVS: 'favs',
+        LAST_COMIC: 'lastcomic',
+        SWIPE: 'stat',
+        SHOW_FAVS: 'showfavs',
+        LAST_DATE: 'lastdate',
+        SPANISH: 'spanish',
+        SETTINGS: 'settings',
+        NOTIFICATIONS: 'notifications'
+    })
+});
+
 // Translation dictionaries
 const translations = {
     en: {

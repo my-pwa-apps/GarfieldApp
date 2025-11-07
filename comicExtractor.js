@@ -5,6 +5,118 @@ const CORS_PROXIES = [
     'https://api.allorigins.win/raw?url='
 ];
 
+// Track proxy performance
+let workingProxyIndex = 0;
+let proxyFailureCount = [0, 0, 0];
+let proxyResponseTimes = [0, 0, 0];
+
+/**
+ * Gets the best performing proxy based on success rate and response time
+ * @returns {number} Index of the best proxy
+ */
+function getBestProxyIndex() {
+    let bestIndex = workingProxyIndex;
+    let bestScore = -Infinity;
+    
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        // Heavily penalize failures, reward fast response times
+        const failurePenalty = proxyFailureCount[i] * 2000;
+        const avgTime = proxyResponseTimes[i] || 1500; // Default to 1.5s if unknown
+        const score = 10000 / (avgTime + failurePenalty + 1);
+        
+        if (score > bestScore) {
+            bestScore = score;
+            bestIndex = i;
+        }
+    }
+    
+    return bestIndex;
+}
+
+/**
+ * Updates proxy performance statistics
+ * @param {number} proxyIndex - Proxy index
+ * @param {boolean} success - Whether request succeeded
+ * @param {number} responseTime - Response time in ms
+ */
+function updateProxyStats(proxyIndex, success, responseTime) {
+    if (!success) {
+        proxyFailureCount[proxyIndex]++;
+    } else {
+        // Update average response time
+        const currentAvg = proxyResponseTimes[proxyIndex] || responseTime;
+        proxyResponseTimes[proxyIndex] = (currentAvg + responseTime) / 2;
+        workingProxyIndex = proxyIndex;
+        // Reset failure count on success
+        proxyFailureCount[proxyIndex] = Math.max(0, proxyFailureCount[proxyIndex] - 1);
+    }
+}
+
+/**
+ * Attempts to fetch via a specific proxy
+ * @param {string} url - URL to fetch
+ * @param {number} proxyIndex - Proxy index to use
+ * @param {number} startTime - Start time for tracking
+ * @returns {Promise<string>} HTML content
+ */
+async function tryProxy(url, proxyIndex, startTime) {
+    const proxyUrl = CORS_PROXIES[proxyIndex];
+    const proxyName = proxyUrl.split('/')[2];
+    
+    try {
+        const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+        const response = await fetch(fullUrl, {
+            signal: AbortSignal.timeout(15000),
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'no-cache'
+        });
+        
+        if (!response.ok) {
+            console.warn(`✗ Proxy ${proxyIndex} (${proxyName}) HTTP ${response.status}`);
+            updateProxyStats(proxyIndex, false, 0);
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        // Success
+        const responseTime = Date.now() - startTime;
+        console.log(`✓ Proxy ${proxyIndex} (${proxyName}) succeeded in ${responseTime}ms`);
+        updateProxyStats(proxyIndex, true, responseTime);
+        
+        return await response.text();
+    } catch (error) {
+        updateProxyStats(proxyIndex, false, 0);
+        throw error;
+    }
+}
+
+/**
+ * Fetches with intelligent proxy fallback and parallel racing
+ * @param {string} url - URL to fetch
+ * @returns {Promise<string>} HTML content
+ */
+async function fetchWithProxyFallback(url) {
+    const startTime = Date.now();
+    const bestProxy = getBestProxyIndex();
+    
+    try {
+        // Try best proxy first
+        return await tryProxy(url, bestProxy, startTime);
+    } catch (firstError) {
+        console.log('Best proxy failed, trying others in parallel...');
+        
+        // Race all other proxies in parallel
+        const otherProxies = CORS_PROXIES.map((_, i) => i).filter(i => i !== bestProxy);
+        const promises = otherProxies.map(i => tryProxy(url, i, Date.now()));
+        
+        try {
+            return await Promise.any(promises);
+        } catch (allError) {
+            throw new Error('All proxies failed');
+        }
+    }
+}
+
 export async function getAuthenticatedComic(date, language = 'en') {
     const formattedDate = date.toISOString().split('T')[0];
     const year = date.getFullYear();
@@ -13,64 +125,23 @@ export async function getAuthenticatedComic(date, language = 'en') {
     
     // Choose comic path based on language
     const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
+    const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
     
-    const urlFormats = [
-        `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`,
-        `https://www.gocomics.com/${comicPath}/${formattedDate}`,
-        `https://www.gocomics.com/${comicPath}`
-    ];
-    
-    // Try direct fetch first
-    for (const url of urlFormats) {
-        try {
-            console.log(`Attempting direct fetch: ${url}`);
-            const response = await fetch(url, { mode: 'cors' });
-            if (response.ok) {
-                const html = await response.text();
-                const imageUrl = extractImageFromHTML(html);
-                if (imageUrl) {
-                    console.log(`Success with URL format: ${url}`);
-                    return { success: true, imageUrl };
-                }
-            }
-        } catch (error) {
-            console.log(`Direct fetch failed for ${url}:`, error.message);
+    try {
+        console.log(`Fetching comic: ${url}`);
+        const html = await fetchWithProxyFallback(url);
+        const imageUrl = extractImageFromHTML(html);
+        
+        if (imageUrl) {
+            console.log(`Success! Comic URL: ${imageUrl}`);
+            return { success: true, imageUrl };
         }
+        
+        return { success: false, imageUrl: null };
+    } catch (error) {
+        console.error('Failed to fetch comic:', error);
+        return { success: false, imageUrl: null };
     }
-    
-    // Try proxies
-    const originalUrl = urlFormats[0];
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
-        try {
-            const proxy = CORS_PROXIES[i];
-            const proxyUrl = proxy + encodeURIComponent(originalUrl);
-            
-            console.log(`Attempting proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
-            
-            const response = await fetch(proxyUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    'Accept': 'text/html',
-                }
-            });
-            
-            if (!response.ok) {
-                console.warn(`Proxy ${i + 1} returned status ${response.status}`);
-                continue;
-            }
-            
-            const html = await response.text();
-            const imageUrl = extractImageFromHTML(html);
-            if (imageUrl) {
-                console.log(`Success with proxy ${i + 1}`);
-                return { success: true, imageUrl };
-            }
-        } catch (error) {
-            console.error(`Error with proxy ${i + 1}:`, error);
-        }
-    }
-    
-    return { success: false, imageUrl: null };
 }
 
 function extractImageFromHTML(html) {
