@@ -176,8 +176,13 @@ function positionToolbarCentered(toolbar) {
     const logoRect = logo.getBoundingClientRect();
     const toolbarWidth = toolbar.offsetWidth;
     
-    // Center horizontally
-    const left = (window.innerWidth - toolbarWidth) / 2;
+    // Center horizontally, but ensure it fits on screen
+    let left = (window.innerWidth - toolbarWidth) / 2;
+    
+    // On narrow screens, just add some padding from edges
+    if (window.innerWidth < 768) {
+        left = Math.max(10, Math.min(left, window.innerWidth - toolbarWidth - 10));
+    }
     
     // Position below logo with 15px gap
     const top = logoRect.bottom + 15;
@@ -215,6 +220,59 @@ function initializeDraggableSettings() {
 }
 
 /**
+ * Clamp toolbar within viewport bounds on resize
+ */
+function clampToolbarInView() {
+    const mainToolbar = document.getElementById('mainToolbar');
+    if (!mainToolbar) return;
+    
+    // Check if user has saved a custom position
+    const savedPosRaw = localStorage.getItem('toolbarPosition');
+    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
+    
+    if (!hasSavedPosition) {
+        // No saved position - recenter on resize
+        positionToolbarCentered(mainToolbar);
+        return;
+    }
+    
+    // Has saved position - just clamp within bounds
+    const rect = mainToolbar.getBoundingClientRect();
+    let top = parseFloat(mainToolbar.style.top) || 0;
+    let left = parseFloat(mainToolbar.style.left) || 0;
+    
+    const maxLeft = window.innerWidth - rect.width - 10;
+    const maxTop = window.innerHeight - rect.height - 10;
+    
+    let changed = false;
+    
+    if (left < 10) {
+        left = 10;
+        changed = true;
+    } else if (left > maxLeft) {
+        left = maxLeft;
+        changed = true;
+    }
+    
+    if (top < 10) {
+        top = 10;
+        changed = true;
+    } else if (top > maxTop) {
+        top = maxTop;
+        changed = true;
+    }
+    
+    if (changed) {
+        mainToolbar.style.left = left + 'px';
+        mainToolbar.style.top = top + 'px';
+        
+        try {
+            localStorage.setItem('toolbarPosition', JSON.stringify({ top, left }));
+        } catch (_) {}
+    }
+}
+
+/**
  * Initialize toolbar positioning and dragging
  */
 function initializeToolbar() {
@@ -237,6 +295,9 @@ function initializeToolbar() {
     
     // Make toolbar draggable
     makeDraggable(mainToolbar, mainToolbar, 'toolbarPosition');
+    
+    // Add resize listener to keep toolbar in bounds
+    window.addEventListener('resize', clampToolbarInView);
 }
 
 // ========================================
