@@ -182,9 +182,7 @@ input {
 }
 
 input[type="checkbox"], label {
-    float: left;
     line-height: 1.6em;
-    height: 1.6em;
     margin: 0 2px;
     padding: 0;
     font-size: small;
@@ -227,6 +225,10 @@ input[type=checkbox] {
 #comic {
     transition: opacity 1s ease-in-out;
     opacity: 1;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    display: block;
 }
 
 #comic.dissolve {
@@ -339,7 +341,7 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 10px 0 0 0;
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
@@ -357,6 +359,7 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    padding: 0;
 }
 
 #comic-wrapper {
@@ -418,11 +421,13 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     width: 100%;
     box-sizing: border-box;
-    padding: 0 10px;
+    padding: 0 15px;
 }
 
 #support-container {
     flex: 1;
+    display: flex;
+    justify-content: flex-start;
 }
 
 #action-buttons {
