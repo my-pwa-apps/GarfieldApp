@@ -793,6 +793,13 @@ if (setStatus) {
 			document.documentElement.lang = 'es';
 			// Update date picker min to Spanish comics start date
 			if (datePicker) datePicker.min = "1999-12-06";
+			
+			// Check if current comic date is before Spanish comics start date
+			const spanishStartDate = new Date('1999-12-06');
+			if (currentselectedDate < spanishStartDate) {
+				// Switch to today's comic
+				currentselectedDate = new Date();
+			}
 		}
 		else
 		{
