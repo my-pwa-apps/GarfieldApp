@@ -168,11 +168,11 @@ input {
 
 .rotate {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(90deg);
+    inset: 0;
+    margin: auto;
+    transform: rotate(90deg);
     transform-origin: center center;
-    width: 100vh !important;
+    width: min(100vh - 40px, 100vw - 40px);
     height: auto;
     max-width: none !important;
     max-height: none !important;
@@ -180,7 +180,14 @@ input {
     z-index: 1000;
     transition: transform 0.3s ease;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
+    border-radius: 12px;
+    background: transparent;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+body.rotated-state {
+    background: #000;
 }
 
 .normal {

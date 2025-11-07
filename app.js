@@ -286,10 +286,12 @@ function Rotate() {
     if (comic.classList.contains('rotate')) {
         comic.classList.remove('rotate');
         comic.classList.add('normal');
+        document.body.classList.remove('rotated-state');
         isRotatedMode = false;
     } else {
         comic.classList.remove('normal');
         comic.classList.add('rotate');
+        document.body.classList.add('rotated-state');
         isRotatedMode = true;
     }
 }
@@ -858,10 +860,11 @@ function showFullsizeVertical(event) {
     comic.classList.remove('vertical');
     comic.classList.add('fullscreen-vertical');
     container.classList.add('fullscreen');
+    document.body.classList.add('rotated-state');
     
-    // Set the container background to match the app background gradient
-    container.style.background = 'linear-gradient(#eee239, orange) no-repeat fixed';
-    container.style.backgroundSize = '100% 100vh';
+    // Clear container background so comic stands alone
+    container.style.background = 'none';
+    container.style.backgroundSize = '';
     
     // Hide install button if present - use a more generic selector that will work
     const installButtons = document.querySelectorAll('button');
@@ -901,6 +904,7 @@ function exitFullsizeVertical(event) {
     // Reset container background
     container.style.background = '';
     container.style.backgroundSize = '';
+    document.body.classList.remove('rotated-state');
     
     // Show install button again if present
     const installButtons = document.querySelectorAll('button');
