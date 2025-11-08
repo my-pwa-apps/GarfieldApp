@@ -1587,7 +1587,7 @@ setStatus.onclick = function()
 
 setStatus = document.getElementById('spanish');
 if (setStatus) {
-	setStatus.onclick = function()
+	setStatus.onclick = async function()
 	{
 		const isSpanish = document.getElementById('spanish').checked;
 		const datePicker = document.getElementById('DatePicker');
@@ -1601,10 +1601,39 @@ if (setStatus) {
 			if (datePicker) datePicker.min = "1999-12-06";
 			
 			// Check if current comic date is before Spanish comics start date
-			const spanishStartDate = new Date('1999-12-06');
-			if (currentselectedDate < spanishStartDate) {
-				// Switch to today's comic
+			const spanishStartDate = new Date(CONFIG.GARFIELD_START_ES);
+			const isBeforeStart = currentselectedDate < spanishStartDate;
+			
+			if (isBeforeStart) {
+				// Switch to today's comic and show notification
+				const currentLang = 'es';
+				const t = translations[currentLang];
+				const message = t.sundayNotAvailable;
+				
 				currentselectedDate = new Date();
+				showNotification(message, 6000);
+				
+				// Reload the comic
+				CompareDates();
+				showComic();
+			} else {
+				// Try to load the comic in Spanish to check availability
+				CompareDates();
+				const loaded = await loadComic(currentselectedDate, true);
+				
+				// If comic not available in Spanish, switch to today
+				if (!loaded) {
+					const currentLang = 'es';
+					const t = translations[currentLang];
+					const message = t.sundayNotAvailable;
+					
+					currentselectedDate = new Date();
+					showNotification(message, 6000);
+					
+					// Reload today's comic
+					CompareDates();
+					showComic();
+				}
 			}
 		}
 		else
@@ -1614,10 +1643,11 @@ if (setStatus) {
 			document.documentElement.lang = 'en';
 			// Update date picker min to English comics start date
 			if (datePicker) datePicker.min = "1978-06-19";
+			
+			// Reload the current comic in the selected language
+			CompareDates();
+			showComic();
 		}
-		// Reload the current comic in the selected language
-		CompareDates();
-		showComic();
 	}
 }
 
