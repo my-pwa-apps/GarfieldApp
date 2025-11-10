@@ -3,11 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!">
     <meta name="keywords" content="garfield comics, jim davis, daily comic strip, garfield app, comic viewer, garfield english, garfield spanish, garfield pwa, garfield español, tiras cómicas de garfield">
     <meta name="author" content="GarfieldApp">
-    <meta name="language" content="English, Spanish">
     <meta name="theme-color" content="#eee239">
     <meta name="msapplication-TileColor" content="#eee239">
     <meta name="google-site-verification" content="KMCokAyRo8z4cwX84_fGFknW8M0_aYLSHb88Cf-OjIw">
@@ -23,23 +22,28 @@
     <meta property="og:locale:alternate" content="es_ES">
     
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://garfieldapp.pages.dev/">
-    <meta property="twitter:title" content="Daily Garfield Comics - English & Spanish">
-    <meta property="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
-    <meta property="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Daily Garfield Comics - English & Spanish">
+    <meta name="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta name="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
     
     <title>Daily Garfield Comics - English & Spanish</title>
-    <link rel="stylesheet" href="./main.css">
+    
+    <!-- Preconnect to external origins for faster loading -->
+    <link rel="preconnect" href="https://featureassets.gocomics.com" crossorigin>
+    <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
+    <link rel="preconnect" href="https://storage.ko-fi.com" crossorigin>
+    <link rel="dns-prefetch" href="https://ko-fi.com">
+    
+    <!-- Icons and manifest -->
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
-    <link rel="canonical" href="https://garfieldapp.pages.dev">
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="preconnect" href="https://assets.amuniversal.com">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://storage.ko-fi.com">
-    <link rel="preconnect" href="https://ko-fi.com">
+    <link rel="canonical" href="https://garfieldapp.pages.dev">
+    
+    <!-- Styles and scripts -->
+    <link rel="stylesheet" href="./main.css">
     <script src="./init.js"></script>
     <script src="./app.js" type="module"></script>
 </head>
@@ -115,7 +119,7 @@
     
     <div id="comic-container">
         <div id="comic-wrapper">
-            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic...">
+            <img id="comic" onclick="Rotate()" class="normal" alt="Loading comic..." loading="lazy" decoding="async">
         </div>
     </div>
     

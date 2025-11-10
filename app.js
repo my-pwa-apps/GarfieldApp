@@ -695,160 +695,124 @@ let pictureUrl;
 let formattedComicDate;
 let formattedDate;
 
-async function Share() 
-{
-    if(!window.pictureUrl) {
-        // Use previousUrl as fallback
-        window.pictureUrl = previousUrl;
-        
-        // If still no URL, show error
-        if(!window.pictureUrl) {
-            alert("No comic to share. Please try loading a comic first.");
-            return;
-        }
+/**
+ * Share comic via Web Share API
+ */
+async function Share() {
+    const imageUrl = window.pictureUrl || previousUrl;
+    
+    if (!imageUrl) {
+        showNotification("No comic to share. Please load a comic first.", 3000);
+        return;
     }
     
-    if(navigator.share) {
-        try {
-            // Create a new image element with crossOrigin set to anonymous 
-            // to avoid tainted canvas issues
-            const tempImg = new Image();
-            tempImg.crossOrigin = "anonymous";
+    if (!navigator.share) {
+        showNotification("Sharing is not supported on this device.", 3000);
+        return;
+    }
+    
+    try {
+        // Try to create canvas from image for sharing
+        const tempImg = new Image();
+        tempImg.crossOrigin = "anonymous";
+        
+        // Load image with timeout and fallback
+        await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
             
-            // Try direct image URL first, then fallback to proxy
-            let imgUrl = window.pictureUrl;
-            let loadError = null;
+            tempImg.onload = () => {
+                clearTimeout(timeout);
+                resolve();
+            };
             
-            // Try loading the image directly first
-            await new Promise((resolve, reject) => {
-                const directTimeout = setTimeout(() => {
-                    loadError = new Error("Direct image load timeout");
-                    reject(loadError);
-                }, 5000);
-                
-                tempImg.onload = () => {
-                    clearTimeout(directTimeout);
-                    resolve();
-                };
-                
-                tempImg.onerror = (error) => {
-                    clearTimeout(directTimeout);
-                    loadError = new Error("Direct image load failed");
-                    reject(loadError);
-                };
-                
-                tempImg.src = imgUrl;
-            }).catch(async (error) => {
-                // Direct load failed, try with working proxy
-                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(window.pictureUrl)}`;
-                
-                return new Promise((resolve, reject) => {
-                    const proxyTimeout = setTimeout(() => {
-                        reject(new Error("Proxy image load timeout"));
-                    }, 5000);
-                    
-                    tempImg.onload = () => {
-                        clearTimeout(proxyTimeout);
-                        resolve();
-                    };
-                    
-                    tempImg.onerror = () => {
-                        clearTimeout(proxyTimeout);
-                        reject(new Error("Failed to load image via proxy"));
-                    };
-                    
-                    tempImg.src = proxyUrl;
+            tempImg.onerror = () => {
+                clearTimeout(timeout);
+                reject(new Error("Load failed"));
+            };
+            
+            tempImg.src = imageUrl;
+        }).catch(async () => {
+            // Try with proxy on failure
+            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(imageUrl)}`;
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error("Proxy timeout")), 5000);
+                tempImg.onload = () => { clearTimeout(timeout); resolve(); };
+                tempImg.onerror = () => { clearTimeout(timeout); reject(new Error("Proxy failed")); };
+                tempImg.src = proxyUrl;
+            });
+        });
+        
+        // Convert image to blob
+        const canvas = document.createElement('canvas');
+        canvas.width = tempImg.width;
+        canvas.height = tempImg.height;
+        canvas.getContext('2d').drawImage(tempImg, 0, 0);
+        
+        const blob = await new Promise((resolve, reject) => {
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Blob creation failed")), 'image/jpeg', 0.95);
+        });
+        
+        // Share with file
+        const file = new File([blob], "garfield.jpg", { type: "image/jpeg", lastModified: Date.now() });
+        await navigator.share({
+            url: 'https://garfieldapp.pages.dev',
+            text: 'Shared from GarfieldApp',
+            files: [file]
+        });
+    } catch (error) {
+        // Fallback to text-only sharing on error
+        if (error.name === 'SecurityError' || error.message.includes("failed")) {
+            try {
+                await navigator.share({
+                    url: 'https://garfieldapp.pages.dev',
+                    text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                 });
-            });
-            
-            // Create canvas and draw image
-            const canvas = document.createElement('canvas');
-            canvas.width = tempImg.width;
-            canvas.height = tempImg.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(tempImg, 0, 0);
-            
-            // Convert to blob
-            const jpgBlob = await new Promise((resolve, reject) => {
-                try {
-                    canvas.toBlob(blob => {
-                        if (blob) resolve(blob);
-                        else reject(new Error("Failed to create blob from canvas"));
-                    }, 'image/jpeg', 0.95);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-            
-            // Create file for sharing
-            const file = new File([jpgBlob], "garfield.jpg", { 
-                type: "image/jpeg", 
-                lastModified: Date.now() 
-            });
-            
-            // Share the file
-            await navigator.share({
-                url: 'https://garfieldapp.pages.dev',
-                text: 'Shared from GarfieldApp',
-                files: [file]
-            });
-        } catch (error) {
-            // Check if this is a CORS-related error
-            if (error.name === 'SecurityError') {
-                // Try fallback sharing without the image
-                try {
-                    await navigator.share({
-                        url: 'https://garfieldapp.pages.dev',
-                        text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
-                    });
-                    return;
-                } catch (fallbackError) {
-                    // Fallback failed
-                }
-            }
-            
-            // Don't show alert if sharing was canceled by user
-            if (error.name !== 'AbortError') {
-                alert("Failed to share the comic. Please try again.");
+                return;
+            } catch (fallbackError) {
+                // Silent fail if sharing canceled
             }
         }
-    } else {
-        alert("Sharing is not supported on this device.");
+        
+        // Show error only if not user-canceled
+        if (error.name !== 'AbortError') {
+            showNotification("Failed to share the comic. Please try again.", 3000);
+        }
     }
 }
 
 window.Share = Share;
 
-function Addfav()
-{
-    formattedComicDate = year + "/" + month + "/" + day;
-    var favs = JSON.parse(localStorage.getItem('favs'));
-    if(favs == null)
-    {
-        favs = [];
-    }
-    if(favs.indexOf(formattedComicDate) == -1)
-    {
+/**
+ * Add or remove comic from favorites
+ */
+function Addfav() {
+    formattedComicDate = `${year}/${month}/${day}`;
+    let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    
+    const heartBtn = document.getElementById("favheart");
+    const heartSvg = heartBtn?.querySelector('svg path');
+    const showFavsCheckbox = document.getElementById("showfavs");
+    
+    const favIndex = favs.indexOf(formattedComicDate);
+    
+    if (favIndex === -1) {
+        // Add to favorites
         favs.push(formattedComicDate);
-        const heartBtn = document.getElementById("favheart");
-        const heartSvg = heartBtn?.querySelector('svg path');
         if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
-        document.getElementById("showfavs").disabled = false;
-    }
-    else
-    {
-        favs.splice(favs.indexOf(formattedComicDate), 1);
-        const heartBtn = document.getElementById("favheart");
-        const heartSvg = heartBtn?.querySelector('svg path');
+        if (showFavsCheckbox) showFavsCheckbox.disabled = false;
+    } else {
+        // Remove from favorites
+        favs.splice(favIndex, 1);
         if (heartSvg) heartSvg.setAttribute('fill', 'none');
-        if(favs.length === 0)
-        {
-            document.getElementById("showfavs").checked = false;
-            document.getElementById("showfavs").disabled = true;
+        
+        if (favs.length === 0 && showFavsCheckbox) {
+            showFavsCheckbox.checked = false;
+            showFavsCheckbox.disabled = true;
         }
     }
+    
     favs.sort();
-    localStorage.setItem('favs', JSON.stringify(favs));
+    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
     CompareDates();
     showComic();
 }
@@ -1083,13 +1047,17 @@ function updateDateDisplay() {
     }
 }
 
+/**
+ * Load comic for a specific date
+ * @param {Date} date - Date to load comic for
+ * @param {boolean} silentMode - If true, suppress error messages
+ * @returns {Promise<boolean>} True if comic loaded successfully
+ */
 async function loadComic(date, silentMode = false) {
     try {
-        // Check if Spanish is enabled
         const useSpanish = document.getElementById("spanish")?.checked || false;
         const language = useSpanish ? 'es' : 'en';
         
-        // Try GoComics with authentication and language
         const result = await getAuthenticatedComic(date, language);
         
         if (result.success && result.imageUrl) {
@@ -1097,29 +1065,24 @@ async function loadComic(date, silentMode = false) {
             comicImg.src = result.imageUrl;
             comicImg.style.display = 'block';
             
-            // Store the image URL for sharing
+            // Store for sharing
             window.pictureUrl = result.imageUrl;
             previousUrl = result.imageUrl;
             
-            // Hide any error messages
+            // Hide error messages
             const messageContainer = document.getElementById('comic-message');
-            if (messageContainer) {
-                messageContainer.style.display = 'none';
-            }
+            if (messageContainer) messageContainer.style.display = 'none';
+            
             return true;
         }
         
-        // Handle paywall
-        if (result.isPaywalled) {
-            if (!silentMode) {
-                showPaywallMessage();
-            }
+        if (result.isPaywalled && !silentMode) {
+            showPaywallMessage();
             return false;
         }
         
-        throw new Error('Comic not available from any source');
+        throw new Error('Comic not available');
     } catch (error) {
-        // Only show error message if not in silent mode (auto-skipping)
         if (!silentMode) {
             showErrorMessage('Failed to load comic. Please try again.');
         }
@@ -1127,14 +1090,15 @@ async function loadComic(date, silentMode = false) {
     }
 }
 
+/**
+ * Show paywall message for unavailable comics
+ */
 function showPaywallMessage() {
     const comicContainer = document.getElementById('comic-container');
     const comic = document.getElementById('comic');
     
-    // Hide the comic image
     comic.style.display = 'none';
     
-    // Create or update message container
     let messageContainer = document.getElementById('comic-message');
     if (!messageContainer) {
         messageContainer = document.createElement('div');
@@ -1145,28 +1109,21 @@ function showPaywallMessage() {
     
     messageContainer.style.display = 'flex';
     
-    // Calculate if this is an older comic
-    const comicDate = currentselectedDate;
-    const today = new Date();
-    const daysDiff = Math.floor((today - comicDate) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
     
-    if (daysDiff > 30) {
-        // Older comics are paywalled
-        messageContainer.innerHTML = `
-            <p><strong>Unable to load this archive comic</strong></p>
-            <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
-            <p>Try viewing more recent comics (last 30 days), which are free!</p>
-        `;
-    } else {
-        // Recent comics should be free - something else went wrong
-        messageContainer.innerHTML = `
-            <p><strong>Unable to load this comic</strong></p>
-            <p>This recent comic should normally be free, but we're having trouble loading it.</p>
-            <p>Please try again later or try a different date.</p>
-        `;
-    }
+    messageContainer.innerHTML = daysDiff > 30
+        ? `<p><strong>Unable to load this archive comic</strong></p>
+           <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
+           <p>Try viewing more recent comics (last 30 days), which are free!</p>`
+        : `<p><strong>Unable to load this comic</strong></p>
+           <p>This recent comic should normally be free, but we're having trouble loading it.</p>
+           <p>Please try again later or try a different date.</p>`;
 }
 
+/**
+ * Show error message for failed comic loads
+ * @param {string} message - Error message to display
+ */
 function showErrorMessage(message) {
     const comicContainer = document.getElementById('comic-container');
     const comic = document.getElementById('comic');
@@ -1183,30 +1140,23 @@ function showErrorMessage(message) {
     
     messageContainer.style.display = 'flex';
     
-    // Check if we're on localhost
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
-    if (isLocalhost) {
-        messageContainer.innerHTML = `
-            <p><strong>Local Testing Mode</strong></p>
-            <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
-            <p><strong>Your authentication system is ready!</strong></p>
-            <ul style="text-align: left; max-width: 500px;">
-                <li>✓ Login/logout functionality implemented</li>
-                <li>✓ Paywall detection in place</li>
-                <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
-                <li>✓ Multiple CORS proxy fallback system</li>
-            </ul>
-            <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
-            <p>Try committing and pushing your changes to test on the live site!</p>
-        `;
-    } else {
-        messageContainer.innerHTML = `
-            <p><strong>Unable to Load Comic</strong></p>
-            <p>${message}</p>
-            <p>Please try again later or select a different date.</p>
-        `;
-    }
+    messageContainer.innerHTML = isLocalhost
+        ? `<p><strong>Local Testing Mode</strong></p>
+           <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
+           <p><strong>Your authentication system is ready!</strong></p>
+           <ul style="text-align: left; max-width: 500px;">
+               <li>✓ Login/logout functionality implemented</li>
+               <li>✓ Paywall detection in place</li>
+               <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
+               <li>✓ Multiple CORS proxy fallback system</li>
+           </ul>
+           <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
+           <p>Try committing and pushing your changes to test on the live site!</p>`
+        : `<p><strong>Unable to Load Comic</strong></p>
+           <p>${message}</p>
+           <p>Please try again later or select a different date.</p>`;
 }
 
 window.onLoad = function() {

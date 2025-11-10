@@ -1,11 +1,15 @@
-// List of CORS proxies to try in order
+/**
+ * CORS proxy configuration and performance tracking
+ */
 const CORS_PROXIES = [
     'https://corsproxy.garfieldapp.workers.dev/?',
     'https://api.codetabs.com/v1/proxy?quest=',
     'https://api.allorigins.win/raw?url='
 ];
 
-// Track proxy performance
+const FETCH_TIMEOUT = 15000;
+
+// Performance tracking
 let workingProxyIndex = 0;
 let proxyFailureCount = [0, 0, 0];
 let proxyResponseTimes = [0, 0, 0];
@@ -19,9 +23,8 @@ function getBestProxyIndex() {
     let bestScore = -Infinity;
     
     for (let i = 0; i < CORS_PROXIES.length; i++) {
-        // Heavily penalize failures, reward fast response times
         const failurePenalty = proxyFailureCount[i] * 2000;
-        const avgTime = proxyResponseTimes[i] || 1500; // Default to 1.5s if unknown
+        const avgTime = proxyResponseTimes[i] || 1500;
         const score = 10000 / (avgTime + failurePenalty + 1);
         
         if (score > bestScore) {
@@ -66,7 +69,7 @@ async function tryProxy(url, proxyIndex, startTime) {
     try {
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
         const response = await fetch(fullUrl, {
-            signal: AbortSignal.timeout(15000),
+            signal: AbortSignal.timeout(FETCH_TIMEOUT),
             mode: 'cors',
             credentials: 'omit',
             cache: 'no-cache'
@@ -78,7 +81,6 @@ async function tryProxy(url, proxyIndex, startTime) {
             throw new Error(`HTTP ${response.status}`);
         }
         
-        // Success
         const responseTime = Date.now() - startTime;
         console.log(`✓ Proxy ${proxyIndex} (${proxyName}) succeeded in ${responseTime}ms`);
         updateProxyStats(proxyIndex, true, responseTime);
@@ -117,20 +119,24 @@ async function fetchWithProxyFallback(url) {
     }
 }
 
+/**
+ * Fetches authenticated comic from GoComics
+ * @param {Date} date - Date of the comic
+ * @param {string} language - Language code ('en' or 'es')
+ * @returns {Promise<{success: boolean, imageUrl: string|null, isPaywalled?: boolean, notFound?: boolean}>}
+ */
 export async function getAuthenticatedComic(date, language = 'en') {
-    const formattedDate = date.toISOString().split('T')[0];
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     
-    // Choose comic path based on language
     const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
     
     try {
-        console.log(`Attempting direct fetch: ${url}`);
+        console.log(`Fetching comic: ${url}`);
         
-        // Try direct fetch first (works without CORS proxy)
+        // Try direct fetch first
         try {
             const directResponse = await fetch(url, {
                 signal: AbortSignal.timeout(10000),
@@ -144,7 +150,7 @@ export async function getAuthenticatedComic(date, language = 'en') {
                 const imageUrl = extractImageFromHTML(html);
                 
                 if (imageUrl) {
-                    console.log(`Success with URL format: ${url}`);
+                    console.log(`✓ Direct fetch succeeded`);
                     return { success: true, imageUrl };
                 }
             }
@@ -152,59 +158,60 @@ export async function getAuthenticatedComic(date, language = 'en') {
             console.log(`Direct fetch failed, trying proxies...`);
         }
         
-        // Fall back to proxy if direct fetch fails
+        // Fallback to proxy
         const html = await fetchWithProxyFallback(url);
         
-        // Debug: Check if we got the proxy's own page instead of GoComics
+        // Validate response is actually GoComics HTML
         if (html.includes('_next/static') || html.includes('__next')) {
-            console.error(`Proxy returned its own page instead of GoComics HTML`);
+            console.error(`Proxy returned wrong content`);
             return { success: false, imageUrl: null, proxyError: true };
         }
         
-        // Check if we got a 404 page by looking for specific error indicators
-        const is404 = html.includes('<title>404') || 
-                      html.includes('Page Not Found') || 
-                      html.includes('does not exist');
-        
-        if (is404) {
-            console.warn(`Comic page not found: ${url}`);
+        // Check for 404
+        if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
+            console.warn(`Comic not found: ${url}`);
             return { success: false, imageUrl: null, notFound: true };
         }
         
         const imageUrl = extractImageFromHTML(html);
         
         if (imageUrl) {
-            console.log(`Success! Comic URL: ${imageUrl}`);
+            console.log(`✓ Proxy fetch succeeded`);
             return { success: true, imageUrl };
         }
         
-        console.warn(`No image found in HTML for: ${url} (HTML length: ${html.length})`);
+        console.warn(`No image extracted (HTML length: ${html.length})`);
         return { success: false, imageUrl: null };
     } catch (error) {
-        console.error('Failed to fetch comic:', error);
+        console.error('Comic fetch failed:', error);
         return { success: false, imageUrl: null };
     }
 }
 
+/**
+ * Extracts comic image URL from GoComics HTML
+ * @param {string} html - HTML content from GoComics
+ * @returns {string|null} Comic image URL or null
+ */
 function extractImageFromHTML(html) {
-    // Try featureassets.gocomics.com first (new CDN) - flexible length hash
+    // Try featureassets CDN (current)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
     if (match) {
         console.log(`✓ Extracted from featureassets CDN`);
         return match[0];
     }
     
-    // Try assets.amuniversal.com (older CDN)
+    // Try amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (match) {
         console.log(`✓ Extracted from amuniversal CDN`);
         return match[0];
     }
     
-    // Try meta property og:image
+    // Try og:image meta tag
     match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
     if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
-        console.log(`✓ Extracted from og:image meta tag`);
+        console.log(`✓ Extracted from og:image`);
         return match[1];
     }
     
@@ -215,7 +222,7 @@ function extractImageFromHTML(html) {
         return match[1];
     }
     
-    console.warn(`✗ No comic image found in HTML (length: ${html.length} chars)`);
+    console.warn(`✗ No comic image found`);
     return null;
 }
 
