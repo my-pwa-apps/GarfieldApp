@@ -842,6 +842,19 @@ input[type="date"]::-webkit-datetime-edit {
     transform: translateY(-1px) scale(1.03);
 }
 
+/* Disable sticky :active state on touch devices */
+@media (hover: none) and (pointer: coarse) {
+    .icon-button:active {
+        transform: none;
+    }
+    
+    /* Explicit touch active state that we control via JS */
+    .icon-button.touch-active {
+        transform: translateY(-1px) scale(1.03);
+        transition: transform 0.1s ease;
+    }
+}
+
 .icon-button:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
@@ -914,6 +927,19 @@ input[type="date"]::-webkit-datetime-edit {
         .toolbar-button:hover {
             transform: none;
             background-position: left center;
+        }
+        
+        /* Disable sticky :active state */
+        .toolbar-button:active {
+            transform: none;
+        }
+        
+        /* Explicit touch active state controlled via JS */
+        .toolbar-button.touch-active {
+            transform: translateY(-1px) scale(1.02);
+            background-position: right center;
+            box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s ease;
         }
     }
     

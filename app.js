@@ -401,69 +401,61 @@ function initializeMobileButtonStates() {
     const toolbarButtons = document.querySelectorAll('.toolbar-button, .toolbar-datepicker-btn, .icon-button');
     
     toolbarButtons.forEach(button => {
-        let isPressed = false;
+        let touchTimeout = null;
         
-        // Touch start - mark as pressed
-        button.addEventListener('touchstart', () => {
-            isPressed = true;
-            button.style.transition = 'all 0.1s ease';
+        // Touch start - add active class
+        button.addEventListener('touchstart', (e) => {
+            // Clear any pending timeout
+            if (touchTimeout) clearTimeout(touchTimeout);
+            
+            // Add temporary active class for visual feedback
+            button.classList.add('touch-active');
         }, { passive: true });
         
-        // Touch end - reset state with delay for visual feedback
-        button.addEventListener('touchend', () => {
-            if (isPressed) {
-                setTimeout(() => {
-                    button.style.transform = '';
-                    button.style.transition = '';
-                    button.blur();
-                    isPressed = false;
-                }, 150);
-            }
+        // Touch end - remove active state and ensure bounce back
+        button.addEventListener('touchend', (e) => {
+            // Immediate blur to prevent :focus state
+            button.blur();
+            
+            // Remove active class and reset after brief delay for visual feedback
+            touchTimeout = setTimeout(() => {
+                button.classList.remove('touch-active');
+                button.style.transform = '';
+                button.style.transition = '';
+                
+                // Force reflow to ensure CSS updates
+                void button.offsetHeight;
+            }, 100);
         }, { passive: true });
         
         // Touch cancel - immediate reset
         button.addEventListener('touchcancel', () => {
+            if (touchTimeout) clearTimeout(touchTimeout);
+            button.classList.remove('touch-active');
             button.style.transform = '';
             button.style.transition = '';
             button.blur();
-            isPressed = false;
         }, { passive: true });
         
-        // Click handler - cleanup
+        // Click handler - ensure cleanup
         button.addEventListener('click', () => {
             setTimeout(() => {
                 button.blur();
+                button.classList.remove('touch-active');
                 button.style.transform = '';
-            }, 150);
-        });
-        
-        // Blur - cleanup transforms
-        button.addEventListener('blur', () => {
-            button.style.transform = '';
-            if (isPressed) {
-                button.style.transition = '';
-                isPressed = false;
-            }
-        });
-        
-        // Mouse leave - reset if pressed (hybrid devices)
-        button.addEventListener('mouseleave', () => {
-            if (isPressed) {
-                button.style.transform = '';
-                button.style.transition = '';
-                isPressed = false;
-            }
+            }, 100);
         });
     });
     
-    // Global safeguard - reset any stuck buttons on touch end
+    // Global safeguard - reset any stuck buttons
     document.addEventListener('touchend', () => {
         setTimeout(() => {
             toolbarButtons.forEach(button => {
+                button.classList.remove('touch-active');
                 button.style.transform = '';
                 button.blur();
             });
-        }, 200);
+        }, 150);
     }, { passive: true });
 }
 
