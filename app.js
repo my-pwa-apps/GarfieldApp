@@ -145,16 +145,26 @@ function makeDraggable(element, dragHandle, storageKey) {
         
         const event = e.touches ? e.touches[0] : e;
         
-        // Calculate new position
-        let newLeft = event.clientX - offsetX + window.scrollX;
-        let newTop = event.clientY - offsetY + window.scrollY;
-        
         // Get element dimensions for boundary checking
         const width = element.offsetWidth;
         const height = element.offsetHeight;
         
-        // Constrain within document bounds
-        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
+        // Calculate new position
+        let newLeft = event.clientX - offsetX + window.scrollX;
+        let newTop = event.clientY - offsetY + window.scrollY;
+        
+        // Special handling for toolbar: only allow vertical movement, keep centered horizontally
+        if (storageKey === 'toolbarPosition') {
+            // Keep toolbar centered horizontally
+            const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
+            newLeft = Math.max(horizontalPadding, (window.innerWidth - width) / 2);
+            newLeft = Math.min(newLeft, window.innerWidth - width - horizontalPadding);
+        } else {
+            // For other elements (like settings panel), allow horizontal movement
+            newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
+        }
+        
+        // Constrain vertical position within document bounds
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         
         element.style.left = newLeft + 'px';
@@ -202,12 +212,17 @@ function makeDraggable(element, dragHandle, storageKey) {
                     return;
                 }
             }
+            
+            // For toolbar, only save vertical position (always centered horizontally)
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ top: numericTop }));
+            } catch (_) {}
+        } else {
+            // For other elements (like settings panel), save both positions
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
+            } catch (_) {}
         }
-        
-        // Save custom position for all other cases
-        try {
-            localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
-        } catch (_) {}
         
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('touchmove', onMove);
@@ -305,23 +320,19 @@ function clampToolbarInView() {
         return;
     }
     
-    // Has saved position - just clamp within bounds
+    // Has saved position - clamp vertical bounds and recenter horizontally
     const rect = mainToolbar.getBoundingClientRect();
     let top = parseFloat(mainToolbar.style.top) || 0;
-    let left = parseFloat(mainToolbar.style.left) || 0;
     
-    const maxLeft = window.innerWidth - rect.width - 10;
+    // Always center horizontally (toolbar can only move vertically)
+    const toolbarWidth = mainToolbar.offsetWidth;
+    const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
+    let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
+    left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
+    
     const maxTop = window.innerHeight - rect.height - 10;
     
     let changed = false;
-    
-    if (left < 10) {
-        left = 10;
-        changed = true;
-    } else if (left > maxLeft) {
-        left = maxLeft;
-        changed = true;
-    }
     
     if (top < 10) {
         top = 10;
@@ -331,12 +342,13 @@ function clampToolbarInView() {
         changed = true;
     }
     
+    // Always update left position to keep centered
+    mainToolbar.style.left = left + 'px';
+    mainToolbar.style.top = top + 'px';
+    
     if (changed) {
-        mainToolbar.style.left = left + 'px';
-        mainToolbar.style.top = top + 'px';
-        
         try {
-            localStorage.setItem('toolbarPosition', JSON.stringify({ top, left }));
+            localStorage.setItem('toolbarPosition', JSON.stringify({ top }));
         } catch (_) {}
     }
 }
@@ -348,21 +360,26 @@ function initializeToolbar() {
     const mainToolbar = document.getElementById('mainToolbar');
     if (!mainToolbar) return;
     
-    // Check for saved position
+    // Check for saved position (only top value is saved, horizontal is always centered)
     const savedPosRaw = localStorage.getItem('toolbarPosition');
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     
-    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        // Apply saved position immediately
+    if (savedPos && typeof savedPos.top === 'number') {
+        // Apply saved vertical position and calculate centered horizontal position
+        const toolbarWidth = mainToolbar.offsetWidth;
+        const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
+        let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
+        left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
+        
         mainToolbar.style.top = savedPos.top + 'px';
-        mainToolbar.style.left = savedPos.left + 'px';
+        mainToolbar.style.left = left + 'px';
         mainToolbar.style.transform = 'none';
     } else {
         // No saved position - calculate centered position
         positionToolbarCentered(mainToolbar);
     }
     
-    // Make toolbar draggable
+    // Make toolbar draggable (vertical only)
     makeDraggable(mainToolbar, mainToolbar, 'toolbarPosition');
     
     // Add resize listener to keep toolbar in bounds
