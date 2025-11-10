@@ -517,10 +517,10 @@ input[type="date"]::-webkit-datetime-edit {
     background: var(--primary-gradient);
     background-size: 200% auto;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
+    border-radius: 16px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -597,8 +597,8 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .toolbar-svg {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
     color: #333;
     stroke: #333;
@@ -887,10 +887,10 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar-button {
-        width: 44px;
-        height: 44px;
-        min-width: 44px;
-        border-radius: 12px;
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+        border-radius: 14px;
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
         -webkit-user-select: none;
@@ -912,8 +912,8 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar-svg {
-        width: 22px;
-        height: 22px;
+        width: 26px;
+        height: 26px;
     }
     
     /* Touch device specific - reset hover on pure touch */
@@ -958,15 +958,15 @@ input[type="date"]::-webkit-datetime-edit {
     }
     
     .toolbar-button {
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        border-radius: 10px;
+        width: 46px;
+        height: 46px;
+        min-width: 46px;
+        border-radius: 12px;
     }
     
     .toolbar-svg {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
     }
     
     .settings-panel {
@@ -992,14 +992,14 @@ input[type="date"]::-webkit-datetime-edit {
     
     .toolbar-button,
     .toolbar-datepicker-btn {
-        width: 36px;
-        height: 36px;
-        min-width: 36px;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
     }
     
     .toolbar-svg {
-        width: 18px;
-        height: 18px;
+        width: 22px;
+        height: 22px;
     }
 }
 
