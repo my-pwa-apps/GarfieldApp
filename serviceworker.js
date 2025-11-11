@@ -1,4 +1,4 @@
-const VERSION = 'v38';
+const VERSION = 'v40';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -169,14 +169,15 @@ async function networkFirstStrategy(request, cacheName) {
  */
 async function checkForNewComic() {
   try {
-    const nowUTC = new Date();
-    const estOffset = -5; // EST is UTC-5
-    const nowEST = new Date(nowUTC.getTime() + (estOffset * 60 * 60 * 1000));
+    // Get current time in US Eastern timezone (accounts for EDT/EST)
+    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     
-    const year = nowEST.getUTCFullYear();
-    const month = String(nowEST.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(nowEST.getUTCDate()).padStart(2, '0');
+    const year = nowET.getFullYear();
+    const month = String(nowET.getMonth() + 1).padStart(2, '0');
+    const day = String(nowET.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
+    
+    console.log(`Checking for new comic: ${todayStr} at ${nowET.toTimeString()}`);
     
     // Check if already notified
     const lastNotifiedDate = await getLastNotifiedDate();
@@ -185,25 +186,54 @@ async function checkForNewComic() {
       return;
     }
     
-    // Check if too early (before 12:05 AM EST)
-    const estHour = nowEST.getUTCHours();
-    const estMinute = nowEST.getUTCMinutes();
-    if (estHour === 0 && estMinute < 5) {
-      console.log('Too early for comic check');
+    // Check if too early (before 12:05 AM ET)
+    const etHour = nowET.getHours();
+    const etMinute = nowET.getMinutes();
+    if (etHour === 0 && etMinute < 5) {
+      console.log('Too early for comic check (before 12:05 AM ET)');
       return;
     }
     
-    // Fetch today's comic
+    // Fetch today's comic - try direct first, then proxy
     const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
-    const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
+    let html = null;
     
-    const response = await fetch(proxyUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-    });
-    
-    if (response.ok) {
-      const html = await response.text();
+    // Try direct fetch first (faster, no proxy needed)
+    try {
+      const directResponse = await fetch(comicUrl, {
+        signal: AbortSignal.timeout(10000),
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'default'
+      });
       
+      if (directResponse.ok) {
+        html = await directResponse.text();
+        console.log('✓ Direct fetch succeeded for notification check');
+      }
+    } catch (directError) {
+      console.log('Direct fetch failed, trying proxy for notification check...');
+    }
+    
+    // Fallback to proxy if direct failed
+    if (!html) {
+      try {
+        const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
+        const proxyResponse = await fetch(proxyUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
+        
+        if (proxyResponse.ok) {
+          html = await proxyResponse.text();
+          console.log('✓ Proxy fetch succeeded for notification check');
+        }
+      } catch (proxyError) {
+        console.warn('Both direct and proxy fetch failed:', proxyError);
+      }
+    }
+    
+    // Check if comic is available
+    if (html) {
       const hasComic = html.includes('featureassets.gocomics.com') || 
                       html.includes('assets.amuniversal.com') ||
                       (html.includes('data-image') && html.includes('garfield'));
@@ -213,14 +243,14 @@ async function checkForNewComic() {
                      !html.includes('not yet available');
       
       if (hasComic && isValid) {
-        console.log('New comic detected:', todayStr);
+        console.log('✓ New comic detected:', todayStr);
         await saveLastNotifiedDate(todayStr);
         await showNotification(todayStr);
       } else {
-        console.log('Comic not yet available');
+        console.log('Comic not yet available for:', todayStr);
       }
     } else {
-      console.warn('Comic fetch failed, status:', response.status);
+      console.warn('Could not fetch comic page for notification check');
     }
   } catch (error) {
     console.error('Error checking for new comic:', error);

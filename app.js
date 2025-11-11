@@ -1620,15 +1620,29 @@ if (setStatus) {
 			if (permitted) {
 				localStorage.setItem('notifications', "true");
 				setupNotifications();
+				
+				// Inform user about Android limitations
+				const isAndroid = /Android/.test(navigator.userAgent);
+				const hasPeriodicSync = 'periodicSync' in navigator.serviceWorker;
+				
+				if (isAndroid && !hasPeriodicSync) {
+					showNotification(
+						'Notifications enabled! Note: You\'ll need to open the app daily to check for new comics, as Android browsers don\'t support automatic background checks.',
+						8000
+					);
+				} else {
+					showNotification('Notifications enabled! You\'ll be notified when new comics are available.', 4000);
+				}
 			} else {
 				// Permission denied
 				document.getElementById('notifications').checked = false;
-				alert('Notification permission is required to enable this feature. Please allow notifications in your browser settings.');
+				showNotification('Notification permission is required. Please allow notifications in your browser settings.', 5000);
 			}
 		}
 		else
 		{
 			localStorage.setItem('notifications', "false");
+			showNotification('Notifications disabled.', 3000);
 		}
 	}
 }
@@ -1976,21 +1990,25 @@ async function setupNotifications() {
 
 function scheduleDailyCheck() {
     // Calculate time until next check
-    // GoComics publishes around 12:05 AM EST, so we check at 12:10 AM EST
-    // Convert to user's local time
+    // GoComics publishes around 12:05 AM ET, so we check at 12:10 AM ET
     
     const now = new Date();
     
-    // Create a date object for 12:10 AM EST today
-    const estCheckTime = new Date();
-    estCheckTime.setUTCHours(5, 10, 0, 0); // 12:10 AM EST = 5:10 AM UTC (EST is UTC-5)
+    // Get current ET time and create target time for 12:10 AM ET
+    const nowET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    let checkTimeET = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    checkTimeET.setHours(0, 10, 0, 0); // 12:10 AM ET
     
-    // If we've already passed that time today, schedule for tomorrow
-    if (now >= estCheckTime) {
-        estCheckTime.setDate(estCheckTime.getDate() + 1);
+    // If we've already passed 12:10 AM ET today, schedule for tomorrow
+    if (nowET >= checkTimeET) {
+        checkTimeET.setDate(checkTimeET.getDate() + 1);
     }
     
-    const timeUntilCheck = estCheckTime.getTime() - now.getTime();
+    // Convert ET time back to local time for setTimeout
+    const checkTimeLocal = new Date(checkTimeET.toLocaleString('en-US'));
+    const timeUntilCheck = checkTimeLocal.getTime() - now.getTime();
+    
+    console.log(`Next comic check scheduled in ${Math.round(timeUntilCheck / 1000 / 60 / 60)} hours`);
     
     setTimeout(() => {
         checkForNewComicNow();
@@ -2013,10 +2031,13 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then(() => {
         setupNotifications();
         
-        // iOS doesn't support background sync, so check when app opens
+        // Check on app open for browsers without background sync (iOS, Android)
+        // Most Android browsers don't support periodic background sync
         const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-        if (isIOS && localStorage.getItem('notifications') === 'true') {
-            // Small delay to ensure service worker is ready
+        const isAndroid = /Android/.test(navigator.userAgent);
+        
+        if ((isIOS || isAndroid) && localStorage.getItem('notifications') === 'true') {
+            // Check when app opens as fallback for no background sync
             setTimeout(() => checkForNewComicNow(), 1000);
         }
     });
