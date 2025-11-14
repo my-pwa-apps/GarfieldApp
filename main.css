@@ -184,7 +184,7 @@ body.rotated-state #comic-wrapper {
 .normal {
     transform: rotate(0deg);
     width: 100%;
-    max-width: 100%;
+    max-width: 900px;
     height: auto;
     display: block;
     margin: 0 auto;
