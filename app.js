@@ -2304,6 +2304,3 @@ if ('serviceWorker' in navigator) {
 
 window.requestNotificationPermission = requestNotificationPermission;
 window.setupNotifications = setupNotifications;
-
-// Initialize the app
-window.onLoad();
