@@ -183,12 +183,19 @@ body.rotated-state #comic-wrapper {
 
 .normal {
     transform: rotate(0deg);
-    width: 100%;
-    max-width: 900px;
+    width: 100vw;
+    max-width: 100vw;
     height: auto;
     display: block;
-    margin: 0 auto;
-    transition: all 0.3s ease;
+    margin: 0 0 20px 0;
+    padding: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
 }
 
 /* Legacy checkbox styling (global) */
