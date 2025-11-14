@@ -820,10 +820,19 @@ function changeComicImage(newSrc) {
     }, 500); // Match the duration of the CSS transition
 }
 
-function HideSettings() {
+function HideSettings(e) {
+    // Prevent event from bubbling if called from event handler
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
     const panel = document.getElementById("settingsDIV");
     
-    if (!panel) return;
+    if (!panel) {
+        console.warn('Settings panel not found');
+        return;
+    }
     
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
@@ -844,6 +853,7 @@ function HideSettings() {
     }
 }
 
+// Expose globally as early as possible
 window.HideSettings = HideSettings;
 
 // ========================================
@@ -1211,7 +1221,7 @@ document.addEventListener('touchmove', handleTouchMove, { passive: false });
 document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
 // Add orientation change listener for automatic fullscreen
-window.addEventListener('orientationchange', function() {
+function handleOrientationChange() {
     setTimeout(() => {
         const orientation = screen.orientation?.type || '';
         const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
@@ -1237,6 +1247,24 @@ window.addEventListener('orientationchange', function() {
             }
         }
     }, 300); // Delay to ensure orientation change completes
+}
+
+window.addEventListener('orientationchange', handleOrientationChange);
+
+// Add resize listener as fallback for devices that don't fire orientationchange
+let resizeTimer;
+let lastOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        // Check if orientation actually changed
+        const currentOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+        if (lastOrientation !== currentOrientation) {
+            lastOrientation = currentOrientation;
+            handleOrientationChange();
+        }
+    }, 300);
 });
 
 // Update the date display function to use regional date settings
@@ -2022,12 +2050,13 @@ function exitFullsizeVertical(event) {
 }
 
 let getStatus = localStorage.getItem('stat');
-if (getStatus == "true")
-{
+if (getStatus === null) {
+	// First time user - default to enabled
 	document.getElementById("swipe").checked = true;
-}
-else
-{
+	localStorage.setItem('stat', "true");
+} else if (getStatus == "true") {
+	document.getElementById("swipe").checked = true;
+} else {
 	document.getElementById("swipe").checked = false;
 }
 
