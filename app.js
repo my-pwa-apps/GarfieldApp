@@ -778,7 +778,7 @@ window.Share = Share;
  * Add or remove comic from favorites
  */
 function Addfav() {
-    formattedComicDate = `${year}/${month}/${day}`;
+    // Use formattedComicDate which is in YYYY/MM/DD format (consistent with rest of app)
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     
     const heartBtn = document.getElementById("favheart");
@@ -1166,8 +1166,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Scale to 95% for breathing room (larger for Sunday comics)
-    scale = scale * 0.95;
+    // Scale to 98% for Sunday comics to use more screen space in rotated mode
+    scale = scale * 0.98;
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
