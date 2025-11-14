@@ -5,7 +5,7 @@
   "short_name": "Garfield",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "background_color": "#eee239",
   "theme_color": "#eee239",
   "categories": [

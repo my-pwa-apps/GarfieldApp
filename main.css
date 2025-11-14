@@ -237,10 +237,161 @@ label {
 #comic {
     transition: opacity 1s ease-in-out;
     opacity: 1;
+    cursor: pointer;
+    position: relative;
 }
 
 #comic.dissolve {
     opacity: 0;
+}
+
+/* Rotation classes for fullscreen comic viewing */
+.rotate {
+    max-height: 95vh;
+    max-width: 95vw;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+    border-radius: 4px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+    z-index: 10001;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.fullscreen-landscape {
+    max-height: 95vh;
+    max-width: 95vw;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+    border-radius: 4px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transform-origin: center center;
+    z-index: 10001;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Fullscreen overlay */
+#comic-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+}
+
+/* Fullscreen toolbar styles */
+.fullscreen-toolbar {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 16px;
+    margin: 0;
+    width: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+                0 4px 12px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(25px);
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    position: fixed;
+    z-index: 10002;
+}
+
+.fullscreen-toolbar .toolbar-button {
+    width: 48px;
+    height: 48px;
+    margin: 0;
+    border-radius: 14px;
+}
+
+.fullscreen-toolbar .toolbar-svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Rotated toolbar (portrait mode with 90° rotation) */
+.fullscreen-toolbar.rotated {
+    flex-direction: column;
+    padding: 16px 10px;
+    max-height: 80vh;
+    max-width: 70px;
+    top: 50%;
+    left: 20px;
+    bottom: auto;
+    transform: translateY(-50%);
+    gap: 10px;
+}
+
+.fullscreen-toolbar.rotated .toolbar-button {
+    margin: 0;
+}
+
+#rotated-comic {
+    left: calc(50% + 40px) !important;
+    margin-left: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#rotated-comic.fullscreen-landscape {
+    left: 50% !important;
+    top: 40% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* Rotate SVG icons in rotated toolbar */
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(1) .toolbar-svg,
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(2) .toolbar-svg,
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(5) .toolbar-svg {
+    transform: rotate(90deg);
+}
+
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(3) .toolbar-svg,
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(4) .toolbar-svg,
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(6) .toolbar-svg,
+.fullscreen-toolbar.rotated .toolbar-button:nth-child(7) .toolbar-svg {
+    transform: rotate(-90deg);
+}
+
+.fullscreen-toolbar:not(.rotated) .toolbar-svg {
+    transform: none;
+}
+
+/* Landscape toolbar (device rotated to landscape) */
+.fullscreen-toolbar.landscape-toolbar {
+    flex-direction: row;
+    padding: 10px 15px;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    max-width: 90vw;
+    gap: 8px;
+}
+
+.fullscreen-toolbar.landscape-toolbar .toolbar-button {
+    margin: 0;
+}
+
+.fullscreen-toolbar.landscape-toolbar .toolbar-svg {
+    transform: none;
 }
 
 /* Date picker styling */

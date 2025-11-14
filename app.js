@@ -934,6 +934,18 @@ function handleTouchEnd(e) {
     const absY = Math.abs(deltaY);
     const isTap = absX < CONFIG.TAP_MAX_MOVEMENT && absY < CONFIG.TAP_MAX_MOVEMENT && deltaTime < CONFIG.TAP_MAX_TIME;
     
+    // Check if tap was on comic image to trigger rotation
+    if (isTap) {
+        const comicImg = document.getElementById('comic');
+        const rotatedComic = document.getElementById('rotated-comic');
+        
+        // If tapped on normal comic or rotated comic, toggle fullscreen
+        if (e.target === comicImg || e.target === rotatedComic) {
+            Rotate();
+            return;
+        }
+    }
+    
     // For swipe navigation, check if swipe is enabled
     if (!document.getElementById("swipe").checked) return;
     
@@ -997,10 +1009,311 @@ function handleTouchEnd(e) {
     }
 }
 
+// ========================================
+// COMIC ROTATION & FULLSCREEN
+// ========================================
+
+/**
+ * Toggles comic rotation to fullscreen mode
+ * Handles both entering and exiting fullscreen with optional 90-degree rotation
+ * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
+ */
+function Rotate(applyRotation = true) {
+    // Prevent rapid double-calls
+    if (isRotating) {
+        return;
+    }
+    
+    isRotating = true;
+    
+    try {
+        const element = document.getElementById('comic');
+        
+        if (!element) {
+            isRotating = false;
+            return;
+        }
+        
+        // Check if we're already in fullscreen mode
+        const existingOverlay = document.getElementById('comic-overlay');
+        if (existingOverlay) {
+            // Exit fullscreen mode
+            document.body.removeChild(existingOverlay);
+            
+            const rotatedComic = document.getElementById('rotated-comic');
+            if (rotatedComic) {
+                document.body.removeChild(rotatedComic);
+            }
+            
+            const fullscreenToolbar = document.getElementById('fullscreen-toolbar');
+            if (fullscreenToolbar) {
+                document.body.removeChild(fullscreenToolbar);
+            }
+            
+            // Restore all hidden elements
+            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
+            hiddenElements.forEach(el => {
+                el.style.display = el.dataset.originalDisplay || '';
+                delete el.dataset.wasHidden;
+                delete el.dataset.originalDisplay;
+            });
+            
+            element.className = element.className.replace(/\s*(rotate|fullscreen-landscape)/g, '');
+            
+            // Remove event listeners
+            window.removeEventListener('resize', handleRotatedViewResize);
+            window.removeEventListener('orientationchange', handleRotatedViewResize);
+            
+            isRotatedMode = false;
+            isRotating = false;
+            
+            return;
+        }
+        
+        // Enter fullscreen mode
+        isRotatedMode = true;
+        
+        // Hide all page elements
+        const elementsToHide = document.querySelectorAll('body > *');
+        elementsToHide.forEach(el => {
+            el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.wasHidden = "true";
+            el.style.setProperty('display', 'none', 'important');
+        });
+        
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'comic-overlay';
+        
+        // Clone comic image
+        const clonedComic = element.cloneNode(true);
+        clonedComic.id = 'rotated-comic';
+        clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
+        clonedComic.style.display = 'block';
+        
+        // Create fullscreen toolbar
+        const fullscreenToolbar = document.createElement('div');
+        fullscreenToolbar.id = 'fullscreen-toolbar';
+        fullscreenToolbar.className = 'toolbar fullscreen-toolbar';
+        
+        // Get current language for translations
+        const isSpanish = document.getElementById("spanish")?.checked || false;
+        const t = translations[isSpanish ? 'es' : 'en'];
+        
+        fullscreenToolbar.innerHTML = `
+            <button id="rotated-First" class="toolbar-button" onclick="FirstClick(); return false;" title="${t.first}" aria-label="${t.first}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <polygon points="19 20 9 12 19 4 19 20"/>
+                    <line x1="5" y1="19" x2="5" y2="5"/>
+                </svg>
+            </button>
+            <button id="rotated-Previous" class="toolbar-button" onclick="PreviousClick(); return false;" title="${t.previous}" aria-label="${t.previous}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <button id="rotated-Random" class="toolbar-button" onclick="RandomClick(); return false;" title="${t.random}" aria-label="${t.random}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+                    <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
+                    <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
+                    <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/>
+                </svg>
+            </button>
+            <button id="rotated-Next" class="toolbar-button" onclick="NextClick(); return false;" title="${t.next}" aria-label="${t.next}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <polyline points="9 18 15 12 9 6"/>
+                </svg>
+            </button>
+            <button id="rotated-Last" class="toolbar-button" onclick="LastClick(); return false;" title="${t.last}" aria-label="${t.last}">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
+                    <polygon points="5 4 15 12 5 20 5 4"/>
+                    <line x1="19" y1="5" x2="19" y2="19"/>
+                </svg>
+            </button>
+        `;
+        
+        // Add elements to page
+        document.body.appendChild(overlay);
+        document.body.appendChild(clonedComic);
+        document.body.appendChild(fullscreenToolbar);
+        
+        // Add toolbar class based on rotation mode
+        if (applyRotation) {
+            fullscreenToolbar.classList.add('rotated');
+        } else {
+            fullscreenToolbar.classList.add('landscape-toolbar');
+        }
+        
+        // Show elements
+        clonedComic.style.display = 'block';
+        fullscreenToolbar.style.display = 'flex';
+        
+        // Position toolbar and maximize image
+        positionFullscreenToolbar();
+        
+        // Add resize listeners
+        window.addEventListener('resize', handleRotatedViewResize);
+        window.addEventListener('orientationchange', handleRotatedViewResize);
+        
+        // Apply sizing when image is loaded
+        if (clonedComic.complete) {
+            maximizeRotatedImage(clonedComic);
+        } else {
+            clonedComic.onload = function() {
+                maximizeRotatedImage(clonedComic);
+            };
+        }
+        
+        // Prevent toolbar clicks from closing fullscreen
+        fullscreenToolbar.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        
+        // Add swipe support in rotated view
+        overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
+        overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
+        overlay.addEventListener('touchend', function(e) {
+            handleTouchEnd(e);
+            e.stopPropagation();
+        }, { passive: true });
+        
+        // Click to exit fullscreen
+        overlay.addEventListener('click', function() {
+            Rotate();
+        });
+        
+    } catch (error) {
+        console.error('Error in Rotate():', error);
+        isRotating = false;
+        isRotatedMode = false;
+    } finally {
+        setTimeout(() => {
+            isRotating = false;
+        }, CONFIG.ROTATION_DEBOUNCE);
+    }
+}
+
+/**
+ * Maximizes the rotated image to fit viewport
+ * @param {HTMLImageElement} imgElement - Image element to resize
+ */
+function maximizeRotatedImage(imgElement) {
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    const naturalWidth = imgElement.naturalWidth;
+    const naturalHeight = imgElement.naturalHeight;
+    
+    if (!naturalWidth || !naturalHeight) {
+        return;
+    }
+    
+    const isLandscapeMode = imgElement.className.includes('fullscreen-landscape');
+    const isRotatedMode = imgElement.className.includes('rotate');
+    
+    // For rotated image, visual width is original height and vice versa
+    const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
+    const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
+    
+    // Calculate scale to fit viewport
+    let scale;
+    if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
+        scale = viewportWidth / rotatedWidth;
+    } else {
+        scale = viewportHeight / rotatedHeight;
+    }
+    
+    // Scale to 90% for breathing room
+    scale = scale * 0.9;
+    
+    imgElement.style.width = `${naturalWidth * scale}px`;
+    imgElement.style.height = `${naturalHeight * scale}px`;
+    imgElement.style.position = 'fixed';
+    
+    if (isLandscapeMode) {
+        imgElement.style.top = '40%';
+        imgElement.style.left = '50%';
+        imgElement.style.transformOrigin = 'center center';
+    } else if (isRotatedMode) {
+        imgElement.style.top = '';
+        imgElement.style.left = '';
+        imgElement.style.transformOrigin = '';
+    }
+    
+    imgElement.style.maxWidth = 'none';
+    imgElement.style.maxHeight = 'none';
+    imgElement.style.zIndex = '10001';
+    imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+}
+
+/**
+ * Positions the fullscreen toolbar
+ */
+function positionFullscreenToolbar() {
+    const toolbar = document.getElementById('fullscreen-toolbar');
+    if (!toolbar) return;
+    
+    toolbar.style.position = 'fixed';
+    toolbar.style.zIndex = '10002';
+    
+    // Let CSS handle positioning via media queries
+    toolbar.style.left = '';
+    toolbar.style.bottom = '';
+    toolbar.style.top = '';
+    toolbar.style.transform = '';
+    toolbar.style.flexDirection = '';
+    toolbar.style.width = '';
+    toolbar.style.maxWidth = '';
+    toolbar.style.height = '';
+}
+
+/**
+ * Handles resize and orientation changes in rotated view
+ */
+function handleRotatedViewResize() {
+    const rotatedComic = document.getElementById('rotated-comic');
+    if (rotatedComic) {
+        maximizeRotatedImage(rotatedComic);
+    }
+    positionFullscreenToolbar();
+}
+
 // Add touch event listeners to the document
 document.addEventListener('touchstart', handleTouchStart, { passive: false });
 document.addEventListener('touchmove', handleTouchMove, { passive: false });
 document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+// Add orientation change listener for automatic fullscreen
+window.addEventListener('orientationchange', function() {
+    setTimeout(() => {
+        const orientation = screen.orientation?.type || '';
+        const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
+        const rotatedComic = document.getElementById('rotated-comic');
+        
+        if (isLandscape) {
+            // Device rotated to landscape
+            if (!rotatedComic) {
+                // Not in fullscreen yet - enter landscape fullscreen mode
+                const comic = document.getElementById('comic');
+                if (comic && comic.src) {
+                    Rotate(false); // Enter fullscreen WITHOUT rotation (device already landscape)
+                }
+            } else {
+                // Already in fullscreen - just reposition
+                maximizeRotatedImage(rotatedComic);
+                positionFullscreenToolbar();
+            }
+        } else {
+            // Device rotated to portrait
+            if (rotatedComic) {
+                // In fullscreen mode - exit it
+                Rotate();
+            }
+        }
+    }, 300); // Delay to ensure orientation change completes
+});
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -1056,6 +1369,12 @@ async function loadComic(date, silentMode = false) {
             const comicImg = document.getElementById('comic');
             comicImg.src = result.imageUrl;
             comicImg.style.display = 'block';
+            
+            // Also update the rotated comic if it exists
+            const rotatedComic = document.getElementById('rotated-comic');
+            if (rotatedComic) {
+                rotatedComic.src = result.imageUrl;
+            }
             
             // Store for sharing
             window.pictureUrl = result.imageUrl;
