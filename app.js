@@ -846,36 +846,6 @@ function HideSettings() {
 
 window.HideSettings = HideSettings;
 
-function Rotate() {
-    // Prevent rotation if a swipe just occurred (within 300ms)
-    if (Date.now() - lastSwipeTime < 300) return;
-    
-    // Prevent rapid double-calls
-    if (isRotating) return;
-    
-    isRotating = true;
-    
-    const comic = document.getElementById('comic');
-    if (comic.classList.contains('rotate')) {
-        comic.classList.remove('rotate');
-        comic.classList.add('normal');
-        document.body.classList.remove('rotated-state');
-        isRotatedMode = false;
-    } else {
-        comic.classList.remove('normal');
-        comic.classList.add('rotate');
-        document.body.classList.add('rotated-state');
-        isRotatedMode = true;
-    }
-    
-    // Reset flag after debounce period
-    setTimeout(() => {
-        isRotating = false;
-    }, CONFIG.ROTATION_DEBOUNCE);
-}
-
-window.Rotate = Rotate;
-
 // ========================================
 // TOUCH & SWIPE HANDLING
 // ========================================
@@ -1279,6 +1249,9 @@ function handleRotatedViewResize() {
     }
     positionFullscreenToolbar();
 }
+
+// Expose Rotate function globally
+window.Rotate = Rotate;
 
 // Add touch event listeners to the document
 document.addEventListener('touchstart', handleTouchStart, { passive: false });
