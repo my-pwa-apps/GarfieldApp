@@ -911,22 +911,9 @@ function handleTouchEnd(e) {
     const deltaY = touchEndY - touchStartY;
     const deltaTime = Date.now() - touchStartTime;
     
-    // Check if this was a tap (not a swipe) - used for rotation toggle
+    // Check swipe distance
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
-    const isTap = absX < CONFIG.TAP_MAX_MOVEMENT && absY < CONFIG.TAP_MAX_MOVEMENT && deltaTime < CONFIG.TAP_MAX_TIME;
-    
-    // Check if tap was on comic image to trigger rotation
-    if (isTap) {
-        const comicImg = document.getElementById('comic');
-        const rotatedComic = document.getElementById('rotated-comic');
-        
-        // If tapped on normal comic or rotated comic, toggle fullscreen
-        if (e.target === comicImg || e.target === rotatedComic) {
-            Rotate();
-            return;
-        }
-    }
     
     // For swipe navigation - always enabled in rotated mode
     const rotatedComic = document.getElementById('rotated-comic');
