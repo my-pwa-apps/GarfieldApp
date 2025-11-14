@@ -1166,8 +1166,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Scale to 90% for breathing room
-    scale = scale * 0.9;
+    // Scale to 95% for breathing room (larger for Sunday comics)
+    scale = scale * 0.95;
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
@@ -1213,13 +1213,16 @@ function handleOrientationChange() {
         const orientation = screen.orientation?.type || '';
         const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
         const rotatedComic = document.getElementById('rotated-comic');
+        console.log('Orientation change detected:', { orientation, isLandscape, hasRotatedComic: !!rotatedComic, windowOrientation: window.orientation });
         
         if (isLandscape) {
             // Device rotated to landscape
             if (!rotatedComic) {
                 // Not in fullscreen yet - enter landscape fullscreen mode
                 const comic = document.getElementById('comic');
+                console.log('Attempting auto-rotate to landscape:', { hasComic: !!comic, hasSrc: !!(comic?.src) });
                 if (comic && comic.src) {
+                    console.log('Calling Rotate(false) for landscape mode');
                     Rotate(false); // Enter fullscreen WITHOUT rotation (device already landscape)
                 }
             } else {
