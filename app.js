@@ -1207,36 +1207,7 @@ document.addEventListener('touchstart', handleTouchStart, { passive: false });
 document.addEventListener('touchmove', handleTouchMove, { passive: false });
 document.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-// Add orientation change listener for automatic fullscreen
-function handleOrientationChange() {
-    setTimeout(() => {
-        const orientation = screen.orientation?.type || '';
-        const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
-        const rotatedComic = document.getElementById('rotated-comic');
-        
-        if (isLandscape) {
-            // Device rotated to landscape
-            if (!rotatedComic) {
-                // Not in fullscreen yet - enter landscape fullscreen mode
-                const comic = document.getElementById('comic');
-                if (comic && comic.className.includes('normal')) {
-                    Rotate(false); // Enter fullscreen WITHOUT rotation (device already landscape)
-                }
-            } else {
-                // Already in fullscreen - just reposition
-                maximizeRotatedImage(rotatedComic);
-            }
-        } else {
-            // Device rotated to portrait
-            if (rotatedComic) {
-                // In fullscreen mode - exit it
-                Rotate();
-            }
-        }
-    }, 300); // Delay to ensure orientation change completes
-}
-
-// Orientation listeners moved to end of file after all functions are defined
+// Orientation change listener registered inline at end of file (DirkJan pattern)
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -2290,24 +2261,35 @@ window.requestNotificationPermission = requestNotificationPermission;
 window.setupNotifications = setupNotifications;
 
 // ========================================
-// ORIENTATION CHANGE LISTENERS
+// ORIENTATION CHANGE LISTENER
 // ========================================
 // Register at end of file to ensure all functions are defined
+// Inline handler like DirkJan for immediate registration
 
-window.addEventListener('orientationchange', handleOrientationChange);
-
-// Add resize listener as fallback for devices that don't fire orientationchange
-let resizeTimer;
-let lastOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-
-window.addEventListener('resize', function() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        // Check if orientation actually changed
-        const currentOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-        if (lastOrientation !== currentOrientation) {
-            lastOrientation = currentOrientation;
-            handleOrientationChange();
+window.addEventListener('orientationchange', function() {
+    setTimeout(() => {
+        const orientation = screen.orientation?.type || '';
+        const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
+        const rotatedComic = document.getElementById('rotated-comic');
+        
+        if (isLandscape) {
+            // Device rotated to landscape
+            if (!rotatedComic) {
+                // Not in fullscreen yet - enter landscape fullscreen mode
+                const comic = document.getElementById('comic');
+                if (comic && comic.className.includes('normal')) {
+                    Rotate(false); // Enter fullscreen WITHOUT rotation (device already landscape)
+                }
+            } else {
+                // Already in fullscreen - just reposition
+                maximizeRotatedImage(rotatedComic);
+            }
+        } else {
+            // Device rotated to portrait
+            if (rotatedComic) {
+                // In fullscreen mode - exit it
+                Rotate();
+            }
         }
     }, 300);
 });
