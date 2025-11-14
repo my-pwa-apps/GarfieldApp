@@ -1178,9 +1178,10 @@ function maximizeRotatedImage(imgElement) {
         imgElement.style.left = '50%';
         imgElement.style.transformOrigin = 'center center';
     } else if (isRotatedMode) {
-        imgElement.style.top = '';
-        imgElement.style.left = '';
-        imgElement.style.transformOrigin = '';
+        // Keep centering for rotated mode (especially important for tall Sunday comics)
+        imgElement.style.top = '50%';
+        imgElement.style.left = '50%';
+        imgElement.style.transformOrigin = 'center center';
     }
     
     imgElement.style.maxWidth = 'none';
