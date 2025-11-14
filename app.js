@@ -871,7 +871,9 @@ function handleTouchStart(e) {
  * @param {TouchEvent} e - Touch event
  */
 function handleTouchMove(e) {
-    if (!document.getElementById("swipe").checked) return;
+    // Always allow swipes in rotated mode
+    const rotatedComic = document.getElementById('rotated-comic');
+    if (!rotatedComic && !document.getElementById("swipe").checked) return;
     
     // Prevent default scrolling behavior during swipe
     const touch = e.touches[0];
@@ -916,22 +918,27 @@ function handleTouchEnd(e) {
         }
     }
     
-    // For swipe navigation, check if swipe is enabled
-    if (!document.getElementById("swipe").checked) return;
+    // For swipe navigation - always enabled in rotated mode
+    const rotatedComic = document.getElementById('rotated-comic');
+    if (!rotatedComic && !document.getElementById("swipe").checked) return;
     
     // Check if the swipe is valid (meets distance and time requirements)
     if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
     
     let swipeDetected = false;
     
+    // Check if we're in rotated fullscreen mode (reuse rotatedComic from above)
+    const isInRotatedMode = rotatedComic && rotatedComic.className.includes('rotate');
+    const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
+    
     // Determine swipe direction based on mode
-    if (isRotatedMode) {
+    if (isInRotatedMode) {
         // Rotated mode (90° clockwise): Swipe gestures follow the rotation
         // Physical up/down becomes logical left/right, physical left/right becomes logical up/down
         if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
             // Vertical swipe (becomes horizontal navigation due to rotation)
             swipeDetected = true;
-            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
+            lastSwipeTime = Date.now();
             if (deltaY < 0) {
                 // Swipe Up -> visually moves right -> Next
                 NextClick();
@@ -942,13 +949,38 @@ function handleTouchEnd(e) {
         } else if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             // Horizontal swipe (becomes vertical navigation due to rotation)
             swipeDetected = true;
-            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
+            lastSwipeTime = Date.now();
             if (deltaX < 0) {
                 // Swipe Left -> visually moves down -> Random
                 RandomClick();
             } else {
                 // Swipe Right -> visually moves up -> Last
                 LastClick();
+            }
+        }
+    } else if (isInLandscapeMode) {
+        // Landscape fullscreen (no rotation): Normal horizontal/vertical mapping
+        if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Horizontal swipe
+            swipeDetected = true;
+            lastSwipeTime = Date.now();
+            if (deltaX < 0) {
+                // Swipe Left -> Next
+                NextClick();
+            } else {
+                // Swipe Right -> Previous
+                PreviousClick();
+            }
+        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
+            // Vertical swipe
+            swipeDetected = true;
+            lastSwipeTime = Date.now();
+            if (deltaY < 0) {
+                // Swipe Up -> Last
+                LastClick();
+            } else {
+                // Swipe Down -> Random
+                RandomClick();
             }
         }
     } else {
@@ -1061,67 +1093,14 @@ function Rotate(applyRotation = true) {
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
         clonedComic.style.display = 'block';
         
-        // Create fullscreen toolbar
-        const fullscreenToolbar = document.createElement('div');
-        fullscreenToolbar.id = 'fullscreen-toolbar';
-        fullscreenToolbar.className = 'toolbar fullscreen-toolbar';
-        
-        // Get current language for translations
-        const isSpanish = document.getElementById("spanish")?.checked || false;
-        const t = translations[isSpanish ? 'es' : 'en'];
-        
-        fullscreenToolbar.innerHTML = `
-            <button id="rotated-First" class="toolbar-button" onclick="FirstClick(); return false;" title="${t.first}" aria-label="${t.first}">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
-                    <polygon points="19 20 9 12 19 4 19 20"/>
-                    <line x1="5" y1="19" x2="5" y2="5"/>
-                </svg>
-            </button>
-            <button id="rotated-Previous" class="toolbar-button" onclick="PreviousClick(); return false;" title="${t.previous}" aria-label="${t.previous}">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
-                    <polyline points="15 18 9 12 15 6"/>
-                </svg>
-            </button>
-            <button id="rotated-Random" class="toolbar-button" onclick="RandomClick(); return false;" title="${t.random}" aria-label="${t.random}">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
-                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"/>
-                    <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"/>
-                </svg>
-            </button>
-            <button id="rotated-Next" class="toolbar-button" onclick="NextClick(); return false;" title="${t.next}" aria-label="${t.next}">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
-                    <polyline points="9 18 15 12 9 6"/>
-                </svg>
-            </button>
-            <button id="rotated-Last" class="toolbar-button" onclick="LastClick(); return false;" title="${t.last}" aria-label="${t.last}">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="toolbar-svg">
-                    <polygon points="5 4 15 12 5 20 5 4"/>
-                    <line x1="19" y1="5" x2="19" y2="19"/>
-                </svg>
-            </button>
-        `;
+        // No toolbar in fullscreen mode - maximize screen space for comic
         
         // Add elements to page
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
-        document.body.appendChild(fullscreenToolbar);
         
-        // Add toolbar class based on rotation mode
-        if (applyRotation) {
-            fullscreenToolbar.classList.add('rotated');
-        } else {
-            fullscreenToolbar.classList.add('landscape-toolbar');
-        }
-        
-        // Show elements
+        // Show comic
         clonedComic.style.display = 'block';
-        fullscreenToolbar.style.display = 'flex';
-        
-        // Position toolbar and maximize image
-        positionFullscreenToolbar();
         
         // Add resize listeners
         window.addEventListener('resize', handleRotatedViewResize);
@@ -1135,11 +1114,6 @@ function Rotate(applyRotation = true) {
                 maximizeRotatedImage(clonedComic);
             };
         }
-        
-        // Prevent toolbar clicks from closing fullscreen
-        fullscreenToolbar.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
         
         // Add swipe support in rotated view
         overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -1219,27 +1193,6 @@ function maximizeRotatedImage(imgElement) {
 }
 
 /**
- * Positions the fullscreen toolbar
- */
-function positionFullscreenToolbar() {
-    const toolbar = document.getElementById('fullscreen-toolbar');
-    if (!toolbar) return;
-    
-    toolbar.style.position = 'fixed';
-    toolbar.style.zIndex = '10002';
-    
-    // Let CSS handle positioning via media queries
-    toolbar.style.left = '';
-    toolbar.style.bottom = '';
-    toolbar.style.top = '';
-    toolbar.style.transform = '';
-    toolbar.style.flexDirection = '';
-    toolbar.style.width = '';
-    toolbar.style.maxWidth = '';
-    toolbar.style.height = '';
-}
-
-/**
  * Handles resize and orientation changes in rotated view
  */
 function handleRotatedViewResize() {
@@ -1247,7 +1200,6 @@ function handleRotatedViewResize() {
     if (rotatedComic) {
         maximizeRotatedImage(rotatedComic);
     }
-    positionFullscreenToolbar();
 }
 
 // Expose Rotate function globally
@@ -1276,7 +1228,6 @@ window.addEventListener('orientationchange', function() {
             } else {
                 // Already in fullscreen - just reposition
                 maximizeRotatedImage(rotatedComic);
-                positionFullscreenToolbar();
             }
         } else {
             // Device rotated to portrait
