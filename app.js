@@ -1236,23 +1236,7 @@ function handleOrientationChange() {
     }, 300); // Delay to ensure orientation change completes
 }
 
-window.addEventListener('orientationchange', handleOrientationChange);
-
-// Add resize listener as fallback for devices that don't fire orientationchange
-let resizeTimer;
-let lastOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-
-window.addEventListener('resize', function() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        // Check if orientation actually changed
-        const currentOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-        if (lastOrientation !== currentOrientation) {
-            lastOrientation = currentOrientation;
-            handleOrientationChange();
-        }
-    }, 300);
-});
+// Orientation listeners moved to end of file after all functions are defined
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -2304,3 +2288,26 @@ if ('serviceWorker' in navigator) {
 
 window.requestNotificationPermission = requestNotificationPermission;
 window.setupNotifications = setupNotifications;
+
+// ========================================
+// ORIENTATION CHANGE LISTENERS
+// ========================================
+// Register at end of file to ensure all functions are defined
+
+window.addEventListener('orientationchange', handleOrientationChange);
+
+// Add resize listener as fallback for devices that don't fire orientationchange
+let resizeTimer;
+let lastOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        // Check if orientation actually changed
+        const currentOrientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+        if (lastOrientation !== currentOrientation) {
+            lastOrientation = currentOrientation;
+            handleOrientationChange();
+        }
+    }, 300);
+});
