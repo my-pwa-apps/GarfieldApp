@@ -1168,16 +1168,18 @@ function maximizeRotatedImage(imgElement) {
     const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
     const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
     
-    // Calculate scale to fit viewport
+    // Calculate scale to fit viewport - use full available space
     let scale;
     if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
+        // Width is the limiting factor
         scale = viewportWidth / rotatedWidth;
     } else {
+        // Height is the limiting factor
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Scale to 99.5% to maximize screen space while avoiding edge clipping
-    scale = scale * 0.995;
+    // Use 100% of calculated scale for maximum screen usage
+    // No reduction needed - the calculation already ensures it fits
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;

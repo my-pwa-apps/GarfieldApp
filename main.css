@@ -246,8 +246,8 @@ label {
     opacity: 0;
 }
 
-/* Rotation classes for fullscreen comic viewing */
-.rotate {
+/* Rotation classes for fullscreen comic viewing - DEPRECATED, see line 146 for actual .rotate styles */
+.rotate-old-unused {
     max-height: 95vh;
     max-width: 95vw;
     width: auto;
