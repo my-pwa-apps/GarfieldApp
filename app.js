@@ -304,10 +304,8 @@ function positionToolbarCentered(toolbar) {
     const toolbarWidth = toolbar.offsetWidth;
     const toolbarHeight = toolbar.offsetHeight;
     
-    // Center horizontally with responsive padding
-    const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
-    let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
-    left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
+    // Always center horizontally - simple calculation
+    const left = (window.innerWidth - toolbarWidth) / 2;
     
     // Position between logo and comic
     let top;
@@ -360,7 +358,7 @@ function initializeDraggableSettings() {
  * Clamp toolbar within viewport bounds on resize
  */
 function clampToolbarInView() {
-    const mainToolbar = document.getElementById('mainToolbar');
+    const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
     if (!mainToolbar) return;
     
     // Check if user has saved a custom position
@@ -377,11 +375,8 @@ function clampToolbarInView() {
     const rect = mainToolbar.getBoundingClientRect();
     let top = parseFloat(mainToolbar.style.top) || 0;
     
-    // Always center horizontally (toolbar can only move vertically)
-    const toolbarWidth = mainToolbar.offsetWidth;
-    const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
-    let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
-    left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
+    // Always center horizontally - simple calculation matching onMove
+    const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
     
     const maxTop = window.innerHeight - rect.height - 10;
     
@@ -400,9 +395,8 @@ function clampToolbarInView() {
     mainToolbar.style.top = top + 'px';
     
     if (changed) {
-        try {
-            localStorage.setItem('toolbarPosition', JSON.stringify({ top }));
-        } catch (_) {}
+        // Use storeToolbarPosition to preserve metadata
+        storeToolbarPosition(top, left, mainToolbar);
     }
 }
 
@@ -419,10 +413,7 @@ function initializeToolbar() {
     
     if (savedPos && typeof savedPos.top === 'number') {
         // Apply saved vertical position and calculate centered horizontal position
-        const toolbarWidth = mainToolbar.offsetWidth;
-        const horizontalPadding = window.innerWidth < 768 ? 10 : 20;
-        let left = Math.max(horizontalPadding, (window.innerWidth - toolbarWidth) / 2);
-        left = Math.min(left, window.innerWidth - toolbarWidth - horizontalPadding);
+        const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
         
         mainToolbar.style.top = savedPos.top + 'px';
         mainToolbar.style.left = left + 'px';
