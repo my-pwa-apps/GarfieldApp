@@ -100,6 +100,13 @@ let lastSwipeTime = 0; // Track last swipe to prevent click events
 let isRotating = false;
 let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
+function handleRotateExitKey(event) {
+    if (event.key === 'Escape' || event.key === 'Esc') {
+        event.preventDefault();
+        Rotate();
+    }
+}
+
 
 // ========================================
 // DRAGGABLE ELEMENT FUNCTIONALITY
@@ -1256,6 +1263,7 @@ function Rotate(applyRotation = true) {
                 storeToolbarPosition(newTop, newLeft, toolbar);
             }, 250);
             
+            window.removeEventListener('keydown', handleRotateExitKey);
             return;
         }
         
@@ -1294,6 +1302,17 @@ function Rotate(applyRotation = true) {
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
         
+        const exitButton = document.createElement('button');
+        exitButton.id = 'rotate-exit-button';
+        exitButton.type = 'button';
+        exitButton.setAttribute('aria-label', 'Exit fullscreen');
+        exitButton.innerHTML = '&times;';
+        exitButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            Rotate();
+        });
+        overlay.appendChild(exitButton);
+        
         // Show comic
         clonedComic.style.display = 'block';
         clonedComic.addEventListener('click', (event) => {
@@ -1321,11 +1340,12 @@ function Rotate(applyRotation = true) {
             handleTouchEnd(e);
             e.stopPropagation();
         }, { passive: true });
-        
-        // Click to exit fullscreen
-        overlay.addEventListener('click', function() {
-            Rotate();
+        overlay.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
         });
+        
+        window.addEventListener('keydown', handleRotateExitKey);
         
     } catch (error) {
         console.error('Error in Rotate():', error);
@@ -1360,16 +1380,21 @@ function maximizeRotatedImage(imgElement) {
     const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
     const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
     
-    // Calculate scale to fit viewport
+    // Calculate scale to fit viewport (Sunday strips may overflow horizontally to fill height)
     const widthRatio = viewportWidth / rotatedWidth;
     const heightRatio = viewportHeight / rotatedHeight;
-    let scale = Math.min(widthRatio, heightRatio);
+    let scale;
+    if (isRotatedMode && isWideOriginal) {
+        scale = heightRatio;
+    } else {
+        scale = Math.min(widthRatio, heightRatio);
+    }
     
     const isWideOriginal = naturalWidth >= naturalHeight * 1.1;
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
     let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1 : 0.985;
+        paddingFactor = isWideOriginal ? 1.005 : 0.985;
     } else if (isLandscapeMode) {
         paddingFactor = 0.95;
     }

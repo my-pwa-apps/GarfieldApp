@@ -294,6 +294,28 @@ label {
     z-index: 10000;
 }
 
+#rotate-exit-button {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 10002;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+#rotate-exit-button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
 /* Fullscreen toolbar styles */
 .fullscreen-toolbar {
     background: rgba(0, 0, 0, 0.85);
