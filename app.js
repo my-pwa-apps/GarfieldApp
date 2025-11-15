@@ -1922,13 +1922,8 @@ function formatDate(datetoFormat) {
 }
 
 // ========================================
-// LEGACY SWIPE EVENT HANDLERS
+// SETTINGS EVENT HANDLERS
 // ========================================
-// NOTE: These old swiped-events library handlers have been replaced by native
-// touch handlers (handleTouchStart, handleTouchMove, handleTouchEnd) defined earlier.
-// The new handlers provide better performance, rotation-aware swipe mapping,
-// and work seamlessly in both normal and rotated comic views.
-// The swiped-events.min.js library can be removed from index.html if desired.
 
 setStatus = document.getElementById('swipe');
 setStatus.onclick = function()
@@ -2217,95 +2212,51 @@ function exitFullsizeVertical(event) {
     container.removeEventListener('click', exitFullsizeVertical);
 }
 
-let getStatus = localStorage.getItem('stat');
-if (getStatus === null) {
-	// First time user - default to enabled
+// Initialize checkbox states from localStorage
+const swipeStatus = localStorage.getItem('stat');
+if (swipeStatus === null) {
 	document.getElementById("swipe").checked = true;
 	localStorage.setItem('stat', "true");
-} else if (getStatus == "true") {
-	document.getElementById("swipe").checked = true;
 } else {
-	document.getElementById("swipe").checked = false;
+	document.getElementById("swipe").checked = swipeStatus === "true";
 }
 
-getStatus = localStorage.getItem('showfavs');
-if (getStatus == "true") 
-{
-	document.getElementById("showfavs").checked = true;
-	// NOTE: Button now uses SVG icon only, no text label
-}
-else
-{
-	document.getElementById("showfavs").checked = false;
-	// NOTE: Button now uses SVG icon only, no text label
-}
+const showFavsStatus = localStorage.getItem('showfavs');
+document.getElementById("showfavs").checked = showFavsStatus === "true";
 
-getStatus = localStorage.getItem('lastdate');
-if (getStatus == "true")
-{
-	document.getElementById("lastdate").checked = true;
-}
-else
-{
-	document.getElementById("lastdate").checked = false;
-}	
+const lastDateStatus = localStorage.getItem('lastdate');
+document.getElementById("lastdate").checked = lastDateStatus === "true";	
 
-getStatus = localStorage.getItem('spanish');
+// Initialize Spanish language preference
+const spanishStatus = localStorage.getItem('spanish');
 const datePicker = document.getElementById('DatePicker');
+const userLang = navigator.language || navigator.userLanguage;
+const isSpanishLocale = userLang.startsWith('es');
 
-// Auto-detect Spanish language on first visit
-if (getStatus === null) {
-	// Check browser/OS language
-	const userLang = navigator.language || navigator.userLanguage;
-	const isSpanishLocale = userLang.startsWith('es');
-	
-	if (isSpanishLocale) {
-		document.getElementById("spanish").checked = true;
-		localStorage.setItem('spanish', "true");
-		translateInterface('es');
-		if (datePicker) datePicker.min = "1999-12-06";
+let useSpanish = false;
+if (spanishStatus === null) {
+	useSpanish = isSpanishLocale;
+	localStorage.setItem('spanish', useSpanish ? "true" : "false");
+} else {
+	useSpanish = spanishStatus === "true";
+}
+
+document.getElementById("spanish").checked = useSpanish;
+translateInterface(useSpanish ? 'es' : 'en');
+if (datePicker) datePicker.min = useSpanish ? "1999-12-06" : "1978-06-19";
+
+// Initialize notifications and settings panel
+const notificationsStatus = localStorage.getItem('notifications');
+document.getElementById("notifications").checked = notificationsStatus === "true";
+
+const settingsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
+const panel = document.getElementById("settingsDIV");
+if (panel) {
+	if (settingsStatus === "true") {
+		panel.classList.add('visible');
 	} else {
-		document.getElementById("spanish").checked = false;
-		localStorage.setItem('spanish', "false");
-		translateInterface('en');
-		if (datePicker) datePicker.min = "1978-06-19";
+		panel.classList.remove('visible');
 	}
-}
-else if (getStatus == "true")
-{
-	document.getElementById("spanish").checked = true;
-	translateInterface('es');
-	// Set date picker min to Spanish comics start date
-	if (datePicker) datePicker.min = "1999-12-06";
-}
-else
-{
-	document.getElementById("spanish").checked = false;
-	translateInterface('en');
-	// Set date picker min to English comics start date
-	if (datePicker) datePicker.min = "1978-06-19";
-}
-
-getStatus = localStorage.getItem('notifications');
-if (getStatus == "true")
-{
-	document.getElementById("notifications").checked = true;
-}
-else
-{
-	document.getElementById("notifications").checked = false;
-}
-
-getStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
-if (getStatus == "true")
-{
-	const panel = document.getElementById("settingsDIV");
-	if (panel) panel.classList.add('visible');
-}
-else
-{
-	const panel = document.getElementById("settingsDIV");
-	if (panel) panel.classList.remove('visible');
 }
 
 // Set up app install prompt

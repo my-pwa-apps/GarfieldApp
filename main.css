@@ -20,8 +20,9 @@ html {
 }
 
 body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: black;
     background: linear-gradient(#eee239, orange) no-repeat fixed;
-    background-size: 100% 100vh;
     background-color: orange;
     min-height: 100vh;
     margin: 0;
@@ -29,8 +30,6 @@ body {
     width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    color: black;
     box-sizing: border-box;
 }
 
@@ -45,11 +44,11 @@ main {
     margin: 5px;
     padding: 12px;
     text-align: center;
-    transition: all var(--transition-slow);
     background-size: 200% auto;
     color: black;
     border-radius: 10px;
     border: none;
+    transition: all var(--transition-slow);
     display: block;
     font-weight: 500;
     font-size: 0.85rem;
@@ -241,24 +240,7 @@ label {
     opacity: 0;
 }
 
-/* Rotation classes for fullscreen comic viewing - DEPRECATED, see line 146 for actual .rotate styles */
-.rotate-old-unused {
-    max-height: 95vh;
-    max-width: 95vw;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
-    border-radius: 4px;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
-    z-index: 10001;
-    cursor: pointer;
-    pointer-events: auto;
-}
+
 
 .fullscreen-landscape {
     max-height: 95vh;
@@ -630,22 +612,6 @@ input[type="date"]::-webkit-datetime-edit {
 /* ========================================
    DRAGGABLE TOOLBAR
    ======================================== */
-.rotate {
-    position: relative !important;
-    transform: rotate(90deg) !important;
-    transform-origin: center center !important;
-    width: auto !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    z-index: 10001 !important;
-    background: transparent !important;
-    display: block !important;
-    visibility: visible !important;
-    max-height: none !important;
-    max-width: none !important;
-    box-shadow: none !important;
-}
 
 .toolbar {
     position: fixed;

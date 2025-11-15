@@ -177,22 +177,14 @@ async function checkForNewComic() {
     const day = String(nowET.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
     
-    console.log(`Checking for new comic: ${todayStr} at ${nowET.toTimeString()}`);
-    
     // Check if already notified
     const lastNotifiedDate = await getLastNotifiedDate();
-    if (lastNotifiedDate === todayStr) {
-      console.log('Already notified for:', todayStr);
-      return;
-    }
+    if (lastNotifiedDate === todayStr) return;
     
     // Check if too early (before 12:05 AM ET)
     const etHour = nowET.getHours();
     const etMinute = nowET.getMinutes();
-    if (etHour === 0 && etMinute < 5) {
-      console.log('Too early for comic check (before 12:05 AM ET)');
-      return;
-    }
+    if (etHour === 0 && etMinute < 5) return;
     
     // Fetch today's comic - try direct first, then proxy
     const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
@@ -209,10 +201,9 @@ async function checkForNewComic() {
       
       if (directResponse.ok) {
         html = await directResponse.text();
-        console.log('✓ Direct fetch succeeded for notification check');
       }
     } catch (directError) {
-      console.log('Direct fetch failed, trying proxy for notification check...');
+      // Silent fallback
     }
     
     // Fallback to proxy if direct failed
@@ -225,10 +216,9 @@ async function checkForNewComic() {
         
         if (proxyResponse.ok) {
           html = await proxyResponse.text();
-          console.log('✓ Proxy fetch succeeded for notification check');
         }
       } catch (proxyError) {
-        console.warn('Both direct and proxy fetch failed:', proxyError);
+        // Silent fail
       }
     }
     
@@ -243,14 +233,9 @@ async function checkForNewComic() {
                      !html.includes('not yet available');
       
       if (hasComic && isValid) {
-        console.log('✓ New comic detected:', todayStr);
         await saveLastNotifiedDate(todayStr);
         await showNotification(todayStr);
-      } else {
-        console.log('Comic not yet available for:', todayStr);
       }
-    } else {
-      console.warn('Could not fetch comic page for notification check');
     }
   } catch (error) {
     console.error('Error checking for new comic:', error);

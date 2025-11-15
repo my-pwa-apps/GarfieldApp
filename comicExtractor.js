@@ -64,7 +64,6 @@ function updateProxyStats(proxyIndex, success, responseTime) {
  */
 async function tryProxy(url, proxyIndex, startTime) {
     const proxyUrl = CORS_PROXIES[proxyIndex];
-    const proxyName = proxyUrl.split('/')[2];
     
     try {
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
@@ -76,13 +75,11 @@ async function tryProxy(url, proxyIndex, startTime) {
         });
         
         if (!response.ok) {
-            console.warn(`✗ Proxy ${proxyIndex} (${proxyName}) HTTP ${response.status}`);
             updateProxyStats(proxyIndex, false, 0);
             throw new Error(`HTTP ${response.status}`);
         }
         
         const responseTime = Date.now() - startTime;
-        console.log(`✓ Proxy ${proxyIndex} (${proxyName}) succeeded in ${responseTime}ms`);
         updateProxyStats(proxyIndex, true, responseTime);
         
         return await response.text();
@@ -102,11 +99,8 @@ async function fetchWithProxyFallback(url) {
     const bestProxy = getBestProxyIndex();
     
     try {
-        // Try best proxy first
         return await tryProxy(url, bestProxy, startTime);
     } catch (firstError) {
-        console.log('Best proxy failed, trying others in parallel...');
-        
         // Race all other proxies in parallel
         const otherProxies = CORS_PROXIES.map((_, i) => i).filter(i => i !== bestProxy);
         const promises = otherProxies.map(i => tryProxy(url, i, Date.now()));
@@ -134,8 +128,6 @@ export async function getAuthenticatedComic(date, language = 'en') {
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
     
     try {
-        console.log(`Fetching comic: ${url}`);
-        
         // Try direct fetch first
         try {
             const directResponse = await fetch(url, {
@@ -150,12 +142,11 @@ export async function getAuthenticatedComic(date, language = 'en') {
                 const imageUrl = extractImageFromHTML(html);
                 
                 if (imageUrl) {
-                    console.log(`✓ Direct fetch succeeded`);
                     return { success: true, imageUrl };
                 }
             }
         } catch (directError) {
-            console.log(`Direct fetch failed, trying proxies...`);
+            // Silent fallback to proxies
         }
         
         // Fallback to proxy
@@ -196,33 +187,22 @@ export async function getAuthenticatedComic(date, language = 'en') {
 function extractImageFromHTML(html) {
     // Try featureassets CDN (current)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
-    if (match) {
-        console.log(`✓ Extracted from featureassets CDN`);
-        return match[0];
-    }
+    if (match) return match[0];
     
     // Try amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
-    if (match) {
-        console.log(`✓ Extracted from amuniversal CDN`);
-        return match[0];
-    }
+    if (match) return match[0];
     
     // Try og:image meta tag
     match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
     if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
-        console.log(`✓ Extracted from og:image`);
         return match[1];
     }
     
     // Fallback to picture tag
     match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-    if (match && match[1]) {
-        console.log(`✓ Extracted from picture tag`);
-        return match[1];
-    }
+    if (match && match[1]) return match[1];
     
-    console.warn(`✗ No comic image found`);
     return null;
 }
 
