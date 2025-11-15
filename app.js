@@ -1085,7 +1085,7 @@ function Rotate(applyRotation = true) {
             // Restore toolbar position after layout settles
             setTimeout(() => {
                 if (mainToolbar) {
-                    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+                    const savedPosRaw = localStorage.getItem('toolbarPosition');
                     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
                     
                     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
@@ -1203,6 +1203,7 @@ function maximizeRotatedImage(imgElement) {
     // Make the image slightly smaller (90% of the calculated size) for breathing room
     scale = scale * 0.9;
     
+    // Set dimensions
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
     imgElement.style.position = 'fixed';
@@ -1212,11 +1213,14 @@ function maximizeRotatedImage(imgElement) {
         imgElement.style.left = '50%';
         imgElement.style.transformOrigin = 'center center';
     } else if (isRotatedMode) {
-        // In rotated mode, let CSS handle positioning completely
-        // Don't set top/left inline to avoid conflicts with CSS transform
+        // In rotated mode, let CSS handle positioning completely via transform
+        // Clear inline positioning to avoid conflicts
         imgElement.style.top = '';
         imgElement.style.left = '';
         imgElement.style.transformOrigin = '';
+        // Clear max constraints set by CSS to use calculated dimensions
+        imgElement.style.maxWidth = 'none';
+        imgElement.style.maxHeight = 'none';
     }
     
     imgElement.style.maxWidth = 'none';
