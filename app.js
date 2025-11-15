@@ -786,6 +786,11 @@ function Addfav() {
     
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     
+    // Ensure favs is always an array
+    if (!Array.isArray(favs)) {
+        favs = [];
+    }
+    
     const heartBtn = document.getElementById("favheart");
     const heartSvg = heartBtn?.querySelector('svg path');
     const showFavsCheckbox = document.getElementById("showfavs");
