@@ -1059,13 +1059,7 @@ function Rotate(applyRotation = true) {
                 document.body.removeChild(fullscreenToolbar);
             }
             
-            // Hide toolbar temporarily to prevent flash during repositioning
-            const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-            if (mainToolbar) {
-                mainToolbar.style.visibility = 'hidden';
-            }
-            
-            // Restore all hidden elements
+            // Restore all hidden elements first
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
                 el.style.display = el.dataset.originalDisplay || '';
@@ -1083,9 +1077,13 @@ function Rotate(applyRotation = true) {
             isRotating = false;
             
             // Restore toolbar position after layout settles
-            // Use longer delay and force reflow to ensure DOM is fully updated
+            // Query toolbar inside setTimeout to ensure DOM is updated
             setTimeout(() => {
+                const mainToolbar = document.getElementById('mainToolbar');
                 if (mainToolbar) {
+                    // Hide during reposition
+                    mainToolbar.style.visibility = 'hidden';
+                    
                     // Force reflow to ensure layout is settled
                     void mainToolbar.offsetHeight;
                     
