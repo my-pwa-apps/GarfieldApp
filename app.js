@@ -1132,9 +1132,18 @@ function Rotate(applyRotation = true) {
             // Restore all hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
-                el.style.display = el.dataset.originalDisplay || '';
+                el.style.removeProperty('display');
+                const inlineDisplay = el.dataset.originalDisplayInline;
+                const inlinePriority = el.dataset.originalDisplayPriority || '';
+                if (inlineDisplay) {
+                    el.style.setProperty('display', inlineDisplay, inlinePriority);
+                } else if (el.dataset.originalDisplay && el.dataset.originalDisplay !== 'none') {
+                    el.style.setProperty('display', el.dataset.originalDisplay);
+                }
                 delete el.dataset.wasHidden;
                 delete el.dataset.originalDisplay;
+                delete el.dataset.originalDisplayInline;
+                delete el.dataset.originalDisplayPriority;
             });
             
             element.className = element.className.replace(/\s*(rotate|fullscreen-landscape)/g, '');
@@ -1263,6 +1272,8 @@ function Rotate(applyRotation = true) {
         const elementsToHide = document.querySelectorAll('body > *');
         elementsToHide.forEach(el => {
             el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.originalDisplayInline = el.style.getPropertyValue('display') || '';
+            el.dataset.originalDisplayPriority = el.style.getPropertyPriority('display') || '';
             el.dataset.wasHidden = "true";
             el.style.setProperty('display', 'none', 'important');
         });
@@ -1365,7 +1376,7 @@ function maximizeRotatedImage(imgElement) {
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
     let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1.015 : 0.99;
+        paddingFactor = isWideOriginal ? 1.05 : 0.995;
     } else if (isLandscapeMode) {
         paddingFactor = 0.95;
     }
