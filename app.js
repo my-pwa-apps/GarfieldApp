@@ -105,6 +105,56 @@ let isRotatedMode = false;
  * @param {HTMLElement} dragHandle - Element that triggers dragging (usually header)
  * @param {string} storageKey - localStorage key for saving position
  */
+/**
+ * Store toolbar position with relational metadata
+ * @param {number} top - Top position in pixels
+ * @param {number} left - Left position in pixels
+ * @param {HTMLElement} toolbar - The toolbar element
+ */
+function storeToolbarPosition(top, left, toolbar) {
+    const comic = document.getElementById('comic-container') || document.getElementById('comic');
+    const settingsPanel = document.getElementById('settingsDIV');
+    
+    const positionData = { top, left };
+    
+    if (comic) {
+        const comicRect = comic.getBoundingClientRect();
+        const toolbarBottom = top + toolbar.offsetHeight;
+        const comicTop = comicRect.top;
+        
+        // Check if toolbar is below comic
+        positionData.belowComic = toolbarBottom > comicTop + 10 && top > comicTop;
+        
+        // Calculate offset from comic
+        if (positionData.belowComic) {
+            positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
+        } else {
+            positionData.offsetFromComic = Math.max(15, comicRect.top - toolbarBottom);
+        }
+    }
+    
+    // Check settings panel if visible
+    if (settingsPanel && settingsPanel.classList.contains('visible')) {
+        const settingsRect = settingsPanel.getBoundingClientRect();
+        const toolbarBottom = top + toolbar.offsetHeight;
+        const settingsTop = settingsRect.top;
+        
+        positionData.belowSettings = toolbarBottom > settingsTop + 10 && top > settingsTop;
+        
+        if (positionData.belowSettings) {
+            positionData.offsetFromSettings = Math.max(15, top - settingsRect.bottom);
+        } else {
+            positionData.offsetFromSettings = Math.max(15, settingsTop - toolbarBottom);
+        }
+    }
+    
+    try {
+        localStorage.setItem('toolbarPosition', JSON.stringify(positionData));
+    } catch (e) {
+        console.error('Failed to save toolbar position:', e);
+    }
+}
+
 function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
@@ -213,10 +263,8 @@ function makeDraggable(element, dragHandle, storageKey) {
                 }
             }
             
-            // For toolbar, only save vertical position (always centered horizontally)
-            try {
-                localStorage.setItem(storageKey, JSON.stringify({ top: numericTop }));
-            } catch (_) {}
+            // For toolbar, save position with metadata
+            storeToolbarPosition(numericTop, numericLeft, element);
         } else {
             // For other elements (like settings panel), save both positions
             try {
