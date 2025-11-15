@@ -123,41 +123,63 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const saved = UTILS.safeJSONParse(savedRaw, {});
     
     const positionData = { ...saved, top, left };
-    
-    const applyOverride = (key, value) => {
-        if (value === undefined) return;
-        if (value === null) {
+    const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
+    const applyOverride = (key) => {
+        if (!hasOverride(key)) return false;
+        const value = overrides[key];
+        if (value === null || value === undefined) {
             delete positionData[key];
         } else {
             positionData[key] = value;
         }
+        return true;
     };
     
-    applyOverride('belowComic', overrides.belowComic);
-    applyOverride('offsetFromComic', overrides.offsetFromComic ?? (overrides.belowComic === false ? null : undefined));
-    applyOverride('belowSettings', overrides.belowSettings);
-    applyOverride('offsetFromSettings', overrides.offsetFromSettings ?? (overrides.belowSettings === false ? null : undefined));
+    const belowComicOverridden = applyOverride('belowComic');
+    const offsetComicOverridden = applyOverride('offsetFromComic');
+    const belowSettingsOverridden = applyOverride('belowSettings');
+    const offsetSettingsOverridden = applyOverride('offsetFromSettings');
     
     const comicElement = getPrimaryComicElement();
-    if (comicElement && !('belowComic' in positionData)) {
+    if (comicElement && !belowComicOverridden) {
         const comicRect = comicElement.getBoundingClientRect();
         const belowComic = top > comicRect.bottom;
         positionData.belowComic = belowComic;
-        if (belowComic && !('offsetFromComic' in positionData)) {
-            positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
-        } else if (!belowComic) {
+        if (!offsetComicOverridden) {
+            if (belowComic) {
+                positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
+            } else {
+                delete positionData.offsetFromComic;
+            }
+        }
+    } else if (!belowComicOverridden && !comicElement) {
+        delete positionData.belowComic;
+        if (!offsetComicOverridden) {
             delete positionData.offsetFromComic;
         }
+    } else if (belowComicOverridden && !offsetComicOverridden && positionData.belowComic === false) {
+        delete positionData.offsetFromComic;
     }
     
     const settingsPanel = document.getElementById('settingsDIV');
-    if (settingsPanel && settingsPanel.classList.contains('visible') && !('belowSettings' in positionData)) {
+    if (settingsPanel && settingsPanel.classList.contains('visible')) {
         const settingsRect = settingsPanel.getBoundingClientRect();
-        const belowSettings = top > settingsRect.bottom + 5;
-        positionData.belowSettings = belowSettings;
-        if (belowSettings && !('offsetFromSettings' in positionData)) {
-            positionData.offsetFromSettings = Math.max(15, top - settingsRect.bottom);
-        } else if (!belowSettings) {
+        if (!belowSettingsOverridden) {
+            const belowSettings = top > settingsRect.bottom + 5;
+            positionData.belowSettings = belowSettings;
+            if (!offsetSettingsOverridden) {
+                if (belowSettings) {
+                    positionData.offsetFromSettings = Math.max(15, top - settingsRect.bottom);
+                } else {
+                    delete positionData.offsetFromSettings;
+                }
+            }
+        } else if (!offsetSettingsOverridden && positionData.belowSettings === false) {
+            delete positionData.offsetFromSettings;
+        }
+    } else if (!belowSettingsOverridden) {
+        delete positionData.belowSettings;
+        if (!offsetSettingsOverridden) {
             delete positionData.offsetFromSettings;
         }
     }
