@@ -106,53 +106,60 @@ let isRotatedMode = false;
  * @param {string} storageKey - localStorage key for saving position
  */
 /**
- * Store toolbar position with relational metadata
- * @param {number} top - Top position in pixels
- * @param {number} left - Left position in pixels
- * @param {HTMLElement} toolbar - The toolbar element
+ * Persist the main toolbar position together with relative metadata (DirkJan pattern)
+ * @param {number} top - Toolbar top position in px
+ * @param {number} left - Toolbar left position in px
+ * @param {HTMLElement} toolbarEl - Optional toolbar element reference
+ * @param {Object} overrides - Optional overrides for metadata
  */
-function storeToolbarPosition(top, left, toolbar) {
-    const comic = document.getElementById('comic-container') || document.getElementById('comic');
-    const settingsPanel = document.getElementById('settingsDIV');
+function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
+    const toolbar = toolbarEl || document.querySelector('.toolbar:not(.fullscreen-toolbar)');
+    const savedRaw = localStorage.getItem('toolbarPosition');
+    const saved = UTILS.safeJSONParse(savedRaw, {});
     
-    const positionData = { top, left };
+    const positionData = { ...saved, top, left };
     
-    if (comic) {
-        const comicRect = comic.getBoundingClientRect();
-        const toolbarBottom = top + toolbar.offsetHeight;
-        const comicTop = comicRect.top;
-        
-        // Check if toolbar is below comic
-        positionData.belowComic = toolbarBottom > comicTop + 10 && top > comicTop;
-        
-        // Calculate offset from comic
-        if (positionData.belowComic) {
-            positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
+    const applyOverride = (key, value) => {
+        if (value === undefined) return;
+        if (value === null) {
+            delete positionData[key];
         } else {
-            positionData.offsetFromComic = Math.max(15, comicRect.top - toolbarBottom);
+            positionData[key] = value;
+        }
+    };
+    
+    applyOverride('belowComic', overrides.belowComic);
+    applyOverride('offsetFromComic', overrides.offsetFromComic ?? (overrides.belowComic === false ? null : undefined));
+    applyOverride('belowSettings', overrides.belowSettings);
+    applyOverride('offsetFromSettings', overrides.offsetFromSettings ?? (overrides.belowSettings === false ? null : undefined));
+    
+    const comic = document.getElementById('comic');
+    if (comic && !('belowComic' in positionData)) {
+        const comicRect = comic.getBoundingClientRect();
+        const belowComic = top > comicRect.bottom;
+        positionData.belowComic = belowComic;
+        if (belowComic && !('offsetFromComic' in positionData)) {
+            positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
+        } else if (!belowComic) {
+            delete positionData.offsetFromComic;
         }
     }
     
-    // Check settings panel if visible
-    if (settingsPanel && settingsPanel.classList.contains('visible')) {
+    const settingsPanel = document.getElementById('settingsDIV');
+    if (settingsPanel && settingsPanel.classList.contains('visible') && !('belowSettings' in positionData)) {
         const settingsRect = settingsPanel.getBoundingClientRect();
-        const toolbarBottom = top + toolbar.offsetHeight;
-        const settingsTop = settingsRect.top;
-        
-        positionData.belowSettings = toolbarBottom > settingsTop + 10 && top > settingsTop;
-        
-        if (positionData.belowSettings) {
+        const belowSettings = top > settingsRect.bottom + 5;
+        positionData.belowSettings = belowSettings;
+        if (belowSettings && !('offsetFromSettings' in positionData)) {
             positionData.offsetFromSettings = Math.max(15, top - settingsRect.bottom);
-        } else {
-            positionData.offsetFromSettings = Math.max(15, settingsTop - toolbarBottom);
+        } else if (!belowSettings) {
+            delete positionData.offsetFromSettings;
         }
     }
     
     try {
         localStorage.setItem('toolbarPosition', JSON.stringify(positionData));
-    } catch (e) {
-        console.error('Failed to save toolbar position:', e);
-    }
+    } catch (_) {}
 }
 
 function makeDraggable(element, dragHandle, storageKey) {
