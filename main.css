@@ -149,9 +149,6 @@ input {
     left: 50% !important;
     transform: translate(-50%, -50%) rotate(90deg) !important;
     transform-origin: center center !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
     margin: 0 !important;
     padding: 0 !important;
     z-index: 10000 !important;
