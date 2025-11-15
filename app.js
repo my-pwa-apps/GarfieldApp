@@ -80,6 +80,10 @@ const UTILS = {
     }
 };
 
+function getPrimaryComicElement() {
+    return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
+}
+
 // ========================================
 // TOUCH & SWIPE TRACKING VARIABLES
 // ========================================
@@ -134,9 +138,9 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     applyOverride('belowSettings', overrides.belowSettings);
     applyOverride('offsetFromSettings', overrides.offsetFromSettings ?? (overrides.belowSettings === false ? null : undefined));
     
-    const comic = document.getElementById('comic-container') || document.getElementById('comic');
-    if (comic && !('belowComic' in positionData)) {
-        const comicRect = comic.getBoundingClientRect();
+    const comicElement = getPrimaryComicElement();
+    if (comicElement && !('belowComic' in positionData)) {
+        const comicRect = comicElement.getBoundingClientRect();
         const belowComic = top > comicRect.bottom;
         positionData.belowComic = belowComic;
         if (belowComic && !('offsetFromComic' in positionData)) {
@@ -241,7 +245,7 @@ function makeDraggable(element, dragHandle, storageKey) {
         // Special handling for toolbar: detect if it's in the default zone (between logo and comic)
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             const logo = document.querySelector('.logo');
-            const comic = document.getElementById('comic-container');
+            const comic = getPrimaryComicElement();
             
             if (logo && comic) {
                 const logoRect = logo.getBoundingClientRect();
@@ -292,7 +296,7 @@ function positionToolbarCentered(toolbar, savePosition = false) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
     
     const logo = document.querySelector('.logo');
-    const comic = document.getElementById('comic-container');
+    const comic = getPrimaryComicElement();
     
     if (!logo) return;
     
@@ -1154,7 +1158,7 @@ function Rotate(applyRotation = true) {
             // Restore toolbar position from localStorage after layout changes
             setTimeout(() => {
                 const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-                const comicElement = document.getElementById('comic-container') || document.getElementById('comic');
+                const comicElement = getPrimaryComicElement();
                 if (toolbar && comicElement) {
                     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
                     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
