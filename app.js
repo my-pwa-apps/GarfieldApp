@@ -779,6 +779,11 @@ window.Share = Share;
  */
 function Addfav() {
     // Use formattedComicDate which is in YYYY/MM/DD format (consistent with rest of app)
+    if (!formattedComicDate) {
+        console.error('formattedComicDate is not set');
+        return;
+    }
+    
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     
     const heartBtn = document.getElementById("favheart");
@@ -1269,6 +1274,10 @@ async function loadComic(date, silentMode = false) {
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) {
                 rotatedComic.src = result.imageUrl;
+                // Recalculate sizing when new image loads (handles Sunday vs weekday differences)
+                rotatedComic.onload = function() {
+                    maximizeRotatedImage(rotatedComic);
+                };
             }
             
             // Store for sharing
