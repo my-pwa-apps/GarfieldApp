@@ -100,6 +100,7 @@ let lastSwipeTime = 0; // Track last swipe to prevent click events
 let isRotating = false;
 let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
+let wasSettingsPanelVisible = false;
 
 
 // ========================================
@@ -1145,6 +1146,18 @@ function Rotate(applyRotation = true) {
             isRotatedMode = false;
             isRotating = false;
             
+            const settingsPanel = document.getElementById('settingsDIV');
+            if (settingsPanel) {
+                if (wasSettingsPanelVisible) {
+                    settingsPanel.classList.add('visible');
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
+                } else {
+                    settingsPanel.classList.remove('visible');
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+                }
+            }
+            wasSettingsPanelVisible = false;
+            
             // Restore toolbar position from localStorage after layout changes
             setTimeout(() => {
                 isToolbarPersistenceSuspended = false;
@@ -1235,6 +1248,17 @@ function Rotate(applyRotation = true) {
             themeColorMeta.content = '#1a1a1a'; // Dark to blend with overlay
         }
         
+        const settingsPanel = document.getElementById('settingsDIV');
+        if (settingsPanel) {
+            wasSettingsPanelVisible = settingsPanel.classList.contains('visible');
+            if (wasSettingsPanelVisible) {
+                settingsPanel.classList.remove('visible');
+                localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+            }
+        } else {
+            wasSettingsPanelVisible = false;
+        }
+        
         // Hide all page elements
         const elementsToHide = document.querySelectorAll('body > *');
         elementsToHide.forEach(el => {
@@ -1252,6 +1276,10 @@ function Rotate(applyRotation = true) {
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
         clonedComic.style.display = 'block';
+        clonedComic.style.maxHeight = 'none';
+        clonedComic.style.maxWidth = 'none';
+        clonedComic.style.width = 'auto';
+        clonedComic.style.height = 'auto';
         
         // No toolbar in fullscreen mode - maximize screen space for comic
         
@@ -1346,15 +1374,14 @@ function maximizeRotatedImage(imgElement) {
     // Set dimensions
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
-    imgElement.style.position = 'fixed';
     
     if (isLandscapeMode) {
+        imgElement.style.position = 'fixed';
         imgElement.style.top = '50%';
         imgElement.style.left = '50%';
         imgElement.style.transformOrigin = 'center center';
     } else if (isRotatedMode) {
-        // In rotated mode, let CSS handle positioning completely via transform
-        // Clear inline positioning to avoid conflicts
+        imgElement.style.position = 'relative';
         imgElement.style.top = '';
         imgElement.style.left = '';
         imgElement.style.transformOrigin = '';
