@@ -100,12 +100,6 @@ let lastSwipeTime = 0; // Track last swipe to prevent click events
 let isRotating = false;
 let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
-function handleRotateExitKey(event) {
-    if (event.key === 'Escape' || event.key === 'Esc') {
-        event.preventDefault();
-        Rotate();
-    }
-}
 
 
 // ========================================
@@ -1045,29 +1039,14 @@ function handleTouchEnd(e) {
     
     // Determine swipe direction based on mode
     if (isInRotatedMode) {
-        // Rotated mode (90° clockwise): Swipe gestures follow the rotation
-        // Physical up/down becomes logical left/right, physical left/right becomes logical up/down
+        // Rotated mode (90° clockwise): Only support logical left/right navigation
         if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Vertical swipe (becomes horizontal navigation due to rotation)
             swipeDetected = true;
             lastSwipeTime = Date.now();
             if (deltaY < 0) {
-                // Swipe Up -> visually moves right -> Next
                 NextClick();
             } else {
-                // Swipe Down -> visually moves left -> Previous
                 PreviousClick();
-            }
-        } else if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Horizontal swipe (becomes vertical navigation due to rotation)
-            swipeDetected = true;
-            lastSwipeTime = Date.now();
-            if (deltaX < 0) {
-                // Swipe Left -> visually moves down -> Random
-                RandomClick();
-            } else {
-                // Swipe Right -> visually moves up -> Last
-                LastClick();
             }
         }
     } else if (isInLandscapeMode) {
@@ -1083,20 +1062,9 @@ function handleTouchEnd(e) {
                 // Swipe Right -> Previous
                 PreviousClick();
             }
-        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Vertical swipe
-            swipeDetected = true;
-            lastSwipeTime = Date.now();
-            if (deltaY < 0) {
-                // Swipe Up -> Last
-                LastClick();
-            } else {
-                // Swipe Down -> Random
-                RandomClick();
-            }
         }
     } else {
-        // Normal portrait mode: Horizontal for Next/Prev, Vertical for Random/Last
+        // Normal portrait mode: Horizontal only for Next/Prev
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             // Horizontal swipe
             swipeDetected = true;
@@ -1107,17 +1075,6 @@ function handleTouchEnd(e) {
             } else {
                 // Swipe left -> Next
                 NextClick();
-            }
-        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Vertical swipe
-            swipeDetected = true;
-            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
-            if (deltaY > 0) {
-                // Swipe down -> Random
-                RandomClick();
-            } else {
-                // Swipe up -> Last
-                LastClick();
             }
         }
     }
@@ -1302,17 +1259,6 @@ function Rotate(applyRotation = true) {
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
         
-        const exitButton = document.createElement('button');
-        exitButton.id = 'rotate-exit-button';
-        exitButton.type = 'button';
-        exitButton.setAttribute('aria-label', 'Exit fullscreen');
-        exitButton.innerHTML = '&times;';
-        exitButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            Rotate();
-        });
-        overlay.appendChild(exitButton);
-        
         // Show comic
         clonedComic.style.display = 'block';
         clonedComic.addEventListener('click', (event) => {
@@ -1344,8 +1290,6 @@ function Rotate(applyRotation = true) {
             event.preventDefault();
             event.stopPropagation();
         });
-        
-        window.addEventListener('keydown', handleRotateExitKey);
         
     } catch (error) {
         console.error('Error in Rotate():', error);
@@ -1390,11 +1334,10 @@ function maximizeRotatedImage(imgElement) {
         scale = Math.min(widthRatio, heightRatio);
     }
     
-    const isWideOriginal = naturalWidth >= naturalHeight * 1.1;
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
     let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1.005 : 0.985;
+        paddingFactor = isWideOriginal ? 1.015 : 0.99;
     } else if (isLandscapeMode) {
         paddingFactor = 0.95;
     }
