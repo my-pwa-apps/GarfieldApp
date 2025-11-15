@@ -1356,6 +1356,8 @@ function maximizeRotatedImage(imgElement) {
         return;
     }
     
+    const isWideOriginal = naturalWidth >= naturalHeight;
+    
     const isLandscapeMode = imgElement.className.includes('fullscreen-landscape');
     const isRotatedMode = imgElement.className.includes('rotate');
     
