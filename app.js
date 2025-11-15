@@ -1176,8 +1176,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Scale to 98% for Sunday comics to use more screen space in rotated mode
-    scale = scale * 0.98;
+    // Scale to 99.5% to maximize screen space while avoiding edge clipping
+    scale = scale * 0.995;
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
