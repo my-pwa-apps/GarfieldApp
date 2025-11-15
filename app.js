@@ -1361,22 +1361,17 @@ function maximizeRotatedImage(imgElement) {
     const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
     
     // Calculate scale to fit viewport
-    let scale;
-    if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
-        // Width is the limiting factor
-        scale = viewportWidth / rotatedWidth;
-    } else {
-        // Height is the limiting factor
-        scale = viewportHeight / rotatedHeight;
-    }
+    const widthRatio = viewportWidth / rotatedWidth;
+    const heightRatio = viewportHeight / rotatedHeight;
+    let scale = Math.min(widthRatio, heightRatio);
     
     const isWideOriginal = naturalWidth >= naturalHeight * 1.1;
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
-    let paddingFactor;
+    let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 0.995 : 0.98;
-    } else {
-        paddingFactor = 0.9;
+        paddingFactor = isWideOriginal ? 1 : 0.985;
+    } else if (isLandscapeMode) {
+        paddingFactor = 0.95;
     }
     scale = scale * paddingFactor;
     
