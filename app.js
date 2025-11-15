@@ -1172,9 +1172,37 @@ function Rotate(applyRotation = true) {
                 const settingsPanel = document.getElementById('settingsDIV');
                 const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
                 const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+                const comicElement = getPrimaryComicElement();
+                const comicRect = comicElement ? comicElement.getBoundingClientRect() : null;
+                const logo = document.querySelector('.logo');
+                const logoRect = logo ? logo.getBoundingClientRect() : null;
                 
                 let newTop = savedPos.top;
                 let newLeft = savedPos.left;
+                
+                if (comicRect) {
+                    const wantsBelowComic = savedPos.belowComic === true ||
+                        (savedPos.offsetFromComic !== undefined && savedPos.offsetFromComic !== null) ||
+                        savedPos.top >= comicRect.bottom;
+                    
+                    if (wantsBelowComic) {
+                        const storedGap = Number.isFinite(savedPos.offsetFromComic) ? savedPos.offsetFromComic : Math.max(15, savedPos.top - comicRect.bottom);
+                        newTop = comicRect.bottom + Math.max(15, storedGap);
+                    } else if (logoRect) {
+                        const overlapsComic = (newTop + toolbarHeight > comicRect.top) && (newTop < comicRect.bottom);
+                        
+                        if (overlapsComic) {
+                            const availableSpace = Math.max(0, comicRect.top - logoRect.bottom);
+                            newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+                        } else {
+                            const stillBetween = newTop > logoRect.bottom && (newTop + toolbarHeight) < comicRect.top;
+                            if (!stillBetween) {
+                                const availableSpace = Math.max(0, comicRect.top - logoRect.bottom);
+                                newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+                            }
+                        }
+                    }
+                }
                 
                 if (settingsPanel && settingsPanel.classList.contains('visible')) {
                     const settingsRect = settingsPanel.getBoundingClientRect();
