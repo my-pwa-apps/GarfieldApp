@@ -1479,7 +1479,7 @@ async function showComic(skipOnFailure = false, direction = null) {
     updateDateDisplay();
     
     // Check if date is in favorites
-    var favs = JSON.parse(localStorage.getItem('favs'));
+    var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     const heartBtn = document.getElementById("favheart");
     const heartSvg = heartBtn?.querySelector('svg path');
     if(favs && favs.indexOf(formattedComicDate) !== -1) {
@@ -1535,7 +1535,7 @@ async function showComic(skipOnFailure = false, direction = null) {
             const retrySuccess = await loadComic(currentselectedDate, true);
             if (retrySuccess) {
                 // Update favorites heart status for the new date
-                var favs = JSON.parse(localStorage.getItem('favs'));
+                var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
                 const heartBtn = document.getElementById("favheart");
                 const heartSvg = heartBtn?.querySelector('svg path');
                 if(favs && favs.indexOf(formattedComicDate) !== -1) {
