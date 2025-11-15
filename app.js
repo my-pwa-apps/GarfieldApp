@@ -1059,6 +1059,12 @@ function Rotate(applyRotation = true) {
                 document.body.removeChild(fullscreenToolbar);
             }
             
+            // Hide toolbar temporarily to prevent flash during repositioning
+            const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
+            if (mainToolbar) {
+                mainToolbar.style.visibility = 'hidden';
+            }
+            
             // Restore all hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
@@ -1075,6 +1081,22 @@ function Rotate(applyRotation = true) {
             
             isRotatedMode = false;
             isRotating = false;
+            
+            // Restore toolbar position after layout settles
+            setTimeout(() => {
+                if (mainToolbar) {
+                    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+                    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+                    
+                    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+                        mainToolbar.style.top = savedPos.top + 'px';
+                        mainToolbar.style.left = savedPos.left + 'px';
+                        mainToolbar.style.transform = 'none';
+                    }
+                    
+                    mainToolbar.style.visibility = 'visible';
+                }
+            }, 250);
             
             return;
         }
@@ -1168,7 +1190,7 @@ function maximizeRotatedImage(imgElement) {
     const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
     const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
     
-    // Calculate scale to fit viewport - use full available space
+    // Calculate scale to fit viewport
     let scale;
     if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
         // Width is the limiting factor
@@ -1178,8 +1200,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Scale to 99% to prevent any edge overflow while maximizing screen usage
-    scale = scale * 0.99;
+    // Make the image slightly smaller (90% of the calculated size) for breathing room
+    scale = scale * 0.9;
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
@@ -1190,10 +1212,11 @@ function maximizeRotatedImage(imgElement) {
         imgElement.style.left = '50%';
         imgElement.style.transformOrigin = 'center center';
     } else if (isRotatedMode) {
-        // Keep centering for rotated mode (especially important for tall Sunday comics)
-        imgElement.style.top = '50%';
-        imgElement.style.left = '50%';
-        imgElement.style.transformOrigin = 'center center';
+        // In rotated mode, let CSS handle positioning completely
+        // Don't set top/left inline to avoid conflicts with CSS transform
+        imgElement.style.top = '';
+        imgElement.style.left = '';
+        imgElement.style.transformOrigin = '';
     }
     
     imgElement.style.maxWidth = 'none';
