@@ -1178,8 +1178,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Use 100% of calculated scale for maximum screen usage
-    // No reduction needed - the calculation already ensures it fits
+    // Scale to 99% to prevent any edge overflow while maximizing screen usage
+    scale = scale * 0.99;
     
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
