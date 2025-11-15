@@ -1370,9 +1370,9 @@ function maximizeRotatedImage(imgElement) {
     const heightRatio = viewportHeight / rotatedHeight;
     let scale;
     if (isRotatedMode && isWideOriginal) {
-        // For wide Sunday strips in rotated mode, scale physical height to viewport height
-        // Since rotation is 90deg, physical height becomes visual width after rotation
-        scale = viewportHeight / naturalHeight;
+        // For wide Sunday strips in rotated mode, the naturalWidth becomes the visual height after 90deg rotation
+        // Scale to fill viewport height completely
+        scale = viewportHeight / naturalWidth;
     } else if (isRotatedMode) {
         scale = Math.min(widthRatio, heightRatio);
     } else {
@@ -1382,7 +1382,7 @@ function maximizeRotatedImage(imgElement) {
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
     let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1.02 : 0.995;
+        paddingFactor = isWideOriginal ? 1.0 : 0.995;
     } else if (isLandscapeMode) {
         paddingFactor = 0.95;
     }
