@@ -99,6 +99,7 @@ let lastSwipeTime = 0; // Track last swipe to prevent click events
 // Rotation state tracking
 let isRotating = false;
 let isRotatedMode = false;
+let isToolbarPersistenceSuspended = false;
 
 // ========================================
 // DRAGGABLE ELEMENT FUNCTIONALITY
@@ -121,9 +122,11 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const toolbar = toolbarEl || document.querySelector('.toolbar:not(.fullscreen-toolbar)');
     const savedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const saved = UTILS.safeJSONParse(savedRaw, {});
+    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
+    const hasGeometry = toolbarRect && toolbarRect.height > 0 && !Number.isNaN(toolbarRect.top);
+    const metadataLocked = isToolbarPersistenceSuspended || !hasGeometry;
     
     const positionData = { ...saved, top, left };
-    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
     const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
     const applyOverride = (key) => {
         if (!hasOverride(key)) return false;
@@ -135,6 +138,13 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
         }
         return true;
     };
+    
+    if (metadataLocked) {
+        try {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
+        } catch (_) {}
+        return;
+    }
     
     const belowComicOverridden = applyOverride('belowComic');
     const offsetComicOverridden = applyOverride('offsetFromComic');
@@ -382,7 +392,11 @@ function initializeDraggableSettings() {
  */
 function clampToolbarInView() {
     const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    if (!mainToolbar) return;
+    if (!mainToolbar || isToolbarPersistenceSuspended) return;
+    const rect = mainToolbar.getBoundingClientRect();
+    if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
+        return;
+    }
     
     // Check if user has saved a custom position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
@@ -395,7 +409,6 @@ function clampToolbarInView() {
     }
     
     // Has saved position - clamp within viewport without overwriting stored left
-    const rect = mainToolbar.getBoundingClientRect();
     let top = parseFloat(mainToolbar.style.top);
     let left = parseFloat(mainToolbar.style.left);
     
@@ -1170,6 +1183,7 @@ function Rotate(applyRotation = true) {
             
             // Restore toolbar position from localStorage after layout changes
             setTimeout(() => {
+                isToolbarPersistenceSuspended = false;
                 const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
                 if (!toolbar) return;
                 
@@ -1247,6 +1261,7 @@ function Rotate(applyRotation = true) {
         
         // Enter fullscreen mode
         isRotatedMode = true;
+        isToolbarPersistenceSuspended = true;
         
         // Change theme color for Android status bar to match dark overlay
         const themeColorMeta = document.querySelector('meta[name="theme-color"]');
