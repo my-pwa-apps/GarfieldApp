@@ -101,6 +101,8 @@ let isRotating = false;
 let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
 let wasSettingsPanelVisible = false;
+let isVerticalComicActive = false;
+let isVerticalFullscreen = false;
 
 
 // ========================================
@@ -1091,6 +1093,9 @@ function handleTouchEnd(e) {
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  */
 function Rotate(applyRotation = true) {
+    if (isVerticalComicActive) {
+        return;
+    }
     // Prevent rapid double-calls
     if (isRotating) {
         return;
@@ -1348,6 +1353,8 @@ function Rotate(applyRotation = true) {
 function maximizeRotatedImage(imgElement) {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
+    const visualHeight = window.visualViewport?.height || viewportHeight;
+    const visualWidth = window.visualViewport?.width || viewportWidth;
     
     const naturalWidth = imgElement.naturalWidth;
     const naturalHeight = imgElement.naturalHeight;
@@ -1360,19 +1367,21 @@ function maximizeRotatedImage(imgElement) {
     
     const isLandscapeMode = imgElement.className.includes('fullscreen-landscape');
     const isRotatedMode = imgElement.className.includes('rotate');
+    const availableHeight = isRotatedMode ? Math.max(visualHeight, visualWidth) : visualHeight;
+    const availableWidth = isRotatedMode ? Math.min(visualHeight, visualWidth) : visualWidth;
     
     // For rotated image, visual width is original height and vice versa
     const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
     const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
     
     // Calculate scale to fit viewport (Sunday strips may overflow horizontally to fill height)
-    const widthRatio = viewportWidth / rotatedWidth;
-    const heightRatio = viewportHeight / rotatedHeight;
+    const widthRatio = availableWidth / rotatedWidth;
+    const heightRatio = availableHeight / rotatedHeight;
     let scale;
     if (isRotatedMode && isWideOriginal) {
         // For wide Sunday strips in rotated mode, the naturalWidth becomes the visual height after 90deg rotation
         // Scale to fill viewport height completely
-        scale = viewportHeight / naturalWidth;
+        scale = availableHeight / naturalWidth;
     } else if (isRotatedMode) {
         scale = Math.min(widthRatio, heightRatio);
     } else {
@@ -1382,7 +1391,7 @@ function maximizeRotatedImage(imgElement) {
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
     let paddingFactor = 0.9;
     if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1.05 : 0.995;
+        paddingFactor = isWideOriginal ? 1 : 0.99;
     } else if (isLandscapeMode) {
         paddingFactor = 0.95;
     }
@@ -1485,6 +1494,15 @@ async function loadComic(date, silentMode = false) {
             const comicImg = document.getElementById('comic');
             comicImg.src = result.imageUrl;
             comicImg.style.display = 'block';
+
+            const ensureOrientationCheck = () => {
+                checkImageOrientation();
+            };
+            if (comicImg.complete) {
+                ensureOrientationCheck();
+            } else {
+                comicImg.addEventListener('load', ensureOrientationCheck, { once: true });
+            }
             
             // Also update the rotated comic if it exists
             const rotatedComic = document.getElementById('rotated-comic');
@@ -2086,6 +2104,15 @@ function checkImageOrientation() {
     const comic = document.getElementById('comic');
     const comicWrapper = document.getElementById('comic-wrapper');
     
+    if (!comic || !comicWrapper) {
+        return;
+    }
+    if (isVerticalFullscreen) {
+        return;
+    }
+    isVerticalComicActive = false;
+    document.body.classList.remove('vertical-thumbnail-mode');
+    
     // Reset any previous thumbnail setup
     comic.classList.remove('vertical', 'fullscreen-vertical');
     comic.classList.add('normal');
@@ -2101,6 +2128,8 @@ function checkImageOrientation() {
         // It's a vertical comic, create thumbnail view
         comic.classList.remove('normal');
         comic.classList.add('vertical');
+        isVerticalComicActive = true;
+        document.body.classList.add('vertical-thumbnail-mode');
         
         // Create thumbnail container
         const thumbnailContainer = document.createElement('div');
@@ -2128,6 +2157,10 @@ function showFullsizeVertical(event) {
         event.preventDefault();
         event.stopPropagation();
     }
+    if (!isVerticalComicActive || isVerticalFullscreen) {
+        return;
+    }
+    isVerticalFullscreen = true;
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
@@ -2160,6 +2193,10 @@ function showFullsizeVertical(event) {
     if (controlsDiv) {
         controlsDiv.classList.add('hidden-during-fullscreen');
     }
+    const thumbnailNotice = document.querySelector('.thumbnail-notice');
+    if (thumbnailNotice) {
+        thumbnailNotice.style.display = 'none';
+    }
     
     // Add click handler to exit fullscreen
     comic.addEventListener('click', exitFullsizeVertical);
@@ -2173,6 +2210,7 @@ function exitFullsizeVertical(event) {
         event.preventDefault();
         event.stopPropagation();
     }
+    isVerticalFullscreen = false;
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
@@ -2206,10 +2244,17 @@ function exitFullsizeVertical(event) {
     if (controlsDiv) {
         controlsDiv.classList.remove('hidden-during-fullscreen');
     }
+    const thumbnailNotice = document.querySelector('.thumbnail-notice');
+    if (thumbnailNotice) {
+        thumbnailNotice.style.display = '';
+    }
     
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
     container.removeEventListener('click', exitFullsizeVertical);
+
+    // Rebuild thumbnail view after exiting
+    requestAnimationFrame(() => checkImageOrientation());
 }
 
 // Initialize checkbox states from localStorage
