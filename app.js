@@ -1176,22 +1176,36 @@ function Rotate(applyRotation = true) {
                             }
                         }
                     } else {
-                        // Toolbar above comic - check if saved position still valid
+                        // Toolbar should be above comic
                         const toolbarHeight = toolbar.offsetHeight;
-                        const wouldOverlap = (savedPos.top + toolbarHeight > comicRect.top) && (savedPos.top < comicRect.bottom);
+                        const logo = document.querySelector('.logo');
                         
-                        if (wouldOverlap) {
-                            // Recalculate - position between logo and comic
-                            const logo = document.querySelector('.logo');
-                            if (logo) {
-                                const logoRect = logo.getBoundingClientRect();
+                        if (logo) {
+                            const logoRect = logo.getBoundingClientRect();
+                            const savedWouldOverlap = (savedPos.top + toolbarHeight > comicRect.top) && (savedPos.top < comicRect.bottom);
+                            
+                            // Check if saved position is still valid (doesn't overlap comic)
+                            if (savedWouldOverlap) {
+                                // Saved position would overlap - recalculate between logo and comic
                                 const availableSpace = comicRect.top - logoRect.bottom;
                                 newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
                             } else {
-                                newTop = savedPos.top;
+                                // Check if saved position is still between logo and comic
+                                const isStillBetween = savedPos.top > logoRect.bottom && (savedPos.top + toolbarHeight) < comicRect.top;
+                                
+                                if (isStillBetween) {
+                                    // Position is still valid
+                                    newTop = savedPos.top;
+                                } else {
+                                    // Layout changed - recalculate
+                                    const availableSpace = comicRect.top - logoRect.bottom;
+                                    newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+                                }
                             }
                         } else {
-                            newTop = savedPos.top;
+                            // No logo found - use saved position if it doesn't overlap comic
+                            const wouldOverlap = (savedPos.top + toolbarHeight > comicRect.top) && (savedPos.top < comicRect.bottom);
+                            newTop = wouldOverlap ? Math.max(0, comicRect.top - toolbarHeight - 15) : savedPos.top;
                         }
                     }
                     
@@ -1204,11 +1218,12 @@ function Rotate(applyRotation = true) {
                     toolbar.style.left = newLeft + 'px';
                     toolbar.style.transform = 'none';
                     
-                    // Store with metadata
+                    // Store with metadata - check final position
                     const overrides = {};
-                    const finalBelowComic = newTop > comicRect.bottom;
+                    const toolbarBottom = newTop + toolbar.offsetHeight;
+                    const finalBelowComic = newTop > comicRect.bottom && toolbarBottom > comicRect.bottom;
                     overrides.belowComic = finalBelowComic;
-                    overrides.offsetFromComic = finalBelowComic ? Math.max(15, newTop - comicRect.bottom) : null;
+                    overrides.offsetFromComic = finalBelowComic ? Math.max(15, newTop - comicRect.bottom) : Math.max(15, comicRect.top - toolbarBottom);
                     
                     if (settingsPanel && settingsPanel.classList.contains('visible')) {
                         const settingsRect = settingsPanel.getBoundingClientRect();
