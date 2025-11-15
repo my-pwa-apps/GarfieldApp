@@ -1083,8 +1083,12 @@ function Rotate(applyRotation = true) {
             isRotating = false;
             
             // Restore toolbar position after layout settles
+            // Use longer delay and force reflow to ensure DOM is fully updated
             setTimeout(() => {
                 if (mainToolbar) {
+                    // Force reflow to ensure layout is settled
+                    void mainToolbar.offsetHeight;
+                    
                     const savedPosRaw = localStorage.getItem('toolbarPosition');
                     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
                     
@@ -1096,7 +1100,7 @@ function Rotate(applyRotation = true) {
                     
                     mainToolbar.style.visibility = 'visible';
                 }
-            }, 250);
+            }, 500);
             
             return;
         }
@@ -1218,11 +1222,9 @@ function maximizeRotatedImage(imgElement) {
         imgElement.style.top = '';
         imgElement.style.left = '';
         imgElement.style.transformOrigin = '';
-        // Clear max constraints set by CSS to use calculated dimensions
-        imgElement.style.maxWidth = 'none';
-        imgElement.style.maxHeight = 'none';
     }
     
+    // Clear max constraints for both modes to use calculated dimensions
     imgElement.style.maxWidth = 'none';
     imgElement.style.maxHeight = 'none';
     imgElement.style.zIndex = '10001';
