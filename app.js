@@ -1366,8 +1366,14 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
+    const isWideOriginal = naturalWidth >= naturalHeight * 1.1;
     // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
-    const paddingFactor = isRotatedMode ? 0.98 : 0.9;
+    let paddingFactor;
+    if (isRotatedMode) {
+        paddingFactor = isWideOriginal ? 0.995 : 0.98;
+    } else {
+        paddingFactor = 0.9;
+    }
     scale = scale * paddingFactor;
     
     // Set dimensions
