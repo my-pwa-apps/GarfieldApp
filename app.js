@@ -42,7 +42,8 @@ const CONFIG = Object.freeze({
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
         SETTINGS: 'settings',
-        NOTIFICATIONS: 'notifications'
+        NOTIFICATIONS: 'notifications',
+        TOOLBAR_POS: 'toolbarPosition'
     })
 });
 
@@ -114,7 +115,7 @@ let isRotatedMode = false;
  */
 function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const toolbar = toolbarEl || document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    const savedRaw = localStorage.getItem('toolbarPosition');
+    const savedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const saved = UTILS.safeJSONParse(savedRaw, {});
     
     const positionData = { ...saved, top, left };
@@ -133,7 +134,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     applyOverride('belowSettings', overrides.belowSettings);
     applyOverride('offsetFromSettings', overrides.offsetFromSettings ?? (overrides.belowSettings === false ? null : undefined));
     
-    const comic = document.getElementById('comic');
+    const comic = document.getElementById('comic-container') || document.getElementById('comic');
     if (comic && !('belowComic' in positionData)) {
         const comicRect = comic.getBoundingClientRect();
         const belowComic = top > comicRect.bottom;
@@ -158,7 +159,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     }
     
     try {
-        localStorage.setItem('toolbarPosition', JSON.stringify(positionData));
+        localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
     } catch (_) {}
 }
 
@@ -211,7 +212,7 @@ function makeDraggable(element, dragHandle, storageKey) {
         let newTop = event.clientY - offsetY + window.scrollY;
         
         // Special handling for toolbar: always keep horizontally centered (DirkJan pattern)
-        if (storageKey === 'toolbarPosition') {
+        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             // Toolbar is ALWAYS horizontally centered - only vertical drag allowed
             newLeft = (window.innerWidth - width) / 2;
         } else {
@@ -238,7 +239,7 @@ function makeDraggable(element, dragHandle, storageKey) {
         const numericLeft = parseFloat(element.style.left) || 0;
         
         // Special handling for toolbar: detect if it's in the default zone (between logo and comic)
-        if (storageKey === 'toolbarPosition') {
+        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             const logo = document.querySelector('.logo');
             const comic = document.getElementById('comic-container');
             
@@ -253,12 +254,8 @@ function makeDraggable(element, dragHandle, storageKey) {
                     toolbarRect.top < comicRect.top;
                 
                 if (isInDefaultZone) {
-                    // Toolbar is in default zone - clear saved position so it auto-centers on resize
-                    try {
-                        localStorage.removeItem(storageKey);
-                    } catch (_) {}
-                    // Reposition to centered default
-                    positionToolbarCentered(element);
+                    // Toolbar is in default zone - snap to centered baseline and persist it
+                    positionToolbarCentered(element, true);
                     
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('touchmove', onMove);
@@ -291,7 +288,7 @@ function makeDraggable(element, dragHandle, storageKey) {
  * Positions toolbar centered below logo
  * @param {HTMLElement} toolbar - The toolbar element to position
  */
-function positionToolbarCentered(toolbar) {
+function positionToolbarCentered(toolbar, savePosition = false) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
     
     const logo = document.querySelector('.logo');
@@ -325,6 +322,15 @@ function positionToolbarCentered(toolbar) {
     toolbar.style.left = left + 'px';
     toolbar.style.top = top + 'px';
     toolbar.style.transform = 'none';
+    
+    if (savePosition) {
+        storeToolbarPosition(top, left, toolbar, {
+            belowComic: false,
+            offsetFromComic: null,
+            belowSettings: false,
+            offsetFromSettings: null
+        });
+    }
 }
 
 /**
@@ -362,23 +368,29 @@ function clampToolbarInView() {
     if (!mainToolbar) return;
     
     // Check if user has saved a custom position
-    const savedPosRaw = localStorage.getItem('toolbarPosition');
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
     
     if (!hasSavedPosition) {
         // No saved position - recenter on resize
-        positionToolbarCentered(mainToolbar);
+        positionToolbarCentered(mainToolbar, true);
         return;
     }
     
-    // Has saved position - clamp vertical bounds and recenter horizontally
+    // Has saved position - clamp within viewport without overwriting stored left
     const rect = mainToolbar.getBoundingClientRect();
-    let top = parseFloat(mainToolbar.style.top) || 0;
+    let top = parseFloat(mainToolbar.style.top);
+    let left = parseFloat(mainToolbar.style.left);
     
-    // Always center horizontally - simple calculation matching onMove
-    const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
+    if (!Number.isFinite(top)) {
+        top = rect.top;
+    }
+    if (!Number.isFinite(left)) {
+        left = rect.left;
+    }
     
     const maxTop = window.innerHeight - rect.height - 10;
+    const maxLeft = window.innerWidth - rect.width;
     
     let changed = false;
     
@@ -390,11 +402,18 @@ function clampToolbarInView() {
         changed = true;
     }
     
-    // Always update left position to keep centered
-    mainToolbar.style.left = left + 'px';
-    mainToolbar.style.top = top + 'px';
+    if (left < 0) {
+        left = 0;
+        changed = true;
+    } else if (left > maxLeft) {
+        left = Math.max(0, maxLeft);
+        changed = true;
+    }
     
     if (changed) {
+        mainToolbar.style.left = left + 'px';
+        mainToolbar.style.top = top + 'px';
+        
         // Use storeToolbarPosition to preserve metadata
         storeToolbarPosition(top, left, mainToolbar);
     }
@@ -408,23 +427,28 @@ function initializeToolbar() {
     if (!mainToolbar) return;
     
     // Check for saved position (only top value is saved, horizontal is always centered)
-    const savedPosRaw = localStorage.getItem('toolbarPosition');
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     
-    if (savedPos && typeof savedPos.top === 'number') {
-        // Apply saved vertical position and calculate centered horizontal position
+    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+        // Apply saved position exactly as stored
+        mainToolbar.style.top = savedPos.top + 'px';
+        mainToolbar.style.left = savedPos.left + 'px';
+        mainToolbar.style.transform = 'none';
+    } else if (savedPos && typeof savedPos.top === 'number') {
+        // Backward compatibility: legacy entries only stored top, so recenter horizontally once
         const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
-        
         mainToolbar.style.top = savedPos.top + 'px';
         mainToolbar.style.left = left + 'px';
         mainToolbar.style.transform = 'none';
+        storeToolbarPosition(savedPos.top, left, mainToolbar);
     } else {
         // No saved position - calculate centered position
-        positionToolbarCentered(mainToolbar);
+        positionToolbarCentered(mainToolbar, true);
     }
     
     // Make toolbar draggable (vertical only)
-    makeDraggable(mainToolbar, mainToolbar, 'toolbarPosition');
+    makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     
     // Add resize listener to keep toolbar in bounds
     window.addEventListener('resize', clampToolbarInView);
@@ -1130,13 +1154,13 @@ function Rotate(applyRotation = true) {
             // Restore toolbar position from localStorage after layout changes
             setTimeout(() => {
                 const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-                const comic = document.getElementById('comic');
-                if (toolbar && comic) {
-                    const savedPosRaw = localStorage.getItem('toolbarPosition');
+                const comicElement = document.getElementById('comic-container') || document.getElementById('comic');
+                if (toolbar && comicElement) {
+                    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
                     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
                     
                     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-                        const comicRect = comic.getBoundingClientRect();
+                        const comicRect = comicElement.getBoundingClientRect();
                         const settingsPanel = document.getElementById('settingsDIV');
                         
                         // Determine correct position based on saved flag
