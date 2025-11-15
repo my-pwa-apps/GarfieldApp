@@ -1296,6 +1296,10 @@ function Rotate(applyRotation = true) {
         
         // Show comic
         clonedComic.style.display = 'block';
+        clonedComic.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
         
         // Add resize listeners
         window.addEventListener('resize', handleRotatedViewResize);
