@@ -1059,7 +1059,14 @@ function Rotate(applyRotation = true) {
                 document.body.removeChild(fullscreenToolbar);
             }
             
-            // Restore all hidden elements first
+            // Restore theme color
+            const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+            if (themeColorMeta && themeColorMeta.dataset.originalColor) {
+                themeColorMeta.content = themeColorMeta.dataset.originalColor;
+                delete themeColorMeta.dataset.originalColor;
+            }
+            
+            // Restore all hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
                 el.style.display = el.dataset.originalDisplay || '';
@@ -1076,35 +1083,91 @@ function Rotate(applyRotation = true) {
             isRotatedMode = false;
             isRotating = false;
             
-            // Restore toolbar position after layout settles
-            // Query toolbar inside setTimeout to ensure DOM is updated
+            // Restore toolbar position with full recalculation (DirkJan pattern)
             setTimeout(() => {
-                const mainToolbar = document.getElementById('mainToolbar');
-                if (mainToolbar) {
-                    // Hide during reposition
-                    mainToolbar.style.visibility = 'hidden';
+                const toolbar = document.getElementById('mainToolbar');
+                const comic = document.getElementById('comic');
+                
+                if (!toolbar || !comic) return;
+                
+                toolbar.style.visibility = 'hidden';
+                
+                const savedPosRaw = localStorage.getItem('toolbarPosition');
+                const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+                
+                if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+                    const comicRect = comic.getBoundingClientRect();
+                    const settingsPanel = document.getElementById('settingsDIV');
                     
-                    // Force reflow to ensure layout is settled
-                    void mainToolbar.offsetHeight;
+                    // Determine if toolbar should be below comic based on saved flag
+                    const shouldBeBelow = savedPos.belowComic === true ||
+                        (savedPos.belowComic === undefined && (savedPos.offsetFromComic !== undefined || savedPos.top > comicRect.bottom + 10));
                     
-                    const savedPosRaw = localStorage.getItem('toolbarPosition');
-                    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+                    let newTop, newLeft;
+                    newLeft = savedPos.left;
                     
-                    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-                        mainToolbar.style.top = savedPos.top + 'px';
-                        mainToolbar.style.left = savedPos.left + 'px';
-                        mainToolbar.style.transform = 'none';
+                    if (shouldBeBelow) {
+                        // Position below comic with saved offset
+                        const storedComicGap = Math.max(15, savedPos.offsetFromComic || 15);
+                        newTop = comicRect.bottom + storedComicGap;
+                        
+                        // Check for settings panel overlap
+                        if (settingsPanel && settingsPanel.classList.contains('visible')) {
+                            const settingsRect = settingsPanel.getBoundingClientRect();
+                            const toolbarHeight = toolbar.offsetHeight;
+                            const wouldOverlap = (newTop + toolbarHeight > settingsRect.top) && (newTop < settingsRect.bottom);
+                            
+                            if (wouldOverlap) {
+                                newTop = settingsRect.bottom + 15;
+                            }
+                        }
+                    } else {
+                        // Toolbar above comic - check if saved position still valid
+                        const toolbarHeight = toolbar.offsetHeight;
+                        const wouldOverlap = (savedPos.top + toolbarHeight > comicRect.top) && (savedPos.top < comicRect.bottom);
+                        
+                        if (wouldOverlap) {
+                            // Recalculate - position between logo and comic
+                            const logo = document.querySelector('.logo');
+                            if (logo) {
+                                const logoRect = logo.getBoundingClientRect();
+                                const availableSpace = comicRect.top - logoRect.bottom;
+                                newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+                            } else {
+                                newTop = savedPos.top;
+                            }
+                        } else {
+                            newTop = savedPos.top;
+                        }
                     }
                     
-                    mainToolbar.style.visibility = 'visible';
+                    // Clamp to viewport
+                    const maxLeft = window.innerWidth - toolbar.offsetWidth;
+                    const maxTop = window.innerHeight - toolbar.offsetHeight;
+                    newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                    newTop = Math.max(0, Math.min(newTop, maxTop));
+                    
+                    // Apply position
+                    toolbar.style.top = newTop + 'px';
+                    toolbar.style.left = newLeft + 'px';
+                    toolbar.style.transform = 'none';
                 }
-            }, 500);
+                
+                toolbar.style.visibility = 'visible';
+            }, 250);
             
             return;
         }
         
         // Enter fullscreen mode
         isRotatedMode = true;
+        
+        // Change theme color for Android status bar to match dark overlay
+        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeColorMeta) {
+            themeColorMeta.dataset.originalColor = themeColorMeta.content;
+            themeColorMeta.content = '#1a1a1a'; // Dark to blend with overlay
+        }
         
         // Hide all page elements
         const elementsToHide = document.querySelectorAll('body > *');

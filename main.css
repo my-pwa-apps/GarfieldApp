@@ -145,12 +145,12 @@ input {
 
 .rotate {
     position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
+    top: 55% !important;
+    left: calc(50% + 40px) !important;
     transform: translate(-50%, -50%) rotate(90deg) !important;
     transform-origin: center center !important;
-    max-height: 95vh;
-    max-width: 95vw;
+    max-height: 90vh;
+    max-width: 90vw;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
