@@ -123,6 +123,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const saved = UTILS.safeJSONParse(savedRaw, {});
     
     const positionData = { ...saved, top, left };
+    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
     const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
     const applyOverride = (key) => {
         if (!hasOverride(key)) return false;
@@ -141,45 +142,35 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const offsetSettingsOverridden = applyOverride('offsetFromSettings');
     
     const comicElement = getPrimaryComicElement();
-    if (comicElement && !belowComicOverridden) {
+    if (comicElement && toolbarRect && !belowComicOverridden) {
         const comicRect = comicElement.getBoundingClientRect();
-        const belowComic = top > comicRect.bottom;
+        const belowComic = toolbarRect.top >= comicRect.bottom;
         positionData.belowComic = belowComic;
         if (!offsetComicOverridden) {
             if (belowComic) {
-                positionData.offsetFromComic = Math.max(15, top - comicRect.bottom);
+                positionData.offsetFromComic = Math.max(15, toolbarRect.top - comicRect.bottom);
             } else {
                 delete positionData.offsetFromComic;
             }
-        }
-    } else if (!belowComicOverridden && !comicElement) {
-        delete positionData.belowComic;
-        if (!offsetComicOverridden) {
-            delete positionData.offsetFromComic;
         }
     } else if (belowComicOverridden && !offsetComicOverridden && positionData.belowComic === false) {
         delete positionData.offsetFromComic;
     }
     
     const settingsPanel = document.getElementById('settingsDIV');
-    if (settingsPanel && settingsPanel.classList.contains('visible')) {
+    if (settingsPanel && settingsPanel.classList.contains('visible') && toolbarRect) {
         const settingsRect = settingsPanel.getBoundingClientRect();
         if (!belowSettingsOverridden) {
-            const belowSettings = top > settingsRect.bottom + 5;
+            const belowSettings = toolbarRect.top >= settingsRect.bottom + 5;
             positionData.belowSettings = belowSettings;
             if (!offsetSettingsOverridden) {
                 if (belowSettings) {
-                    positionData.offsetFromSettings = Math.max(15, top - settingsRect.bottom);
+                    positionData.offsetFromSettings = Math.max(15, toolbarRect.top - settingsRect.bottom);
                 } else {
                     delete positionData.offsetFromSettings;
                 }
             }
         } else if (!offsetSettingsOverridden && positionData.belowSettings === false) {
-            delete positionData.offsetFromSettings;
-        }
-    } else if (!belowSettingsOverridden) {
-        delete positionData.belowSettings;
-        if (!offsetSettingsOverridden) {
             delete positionData.offsetFromSettings;
         }
     }
