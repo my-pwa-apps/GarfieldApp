@@ -1366,8 +1366,9 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / rotatedHeight;
     }
     
-    // Make the image slightly smaller (90% of the calculated size) for breathing room
-    scale = scale * 0.9;
+    // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
+    const paddingFactor = isRotatedMode ? 0.98 : 0.9;
+    scale = scale * paddingFactor;
     
     // Set dimensions
     imgElement.style.width = `${naturalWidth * scale}px`;
@@ -1375,7 +1376,7 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.position = 'fixed';
     
     if (isLandscapeMode) {
-        imgElement.style.top = '40%';
+        imgElement.style.top = '50%';
         imgElement.style.left = '50%';
         imgElement.style.transformOrigin = 'center center';
     } else if (isRotatedMode) {

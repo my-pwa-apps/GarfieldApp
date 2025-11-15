@@ -145,12 +145,12 @@ input {
 
 .rotate {
     position: fixed !important;
-    top: 55% !important;
-    left: calc(50% + 40px) !important;
+    top: 50% !important;
+    left: 50% !important;
     transform: translate(-50%, -50%) rotate(90deg) !important;
     transform-origin: center center !important;
-    max-height: 90vh;
-    max-width: 90vw;
+    max-height: 96vh;
+    max-width: 96vw;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
@@ -346,14 +346,12 @@ label {
 }
 
 #rotated-comic {
-    left: calc(50% + 40px) !important;
-    margin-left: 0 !important;
-    margin-bottom: 0 !important;
+    margin: 0 !important;
 }
 
 #rotated-comic.fullscreen-landscape {
     left: 50% !important;
-    top: 40% !important;
+    top: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
 
