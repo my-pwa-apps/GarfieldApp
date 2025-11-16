@@ -824,7 +824,6 @@ input[type="date"]::-webkit-datetime-edit {
     background: var(--toolbar-gradient);
     padding: 16px 20px;
     margin: -2px -2px 0 -2px;
-    width: calc(100% + 4px);
     cursor: move;
     display: flex;
     justify-content: space-between;
@@ -832,7 +831,8 @@ input[type="date"]::-webkit-datetime-edit {
     -webkit-user-select: none;
     user-select: none;
     border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 14px 14px 0 0;
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
     box-shadow: var(--shadow-sm);
 }
 
