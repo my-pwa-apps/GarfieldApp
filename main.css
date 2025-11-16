@@ -486,6 +486,7 @@ input[type="date"]::-webkit-datetime-edit {
     left: 0;
     width: 100vw;
     height: 100vh;
+    margin: 0;
     background: linear-gradient(#eee239, orange) no-repeat fixed;
     z-index: 999;
     display: flex;
