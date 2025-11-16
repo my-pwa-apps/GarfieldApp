@@ -923,7 +923,7 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: flex-end;
     align-items: center;
     gap: 16px;
-    padding-right: 16px;
+    padding-right: 8px;
 }
 
 .icon-button {
