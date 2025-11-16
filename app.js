@@ -1388,12 +1388,12 @@ function maximizeRotatedImage(imgElement) {
         scale = Math.min(widthRatio, heightRatio);
     }
     
-    // Make the image slightly smaller for breathing room (rotated view gets tighter fit)
-    let paddingFactor = 0.9;
-    if (isRotatedMode) {
-        paddingFactor = isWideOriginal ? 1 : 0.99;
-    } else if (isLandscapeMode) {
+    // Apply padding only for non-rotated modes
+    let paddingFactor = 1.0;
+    if (isLandscapeMode) {
         paddingFactor = 0.95;
+    } else if (!isRotatedMode) {
+        paddingFactor = 0.9;
     }
     scale = scale * paddingFactor;
     
