@@ -594,19 +594,17 @@ input[type="date"]::-webkit-datetime-edit {
 
 .fullscreen-vertical {
     position: fixed;
-    top: 5vh;
+    top: 0;
     left: 50%;
     transform: translateX(-50%);
     width: auto;
-    height: auto;
+    height: 100vh;
     max-width: 95vw;
-    max-height: 95vh;
     object-fit: contain;
     margin: 0;
     padding: 0;
     z-index: 1000;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
 }
 
 /* ========================================
