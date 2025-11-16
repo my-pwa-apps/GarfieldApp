@@ -947,9 +947,16 @@ function HideSettings(e) {
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
         panel.classList.remove('visible');
+        panel.classList.remove('animate');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
     } else {
         panel.classList.add('visible');
+        // Only animate if showing from centered position (no saved position)
+        const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+        const hasSavedPos = savedPosRaw && savedPosRaw !== 'null';
+        if (!hasSavedPos) {
+            panel.classList.add('animate');
+        }
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
     }
 }
