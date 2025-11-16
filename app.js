@@ -213,10 +213,13 @@ function makeDraggable(element, dragHandle, storageKey) {
         element.style.cursor = dragHandle === element ? 'grabbing' : '';
         
         const event = e.touches ? e.touches[0] : e;
-        const elementStartX = parseFloat(element.style.left) || element.offsetLeft;
-        const elementStartY = parseFloat(element.style.top) || element.offsetTop;
         
-        // Calculate offset from touch/click point to element's top-left
+        // Get actual rendered position
+        const rect = element.getBoundingClientRect();
+        const elementStartX = rect.left + window.scrollX;
+        const elementStartY = rect.top + window.scrollY;
+        
+        // Calculate offset from touch/click point to element's rendered top-left
         offsetX = event.clientX + window.scrollX - elementStartX;
         offsetY = event.clientY + window.scrollY - elementStartY;
         
