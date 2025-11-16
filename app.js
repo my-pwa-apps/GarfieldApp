@@ -517,15 +517,17 @@ function initializeMobileButtonStates() {
             // Immediate blur to prevent :focus state
             button.blur();
             
-            // Remove active class and reset after brief delay for visual feedback
+            // Immediately remove touch-active class to prevent stuck state
+            button.classList.remove('touch-active');
+            
+            // Reset transform and transition after a brief moment for visual feedback
             touchTimeout = setTimeout(() => {
-                button.classList.remove('touch-active');
                 button.style.transform = '';
                 button.style.transition = '';
                 
                 // Force reflow to ensure CSS updates
                 void button.offsetHeight;
-            }, 100);
+            }, 50);
         }, { passive: true });
         
         // Touch cancel - immediate reset
@@ -539,23 +541,20 @@ function initializeMobileButtonStates() {
         
         // Click handler - ensure cleanup
         button.addEventListener('click', () => {
-            setTimeout(() => {
-                button.blur();
-                button.classList.remove('touch-active');
-                button.style.transform = '';
-            }, 100);
+            button.blur();
+            button.classList.remove('touch-active');
+            button.style.transform = '';
         });
     });
     
     // Global safeguard - reset any stuck buttons
     document.addEventListener('touchend', () => {
-        setTimeout(() => {
-            toolbarButtons.forEach(button => {
-                button.classList.remove('touch-active');
-                button.style.transform = '';
-                button.blur();
-            });
-        }, 150);
+        // Immediate reset to prevent stuck states
+        toolbarButtons.forEach(button => {
+            button.classList.remove('touch-active');
+            button.style.transform = '';
+            button.blur();
+        });
     }, { passive: true });
 }
 
