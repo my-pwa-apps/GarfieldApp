@@ -1,4 +1,4 @@
-const VERSION = 'v75';
+const VERSION = 'v76';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -45,18 +45,14 @@ self.addEventListener('install', (event) => {
  * Activate - clean old caches
  */
 self.addEventListener('activate', (event) => {
+  const currentCaches = [CACHE_NAME, RUNTIME_CACHE, IMAGE_CACHE];
   event.waitUntil(
     caches.keys()
-      .then(cacheNames => {
-        return Promise.all(
-          cacheNames
-            .filter(name => name.startsWith('garfield-') && 
-                          name !== CACHE_NAME && 
-                          name !== RUNTIME_CACHE && 
-                          name !== IMAGE_CACHE)
-            .map(name => caches.delete(name))
-        );
-      })
+      .then(cacheNames => Promise.all(
+        cacheNames
+          .filter(name => name.startsWith('garfield-') && !currentCaches.includes(name))
+          .map(name => caches.delete(name))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -186,39 +182,28 @@ async function checkForNewComic() {
     const etMinute = nowET.getMinutes();
     if (etHour === 0 && etMinute < 5) return;
     
-    // Fetch today's comic - try direct first, then proxy
+    // Fetch today's comic
     const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
+    
+    // Try direct fetch first, fallback to proxy
+    const directResponse = await fetch(comicUrl, {
+      signal: AbortSignal.timeout(10000),
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'default'
+    }).catch(() => null);
+    
     let html = null;
-    
-    // Try direct fetch first (faster, no proxy needed)
-    try {
-      const directResponse = await fetch(comicUrl, {
-        signal: AbortSignal.timeout(10000),
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'default'
-      });
+    if (directResponse?.ok) {
+      html = await directResponse.text();
+    } else {
+      const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
+      const proxyResponse = await fetch(proxyUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      }).catch(() => null);
       
-      if (directResponse.ok) {
-        html = await directResponse.text();
-      }
-    } catch (directError) {
-      // Silent fallback
-    }
-    
-    // Fallback to proxy if direct failed
-    if (!html) {
-      try {
-        const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
-        const proxyResponse = await fetch(proxyUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-        });
-        
-        if (proxyResponse.ok) {
-          html = await proxyResponse.text();
-        }
-      } catch (proxyError) {
-        // Silent fail
+      if (proxyResponse?.ok) {
+        html = await proxyResponse.text();
       }
     }
     

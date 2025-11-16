@@ -45,16 +45,16 @@ if ('serviceWorker' in navigator) {
             .then(registration => {
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
-                    newWorker?.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showUpdateNotification();
-                        }
-                    });
+                    if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                showUpdateNotification();
+                            }
+                        });
+                    }
                 });
             })
-            .catch(() => {
-                // Silent fail - app still works without SW
-            });
+            .catch(() => {/* Silent fail - app still works without SW */});
     });
 }
 
@@ -64,13 +64,7 @@ if ('serviceWorker' in navigator) {
 function showUpdateNotification() {
     const updateBanner = document.createElement('div');
     updateBanner.id = 'update-banner';
-    updateBanner.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0;
-        background: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
-        background-size: 200% auto; color: black; padding: 15px;
-        text-align: center; z-index: 9999;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    `;
+    updateBanner.style.cssText = `position: fixed; inset: 0 0 auto 0; background: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%); background-size: 200% auto; color: black; padding: 15px; text-align: center; z-index: 9999; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);`;
     
     const message = document.createElement('p');
     message.textContent = 'A new version is available!';
@@ -79,11 +73,8 @@ function showUpdateNotification() {
     const updateButton = document.createElement('button');
     updateButton.textContent = 'Refresh Now';
     updateButton.className = 'button';
-    updateButton.style.cssText = 'margin: 10px auto 0; display: inline-block;';
     updateButton.onclick = () => location.reload();
     
-    updateBanner.appendChild(message);
-    updateBanner.appendChild(updateButton);
-    
+    updateBanner.append(message, updateButton);
     document.body?.insertBefore(updateBanner, document.body.firstChild);
 }

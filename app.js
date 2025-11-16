@@ -94,7 +94,7 @@ let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
 let touchStartTime = 0;
-let lastSwipeTime = 0; // Track last swipe to prevent click events
+let lastSwipeTime = 0;
 
 // Rotation state tracking
 let isRotating = false;
@@ -637,12 +637,20 @@ if (document.readyState === 'loading') {
         initializeDraggableSettings();
         initializeMobileButtonStates();
         loadKofiWidget();
+        // Add touch event listeners
+        document.addEventListener('touchstart', handleTouchStart, { passive: false });
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
     });
 } else {
     initializeToolbar();
     initializeDraggableSettings();
     initializeMobileButtonStates();
     loadKofiWidget();
+    // Add touch event listeners
+    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
 }
 
 // Translation dictionaries
@@ -1429,11 +1437,6 @@ function handleRotatedViewResize() {
 // Expose Rotate function globally
 window.Rotate = Rotate;
 
-// Add touch event listeners to the document
-document.addEventListener('touchstart', handleTouchStart, { passive: false });
-document.addEventListener('touchmove', handleTouchMove, { passive: false });
-document.addEventListener('touchend', handleTouchEnd, { passive: true });
-
 // Orientation change listener registered inline at end of file (DirkJan pattern)
 
 // Update the date display function to use regional date settings
@@ -1928,11 +1931,11 @@ function CompareDates() {
 }
 
 function formatDate(datetoFormat) {
-	day = datetoFormat.getDate();
-	month = datetoFormat.getMonth() + 1;
-	year = datetoFormat.getFullYear();
-	month = ("0" + month).slice(-2);
-	day = ("0" + day).slice(-2);
+    const d = datetoFormat.getDate();
+    const m = datetoFormat.getMonth() + 1;
+    year = datetoFormat.getFullYear();
+    month = String(m).padStart(2, '0');
+    day = String(d).padStart(2, '0');
 }
 
 // ========================================

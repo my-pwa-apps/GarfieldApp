@@ -129,38 +129,27 @@ export async function getAuthenticatedComic(date, language = 'en') {
     
     try {
         // Try direct fetch first
-        try {
-            const directResponse = await fetch(url, {
-                signal: AbortSignal.timeout(10000),
-                mode: 'cors',
-                credentials: 'omit',
-                cache: 'default'
-            });
+        const directResponse = await fetch(url, {
+            signal: AbortSignal.timeout(10000),
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'default'
+        }).catch(() => null);
+        
+        if (directResponse?.ok) {
+            const html = await directResponse.text();
+            const imageUrl = extractImageFromHTML(html);
             
-            if (directResponse.ok) {
-                const html = await directResponse.text();
-                const imageUrl = extractImageFromHTML(html);
-                
-                if (imageUrl) {
-                    return { success: true, imageUrl };
-                }
+            if (imageUrl) {
+                return { success: true, imageUrl };
             }
-        } catch (directError) {
-            // Silent fallback to proxies
         }
         
         // Fallback to proxy
         const html = await fetchWithProxyFallback(url);
         
-        // Validate response is actually GoComics HTML
-        if (html.includes('_next/static') || html.includes('__next')) {
-            console.error(`Proxy returned wrong content`);
-            return { success: false, imageUrl: null, proxyError: true };
-        }
-        
         // Check for 404
         if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
-            console.warn(`Comic not found: ${url}`);
             return { success: false, imageUrl: null, notFound: true };
         }
         

@@ -16,7 +16,6 @@
 html {
     height: 100%;
     overflow-x: hidden;
-    overflow-y: auto;
 }
 
 body {
@@ -27,9 +26,7 @@ body {
     min-height: 100vh;
     margin: 0;
     padding: 0;
-    width: 100%;
     overflow-x: hidden;
-    overflow-y: auto;
     box-sizing: border-box;
 }
 
@@ -263,18 +260,13 @@ label {
 /* Fullscreen overlay */
 #comic-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
     background-color: rgba(0, 0, 0, 0.3);
     z-index: 10000;
     display: flex;
     align-items: stretch;
     justify-content: center;
     overflow: hidden;
-    margin: 0;
-    padding: 0;
 }
 
 
@@ -680,9 +672,7 @@ input[type="date"]::-webkit-datetime-edit {
 .toolbar-button:hover {
     transform: translateY(-3px) scale(1.05);
     background-position: right center;
-    box-shadow: 0 8px 24px rgba(240, 152, 25, 0.4),
-                0 4px 8px rgba(0, 0, 0, 0.3),
-                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 24px rgba(240, 152, 25, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -947,12 +937,10 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    box-shadow: var(--shadow-sm),
-                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: var(--transition-fast);
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     position: relative;
     overflow: hidden;
-    will-change: transform;
 }
 
 .icon-button::before {
@@ -973,8 +961,7 @@ input[type="date"]::-webkit-datetime-edit {
 .icon-button:hover {
     transform: translateY(-3px) scale(1.08);
     background-position: right center;
-    box-shadow: 0 8px 20px rgba(240, 152, 25, 0.4),
-                var(--shadow-sm);
+    box-shadow: 0 8px 20px rgba(240, 152, 25, 0.4), var(--shadow-sm);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
