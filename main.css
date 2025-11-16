@@ -466,7 +466,7 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     width: 100%;
     margin: 100px auto 0;
-    padding: 0;
+    padding: 20px 0;
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
