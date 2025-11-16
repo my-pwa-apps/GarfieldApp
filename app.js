@@ -954,16 +954,22 @@ function HideSettings(e) {
         panel.classList.remove('visible');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
     } else {
-        // Before showing, ensure saved position is applied
+        // Before showing, ensure saved position is applied without animation
         const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
         const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
         if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
+            panel.style.opacity = '0';
             panel.style.top = savedPos.top + 'px';
             panel.style.left = savedPos.left + 'px';
             panel.style.transform = 'none';
+            panel.classList.add('visible');
+            requestAnimationFrame(() => {
+                panel.style.opacity = '';
+            });
+        } else {
+            panel.classList.add('visible');
         }
         
-        panel.classList.add('visible');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
     }
 }

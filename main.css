@@ -824,6 +824,7 @@ input[type="date"]::-webkit-datetime-edit {
     background: var(--toolbar-gradient);
     padding: 16px 20px;
     margin: -2px -2px 0 -2px;
+    width: calc(100% + 4px);
     cursor: move;
     display: flex;
     justify-content: space-between;
