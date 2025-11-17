@@ -1855,6 +1855,100 @@ function LastClick() {
 
 window.LastClick = LastClick;
 
+/**
+ * Export favorites as downloadable JSON file
+ */
+function exportFavorites() {
+    const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    
+    if (!favs || favs.length === 0) {
+        showNotification('No favorites to export.', 3000);
+        return;
+    }
+    
+    const data = {
+        favorites: favs,
+        exportDate: new Date().toISOString(),
+        version: 1
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `garfield-favorites-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showNotification(`Exported ${favs.length} favorite${favs.length !== 1 ? 's' : ''}.`, 3000);
+}
+
+window.exportFavorites = exportFavorites;
+
+/**
+ * Import favorites from uploaded JSON file
+ */
+function importFavorites() {
+    const fileInput = document.getElementById('importFileInput');
+    if (!fileInput) return;
+    
+    fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                
+                if (!data.favorites || !Array.isArray(data.favorites)) {
+                    showNotification('Invalid favorites file format.', 4000);
+                    return;
+                }
+                
+                const currentFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+                const importedFavs = data.favorites;
+                
+                // Merge and deduplicate
+                const mergedFavs = [...new Set([...currentFavs, ...importedFavs])].sort();
+                
+                localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(mergedFavs));
+                
+                const newCount = mergedFavs.length - currentFavs.length;
+                if (newCount > 0) {
+                    showNotification(`Imported ${newCount} new favorite${newCount !== 1 ? 's' : ''}. Total: ${mergedFavs.length}`, 4000);
+                    
+                    // Enable show favorites checkbox if it was disabled
+                    const showFavsCheckbox = document.getElementById('showfavs');
+                    if (showFavsCheckbox) {
+                        showFavsCheckbox.disabled = false;
+                    }
+                    
+                    // Update heart icon if current comic is now a favorite
+                    CompareDates();
+                    const heartBtn = document.getElementById('favheart');
+                    const heartSvg = heartBtn?.querySelector('svg path');
+                    if (mergedFavs.includes(formattedComicDate) && heartSvg) {
+                        heartSvg.setAttribute('fill', 'currentColor');
+                    }
+                } else {
+                    showNotification('All favorites already exist.', 3000);
+                }
+            } catch (error) {
+                showNotification('Error reading favorites file.', 4000);
+            }
+        };
+        
+        reader.readAsText(file);
+        fileInput.value = ''; // Reset input
+    };
+    
+    fileInput.click();
+}
+
+window.importFavorites = importFavorites;
 
 function RandomClick()
 {
@@ -2060,42 +2154,7 @@ if (setStatus) {
 	}
 }
 
-setStatus = document.getElementById('notifications');
-if (setStatus) {
-	setStatus.onclick = async function()
-	{
-		if(document.getElementById('notifications').checked)
-		{
-			const permitted = await requestNotificationPermission();
-			if (permitted) {
-				localStorage.setItem('notifications', "true");
-				setupNotifications();
-				
-				// Inform user about Android limitations
-				const isAndroid = /Android/.test(navigator.userAgent);
-				const hasPeriodicSync = 'periodicSync' in navigator.serviceWorker;
-				
-				if (isAndroid && !hasPeriodicSync) {
-					showNotification(
-						'Notifications enabled! Note: You\'ll need to open the app daily to check for new comics, as Android browsers don\'t support automatic background checks.',
-						8000
-					);
-				} else {
-					showNotification('Notifications enabled! You\'ll be notified when new comics are available.', 4000);
-				}
-			} else {
-				// Permission denied
-				document.getElementById('notifications').checked = false;
-				showNotification('Notification permission is required. Please allow notifications in your browser settings.', 5000);
-			}
-		}
-		else
-		{
-			localStorage.setItem('notifications', "false");
-			showNotification('Notifications disabled.', 3000);
-		}
-	}
-}
+// Notification feature removed - only worked when app was open
 
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
@@ -2288,9 +2347,7 @@ document.getElementById("spanish").checked = useSpanish;
 translateInterface(useSpanish ? 'es' : 'en');
 if (datePicker) datePicker.min = useSpanish ? "1999-12-06" : "1978-06-19";
 
-// Initialize notifications and settings panel
-const notificationsStatus = localStorage.getItem('notifications');
-document.getElementById("notifications").checked = notificationsStatus === "true";
+// Initialize settings panel
 
 const settingsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
 const panel = document.getElementById("settingsDIV");
@@ -2460,25 +2517,9 @@ async function checkForNewComicNow() {
     }
 }
 
-// Initialize notifications on load
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then(() => {
-        setupNotifications();
-        
-        // Check on app open for browsers without background sync (iOS, Android)
-        // Most Android browsers don't support periodic background sync
-        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        
-        if ((isIOS || isAndroid) && localStorage.getItem('notifications') === 'true') {
-            // Check when app opens as fallback for no background sync
-            setTimeout(() => checkForNewComicNow(), 1000);
-        }
-    });
-}
+// Notification feature removed - only worked when app was open
 
-window.requestNotificationPermission = requestNotificationPermission;
-window.setupNotifications = setupNotifications;
+// Notification functions removed
 
 // ========================================
 // ORIENTATION CHANGE LISTENER
