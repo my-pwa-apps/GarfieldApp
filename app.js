@@ -673,7 +673,15 @@ const translations = {
         installApp: 'Install App',
         supportApp: 'Support this App',
         notifyNewComics: 'Notify me of new comics',
-        sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.'
+        sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
+        exportFavorites: 'Export Favorites',
+        importFavorites: 'Import Favorites',
+        noFavoritesToExport: 'No favorites to export.',
+        exportedFavorites: 'Exported {count} favorite{plural}.',
+        importedFavorites: 'Imported {count} new favorite{plural}. Total: {total}',
+        allFavoritesExist: 'All favorites already exist.',
+        invalidFavoritesFile: 'Invalid favorites file format.',
+        errorReadingFile: 'Error reading favorites file.'
     },
     es: {
         previous: 'Anterior',
@@ -694,7 +702,15 @@ const translations = {
         installApp: 'Instalar App',
         supportApp: 'Apoyar esta App',
         notifyNewComics: 'Notificar nuevos cómics',
-        sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.'
+        sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
+        exportFavorites: 'Exportar Favoritos',
+        importFavorites: 'Importar Favoritos',
+        noFavoritesToExport: 'No hay favoritos para exportar.',
+        exportedFavorites: '{count} favorito{plural} exportado{plural}.',
+        importedFavorites: '{count} favorito{plural} nuevo{plural} importado{plural}. Total: {total}',
+        allFavoritesExist: 'Todos los favoritos ya existen.',
+        invalidFavoritesFile: 'Formato de archivo de favoritos no válido.',
+        errorReadingFile: 'Error al leer el archivo de favoritos.'
     }
 };
 
@@ -773,6 +789,16 @@ function translateInterface(lang) {
     const kofiBtn = document.querySelector('.kofi-button');
     if (kofiBtn) {
         kofiBtn.textContent = t.supportApp;
+    }
+    
+    // Translate export/import buttons
+    const exportBtn = document.querySelector('#exportFavs span');
+    if (exportBtn) {
+        exportBtn.textContent = t.exportFavorites;
+    }
+    const importBtn = document.querySelector('#importFavs span');
+    if (importBtn) {
+        importBtn.textContent = t.importFavorites;
     }
     
     // Translate comic alt text
@@ -1860,9 +1886,12 @@ window.LastClick = LastClick;
  */
 function exportFavorites() {
     const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    const isSpanish = document.getElementById('spanish')?.checked || false;
+    const lang = isSpanish ? 'es' : 'en';
+    const t = translations[lang];
     
     if (!favs || favs.length === 0) {
-        showNotification('No favorites to export.', 3000);
+        showNotification(t.noFavoritesToExport, 3000);
         return;
     }
     
@@ -1882,7 +1911,9 @@ function exportFavorites() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    showNotification(`Exported ${favs.length} favorite${favs.length !== 1 ? 's' : ''}.`, 3000);
+    const plural = lang === 'es' ? (favs.length !== 1 ? 's' : '') : (favs.length !== 1 ? 's' : '');
+    const message = t.exportedFavorites.replace('{count}', favs.length).replace('{plural}', plural);
+    showNotification(message, 3000);
 }
 
 window.exportFavorites = exportFavorites;
@@ -1903,8 +1934,12 @@ function importFavorites() {
             try {
                 const data = JSON.parse(event.target.result);
                 
+                const isSpanish = document.getElementById('spanish')?.checked || false;
+                const lang = isSpanish ? 'es' : 'en';
+                const t = translations[lang];
+                
                 if (!data.favorites || !Array.isArray(data.favorites)) {
-                    showNotification('Invalid favorites file format.', 4000);
+                    showNotification(t.invalidFavoritesFile, 4000);
                     return;
                 }
                 
@@ -1918,7 +1953,12 @@ function importFavorites() {
                 
                 const newCount = mergedFavs.length - currentFavs.length;
                 if (newCount > 0) {
-                    showNotification(`Imported ${newCount} new favorite${newCount !== 1 ? 's' : ''}. Total: ${mergedFavs.length}`, 4000);
+                    const plural = lang === 'es' ? (newCount !== 1 ? 's' : '') : (newCount !== 1 ? 's' : '');
+                    const message = t.importedFavorites
+                        .replace('{count}', newCount)
+                        .replace(/{plural}/g, plural)
+                        .replace('{total}', mergedFavs.length);
+                    showNotification(message, 4000);
                     
                     // Enable show favorites checkbox if it was disabled
                     const showFavsCheckbox = document.getElementById('showfavs');
@@ -1934,10 +1974,16 @@ function importFavorites() {
                         heartSvg.setAttribute('fill', 'currentColor');
                     }
                 } else {
-                    showNotification('All favorites already exist.', 3000);
+                    const isSpanish = document.getElementById('spanish')?.checked || false;
+                    const lang = isSpanish ? 'es' : 'en';
+                    const t = translations[lang];
+                    showNotification(t.allFavoritesExist, 3000);
                 }
             } catch (error) {
-                showNotification('Error reading favorites file.', 4000);
+                const isSpanish = document.getElementById('spanish')?.checked || false;
+                const lang = isSpanish ? 'es' : 'en';
+                const t = translations[lang];
+                showNotification(t.errorReadingFile, 4000);
             }
         };
         
