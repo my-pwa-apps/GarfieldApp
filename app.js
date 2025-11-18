@@ -402,6 +402,7 @@ function clampToolbarInView() {
     
     // Check if user has saved a custom position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
     
     if (!hasSavedPosition) {
@@ -410,7 +411,7 @@ function clampToolbarInView() {
         return;
     }
     
-    // Has saved position - clamp within viewport without overwriting stored left
+    // Has saved position - maintain relationships with logo, comic, and action menu
     let top = parseFloat(mainToolbar.style.top);
     let left = parseFloat(mainToolbar.style.left);
     
@@ -421,16 +422,54 @@ function clampToolbarInView() {
         left = rect.left;
     }
     
-    const maxTop = window.innerHeight - rect.height - 10;
-    const maxLeft = window.innerWidth - rect.width;
+    const logo = document.querySelector('.logo');
+    const comic = getPrimaryComicElement();
+    const controlsContainer = document.getElementById('controls-container');
+    const toolbarHeight = rect.height;
     
+    let newTop = top;
     let changed = false;
     
-    if (top < 10) {
-        top = 10;
+    // Check if toolbar should stay between logo and comic
+    if (savedPos && savedPos.belowComic === false && logo && comic) {
+        const logoRect = logo.getBoundingClientRect();
+        const comicRect = comic.getBoundingClientRect();
+        const availableSpace = comicRect.top - logoRect.bottom;
+        
+        // Keep toolbar centered between logo and comic
+        if (availableSpace >= toolbarHeight + 30) {
+            newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
+            changed = true;
+        } else {
+            // Not enough space, position just below logo
+            newTop = logoRect.bottom + 15;
+            changed = true;
+        }
+    }
+    // Check if toolbar should stay below comic
+    else if (savedPos && savedPos.belowComic === true && comic) {
+        const comicRect = comic.getBoundingClientRect();
+        const offset = savedPos.offsetFromComic || 15;
+        newTop = comicRect.bottom + offset;
         changed = true;
-    } else if (top > maxTop) {
-        top = maxTop;
+    }
+    // Check if toolbar should stay below action menu
+    else if (savedPos && savedPos.belowSettings === true && controlsContainer) {
+        const controlsRect = controlsContainer.getBoundingClientRect();
+        const offset = savedPos.offsetFromSettings || 15;
+        newTop = controlsRect.bottom + offset;
+        changed = true;
+    }
+    
+    // Clamp within viewport bounds
+    const maxTop = window.innerHeight - toolbarHeight - 10;
+    const maxLeft = window.innerWidth - rect.width;
+    
+    if (newTop < 10) {
+        newTop = 10;
+        changed = true;
+    } else if (newTop > maxTop) {
+        newTop = maxTop;
         changed = true;
     }
     
@@ -444,10 +483,10 @@ function clampToolbarInView() {
     
     if (changed) {
         mainToolbar.style.left = left + 'px';
-        mainToolbar.style.top = top + 'px';
+        mainToolbar.style.top = newTop + 'px';
         
         // Use storeToolbarPosition to preserve metadata
-        storeToolbarPosition(top, left, mainToolbar);
+        storeToolbarPosition(newTop, left, mainToolbar);
     }
 }
 
