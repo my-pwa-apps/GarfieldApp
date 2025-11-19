@@ -213,15 +213,8 @@ function calculateOptimalToolbarPosition(toolbar) {
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
     
-    // Calculate centered position
-    let top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-    
-    // CRITICAL: Ensure toolbar never overlaps comic - clamp to stay above comic with 5px margin
-    const maxTopBeforeComic = comicTop - toolbarHeight - 5;
-    if (top > maxTopBeforeComic) {
-        top = Math.max(logoBottom + 5, maxTopBeforeComic);
-    }
-    
+    // Calculate centered position (DirkJan pattern - no clamping here)
+    const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
     const left = (window.innerWidth - toolbarWidth) / 2;
     return { top, left };
 }
@@ -387,16 +380,12 @@ function positionToolbarCentered(toolbar, savePosition = false) {
         return;
     }
     
-    const maxTop = window.innerHeight - toolbar.offsetHeight - 10;
-    const top = Math.max(0, Math.min(optimal.top, maxTop));
-    const left = optimal.left;
-    
-    toolbar.style.left = left + 'px';
-    toolbar.style.top = top + 'px';
+    toolbar.style.left = optimal.left + 'px';
+    toolbar.style.top = optimal.top + 'px';
     toolbar.style.transform = 'none';
     
     if (savePosition) {
-        storeToolbarPosition(top, left, toolbar, {
+        storeToolbarPosition(optimal.top, optimal.left, toolbar, {
             belowComic: false,
             offsetFromComic: null,
             belowSettings: false,
@@ -460,18 +449,14 @@ function clampToolbarInView() {
         const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
 
         if (!savedPos || isOptimalMode) {
-            // Optimal mode: fully recompute ideal centered position and persist
+            // Optimal mode: fully recompute ideal centered position and persist (DirkJan pattern)
             const optimal = calculateOptimalToolbarPosition(mainToolbar);
             if (!optimal) return;
             
-            const maxTop = window.innerHeight - toolbarHeight - 10;
-            const newTop = Math.max(0, Math.min(optimal.top, maxTop));
-            const newLeft = optimal.left;
-            
-            mainToolbar.style.left = newLeft + 'px';
-            mainToolbar.style.top = newTop + 'px';
+            mainToolbar.style.left = optimal.left + 'px';
+            mainToolbar.style.top = optimal.top + 'px';
             mainToolbar.style.transform = 'none';
-            storeToolbarPosition(newTop, newLeft, mainToolbar, {
+            storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
                 belowComic: false,
                 offsetFromComic: null,
                 belowSettings: false,
