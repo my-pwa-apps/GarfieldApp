@@ -195,6 +195,41 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     } catch (_) {}
 }
 
+/**
+ * Calculate optimal centered toolbar position between logo and comic (DirkJan pattern)
+ * @param {HTMLElement} toolbar - Toolbar element
+ * @returns {{top: number, left: number}|null} Optimal position or null if not calculable
+ */
+function calculateOptimalToolbarPosition(toolbar) {
+    const logo = document.querySelector('.logo');
+    const comic = getPrimaryComicElement();
+    if (!logo || !comic) return null;
+    const logoRect = logo.getBoundingClientRect();
+    const comicRect = comic.getBoundingClientRect();
+    const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
+    const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+    if (!toolbarHeight || !toolbarWidth) return null;
+    const logoBottom = logoRect.bottom;
+    const comicTop = comicRect.top;
+    const availableSpace = comicTop - logoBottom;
+    const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+    const left = (window.innerWidth - toolbarWidth) / 2;
+    return { top, left };
+}
+
+/**
+ * Check if toolbar is within snap zone of optimal position (DirkJan pattern)
+ * @param {number} top - Current toolbar top position
+ * @param {HTMLElement} toolbar - Toolbar element
+ * @returns {boolean} True if within snap zone
+ */
+function isInSnapZone(top, toolbar) {
+    const optimal = calculateOptimalToolbarPosition(toolbar);
+    if (!optimal) return false;
+    const SNAP_THRESHOLD = 25;
+    return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
+}
+
 function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
@@ -263,30 +298,6 @@ function makeDraggable(element, dragHandle, storageKey) {
         element.style.transform = 'none';
     }
     
-    function calculateOptimalToolbarPosition(toolbar) {
-        const logo = document.querySelector('.logo');
-        const comic = getPrimaryComicElement();
-        if (!logo || !comic) return null;
-        const logoRect = logo.getBoundingClientRect();
-        const comicRect = comic.getBoundingClientRect();
-        const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-        const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
-        if (!toolbarHeight || !toolbarWidth) return null;
-        const logoBottom = logoRect.bottom;
-        const comicTop = comicRect.top;
-        const availableSpace = comicTop - logoBottom;
-        const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-        const left = (window.innerWidth - toolbarWidth) / 2;
-        return { top, left };
-    }
-    
-    function isInSnapZone(top, toolbar) {
-        const optimal = calculateOptimalToolbarPosition(toolbar);
-        if (!optimal) return false;
-        const SNAP_THRESHOLD = 25;
-        return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
-    }
-    
     function onUp() {
         if (!isDragging) return;
         
@@ -343,23 +354,33 @@ function makeDraggable(element, dragHandle, storageKey) {
 function positionToolbarCentered(toolbar, savePosition = false) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
     
-    const logo = document.querySelector('.logo');
-    const comic = getPrimaryComicElement();
+    const optimal = calculateOptimalToolbarPosition(toolbar);
+    if (!optimal) {
+        // Fallback: place below logo if we can't compute optimal
+        const logo = document.querySelector('.logo');
+        if (!logo) return;
+        const logoRect = logo.getBoundingClientRect();
+        const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+        const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
+        const left = (window.innerWidth - toolbarWidth) / 2;
+        const top = logoRect.bottom + 15;
+        toolbar.style.left = left + 'px';
+        toolbar.style.top = top + 'px';
+        toolbar.style.transform = 'none';
+        if (savePosition) {
+            storeToolbarPosition(top, left, toolbar, {
+                belowComic: false,
+                offsetFromComic: null,
+                belowSettings: false,
+                offsetFromSettings: null
+            });
+        }
+        return;
+    }
     
-    if (!logo) return;
-    
-    const logoRect = logo.getBoundingClientRect();
-    const comicRect = comic ? comic.getBoundingClientRect() : null;
-    const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
-    const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-    
-    const logoBottom = logoRect.bottom;
-    const comicTop = comicRect ? comicRect.top : window.innerHeight;
-    const availableSpace = comicTop - logoBottom;
-    const left = (window.innerWidth - toolbarWidth) / 2;
-    let top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-    const maxTop = window.innerHeight - toolbarHeight - 10;
-    top = Math.max(0, Math.min(top, maxTop));
+    const maxTop = window.innerHeight - toolbar.offsetHeight - 10;
+    const top = Math.max(0, Math.min(optimal.top, maxTop));
+    const left = optimal.left;
     
     toolbar.style.left = left + 'px';
     toolbar.style.top = top + 'px';
@@ -429,18 +450,15 @@ function clampToolbarInView() {
         const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
         const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
 
-        let newLeft = (window.innerWidth - toolbarWidth) / 2;
-        let newTop;
-
         if (!savedPos || isOptimalMode) {
             // Optimal mode: fully recompute ideal centered position and persist
-            const logoBottom = logoRect.bottom;
-            const comicTop = comicRect.top;
-            const availableSpace = comicTop - logoBottom;
-            newTop = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+            const optimal = calculateOptimalToolbarPosition(mainToolbar);
+            if (!optimal) return;
+            
             const maxTop = window.innerHeight - toolbarHeight - 10;
-            newTop = Math.max(0, Math.min(newTop, maxTop));
-            newLeft = (window.innerWidth - toolbarWidth) / 2;
+            const newTop = Math.max(0, Math.min(optimal.top, maxTop));
+            const newLeft = optimal.left;
+            
             mainToolbar.style.left = newLeft + 'px';
             mainToolbar.style.top = newTop + 'px';
             mainToolbar.style.transform = 'none';
@@ -466,7 +484,8 @@ function clampToolbarInView() {
             candidateTop = logoRect.bottom + 5;
         }
         const maxTop = window.innerHeight - toolbarHeight - 10;
-        newTop = Math.max(0, Math.min(candidateTop, maxTop));
+        const newTop = Math.max(0, Math.min(candidateTop, maxTop));
+        const newLeft = (window.innerWidth - toolbarWidth) / 2;
 
         mainToolbar.style.left = newLeft + 'px';
         mainToolbar.style.top = newTop + 'px';
