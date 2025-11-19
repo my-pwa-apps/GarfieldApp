@@ -43,7 +43,8 @@ const CONFIG = Object.freeze({
         SPANISH: 'spanish',
         SETTINGS: 'settings',
         NOTIFICATIONS: 'notifications',
-        TOOLBAR_POS: 'toolbarPosition'
+        TOOLBAR_POS: 'toolbarPosition',
+        TOOLBAR_OPTIMAL: 'toolbarOptimal'
     })
 });
 
@@ -288,7 +289,7 @@ function makeDraggable(element, dragHandle, storageKey) {
                     toolbarRect.top < comicRect.top;
                 
                 if (isInDefaultZone) {
-                    // Toolbar is in default zone - snap to centered baseline and persist it
+                    // Toolbar is in default zone - snap to optimal centered position and persist it
                     positionToolbarCentered(element, true);
                     
                     document.removeEventListener('mousemove', onMove);
@@ -299,7 +300,10 @@ function makeDraggable(element, dragHandle, storageKey) {
                 }
             }
             
-            // For toolbar, save position with metadata
+            // For toolbar, save position with metadata and clear optimal flag (custom position)
+            try {
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
+            } catch (_) {}
             storeToolbarPosition(numericTop, numericLeft, element);
         } else {
             // For other elements (like settings panel), save both positions
@@ -364,6 +368,9 @@ function positionToolbarCentered(toolbar, savePosition = false) {
             belowSettings: false,
             offsetFromSettings: null
         });
+        try {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+        } catch (_) {}
     }
 }
 
@@ -413,84 +420,45 @@ function clampToolbarInView() {
         const controlsRect = controlsContainer?.getBoundingClientRect();
         const toolbarHeight = rect.height;
         const toolbarWidth = rect.width;
-        
-        // Check if user has saved a custom position with spatial metadata
+
         const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
         const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-        
+        const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+
         // Always recenter horizontally
         const left = (window.innerWidth - toolbarWidth) / 2;
         let newTop;
 
-        const gapBetweenLogoAndComic = comicRect.top - logoRect.bottom;
-        const spaceBelowComic = window.innerHeight - comicRect.bottom;
-
-        const snappedBetweenLogoAndComic = !savedPos || savedPos.belowComic === false;
-        const wantsBelowComic = !!(savedPos && savedPos.belowComic);
-
-        if (wantsBelowComic) {
-            // Keep it below the comic at a reasonable offset
+        if (isOptimalMode || !savedPos) {
+            // Recalculate centered position between logo and comic (DirkJan optimal mode)
+            const logoBottom = logoRect.bottom;
+            const comicTop = comicRect.top;
+            const availableSpace = comicTop - logoBottom;
+            newTop = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+        } else if (savedPos && savedPos.belowComic) {
+            // Keep below-comic custom position with stored offset
             const baseOffset = Math.max(15, savedPos.offsetFromComic || 15);
             newTop = comicRect.bottom + baseOffset;
             if (controlsRect && newTop < controlsRect.bottom + 15) {
                 newTop = controlsRect.bottom + 15;
             }
-        } else if (snappedBetweenLogoAndComic) {
-            // Default snapped mode: ALWAYS center exactly between logo and comic on resize,
-            // but never let the toolbar touch or cross into the comic.
-            const requiredGap = toolbarHeight + 10; // 5px padding above/below inside the band
-            if (gapBetweenLogoAndComic >= requiredGap) {
-                // Center in the safe band and enforce a few pixels clearance from the comic
-                newTop = logoRect.bottom + (gapBetweenLogoAndComic - toolbarHeight) / 2;
-                const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
-                if (newTop > maxTopBeforeComic) {
-                    newTop = maxTopBeforeComic;
-                }
-            } else if (spaceBelowComic >= toolbarHeight + 24) {
-                // If there truly isn't room, move cleanly below comic
-                newTop = comicRect.bottom + 15;
-                if (controlsRect && newTop < controlsRect.bottom + 15) {
-                    newTop = controlsRect.bottom + 15;
-                }
-            } else {
-                // Extremely tight viewport: tuck just under logo, still guaranteeing
-                // a small gap before the comic or falling below it if needed.
-                newTop = logoRect.bottom + 10;
-                if (newTop + toolbarHeight > comicRect.top - 5) {
-                    newTop = comicRect.bottom + 10;
-                    if (controlsRect && newTop < controlsRect.bottom + 15) {
-                        newTop = controlsRect.bottom + 15;
-                    }
-                }
-            }
         } else {
-            // Custom manual position above comic: keep roughly where user left it,
-            // but never let it overlap logo or comic
-            let candidateTop = savedPos && typeof savedPos.top === 'number'
-                ? savedPos.top
-                : logoRect.bottom + 10;
-
+            // Custom manual position above comic: keep approximate band but avoid overlap
+            let candidateTop = typeof savedPos.top === 'number' ? savedPos.top : logoRect.bottom + 15;
+            const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
+            if (candidateTop > maxTopBeforeComic) {
+                candidateTop = maxTopBeforeComic;
+            }
             if (candidateTop < logoRect.bottom + 5) {
                 candidateTop = logoRect.bottom + 5;
             }
-
-            if (candidateTop + toolbarHeight > comicRect.top - 5) {
-                candidateTop = comicRect.bottom + 15;
-                if (controlsRect && candidateTop < controlsRect.bottom + 15) {
-                    candidateTop = controlsRect.bottom + 15;
-                }
-            }
-
             newTop = candidateTop;
         }
 
-        // Final safety clamps: keep fully in viewport
         const maxTop = window.innerHeight - toolbarHeight - 10;
-        const minTop = logoRect.bottom + 5;
-        newTop = Math.max(minTop, Math.min(newTop, maxTop));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
 
-        // Apply new position without updating localStorage
-        // (only drag operations should update localStorage)
+        // Apply new position without updating localStorage (drag saves state)
         mainToolbar.style.left = left + 'px';
         mainToolbar.style.top = newTop + 'px';
         mainToolbar.style.transform = 'none';
@@ -507,12 +475,18 @@ function initializeToolbar() {
     // Check for saved position (only top value is saved, horizontal is always centered)
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
     
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        // Apply saved position exactly as stored
-        mainToolbar.style.top = savedPos.top + 'px';
-        mainToolbar.style.left = savedPos.left + 'px';
-        mainToolbar.style.transform = 'none';
+        if (isOptimalMode) {
+            // Recalculate optimal centered position on load
+            positionToolbarCentered(mainToolbar, true);
+        } else {
+            // Apply saved custom position exactly as stored
+            mainToolbar.style.top = savedPos.top + 'px';
+            mainToolbar.style.left = savedPos.left + 'px';
+            mainToolbar.style.transform = 'none';
+        }
     } else if (savedPos && typeof savedPos.top === 'number') {
         // Backward compatibility: legacy entries only stored top, so recenter horizontally once
         const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
