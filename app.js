@@ -406,9 +406,8 @@ function clampToolbarInView() {
         const logo = document.querySelector('.logo');
         const comic = getPrimaryComicElement();
         const controlsContainer = document.getElementById('controls-container');
-        
         if (!logo || !comic) return;
-        
+
         const logoRect = logo.getBoundingClientRect();
         const comicRect = comic.getBoundingClientRect();
         const controlsRect = controlsContainer?.getBoundingClientRect();
@@ -422,64 +421,47 @@ function clampToolbarInView() {
         // Always recenter horizontally
         const left = (window.innerWidth - toolbarWidth) / 2;
         let newTop;
-        
-        // Determine position based on saved spatial relationship
-        if (savedPos && savedPos.belowComic === true) {
-            // Toolbar is below comic - maintain offset from comic bottom
-            const offset = Math.max(15, savedPos.offsetFromComic || 15);
-            newTop = comicRect.bottom + offset;
-            
-            // If controls exist and toolbar would overlap, position below controls instead
+
+        const gapBetweenLogoAndComic = comicRect.top - logoRect.bottom;
+        const spaceBelowComic = window.innerHeight - comicRect.bottom;
+
+        const wantsBelowComic = !!(savedPos && savedPos.belowComic);
+
+        if (wantsBelowComic) {
+            // Keep it below the comic at a reasonable offset
+            const baseOffset = Math.max(15, savedPos.offsetFromComic || 15);
+            newTop = comicRect.bottom + baseOffset;
             if (controlsRect && newTop < controlsRect.bottom + 15) {
                 newTop = controlsRect.bottom + 15;
             }
         } else {
-            // Toolbar is between logo and comic (default position)
-            // Always recalculate centered position on resize
-            const availableSpace = comicRect.top - logoRect.bottom;
-            
-            // Check if there's enough space to fit toolbar without overlapping
-            if (availableSpace >= toolbarHeight + 30) {
-                // Enough space - center it
-                newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
-            } else {
-                // Not enough space - check if we should position below comic instead
-                const spaceBelow = window.innerHeight - comicRect.bottom;
-                if (spaceBelow >= toolbarHeight + 30) {
-                    // Move below comic with controls check
-                    newTop = comicRect.bottom + 15;
-                    if (controlsRect && newTop < controlsRect.bottom + 15) {
-                        newTop = controlsRect.bottom + 15;
-                    }
-                } else {
-                    // Very cramped - position as close to logo as possible without overlap
-                    newTop = logoRect.bottom + 15;
-                }
-            }
-        }
-        
-        // Clamp within viewport bounds
-        const maxTop = window.innerHeight - toolbarHeight - 10;
-        newTop = Math.max(10, Math.min(newTop, maxTop));
-        
-        // Ensure toolbar doesn't overlap logo
-        const minTop = logoRect.bottom + 5;
-        if (newTop < minTop) {
-            newTop = minTop;
-        }
-        
-        // Ensure toolbar doesn't overlap comic (when between logo and comic)
-        if (savedPos && savedPos.belowComic !== true) {
-            const wouldOverlapComic = (newTop + toolbarHeight) > comicRect.top;
-            if (wouldOverlapComic) {
-                // Position below comic instead
+            // Default: try to sit centered between logo and comic
+            if (gapBetweenLogoAndComic >= toolbarHeight + 24) {
+                newTop = logoRect.bottom + (gapBetweenLogoAndComic - toolbarHeight) / 2;
+            } else if (spaceBelowComic >= toolbarHeight + 24) {
+                // Not enough space between logo and comic; move cleanly below comic
                 newTop = comicRect.bottom + 15;
                 if (controlsRect && newTop < controlsRect.bottom + 15) {
                     newTop = controlsRect.bottom + 15;
                 }
+            } else {
+                // Extremely tight viewport: stick close under logo but never overlap comic
+                newTop = logoRect.bottom + 10;
+                if (newTop + toolbarHeight > comicRect.top - 5) {
+                    // If that would touch the comic, drop just below it instead
+                    newTop = comicRect.bottom + 10;
+                    if (controlsRect && newTop < controlsRect.bottom + 15) {
+                        newTop = controlsRect.bottom + 15;
+                    }
+                }
             }
         }
-        
+
+        // Final safety clamps: keep fully in viewport
+        const maxTop = window.innerHeight - toolbarHeight - 10;
+        const minTop = logoRect.bottom + 5;
+        newTop = Math.max(minTop, Math.min(newTop, maxTop));
+
         // Apply new position without updating localStorage
         // (only drag operations should update localStorage)
         mainToolbar.style.left = left + 'px';
