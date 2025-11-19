@@ -425,6 +425,7 @@ function clampToolbarInView() {
         const gapBetweenLogoAndComic = comicRect.top - logoRect.bottom;
         const spaceBelowComic = window.innerHeight - comicRect.bottom;
 
+        const snappedBetweenLogoAndComic = !savedPos || savedPos.belowComic === false;
         const wantsBelowComic = !!(savedPos && savedPos.belowComic);
 
         if (wantsBelowComic) {
@@ -434,8 +435,8 @@ function clampToolbarInView() {
             if (controlsRect && newTop < controlsRect.bottom + 15) {
                 newTop = controlsRect.bottom + 15;
             }
-        } else {
-            // Default: try to sit centered between logo and comic
+        } else if (snappedBetweenLogoAndComic) {
+            // Toolbar is in its snapped "between" mode: always recompute exact center
             if (gapBetweenLogoAndComic >= toolbarHeight + 24) {
                 newTop = logoRect.bottom + (gapBetweenLogoAndComic - toolbarHeight) / 2;
             } else if (spaceBelowComic >= toolbarHeight + 24) {
@@ -444,17 +445,27 @@ function clampToolbarInView() {
                 if (controlsRect && newTop < controlsRect.bottom + 15) {
                     newTop = controlsRect.bottom + 15;
                 }
-            } else {
-                // Extremely tight viewport: stick close under logo but never overlap comic
-                newTop = logoRect.bottom + 10;
-                if (newTop + toolbarHeight > comicRect.top - 5) {
-                    // If that would touch the comic, drop just below it instead
-                    newTop = comicRect.bottom + 10;
-                    if (controlsRect && newTop < controlsRect.bottom + 15) {
-                        newTop = controlsRect.bottom + 15;
-                    }
+            }
+        } else {
+            // Custom manual position above comic: keep the same relative band but never overlap
+            let candidateTop = savedPos && typeof savedPos.top === 'number'
+                ? savedPos.top
+                : logoRect.bottom + 10;
+
+            // If that would intrude into logo area, push below logo
+            if (candidateTop < logoRect.bottom + 5) {
+                candidateTop = logoRect.bottom + 5;
+            }
+
+            // If that would touch/overlap the comic, drop below comic instead
+            if (candidateTop + toolbarHeight > comicRect.top - 5) {
+                candidateTop = comicRect.bottom + 15;
+                if (controlsRect && candidateTop < controlsRect.bottom + 15) {
+                    candidateTop = controlsRect.bottom + 15;
                 }
             }
+
+            newTop = candidateTop;
         }
 
         // Final safety clamps: keep fully in viewport
