@@ -263,6 +263,30 @@ function makeDraggable(element, dragHandle, storageKey) {
         element.style.transform = 'none';
     }
     
+    function calculateOptimalToolbarPosition(toolbar) {
+        const logo = document.querySelector('.logo');
+        const comic = getPrimaryComicElement();
+        if (!logo || !comic) return null;
+        const logoRect = logo.getBoundingClientRect();
+        const comicRect = comic.getBoundingClientRect();
+        const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
+        const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+        if (!toolbarHeight || !toolbarWidth) return null;
+        const logoBottom = logoRect.bottom;
+        const comicTop = comicRect.top;
+        const availableSpace = comicTop - logoBottom;
+        const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+        const left = (window.innerWidth - toolbarWidth) / 2;
+        return { top, left };
+    }
+    
+    function isInSnapZone(top, toolbar) {
+        const optimal = calculateOptimalToolbarPosition(toolbar);
+        if (!optimal) return false;
+        const SNAP_THRESHOLD = 25;
+        return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
+    }
+    
     function onUp() {
         if (!isDragging) return;
         
@@ -273,38 +297,28 @@ function makeDraggable(element, dragHandle, storageKey) {
         const numericTop = parseFloat(element.style.top) || 0;
         const numericLeft = parseFloat(element.style.left) || 0;
         
-        // Special handling for toolbar: detect if it's in the default zone (between logo and comic)
+        // Special handling for toolbar: DirkJan-style snap-to-optimal behavior
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
-            const logo = document.querySelector('.logo');
-            const comic = getPrimaryComicElement();
-            
-            if (logo && comic) {
-                const logoRect = logo.getBoundingClientRect();
-                const comicRect = comic.getBoundingClientRect();
-                const toolbarRect = element.getBoundingClientRect();
-                
-                // Check if toolbar is positioned between logo and comic
-                const isInDefaultZone = 
-                    toolbarRect.bottom > logoRect.bottom && 
-                    toolbarRect.top < comicRect.top;
-                
-                if (isInDefaultZone) {
-                    // Toolbar is in default zone - snap to optimal centered position and persist it
-                    positionToolbarCentered(element, true);
-                    
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('touchmove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                    document.removeEventListener('touchend', onUp);
-                    return;
-                }
+            const optimal = calculateOptimalToolbarPosition(element);
+            if (optimal && isInSnapZone(numericTop, element)) {
+                element.style.left = optimal.left + 'px';
+                element.style.top = optimal.top + 'px';
+                element.style.transform = 'none';
+                storeToolbarPosition(optimal.top, optimal.left, element, {
+                    belowComic: false,
+                    offsetFromComic: null,
+                    belowSettings: false,
+                    offsetFromSettings: null
+                });
+                try {
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+                } catch (_) {}
+            } else {
+                try {
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
+                } catch (_) {}
+                storeToolbarPosition(numericTop, numericLeft, element);
             }
-            
-            // For toolbar, save position with metadata and clear optimal flag (custom position)
-            try {
-                localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
-            } catch (_) {}
-            storeToolbarPosition(numericTop, numericLeft, element);
         } else {
             // For other elements (like settings panel), save both positions
             try {
@@ -336,26 +350,16 @@ function positionToolbarCentered(toolbar, savePosition = false) {
     
     const logoRect = logo.getBoundingClientRect();
     const comicRect = comic ? comic.getBoundingClientRect() : null;
-    const toolbarWidth = toolbar.offsetWidth;
-    const toolbarHeight = toolbar.offsetHeight;
+    const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+    const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
     
-    // Always center horizontally - simple calculation
+    const logoBottom = logoRect.bottom;
+    const comicTop = comicRect ? comicRect.top : window.innerHeight;
+    const availableSpace = comicTop - logoBottom;
     const left = (window.innerWidth - toolbarWidth) / 2;
-    
-    // Position between logo and comic
-    let top;
-    if (comicRect && comicRect.top > logoRect.bottom + toolbarHeight + 30) {
-        // Center between logo and comic if there's enough space
-        const availableSpace = comicRect.top - logoRect.bottom;
-        top = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
-    } else {
-        // Default: just below logo
-        top = logoRect.bottom + 15;
-    }
-    
-    // Ensure toolbar stays in viewport
+    let top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
     const maxTop = window.innerHeight - toolbarHeight - 10;
-    top = Math.min(top, maxTop);
+    top = Math.max(0, Math.min(top, maxTop));
     
     toolbar.style.left = left + 'px';
     toolbar.style.top = top + 'px';
@@ -425,43 +429,53 @@ function clampToolbarInView() {
         const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
         const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
 
-        // Always recenter horizontally
-        const left = (window.innerWidth - toolbarWidth) / 2;
+        let newLeft = (window.innerWidth - toolbarWidth) / 2;
         let newTop;
 
-        if (isOptimalMode || !savedPos) {
-            // Recalculate centered position between logo and comic (DirkJan optimal mode)
+        if (!savedPos || isOptimalMode) {
+            // Optimal mode: fully recompute ideal centered position and persist
             const logoBottom = logoRect.bottom;
             const comicTop = comicRect.top;
             const availableSpace = comicTop - logoBottom;
             newTop = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-        } else if (savedPos && savedPos.belowComic) {
-            // Keep below-comic custom position with stored offset
-            const baseOffset = Math.max(15, savedPos.offsetFromComic || 15);
-            newTop = comicRect.bottom + baseOffset;
-            if (controlsRect && newTop < controlsRect.bottom + 15) {
-                newTop = controlsRect.bottom + 15;
-            }
-        } else {
-            // Custom manual position above comic: keep approximate band but avoid overlap
-            let candidateTop = typeof savedPos.top === 'number' ? savedPos.top : logoRect.bottom + 15;
-            const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
-            if (candidateTop > maxTopBeforeComic) {
-                candidateTop = maxTopBeforeComic;
-            }
-            if (candidateTop < logoRect.bottom + 5) {
-                candidateTop = logoRect.bottom + 5;
-            }
-            newTop = candidateTop;
+            const maxTop = window.innerHeight - toolbarHeight - 10;
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+            newLeft = (window.innerWidth - toolbarWidth) / 2;
+            mainToolbar.style.left = newLeft + 'px';
+            mainToolbar.style.top = newTop + 'px';
+            mainToolbar.style.transform = 'none';
+            storeToolbarPosition(newTop, newLeft, mainToolbar, {
+                belowComic: false,
+                offsetFromComic: null,
+                belowSettings: false,
+                offsetFromSettings: null
+            });
+            try {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+            } catch (_) {}
+            return;
         }
 
+        // Custom mode: respect saved position but clamp into viewport
+        let candidateTop = typeof savedPos.top === 'number' ? savedPos.top : logoRect.bottom + 15;
+        const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
+        if (candidateTop > maxTopBeforeComic) {
+            candidateTop = maxTopBeforeComic;
+        }
+        if (candidateTop < logoRect.bottom + 5) {
+            candidateTop = logoRect.bottom + 5;
+        }
         const maxTop = window.innerHeight - toolbarHeight - 10;
-        newTop = Math.max(0, Math.min(newTop, maxTop));
+        newTop = Math.max(0, Math.min(candidateTop, maxTop));
 
-        // Apply new position without updating localStorage (drag saves state)
-        mainToolbar.style.left = left + 'px';
+        mainToolbar.style.left = newLeft + 'px';
         mainToolbar.style.top = newTop + 'px';
         mainToolbar.style.transform = 'none';
+
+        // Update stored position if clamped changed it
+        if (savedPos.top !== newTop || savedPos.left !== newLeft) {
+            storeToolbarPosition(newTop, newLeft, mainToolbar);
+        }
     });
 }
 
@@ -472,17 +486,18 @@ function initializeToolbar() {
     const mainToolbar = document.getElementById('mainToolbar');
     if (!mainToolbar) return;
     
-    // Check for saved position (only top value is saved, horizontal is always centered)
+    // Check for saved position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
     
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
         if (isOptimalMode) {
-            // Recalculate optimal centered position on load
+            // Recalculate optimal centered position on load (DirkJan-style retries)
             positionToolbarCentered(mainToolbar, true);
+            setTimeout(() => positionToolbarCentered(mainToolbar, true), 150);
+            window.addEventListener('load', () => positionToolbarCentered(mainToolbar, true));
         } else {
-            // Apply saved custom position exactly as stored
             mainToolbar.style.top = savedPos.top + 'px';
             mainToolbar.style.left = savedPos.left + 'px';
             mainToolbar.style.transform = 'none';
