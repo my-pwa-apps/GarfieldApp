@@ -538,6 +538,17 @@ function initializeToolbar() {
             clampToolbarInView();
         }, 100);
     });
+    
+    // Use ResizeObserver to detect when toolbar dimensions change due to CSS (DirkJan pattern)
+    if (typeof ResizeObserver !== 'undefined') {
+        const toolbarResizeObserver = new ResizeObserver(() => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                clampToolbarInView();
+            }, 50);
+        });
+        toolbarResizeObserver.observe(mainToolbar);
+    }
 }
 
 // ========================================
