@@ -400,94 +400,56 @@ function clampToolbarInView() {
         return;
     }
     
-    // Check if user has saved a custom position
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
-    
-    if (!hasSavedPosition) {
-        // No saved position - recenter on resize
-        positionToolbarCentered(mainToolbar, true);
-        return;
-    }
-    
-    // Has saved position - maintain relationships with logo, comic, and action menu
-    let top = parseFloat(mainToolbar.style.top);
-    let left = parseFloat(mainToolbar.style.left);
-    
-    if (!Number.isFinite(top)) {
-        top = rect.top;
-    }
-    if (!Number.isFinite(left)) {
-        left = rect.left;
-    }
-    
     const logo = document.querySelector('.logo');
     const comic = getPrimaryComicElement();
     const controlsContainer = document.getElementById('controls-container');
+    
+    if (!logo || !comic) return;
+    
+    const logoRect = logo.getBoundingClientRect();
+    const comicRect = comic.getBoundingClientRect();
+    const controlsRect = controlsContainer?.getBoundingClientRect();
     const toolbarHeight = rect.height;
+    const toolbarWidth = rect.width;
     
-    let newTop = top;
-    let changed = false;
+    // Check if user has saved a custom position with spatial metadata
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     
-    // Check if toolbar should stay between logo and comic
-    if (savedPos && savedPos.belowComic === false && logo && comic) {
-        const logoRect = logo.getBoundingClientRect();
-        const comicRect = comic.getBoundingClientRect();
-        const availableSpace = comicRect.top - logoRect.bottom;
+    // Always recenter horizontally
+    const left = (window.innerWidth - toolbarWidth) / 2;
+    let newTop;
+    
+    // Determine position based on saved spatial relationship
+    if (savedPos && savedPos.belowComic === true) {
+        // Toolbar is below comic - maintain offset from comic bottom
+        const offset = Math.max(15, savedPos.offsetFromComic || 15);
+        newTop = comicRect.bottom + offset;
         
-        // Keep toolbar centered between logo and comic
+        // If controls exist and toolbar would overlap, position below controls instead
+        if (controlsRect && newTop < controlsRect.bottom + 15) {
+            newTop = controlsRect.bottom + 15;
+        }
+    } else {
+        // Toolbar is between logo and comic (default position)
+        // Always recalculate centered position on resize
+        const availableSpace = comicRect.top - logoRect.bottom;
         if (availableSpace >= toolbarHeight + 30) {
             newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
-            changed = true;
         } else {
-            // Not enough space, position just below logo
             newTop = logoRect.bottom + 15;
-            changed = true;
         }
-    }
-    // Check if toolbar should stay below comic
-    else if (savedPos && savedPos.belowComic === true && comic) {
-        const comicRect = comic.getBoundingClientRect();
-        const offset = savedPos.offsetFromComic || 15;
-        newTop = comicRect.bottom + offset;
-        changed = true;
-    }
-    // Check if toolbar should stay below action menu
-    else if (savedPos && savedPos.belowSettings === true && controlsContainer) {
-        const controlsRect = controlsContainer.getBoundingClientRect();
-        const offset = savedPos.offsetFromSettings || 15;
-        newTop = controlsRect.bottom + offset;
-        changed = true;
     }
     
     // Clamp within viewport bounds
     const maxTop = window.innerHeight - toolbarHeight - 10;
-    const maxLeft = window.innerWidth - rect.width;
+    newTop = Math.max(10, Math.min(newTop, maxTop));
     
-    if (newTop < 10) {
-        newTop = 10;
-        changed = true;
-    } else if (newTop > maxTop) {
-        newTop = maxTop;
-        changed = true;
-    }
-    
-    if (left < 0) {
-        left = 0;
-        changed = true;
-    } else if (left > maxLeft) {
-        left = Math.max(0, maxLeft);
-        changed = true;
-    }
-    
-    if (changed) {
-        mainToolbar.style.left = left + 'px';
-        mainToolbar.style.top = newTop + 'px';
-        
-        // Use storeToolbarPosition to preserve metadata
-        storeToolbarPosition(newTop, left, mainToolbar);
-    }
+    // Apply new position without updating localStorage
+    // (only drag operations should update localStorage)
+    mainToolbar.style.left = left + 'px';
+    mainToolbar.style.top = newTop + 'px';
+    mainToolbar.style.transform = 'none';
 }
 
 /**
