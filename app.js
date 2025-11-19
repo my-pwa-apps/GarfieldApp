@@ -212,7 +212,16 @@ function calculateOptimalToolbarPosition(toolbar) {
     const logoBottom = logoRect.bottom;
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
-    const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+    
+    // Calculate centered position
+    let top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+    
+    // CRITICAL: Ensure toolbar never overlaps comic - clamp to stay above comic with 5px margin
+    const maxTopBeforeComic = comicTop - toolbarHeight - 5;
+    if (top > maxTopBeforeComic) {
+        top = Math.max(logoBottom + 5, maxTopBeforeComic);
+    }
+    
     const left = (window.innerWidth - toolbarWidth) / 2;
     return { top, left };
 }
