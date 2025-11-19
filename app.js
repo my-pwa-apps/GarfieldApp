@@ -395,61 +395,65 @@ function initializeDraggableSettings() {
 function clampToolbarInView() {
     const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
     if (!mainToolbar || isToolbarPersistenceSuspended) return;
-    const rect = mainToolbar.getBoundingClientRect();
-    if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
-        return;
-    }
     
-    const logo = document.querySelector('.logo');
-    const comic = getPrimaryComicElement();
-    const controlsContainer = document.getElementById('controls-container');
-    
-    if (!logo || !comic) return;
-    
-    const logoRect = logo.getBoundingClientRect();
-    const comicRect = comic.getBoundingClientRect();
-    const controlsRect = controlsContainer?.getBoundingClientRect();
-    const toolbarHeight = rect.height;
-    const toolbarWidth = rect.width;
-    
-    // Check if user has saved a custom position with spatial metadata
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    
-    // Always recenter horizontally
-    const left = (window.innerWidth - toolbarWidth) / 2;
-    let newTop;
-    
-    // Determine position based on saved spatial relationship
-    if (savedPos && savedPos.belowComic === true) {
-        // Toolbar is below comic - maintain offset from comic bottom
-        const offset = Math.max(15, savedPos.offsetFromComic || 15);
-        newTop = comicRect.bottom + offset;
+    // Wait for CSS to apply width changes from media queries
+    requestAnimationFrame(() => {
+        const rect = mainToolbar.getBoundingClientRect();
+        if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
+            return;
+        }
         
-        // If controls exist and toolbar would overlap, position below controls instead
-        if (controlsRect && newTop < controlsRect.bottom + 15) {
-            newTop = controlsRect.bottom + 15;
-        }
-    } else {
-        // Toolbar is between logo and comic (default position)
-        // Always recalculate centered position on resize
-        const availableSpace = comicRect.top - logoRect.bottom;
-        if (availableSpace >= toolbarHeight + 30) {
-            newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
+        const logo = document.querySelector('.logo');
+        const comic = getPrimaryComicElement();
+        const controlsContainer = document.getElementById('controls-container');
+        
+        if (!logo || !comic) return;
+        
+        const logoRect = logo.getBoundingClientRect();
+        const comicRect = comic.getBoundingClientRect();
+        const controlsRect = controlsContainer?.getBoundingClientRect();
+        const toolbarHeight = rect.height;
+        const toolbarWidth = rect.width;
+        
+        // Check if user has saved a custom position with spatial metadata
+        const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+        const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+        
+        // Always recenter horizontally
+        const left = (window.innerWidth - toolbarWidth) / 2;
+        let newTop;
+        
+        // Determine position based on saved spatial relationship
+        if (savedPos && savedPos.belowComic === true) {
+            // Toolbar is below comic - maintain offset from comic bottom
+            const offset = Math.max(15, savedPos.offsetFromComic || 15);
+            newTop = comicRect.bottom + offset;
+            
+            // If controls exist and toolbar would overlap, position below controls instead
+            if (controlsRect && newTop < controlsRect.bottom + 15) {
+                newTop = controlsRect.bottom + 15;
+            }
         } else {
-            newTop = logoRect.bottom + 15;
+            // Toolbar is between logo and comic (default position)
+            // Always recalculate centered position on resize
+            const availableSpace = comicRect.top - logoRect.bottom;
+            if (availableSpace >= toolbarHeight + 30) {
+                newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
+            } else {
+                newTop = logoRect.bottom + 15;
+            }
         }
-    }
-    
-    // Clamp within viewport bounds
-    const maxTop = window.innerHeight - toolbarHeight - 10;
-    newTop = Math.max(10, Math.min(newTop, maxTop));
-    
-    // Apply new position without updating localStorage
-    // (only drag operations should update localStorage)
-    mainToolbar.style.left = left + 'px';
-    mainToolbar.style.top = newTop + 'px';
-    mainToolbar.style.transform = 'none';
+        
+        // Clamp within viewport bounds
+        const maxTop = window.innerHeight - toolbarHeight - 10;
+        newTop = Math.max(10, Math.min(newTop, maxTop));
+        
+        // Apply new position without updating localStorage
+        // (only drag operations should update localStorage)
+        mainToolbar.style.left = left + 'px';
+        mainToolbar.style.top = newTop + 'px';
+        mainToolbar.style.transform = 'none';
+    });
 }
 
 /**
