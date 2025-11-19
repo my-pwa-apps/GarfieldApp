@@ -436,28 +436,30 @@ function clampToolbarInView() {
                 newTop = controlsRect.bottom + 15;
             }
         } else if (snappedBetweenLogoAndComic) {
-            // Toolbar is in its snapped "between" mode: always recompute exact center
-            if (gapBetweenLogoAndComic >= toolbarHeight + 24) {
+            // Default snapped mode: ALWAYS center exactly between logo and comic on resize
+            if (gapBetweenLogoAndComic >= toolbarHeight + 10) {
                 newTop = logoRect.bottom + (gapBetweenLogoAndComic - toolbarHeight) / 2;
             } else if (spaceBelowComic >= toolbarHeight + 24) {
-                // Not enough space between logo and comic; move cleanly below comic
+                // If there truly isn't room, move cleanly below comic
                 newTop = comicRect.bottom + 15;
                 if (controlsRect && newTop < controlsRect.bottom + 15) {
                     newTop = controlsRect.bottom + 15;
                 }
+            } else {
+                // Extremely tight viewport: tuck just under logo
+                newTop = logoRect.bottom + 10;
             }
         } else {
-            // Custom manual position above comic: keep the same relative band but never overlap
+            // Custom manual position above comic: keep roughly where user left it,
+            // but never let it overlap logo or comic
             let candidateTop = savedPos && typeof savedPos.top === 'number'
                 ? savedPos.top
                 : logoRect.bottom + 10;
 
-            // If that would intrude into logo area, push below logo
             if (candidateTop < logoRect.bottom + 5) {
                 candidateTop = logoRect.bottom + 5;
             }
 
-            // If that would touch/overlap the comic, drop below comic instead
             if (candidateTop + toolbarHeight > comicRect.top - 5) {
                 candidateTop = comicRect.bottom + 15;
                 if (controlsRect && candidateTop < controlsRect.bottom + 15) {
