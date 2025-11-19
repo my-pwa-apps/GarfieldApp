@@ -483,8 +483,14 @@ function initializeToolbar() {
     // Make toolbar draggable (vertical only)
     makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     
-    // Add resize listener to keep toolbar in bounds
-    window.addEventListener('resize', clampToolbarInView);
+    // Add debounced resize listener to keep toolbar in bounds
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            clampToolbarInView();
+        }, 100);
+    });
 }
 
 // ========================================
