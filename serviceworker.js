@@ -1,4 +1,4 @@
-const VERSION = 'v90';
+const VERSION = 'v91';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;

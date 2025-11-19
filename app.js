@@ -436,9 +436,16 @@ function clampToolbarInView() {
                 newTop = controlsRect.bottom + 15;
             }
         } else if (snappedBetweenLogoAndComic) {
-            // Default snapped mode: ALWAYS center exactly between logo and comic on resize
-            if (gapBetweenLogoAndComic >= toolbarHeight + 10) {
+            // Default snapped mode: ALWAYS center exactly between logo and comic on resize,
+            // but never let the toolbar touch or cross into the comic.
+            const requiredGap = toolbarHeight + 10; // 5px padding above/below inside the band
+            if (gapBetweenLogoAndComic >= requiredGap) {
+                // Center in the safe band and enforce a few pixels clearance from the comic
                 newTop = logoRect.bottom + (gapBetweenLogoAndComic - toolbarHeight) / 2;
+                const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
+                if (newTop > maxTopBeforeComic) {
+                    newTop = maxTopBeforeComic;
+                }
             } else if (spaceBelowComic >= toolbarHeight + 24) {
                 // If there truly isn't room, move cleanly below comic
                 newTop = comicRect.bottom + 15;
@@ -446,8 +453,15 @@ function clampToolbarInView() {
                     newTop = controlsRect.bottom + 15;
                 }
             } else {
-                // Extremely tight viewport: tuck just under logo
+                // Extremely tight viewport: tuck just under logo, still guaranteeing
+                // a small gap before the comic or falling below it if needed.
                 newTop = logoRect.bottom + 10;
+                if (newTop + toolbarHeight > comicRect.top - 5) {
+                    newTop = comicRect.bottom + 10;
+                    if (controlsRect && newTop < controlsRect.bottom + 15) {
+                        newTop = controlsRect.bottom + 15;
+                    }
+                }
             }
         } else {
             // Custom manual position above comic: keep roughly where user left it,
