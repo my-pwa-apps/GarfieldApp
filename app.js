@@ -437,16 +437,48 @@ function clampToolbarInView() {
             // Toolbar is between logo and comic (default position)
             // Always recalculate centered position on resize
             const availableSpace = comicRect.top - logoRect.bottom;
+            
+            // Check if there's enough space to fit toolbar without overlapping
             if (availableSpace >= toolbarHeight + 30) {
+                // Enough space - center it
                 newTop = logoRect.bottom + (availableSpace - toolbarHeight) / 2;
             } else {
-                newTop = logoRect.bottom + 15;
+                // Not enough space - check if we should position below comic instead
+                const spaceBelow = window.innerHeight - comicRect.bottom;
+                if (spaceBelow >= toolbarHeight + 30) {
+                    // Move below comic with controls check
+                    newTop = comicRect.bottom + 15;
+                    if (controlsRect && newTop < controlsRect.bottom + 15) {
+                        newTop = controlsRect.bottom + 15;
+                    }
+                } else {
+                    // Very cramped - position as close to logo as possible without overlap
+                    newTop = logoRect.bottom + 15;
+                }
             }
         }
         
         // Clamp within viewport bounds
         const maxTop = window.innerHeight - toolbarHeight - 10;
         newTop = Math.max(10, Math.min(newTop, maxTop));
+        
+        // Ensure toolbar doesn't overlap logo
+        const minTop = logoRect.bottom + 5;
+        if (newTop < minTop) {
+            newTop = minTop;
+        }
+        
+        // Ensure toolbar doesn't overlap comic (when between logo and comic)
+        if (savedPos && savedPos.belowComic !== true) {
+            const wouldOverlapComic = (newTop + toolbarHeight) > comicRect.top;
+            if (wouldOverlapComic) {
+                // Position below comic instead
+                newTop = comicRect.bottom + 15;
+                if (controlsRect && newTop < controlsRect.bottom + 15) {
+                    newTop = controlsRect.bottom + 15;
+                }
+            }
+        }
         
         // Apply new position without updating localStorage
         // (only drag operations should update localStorage)
