@@ -468,26 +468,48 @@ function clampToolbarInView() {
             return;
         }
 
-        // Custom mode: respect saved position but clamp into viewport
-        let candidateTop = typeof savedPos.top === 'number' ? savedPos.top : logoRect.bottom + 15;
-        const maxTopBeforeComic = comicRect.top - toolbarHeight - 5;
-        if (candidateTop > maxTopBeforeComic) {
-            candidateTop = maxTopBeforeComic;
+        // Custom mode: clamp within viewport bounds only (no comic overlap prevention)
+        let top = parseFloat(mainToolbar.style.top) || savedPos.top || logoRect.bottom + 15;
+        let left = parseFloat(mainToolbar.style.left) || savedPos.left || (window.innerWidth - toolbarWidth) / 2;
+        
+        // Calculate proper boundaries with margins
+        const viewportWidth = window.innerWidth;
+        const leftMargin = viewportWidth <= 480 ? 8 : (viewportWidth <= 768 ? 10 : 20);
+        const minLeft = leftMargin;
+        const maxLeft = viewportWidth - toolbarWidth - leftMargin;
+        const maxTop = window.innerHeight - toolbarHeight;
+        let changed = false;
+        
+        // Vertical clamping to viewport only
+        if (top < 0) { 
+            top = 0; 
+            changed = true; 
         }
-        if (candidateTop < logoRect.bottom + 5) {
-            candidateTop = logoRect.bottom + 5;
+        if (top > maxTop) { 
+            top = Math.max(0, maxTop); 
+            changed = true; 
         }
-        const maxTop = window.innerHeight - toolbarHeight - 10;
-        const newTop = Math.max(0, Math.min(candidateTop, maxTop));
-        const newLeft = (window.innerWidth - toolbarWidth) / 2;
-
-        mainToolbar.style.left = newLeft + 'px';
-        mainToolbar.style.top = newTop + 'px';
-        mainToolbar.style.transform = 'none';
-
-        // Update stored position if clamped changed it
-        if (savedPos.top !== newTop || savedPos.left !== newLeft) {
-            storeToolbarPosition(newTop, newLeft, mainToolbar);
+        
+        // Horizontal clamping with proper margins
+        if (left < minLeft) { 
+            left = minLeft;
+            changed = true; 
+        }
+        if (left > maxLeft) { 
+            left = Math.max(minLeft, maxLeft);
+            changed = true; 
+        }
+        
+        // If toolbar width caused it to extend beyond viewport, recenter it
+        if (left + toolbarWidth > viewportWidth - leftMargin) {
+            left = (viewportWidth - toolbarWidth) / 2;
+            changed = true;
+        }
+        
+        if (changed) {
+            mainToolbar.style.left = left + 'px';
+            mainToolbar.style.top = top + 'px';
+            storeToolbarPosition(top, left, mainToolbar);
         }
     });
 }
