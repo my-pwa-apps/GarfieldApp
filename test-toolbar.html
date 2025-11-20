@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Toolbar Positioning Test</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial; }
+        .logo { 
+            background: #f09819; 
+            height: 80px; 
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+        #mainToolbar { 
+            position: fixed;
+            background: linear-gradient(135deg, #F09819, #FFD700);
+            padding: 16px;
+            border-radius: 20px;
+            cursor: grab;
+            display: flex;
+            gap: 8px;
+            z-index: 100;
+        }
+        #mainToolbar button {
+            width: 52px;
+            height: 52px;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+        }
+        #comic {
+            width: 100%;
+            max-width: 900px;
+            height: 400px;
+            background: #ccc;
+            margin: 0 auto;
+            display: block;
+        }
+        .info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            font-size: 12px;
+            max-width: 300px;
+        }
+        .info button { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <div><strong>Test Instructions:</strong></div>
+        <div id="mode-display">Mode: <span id="mode">Unknown</span></div>
+        <div id="pos-display">Position: <span id="pos">Unknown</span></div>
+        <div><button onclick="clearStorage()">Clear Storage</button></div>
+        <div><button onclick="setOptimalMode()">Force Optimal Mode</button></div>
+        <div><button onclick="testResize()">Simulate Resize</button></div>
+    </div>
+
+    <div class="logo">LOGO</div>
+    
+    <div id="mainToolbar">
+        <button>1</button>
+        <button>2</button>
+        <button>3</button>
+        <button>4</button>
+        <button>5</button>
+    </div>
+
+    <div id="comic"></div>
+
+    <script>
+        const CONFIG = {
+            SNAP_THRESHOLD: 25,
+            STORAGE_KEYS: {
+                TOOLBAR_POS: 'toolbarPosition',
+                TOOLBAR_OPTIMAL: 'TOOLBAR_OPTIMAL'
+            }
+        };
+
+        function calculateOptimalToolbarPosition(toolbar) {
+            const logo = document.querySelector('.logo');
+            const comic = document.getElementById('comic');
+            if (!logo || !comic || !toolbar) return null;
+
+            const logoRect = logo.getBoundingClientRect();
+            const comicRect = comic.getBoundingClientRect();
+            const toolbarHeight = toolbar.offsetHeight;
+            const toolbarWidth = toolbar.offsetWidth;
+
+            const logoBottom = logoRect.bottom;
+            const comicTop = comicRect.top;
+            const availableSpace = comicTop - logoBottom;
+            const centeredTop = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+
+            const viewportWidth = window.innerWidth;
+            const centeredLeft = (viewportWidth - toolbarWidth) / 2;
+
+            return { top: centeredTop, left: centeredLeft };
+        }
+
+        function clampToolbarInView() {
+            const mainToolbar = document.getElementById('mainToolbar');
+            if (!mainToolbar) return;
+
+            requestAnimationFrame(() => {
+                const logo = document.querySelector('.logo');
+                const comic = document.getElementById('comic');
+                if (!logo || !comic) return;
+
+                const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+                const savedPos = savedPosRaw ? JSON.parse(savedPosRaw) : null;
+                const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+
+                updateDisplay();
+
+                if (!savedPos || isOptimalMode) {
+                    console.log('OPTIMAL MODE: Recalculating position');
+                    const optimal = calculateOptimalToolbarPosition(mainToolbar);
+                    if (!optimal) return;
+
+                    mainToolbar.style.left = optimal.left + 'px';
+                    mainToolbar.style.top = optimal.top + 'px';
+                    
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify({
+                        top: optimal.top,
+                        left: optimal.left
+                    }));
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+                    
+                    updateDisplay();
+                } else {
+                    console.log('CUSTOM MODE: Clamping to viewport');
+                    // Custom mode logic
+                    let top = parseFloat(mainToolbar.style.top) || savedPos.top;
+                    let left = parseFloat(mainToolbar.style.left) || savedPos.left;
+                    
+                    const toolbarWidth = mainToolbar.offsetWidth;
+                    const toolbarHeight = mainToolbar.offsetHeight;
+                    const viewportWidth = window.innerWidth;
+                    const maxTop = window.innerHeight - toolbarHeight;
+                    const maxLeft = viewportWidth - toolbarWidth - 20;
+                    
+                    let changed = false;
+                    if (top < 0) { top = 0; changed = true; }
+                    if (top > maxTop) { top = maxTop; changed = true; }
+                    if (left < 20) { left = 20; changed = true; }
+                    if (left > maxLeft) { left = maxLeft; changed = true; }
+                    
+                    if (changed) {
+                        mainToolbar.style.left = left + 'px';
+                        mainToolbar.style.top = top + 'px';
+                        localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify({
+                            top, left
+                        }));
+                    }
+                    updateDisplay();
+                }
+            });
+        }
+
+        function updateDisplay() {
+            const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+            const savedPos = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+            document.getElementById('mode').textContent = isOptimalMode ? 'OPTIMAL' : 'CUSTOM';
+            document.getElementById('pos').textContent = savedPos || 'None';
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        function setOptimalMode() {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+            clampToolbarInView();
+        }
+
+        function testResize() {
+            console.log('--- RESIZE EVENT ---');
+            clampToolbarInView();
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            clampToolbarInView();
+        });
+
+        window.addEventListener('resize', () => {
+            console.log('Window resize detected');
+            clampToolbarInView();
+        });
+
+        // Initial display
+        updateDisplay();
+    </script>
+</body>
+</html>

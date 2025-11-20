@@ -426,47 +426,48 @@ function clampToolbarInView() {
     const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
     if (!mainToolbar || isToolbarPersistenceSuspended) return;
     
-    // Wait for CSS to apply width changes from media queries
+    // Double requestAnimationFrame to ensure layout is fully settled (DirkJan pattern)
     requestAnimationFrame(() => {
-        const rect = mainToolbar.getBoundingClientRect();
-        if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
-            return;
-        }
-        
-        const logo = document.querySelector('.logo');
-        const comic = getPrimaryComicElement();
-        const controlsContainer = document.getElementById('controls-container');
-        if (!logo || !comic) return;
-
-        const logoRect = logo.getBoundingClientRect();
-        const comicRect = comic.getBoundingClientRect();
-        const controlsRect = controlsContainer?.getBoundingClientRect();
-        const toolbarHeight = rect.height;
-        const toolbarWidth = rect.width;
-
-        const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-        const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-        const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
-
-        if (!savedPos || isOptimalMode) {
-            // Optimal mode: fully recompute ideal centered position and persist (DirkJan pattern)
-            const optimal = calculateOptimalToolbarPosition(mainToolbar);
-            if (!optimal) return;
+        requestAnimationFrame(() => {
+            const rect = mainToolbar.getBoundingClientRect();
+            if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
+                return;
+            }
             
-            mainToolbar.style.left = optimal.left + 'px';
-            mainToolbar.style.top = optimal.top + 'px';
-            mainToolbar.style.transform = 'none';
-            storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
-                belowComic: false,
-                offsetFromComic: null,
-                belowSettings: false,
-                offsetFromSettings: null
-            });
-            try {
-                localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-            } catch (_) {}
-            return;
-        }
+            const logo = document.querySelector('.logo');
+            const comic = getPrimaryComicElement();
+            const controlsContainer = document.getElementById('controls-container');
+            if (!logo || !comic) return;
+
+            const logoRect = logo.getBoundingClientRect();
+            const comicRect = comic.getBoundingClientRect();
+            const controlsRect = controlsContainer?.getBoundingClientRect();
+            const toolbarHeight = rect.height;
+            const toolbarWidth = rect.width;
+
+            const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+            const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+            const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+
+            if (!savedPos || isOptimalMode) {
+                // Optimal mode: fully recompute ideal centered position and persist (DirkJan pattern)
+                const optimal = calculateOptimalToolbarPosition(mainToolbar);
+                if (!optimal) return;
+                
+                mainToolbar.style.left = optimal.left + 'px';
+                mainToolbar.style.top = optimal.top + 'px';
+                mainToolbar.style.transform = 'none';
+                storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
+                    belowComic: false,
+                    offsetFromComic: null,
+                    belowSettings: false,
+                    offsetFromSettings: null
+                });
+                try {
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+                } catch (_) {}
+                return;
+            }
 
         // Custom mode: clamp within viewport bounds only (no comic overlap prevention)
         let top = parseFloat(mainToolbar.style.top) || savedPos.top || logoRect.bottom + 15;
@@ -511,6 +512,7 @@ function clampToolbarInView() {
             mainToolbar.style.top = top + 'px';
             storeToolbarPosition(top, left, mainToolbar);
         }
+        });
     });
 }
 
