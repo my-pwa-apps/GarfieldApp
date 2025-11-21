@@ -994,7 +994,8 @@ async function Share() {
     }
 }
 
-window.Share = Share;
+// Event listeners will be added in initApp
+
 
 /**
  * Add or remove comic from favorites
@@ -1041,7 +1042,8 @@ function Addfav() {
     showComic();
 }
 
-window.Addfav = Addfav;
+// Event listeners will be added in initApp
+
 
 function changeComicImage(newSrc) {
     const comic = document.getElementById('comic');
@@ -1084,7 +1086,8 @@ function HideSettings(e) {
 }
 
 // Expose globally as early as possible
-window.HideSettings = HideSettings;
+// Event listeners will be added in initApp
+
 
 // ========================================
 // TOUCH & SWIPE HANDLING
@@ -1549,7 +1552,8 @@ function handleRotatedViewResize() {
 }
 
 // Expose Rotate function globally
-window.Rotate = Rotate;
+// Event listeners will be added in initApp
+
 
 // Orientation change listener registered inline at end of file (DirkJan pattern)
 
@@ -1721,7 +1725,25 @@ function showErrorMessage(message) {
            <p>Please try again later or select a different date.</p>`;
 }
 
-window.onLoad = function() {
+function initApp() {
+    // Add event listeners
+    document.getElementById('First').addEventListener('click', FirstClick);
+    document.getElementById('Previous').addEventListener('click', PreviousClick);
+    document.getElementById('Random').addEventListener('click', RandomClick);
+    document.getElementById('Next').addEventListener('click', NextClick);
+    document.getElementById('Last').addEventListener('click', LastClick);
+    document.getElementById('DatePicker').addEventListener('input', DateChange);
+    document.getElementById('settingsBtn').addEventListener('click', HideSettings);
+    document.getElementById('settingsCloseBtn').addEventListener('click', HideSettings);
+    document.getElementById('favheart').addEventListener('click', Addfav);
+    document.getElementById('shareBtn').addEventListener('click', Share);
+    document.getElementById('exportFavs').addEventListener('click', exportFavorites);
+    document.getElementById('importFavs').addEventListener('click', importFavorites);
+    document.getElementById('installBtn').addEventListener('click', () => { /* handled in showInstallButton */ });
+    document.getElementById('DatePickerBtn').addEventListener('click', () => {
+        document.getElementById('DatePicker').showPicker?.();
+    });
+
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
     // Set minimum body height at load time to prevent gradient shift
@@ -1784,6 +1806,13 @@ window.onLoad = function() {
     updateDateDisplay(); // Add this line to update the display
 }
 
+// Call initApp when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
+
 // Call this function when the date changes
 async function DateChange() {
     const previousDate = new Date(currentselectedDate);
@@ -1823,7 +1852,8 @@ async function DateChange() {
     await showComic();
 }
 
-window.DateChange = DateChange;
+// Event listeners will be added in initApp
+
 
 // Add this to update the display when showing a comic
 async function showComic(skipOnFailure = false, direction = null) {
@@ -1922,7 +1952,8 @@ function PreviousClick() {
 	showComic(true, 'previous'); // Auto-skip unavailable comics going backwards
 }
 
-window.PreviousClick = PreviousClick;
+// Event listeners will be added in initApp
+
 
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
@@ -1936,7 +1967,8 @@ function NextClick() {
 	showComic(true, 'next'); // Auto-skip unavailable comics going forward
 }
 
-window.NextClick = NextClick;
+// Event listeners will be added in initApp
+
 
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
@@ -1951,7 +1983,8 @@ function FirstClick() {
 	showComic();
 }
 
-window.FirstClick = FirstClick;
+// Event listeners will be added in initApp
+
 
 function LastClick() {
 	if(document.getElementById("showfavs").checked)
@@ -1968,7 +2001,8 @@ function LastClick() {
 	showComic();
 }
 
-window.LastClick = LastClick;
+// Event listeners will be added in initApp
+
 
 /**
  * Export favorites as downloadable JSON file
@@ -2005,7 +2039,8 @@ function exportFavorites() {
     showNotification(message, 3000);
 }
 
-window.exportFavorites = exportFavorites;
+// Event listeners will be added in initApp
+
 
 /**
  * Import favorites from uploaded JSON file
@@ -2083,7 +2118,8 @@ function importFavorites() {
     fileInput.click();
 }
 
-window.importFavorites = importFavorites;
+// Event listeners will be added in initApp
+
 
 function RandomClick()
 {
@@ -2100,7 +2136,8 @@ function RandomClick()
 	showComic();
 }
 
-window.RandomClick = RandomClick;
+// Event listeners will be added in initApp
+
 
 function CompareDates() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
@@ -2170,10 +2207,8 @@ function formatDate(datetoFormat) {
 // SETTINGS EVENT HANDLERS
 // ========================================
 
-setStatus = document.getElementById('swipe');
-setStatus.onclick = function()
-{
-	if(document.getElementById('swipe').checked)
+document.getElementById('swipe').addEventListener('change', function() {
+	if(this.checked)
 	{
     	localStorage.setItem('stat', "true");
     }
@@ -2183,12 +2218,10 @@ setStatus.onclick = function()
 			CompareDates();
 			showComic();
     }
-}
+});
 
-setStatus = document.getElementById('lastdate');
-setStatus.onclick = function()
-{
-	if(document.getElementById('lastdate').checked) 
+document.getElementById('lastdate').addEventListener('change', function() {
+	if(this.checked) 
 	{
 		localStorage.setItem('lastdate', "true");
 	}
@@ -2196,13 +2229,11 @@ setStatus.onclick = function()
 	{
 		localStorage.setItem('lastdate', "false");
 	}
-}
+});
 
-setStatus = document.getElementById('showfavs');
-setStatus.onclick = function()
-{
+document.getElementById('showfavs').addEventListener('change', function() {
 	var favs = JSON.parse(localStorage.getItem('favs'));
-	if(document.getElementById('showfavs').checked)
+	if(this.checked)
 	{
 		localStorage.setItem('showfavs', "true");
 		if(favs.indexOf(formattedComicDate) !== -1)
@@ -2212,22 +2243,19 @@ setStatus.onclick = function()
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
-		// NOTE: Button now uses SVG icon only, no text label change needed
 	} 
 	else
 	{
 		localStorage.setItem('showfavs', "false");
-		// NOTE: Button now uses SVG icon only, no text label change needed
 	}
 	CompareDates();
 	showComic();
-}
+});
 
-setStatus = document.getElementById('spanish');
-if (setStatus) {
-	setStatus.onclick = async function()
-	{
-		const isSpanish = document.getElementById('spanish').checked;
+const spanishCheckbox = document.getElementById('spanish');
+if (spanishCheckbox) {
+	spanishCheckbox.addEventListener('change', async function() {
+		const isSpanish = this.checked;
 		const datePicker = document.getElementById('DatePicker');
 		
 		if(isSpanish)
@@ -2286,7 +2314,7 @@ if (setStatus) {
 			CompareDates();
 			showComic();
 		}
-	}
+	});
 }
 
 // Notification feature removed - only worked when app was open
@@ -2466,7 +2494,7 @@ document.getElementById("lastdate").checked = lastDateStatus === "true";
 
 // Initialize Spanish language preference
 const spanishStatus = localStorage.getItem('spanish');
-const datePicker = document.getElementById('DatePicker');
+const datePickerEl = document.getElementById('DatePicker');
 const userLang = navigator.language || navigator.userLanguage;
 const isSpanishLocale = userLang.startsWith('es');
 
@@ -2480,7 +2508,7 @@ if (spanishStatus === null) {
 
 document.getElementById("spanish").checked = useSpanish;
 translateInterface(useSpanish ? 'es' : 'en');
-if (datePicker) datePicker.min = useSpanish ? "1999-12-06" : "1978-06-19";
+if (datePickerEl) datePickerEl.min = useSpanish ? "1999-12-06" : "1978-06-19";
 
 // Initialize settings panel
 
@@ -2519,7 +2547,7 @@ function showInstallButton() {
   if (installBtn) {
     installBtn.style.display = 'block';
     
-    installBtn.onclick = async function() {
+    installBtn.addEventListener('click', async function() {
       if (!deferredPrompt) {
         return;
       }
@@ -2535,7 +2563,7 @@ function showInstallButton() {
       }
       
       deferredPrompt = null;
-    };
+    });
   }
 }
 

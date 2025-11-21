@@ -41,7 +41,7 @@
     <script src="./app.js" type="module"></script>
 </head>
 
-<body onload="onLoad()">
+<body id="app-body">
     <div class="logo">
         <img src="./garlogo.png" alt="Daily Garfield Comics">
     </div>
@@ -64,18 +64,18 @@
     
     <!-- Draggable Toolbar - v9 with SVG icons only -->
     <div class="toolbar" id="mainToolbar">
-        <button class="toolbar-button" id="First" onclick="FirstClick()" aria-label="First comic" title="First">
+        <button class="toolbar-button" id="First" aria-label="First comic" title="First">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="19 20 9 12 19 4 19 20"></polygon>
                 <line x1="5" y1="19" x2="5" y2="5"></line>
             </svg>
         </button>
-        <button class="toolbar-button" id="Previous" onclick="PreviousClick()" aria-label="Previous comic" title="Previous">
+        <button class="toolbar-button" id="Previous" aria-label="Previous comic" title="Previous">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
         </button>
-        <button class="toolbar-button" id="Random" onclick="RandomClick()" aria-label="Random comic" title="Random">
+        <button class="toolbar-button" id="Random" aria-label="Random comic" title="Random">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
                 <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle>
@@ -84,7 +84,7 @@
                 <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle>
             </svg>
         </button>
-        <button class="toolbar-button" id="DatePickerBtn" onclick="document.getElementById('DatePicker').showPicker?.()" aria-label="Select date" title="Select Date">
+        <button class="toolbar-button" id="DatePickerBtn" aria-label="Select date" title="Select Date">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                 <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -92,13 +92,13 @@
                 <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
         </button>
-        <input id="DatePicker" oninput="DateChange()" type="date" min="1978-06-19" aria-label="Select comic date">
-        <button class="toolbar-button" id="Next" onclick="NextClick()" aria-label="Next comic" title="Next">
+        <input id="DatePicker" type="date" min="1978-06-19" aria-label="Select comic date">
+        <button class="toolbar-button" id="Next" aria-label="Next comic" title="Next">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
         </button>
-        <button class="toolbar-button" id="Last" onclick="LastClick()" aria-label="Last comic" title="Last">
+        <button class="toolbar-button" id="Last" aria-label="Last comic" title="Last">
             <svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="5 4 15 12 5 20 5 4"></polygon>
                 <line x1="19" y1="5" x2="19" y2="19"></line>
@@ -119,18 +119,18 @@
             <!-- Ko-fi widget loaded via modern DOM insertion -->
         </div>
         <div class="settings-icons-container">
-            <button class="icon-button" onclick="HideSettings()" aria-label="Settings" title="Settings">
+            <button class="icon-button" id="settingsBtn" aria-label="Settings" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
                     <circle cx="12" cy="12" r="3"></circle>
                 </svg>
             </button>
-            <button class="icon-button" id="favheart" onclick="Addfav()" aria-label="Add to favorites" title="Favorite">
+            <button class="icon-button" id="favheart" aria-label="Add to favorites" title="Favorite">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                 </svg>
             </button>
-            <button class="icon-button" onclick="Share()" aria-label="Share" title="Share">
+            <button class="icon-button" id="shareBtn" aria-label="Share" title="Share">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="18" cy="5" r="3"></circle>
                     <circle cx="6" cy="12" r="3"></circle>
@@ -150,7 +150,7 @@
     <div id="settingsDIV" class="settings-panel" aria-label="Settings" role="region">
         <div class="settings-header" id="settingsHeader">
             <h3>Settings</h3>
-            <button class="settings-close" onclick="HideSettings()" aria-label="Close">&times;</button>
+            <button class="settings-close" id="settingsCloseBtn" aria-label="Close">&times;</button>
         </div>
         <div class="settings-content">
             <div class="setting-item">
@@ -171,7 +171,7 @@
             </div>
             <div class="setting-divider"></div>
             <div class="setting-item setting-backup">
-                <button class="backup-button" id="exportFavs" onclick="exportFavorites()" aria-label="Export favorites">
+                <button class="backup-button" id="exportFavs" aria-label="Export favorites">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="7 10 12 15 17 10"></polyline>
@@ -179,7 +179,7 @@
                     </svg>
                     <span>Export Favorites</span>
                 </button>
-                <button class="backup-button" id="importFavs" onclick="importFavorites()" aria-label="Import favorites">
+                <button class="backup-button" id="importFavs" aria-label="Import favorites">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                         <polyline points="17 8 12 3 7 8"></polyline>
