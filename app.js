@@ -434,128 +434,53 @@ function clampToolbarInView() {
                 return;
             }
             
-            const logo = document.querySelector('.logo');
-            const comic = getPrimaryComicElement();
-            const controlsContainer = document.getElementById('controls-container');
-            const settingsPanel = document.getElementById('settingsDIV');
-            
-            if (!logo || !comic) return;
-
-            const logoRect = logo.getBoundingClientRect();
-            const comicRect = comic.getBoundingClientRect();
-            const controlsRect = controlsContainer?.getBoundingClientRect();
-            const settingsRect = settingsPanel?.classList.contains('visible') ? settingsPanel.getBoundingClientRect() : null;
-            
-            const toolbarHeight = rect.height;
-            const toolbarWidth = rect.width;
-
-            const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-            const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
             const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
 
-            if (!savedPos || isOptimalMode) {
+            if (isOptimalMode) {
                 // Optimal mode: fully recompute ideal centered position and persist (DirkJan pattern)
                 const optimal = calculateOptimalToolbarPosition(mainToolbar);
-                if (!optimal) return;
-                
-                mainToolbar.style.left = optimal.left + 'px';
-                mainToolbar.style.top = optimal.top + 'px';
-                mainToolbar.style.transform = 'none';
-                storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
-                    belowComic: false,
-                    offsetFromComic: null,
-                    belowSettings: false,
-                    offsetFromSettings: null
-                });
-                try {
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-                } catch (_) {}
+                if (optimal) {
+                    mainToolbar.style.left = optimal.left + 'px';
+                    mainToolbar.style.top = optimal.top + 'px';
+                    mainToolbar.style.transform = 'none';
+                    storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
+                        belowComic: false,
+                        offsetFromComic: null,
+                        belowSettings: false,
+                        offsetFromSettings: null
+                    });
+                }
                 return;
             }
 
-        // Custom mode: Try to respect relative positioning first
-        let top = parseFloat(mainToolbar.style.top) || savedPos.top || logoRect.bottom + 15;
-        let left = parseFloat(mainToolbar.style.left) || savedPos.left || (window.innerWidth - toolbarWidth) / 2;
+            // Custom mode: Just clamp to viewport
+            let top = parseFloat(mainToolbar.style.top);
+            let left = parseFloat(mainToolbar.style.left);
+            
+            // If we don't have explicit styles, use rect
+            if (isNaN(top)) top = rect.top;
+            if (isNaN(left)) left = rect.left;
 
-        // Restore relative position if metadata exists
-        if (savedPos.belowComic && comicRect) {
-            const offset = savedPos.offsetFromComic || 15;
-            top = comicRect.bottom + offset;
-        } else if (savedPos.belowSettings && settingsRect) {
-            const offset = savedPos.offsetFromSettings || 15;
-            top = settingsRect.bottom + offset;
-        }
+            const toolbarHeight = rect.height;
+            const toolbarWidth = rect.width;
+            const viewportWidth = window.innerWidth;
+            
+            // Horizontal clamping - always keep centered
+            const centeredLeft = (viewportWidth - toolbarWidth) / 2;
+            left = centeredLeft;
 
-        // Viewport clamping
-        const viewportWidth = window.innerWidth;
-        const leftMargin = viewportWidth <= 480 ? 8 : (viewportWidth <= 768 ? 10 : 20);
-        const minLeft = leftMargin;
-        const maxLeft = viewportWidth - toolbarWidth - leftMargin;
-        const maxTop = window.innerHeight - toolbarHeight;
-        
-        if (top < 0) top = 0;
-        if (top > maxTop) top = Math.max(0, maxTop);
-        if (left < minLeft) left = minLeft;
-        if (left > maxLeft) left = Math.max(minLeft, maxLeft);
-        if (left + toolbarWidth > viewportWidth - leftMargin) left = (viewportWidth - toolbarWidth) / 2;
+            // Vertical clamping
+            const maxTop = window.innerHeight - toolbarHeight;
+            if (top < 0) top = 0;
+            if (top > maxTop) top = Math.max(0, maxTop);
 
-        // COLLISION DETECTION
-        const toolbarRect = { top: top, bottom: top + toolbarHeight, left: left, right: left + toolbarWidth };
-        
-        const checkOverlap = (r1, r2) => {
-            if (!r2) return false;
-            return !(r1.right < r2.left || 
-                     r1.left > r2.right || 
-                     r1.bottom < r2.top || 
-                     r1.top > r2.bottom);
-        };
-
-        let hasOverlap = false;
-        if (checkOverlap(toolbarRect, logoRect)) hasOverlap = true;
-        if (checkOverlap(toolbarRect, comicRect)) hasOverlap = true;
-        if (controlsRect && checkOverlap(toolbarRect, controlsRect)) hasOverlap = true;
-        if (settingsRect && checkOverlap(toolbarRect, settingsRect)) hasOverlap = true;
-
-        if (hasOverlap) {
-            // Collision detected! Try to find a safe spot.
-            // 1. Try Optimal Position (between logo and comic)
-            const optimal = calculateOptimalToolbarPosition(mainToolbar);
-            if (optimal) {
-                const optRect = { 
-                    top: optimal.top, 
-                    bottom: optimal.top + toolbarHeight, 
-                    left: optimal.left, 
-                    right: optimal.left + toolbarWidth 
-                };
-                
-                let optimalSafe = true;
-                if (checkOverlap(optRect, logoRect)) optimalSafe = false;
-                if (checkOverlap(optRect, comicRect)) optimalSafe = false;
-                
-                if (optimalSafe) {
-                    top = optimal.top;
-                    left = optimal.left;
-                    // Switch to optimal mode since we forced it there
-                    try {
-                        localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-                    } catch (_) {}
-                } else {
-                    // Optimal spot isn't safe (probably no space). Try below comic.
-                    const belowComicTop = comicRect.bottom + 15;
-                    if (belowComicTop + toolbarHeight <= window.innerHeight) {
-                         top = belowComicTop;
-                    }
-                }
+            // Apply
+            if (Math.abs(parseFloat(mainToolbar.style.top) - top) > 1 || 
+                Math.abs(parseFloat(mainToolbar.style.left) - left) > 1) {
+                mainToolbar.style.left = left + 'px';
+                mainToolbar.style.top = top + 'px';
+                storeToolbarPosition(top, left, mainToolbar);
             }
-        }
-
-        // Apply final position
-        if (Math.abs(parseFloat(mainToolbar.style.top) - top) > 1 || 
-            Math.abs(parseFloat(mainToolbar.style.left) - left) > 1) {
-            mainToolbar.style.left = left + 'px';
-            mainToolbar.style.top = top + 'px';
-            storeToolbarPosition(top, left, mainToolbar);
-        }
         });
     });
 }
@@ -1583,6 +1508,9 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.maxHeight = 'none';
     imgElement.style.zIndex = '10001';
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+
+    // Ensure toolbar doesn't overlap
+    setTimeout(clampToolbarInView, 50);
 }
 
 /**
@@ -1658,6 +1586,8 @@ async function loadComic(date, silentMode = false) {
 
             const ensureOrientationCheck = () => {
                 checkImageOrientation();
+                // Ensure toolbar doesn't overlap with the new image
+                setTimeout(clampToolbarInView, 50);
             };
             if (comicImg.complete) {
                 ensureOrientationCheck();
