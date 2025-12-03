@@ -161,10 +161,14 @@ body.rotated-state .buttongrid,
 body.rotated-state #controls-container,
 body.rotated-state #settingsDIV,
 body.rotated-state .toolbar,
+body.rotated-state #mainToolbar,
 body.rotated-state br,
-body.rotated-state #installBtn {
+body.rotated-state #installBtn,
+body.rotated-state .notification-toast {
     display: none !important;
     visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 body.rotated-state #comic-container,
