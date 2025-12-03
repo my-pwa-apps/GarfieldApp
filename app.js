@@ -420,68 +420,83 @@ function initializeDraggableSettings() {
 }
 
 /**
- * Clamp toolbar within viewport bounds on resize
+ * Keeps main toolbar within viewport bounds on resize/orientation changes
+ * Repositions if no saved position exists to keep it centered (DirkJan pattern)
  */
 function clampToolbarInView() {
-    const mainToolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    if (!mainToolbar || isToolbarPersistenceSuspended) return;
+    const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
+    if (!toolbar || isToolbarPersistenceSuspended) return;
     
-    // Double requestAnimationFrame to ensure layout is fully settled (DirkJan pattern)
+    // Check if toolbar is in optimal position mode
+    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+    
+    if (isOptimalMode) {
+        // Toolbar is in optimal mode - recalculate centered position on resize
+        const optimalPos = calculateOptimalToolbarPosition(toolbar);
+        if (optimalPos) {
+            toolbar.style.top = optimalPos.top + 'px';
+            toolbar.style.left = optimalPos.left + 'px';
+            toolbar.style.transform = 'none';
+            // Update saved position to maintain optimal state
+            storeToolbarPosition(optimalPos.top, optimalPos.left, toolbar);
+        }
+        return;
+    }
+    
+    // Check if user has saved a custom position
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
+    
+    if (!hasSavedPosition) {
+        // No saved position - recenter between logo and comic on resize
+        positionToolbarCentered(toolbar);
+        return;
+    }
+    
+    // User has saved position - clamp within bounds and adjust for responsive width
+    const hasExplicitPosition = toolbar.style.top && toolbar.style.left;
+    if (!hasExplicitPosition) return;
+    
+    // Wait for CSS to apply width changes from media queries
     requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            const rect = mainToolbar.getBoundingClientRect();
-            if (!rect || rect.height === 0 || Number.isNaN(rect.top) || mainToolbar.offsetParent === null) {
-                return;
-            }
-            
-            const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
-
-            if (isOptimalMode) {
-                // Optimal mode: fully recompute ideal centered position and persist (DirkJan pattern)
-                const optimal = calculateOptimalToolbarPosition(mainToolbar);
-                if (optimal) {
-                    mainToolbar.style.left = optimal.left + 'px';
-                    mainToolbar.style.top = optimal.top + 'px';
-                    mainToolbar.style.transform = 'none';
-                    storeToolbarPosition(optimal.top, optimal.left, mainToolbar, {
-                        belowComic: false,
-                        offsetFromComic: null,
-                        belowSettings: false,
-                        offsetFromSettings: null
-                    });
-                }
-                return;
-            }
-
-            // Custom mode: Just clamp to viewport
-            let top = parseFloat(mainToolbar.style.top);
-            let left = parseFloat(mainToolbar.style.left);
-            
-            // If we don't have explicit styles, use rect
-            if (isNaN(top)) top = rect.top;
-            if (isNaN(left)) left = rect.left;
-
-            const toolbarHeight = rect.height;
-            const toolbarWidth = rect.width;
-            const viewportWidth = window.innerWidth;
-            
-            // Horizontal clamping - always keep centered
-            const centeredLeft = (viewportWidth - toolbarWidth) / 2;
-            left = centeredLeft;
-
-            // Vertical clamping
-            const maxTop = window.innerHeight - toolbarHeight;
-            if (top < 0) top = 0;
-            if (top > maxTop) top = Math.max(0, maxTop);
-
-            // Apply
-            if (Math.abs(parseFloat(mainToolbar.style.top) - top) > 1 || 
-                Math.abs(parseFloat(mainToolbar.style.left) - left) > 1) {
-                mainToolbar.style.left = left + 'px';
-                mainToolbar.style.top = top + 'px';
-                storeToolbarPosition(top, left, mainToolbar);
-            }
-        });
+        const rect = toolbar.getBoundingClientRect();
+        let top = parseFloat(toolbar.style.top);
+        let left = parseFloat(toolbar.style.left);
+        const toolbarWidth = toolbar.offsetWidth;
+        const viewportWidth = window.innerWidth;
+        
+        // Calculate proper boundaries with margins
+        const leftMargin = viewportWidth <= 480 ? 8 : (viewportWidth <= 768 ? 10 : 20);
+        const minLeft = leftMargin;
+        const maxLeft = viewportWidth - toolbarWidth - leftMargin;
+        const maxTop = window.innerHeight - rect.height;
+        let changed = false;
+        
+        // Vertical clamping
+        if (top < 0) { top = 0; changed = true; }
+        if (top > maxTop) { top = Math.max(0, maxTop); changed = true; }
+        
+        // Horizontal clamping with proper margins
+        if (left < minLeft) { 
+            left = minLeft;
+            changed = true; 
+        }
+        if (left > maxLeft) { 
+            left = Math.max(minLeft, maxLeft);
+            changed = true; 
+        }
+        
+        // If toolbar width caused it to extend beyond viewport, recenter it
+        if (left + toolbarWidth > viewportWidth - leftMargin) {
+            left = (viewportWidth - toolbarWidth) / 2;
+            changed = true;
+        }
+        
+        if (changed) {
+            toolbar.style.left = left + 'px';
+            toolbar.style.top = top + 'px';
+            storeToolbarPosition(top, left, toolbar);
+        }
     });
 }
 
@@ -499,31 +514,76 @@ function initializeToolbar() {
     
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
         if (isOptimalMode) {
-            // Recalculate optimal centered position on load (DirkJan-style retries)
-            positionToolbarCentered(mainToolbar, true);
-            setTimeout(() => positionToolbarCentered(mainToolbar, true), 150);
-            window.addEventListener('load', () => positionToolbarCentered(mainToolbar, true));
+            // Toolbar was in optimal mode - recalculate optimal position on load
+            // This ensures it stays centered even if window size changed since last session
+            const tryOptimalPosition = () => {
+                const optimalPos = calculateOptimalToolbarPosition(mainToolbar);
+                if (optimalPos) {
+                    mainToolbar.style.top = optimalPos.top + 'px';
+                    mainToolbar.style.left = optimalPos.left + 'px';
+                    mainToolbar.style.transform = 'none';
+                }
+            };
+            
+            // Try immediately and after load
+            setTimeout(tryOptimalPosition, 0);
+            setTimeout(tryOptimalPosition, 50);
+            window.addEventListener('load', () => {
+                setTimeout(tryOptimalPosition, 100);
+                setTimeout(() => {
+                    tryOptimalPosition();
+                    // Save the recalculated position
+                    const pos = calculateOptimalToolbarPosition(mainToolbar);
+                    if (pos) storeToolbarPosition(pos.top, pos.left, mainToolbar);
+                }, 300);
+            });
         } else {
+            // Apply saved custom position immediately
             mainToolbar.style.top = savedPos.top + 'px';
             mainToolbar.style.left = savedPos.left + 'px';
             mainToolbar.style.transform = 'none';
         }
-    } else if (savedPos && typeof savedPos.top === 'number') {
-        // Backward compatibility: legacy entries only stored top, so recenter horizontally once
-        const left = (window.innerWidth - mainToolbar.offsetWidth) / 2;
-        mainToolbar.style.top = savedPos.top + 'px';
-        mainToolbar.style.left = left + 'px';
-        mainToolbar.style.transform = 'none';
-        storeToolbarPosition(savedPos.top, left, mainToolbar);
     } else {
         // No saved position - calculate centered position
-        positionToolbarCentered(mainToolbar, true);
+        // Set a safe default first to avoid showing over comic
+        const logo = document.querySelector('.logo');
+        if (logo) {
+            const logoRect = logo.getBoundingClientRect();
+            mainToolbar.style.top = (logoRect.bottom + 15) + 'px';
+            mainToolbar.style.left = '50%';
+            mainToolbar.style.transform = 'translateX(-50%)';
+        }
+        
+        // Then position correctly after elements load and save the position
+        const tryPosition = () => {
+            mainToolbar.style.transform = 'none'; // Clear transform before positioning
+            positionToolbarCentered(mainToolbar, false); // Don't save yet during intermediate attempts
+        };
+        
+        const finalPosition = () => {
+            mainToolbar.style.transform = 'none';
+            positionToolbarCentered(mainToolbar, true); // Save position on final attempt
+            // Mark as optimal mode
+            try {
+                localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+            } catch (_) {}
+        };
+        
+        // Try positioning multiple times as elements load
+        setTimeout(tryPosition, 0);
+        setTimeout(tryPosition, 50);
+        setTimeout(tryPosition, 100);
+        window.addEventListener('load', () => {
+            tryPosition();
+            setTimeout(finalPosition, 300); // Save position after final positioning
+        });
     }
     
     // Make toolbar draggable (vertical only)
     makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     
-    // Add debounced resize listener to keep toolbar in bounds
+    // Only clamp on resize, not on orientation change to prevent toolbar movement
+    // Debounce resize handler to avoid excessive calculations
     let resizeTimeout;
     window.addEventListener('resize', () => {
         clearTimeout(resizeTimeout);
@@ -532,7 +592,7 @@ function initializeToolbar() {
         }, 100);
     });
     
-    // Use ResizeObserver to detect when toolbar dimensions change due to CSS (DirkJan pattern)
+    // Use ResizeObserver to detect when toolbar dimensions change due to CSS
     if (typeof ResizeObserver !== 'undefined') {
         const toolbarResizeObserver = new ResizeObserver(() => {
             clearTimeout(resizeTimeout);
