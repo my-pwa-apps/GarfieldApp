@@ -204,18 +204,36 @@ function calculateOptimalToolbarPosition(toolbar) {
     const logo = document.querySelector('.logo');
     const comic = getPrimaryComicElement();
     if (!logo || !comic) return null;
+    
     const logoRect = logo.getBoundingClientRect();
     const comicRect = comic.getBoundingClientRect();
     const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
     const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+    
     if (!toolbarHeight || !toolbarWidth) return null;
+    
     const logoBottom = logoRect.bottom;
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
     
-    // Calculate centered position (DirkJan pattern - no clamping here)
+    // Safety check: if available space is too small or negative, the layout hasn't stabilized yet
+    if (availableSpace < toolbarHeight + 10) {
+        // Not enough space - place toolbar just below logo with minimum gap
+        const safeTop = logoBottom + 15;
+        const left = (window.innerWidth - toolbarWidth) / 2;
+        return { top: safeTop, left };
+    }
+    
+    // Calculate centered position (DirkJan pattern)
     const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
     const left = (window.innerWidth - toolbarWidth) / 2;
+    
+    // Final safety: ensure we're not overlapping comic
+    if (top + toolbarHeight > comicTop - 5) {
+        // Clamp to just above comic
+        return { top: Math.max(logoBottom + 15, comicTop - toolbarHeight - 10), left };
+    }
+    
     return { top, left };
 }
 
@@ -431,15 +449,47 @@ function clampToolbarInView() {
     const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
     
     if (isOptimalMode) {
-        // Toolbar is in optimal mode - recalculate centered position on resize
-        const optimalPos = calculateOptimalToolbarPosition(toolbar);
-        if (optimalPos) {
-            toolbar.style.top = optimalPos.top + 'px';
-            toolbar.style.left = optimalPos.left + 'px';
-            toolbar.style.transform = 'none';
-            // Update saved position to maintain optimal state
-            storeToolbarPosition(optimalPos.top, optimalPos.left, toolbar);
-        }
+        // Use double RAF to ensure layout is stable before calculating position
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Toolbar is in optimal mode - recalculate centered position on resize
+                const optimalPos = calculateOptimalToolbarPosition(toolbar);
+                if (optimalPos) {
+                    // Additional safety: ensure we're not placing toolbar over logo or comic
+                    const logo = document.querySelector('.logo');
+                    const comic = getPrimaryComicElement();
+                    
+                    if (logo && comic) {
+                        const logoRect = logo.getBoundingClientRect();
+                        const comicRect = comic.getBoundingClientRect();
+                        const toolbarHeight = toolbar.offsetHeight;
+                        
+                        let safeTop = optimalPos.top;
+                        
+                        // Ensure not overlapping logo
+                        if (safeTop < logoRect.bottom + 10) {
+                            safeTop = logoRect.bottom + 15;
+                        }
+                        
+                        // Ensure not overlapping comic
+                        if (safeTop + toolbarHeight > comicRect.top - 5) {
+                            safeTop = Math.max(logoRect.bottom + 15, comicRect.top - toolbarHeight - 10);
+                        }
+                        
+                        toolbar.style.top = safeTop + 'px';
+                        toolbar.style.left = optimalPos.left + 'px';
+                        toolbar.style.transform = 'none';
+                        // Update saved position to maintain optimal state
+                        storeToolbarPosition(safeTop, optimalPos.left, toolbar);
+                    } else {
+                        toolbar.style.top = optimalPos.top + 'px';
+                        toolbar.style.left = optimalPos.left + 'px';
+                        toolbar.style.transform = 'none';
+                        storeToolbarPosition(optimalPos.top, optimalPos.left, toolbar);
+                    }
+                }
+            });
+        });
         return;
     }
     
