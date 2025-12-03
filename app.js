@@ -1,7 +1,5 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
 
-//garfieldapp.pages.dev
-
 // ========================================
 // CONFIGURATION & CONSTANTS
 // ========================================
@@ -2829,8 +2827,6 @@ function scheduleDailyCheck() {
     // Convert ET time back to local time for setTimeout
     const checkTimeLocal = new Date(checkTimeET.toLocaleString('en-US'));
     const timeUntilCheck = checkTimeLocal.getTime() - now.getTime();
-    
-    console.log(`Next comic check scheduled in ${Math.round(timeUntilCheck / 1000 / 60 / 60)} hours`);
     
     setTimeout(() => {
         checkForNewComicNow();

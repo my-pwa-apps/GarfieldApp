@@ -156,7 +156,7 @@ export async function getAuthenticatedComic(date, language = 'en') {
         const imageUrl = extractImageFromHTML(html);
         
         if (imageUrl) {
-            console.log(`✓ Proxy fetch succeeded`);
+            // Proxy fetch succeeded
             return { success: true, imageUrl };
         }
         

@@ -237,8 +237,6 @@ label {
     opacity: 0;
 }
 
-
-
 .fullscreen-landscape {
     max-height: 95vh;
     max-width: 95vw;
@@ -268,7 +266,6 @@ label {
     justify-content: center;
     overflow: hidden;
 }
-
 
 /* Fullscreen toolbar styles */
 .fullscreen-toolbar {
