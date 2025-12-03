@@ -535,7 +535,7 @@ function clampToolbarInView() {
             // Get element references
             const comic = getPrimaryComicElement();
             const controlsContainer = document.getElementById('controls-container');
-            const settingsPanel = document.getElementById('settings');
+            const settingsPanel = document.getElementById('settingsDIV');
             const logo = document.querySelector('.logo');
             
             let newTop = savedPos.top;
@@ -549,7 +549,7 @@ function clampToolbarInView() {
                 newTop = controlsRect.bottom + storedGap;
             }
             // 2. If below settings panel, maintain that relationship
-            else if (savedPos.belowSettings && settingsPanel && settingsPanel.classList.contains('show')) {
+            else if (savedPos.belowSettings && settingsPanel && settingsPanel.classList.contains('visible')) {
                 const settingsRect = settingsPanel.getBoundingClientRect();
                 const storedGap = savedPos.offsetFromSettings || 15;
                 newTop = settingsRect.bottom + storedGap;
@@ -591,7 +591,22 @@ function clampToolbarInView() {
                 toolbar.style.top = newTop + 'px';
                 toolbar.style.left = newLeft + 'px';
                 toolbar.style.transform = 'none';
-                storeToolbarPosition(newTop, newLeft, toolbar);
+                
+                // Preserve the relative positioning metadata when updating position
+                const overrides = {};
+                if (savedPos.belowControls) {
+                    overrides.belowControls = true;
+                    overrides.offsetFromControls = savedPos.offsetFromControls || 15;
+                }
+                if (savedPos.belowComic) {
+                    overrides.belowComic = true;
+                    overrides.offsetFromComic = savedPos.offsetFromComic || 15;
+                }
+                if (savedPos.belowSettings) {
+                    overrides.belowSettings = true;
+                    overrides.offsetFromSettings = savedPos.offsetFromSettings || 15;
+                }
+                storeToolbarPosition(newTop, newLeft, toolbar, overrides);
             }
         });
     });
@@ -2152,13 +2167,19 @@ function updateExportButtonState() {
  * Export favorites as downloadable JSON file
  */
 function exportFavorites() {
+    const exportBtn = document.getElementById('exportFavs');
+    
+    // Early exit if button is disabled (shouldn't happen but be defensive)
+    if (exportBtn?.disabled) return;
+    
     const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     const isSpanish = document.getElementById('spanish')?.checked || false;
     const lang = isSpanish ? 'es' : 'en';
     const t = translations[lang];
     
     if (!favs || favs.length === 0) {
-        showNotification(t.noFavoritesToExport, 3000);
+        // Update button state in case it wasn't properly disabled
+        updateExportButtonState();
         return;
     }
     

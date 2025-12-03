@@ -964,9 +964,11 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .backup-button:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
+    background: #ccc;
+    color: #888;
 }
 
 .hidden-file-input {
