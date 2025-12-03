@@ -163,6 +163,7 @@ body.rotated-state #settingsDIV,
 body.rotated-state .toolbar,
 body.rotated-state br,
 body.rotated-state #installBtn {
+    display: none !important;
     visibility: hidden !important;
 }
 

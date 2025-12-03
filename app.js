@@ -1418,6 +1418,9 @@ function Rotate(applyRotation = true) {
             window.removeEventListener('resize', handleRotatedViewResize);
             window.removeEventListener('orientationchange', handleRotatedViewResize);
             
+            // Remove rotated-state class from body
+            document.body.classList.remove('rotated-state');
+            
             isRotatedMode = false;
             isRotating = false;
             
@@ -1515,6 +1518,9 @@ function Rotate(applyRotation = true) {
         // Enter fullscreen mode
         isRotatedMode = true;
         isToolbarPersistenceSuspended = true;
+        
+        // Add rotated-state class to body for CSS-based hiding
+        document.body.classList.add('rotated-state');
         
         // Change theme color for Android status bar to match dark overlay
         const themeColorMeta = document.querySelector('meta[name="theme-color"]');
