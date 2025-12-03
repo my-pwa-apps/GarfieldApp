@@ -963,6 +963,12 @@ input[type="date"]::-webkit-datetime-edit {
     stroke: #333;
 }
 
+.backup-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .hidden-file-input {
     display: none;
 }

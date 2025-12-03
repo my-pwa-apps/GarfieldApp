@@ -155,6 +155,8 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const offsetComicOverridden = applyOverride('offsetFromComic');
     const belowSettingsOverridden = applyOverride('belowSettings');
     const offsetSettingsOverridden = applyOverride('offsetFromSettings');
+    const belowControlsOverridden = applyOverride('belowControls');
+    const offsetControlsOverridden = applyOverride('offsetFromControls');
     
     const comicElement = getPrimaryComicElement();
     if (comicElement && toolbarRect && !belowComicOverridden) {
@@ -170,6 +172,23 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
         }
     } else if (belowComicOverridden && !offsetComicOverridden && positionData.belowComic === false) {
         delete positionData.offsetFromComic;
+    }
+    
+    // Track position relative to controls container (action buttons)
+    const controlsContainer = document.getElementById('controls-container');
+    if (controlsContainer && toolbarRect && !belowControlsOverridden) {
+        const controlsRect = controlsContainer.getBoundingClientRect();
+        const belowControls = toolbarRect.top >= controlsRect.bottom - 5;
+        positionData.belowControls = belowControls;
+        if (!offsetControlsOverridden) {
+            if (belowControls) {
+                positionData.offsetFromControls = Math.max(15, toolbarRect.top - controlsRect.bottom);
+            } else {
+                delete positionData.offsetFromControls;
+            }
+        }
+    } else if (belowControlsOverridden && !offsetControlsOverridden && positionData.belowControls === false) {
+        delete positionData.offsetFromControls;
     }
     
     const settingsPanel = document.getElementById('settingsDIV');
@@ -495,7 +514,8 @@ function clampToolbarInView() {
     
     // Check if user has saved a custom position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null';
+    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
+    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null' && savedPos;
     
     if (!hasSavedPosition) {
         // No saved position - recenter between logo and comic on resize
@@ -503,50 +523,77 @@ function clampToolbarInView() {
         return;
     }
     
-    // User has saved position - clamp within bounds and adjust for responsive width
-    const hasExplicitPosition = toolbar.style.top && toolbar.style.left;
-    if (!hasExplicitPosition) return;
-    
-    // Wait for CSS to apply width changes from media queries
+    // User has saved custom position - use relative positioning metadata
     requestAnimationFrame(() => {
-        const rect = toolbar.getBoundingClientRect();
-        let top = parseFloat(toolbar.style.top);
-        let left = parseFloat(toolbar.style.left);
-        const toolbarWidth = toolbar.offsetWidth;
-        const viewportWidth = window.innerWidth;
-        
-        // Calculate proper boundaries with margins
-        const leftMargin = viewportWidth <= 480 ? 8 : (viewportWidth <= 768 ? 10 : 20);
-        const minLeft = leftMargin;
-        const maxLeft = viewportWidth - toolbarWidth - leftMargin;
-        const maxTop = window.innerHeight - rect.height;
-        let changed = false;
-        
-        // Vertical clamping
-        if (top < 0) { top = 0; changed = true; }
-        if (top > maxTop) { top = Math.max(0, maxTop); changed = true; }
-        
-        // Horizontal clamping with proper margins
-        if (left < minLeft) { 
-            left = minLeft;
-            changed = true; 
-        }
-        if (left > maxLeft) { 
-            left = Math.max(minLeft, maxLeft);
-            changed = true; 
-        }
-        
-        // If toolbar width caused it to extend beyond viewport, recenter it
-        if (left + toolbarWidth > viewportWidth - leftMargin) {
-            left = (viewportWidth - toolbarWidth) / 2;
-            changed = true;
-        }
-        
-        if (changed) {
-            toolbar.style.left = left + 'px';
-            toolbar.style.top = top + 'px';
-            storeToolbarPosition(top, left, toolbar);
-        }
+        requestAnimationFrame(() => {
+            const rect = toolbar.getBoundingClientRect();
+            const toolbarHeight = rect.height;
+            const toolbarWidth = toolbar.offsetWidth;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Get element references
+            const comic = getPrimaryComicElement();
+            const controlsContainer = document.getElementById('controls-container');
+            const settingsPanel = document.getElementById('settings');
+            const logo = document.querySelector('.logo');
+            
+            let newTop = savedPos.top;
+            let newLeft = (viewportWidth - toolbarWidth) / 2; // Always center horizontally
+            
+            // Restore relative position based on saved metadata (priority order)
+            // 1. If below controls (action buttons), maintain that relationship
+            if (savedPos.belowControls && controlsContainer) {
+                const controlsRect = controlsContainer.getBoundingClientRect();
+                const storedGap = savedPos.offsetFromControls || 15;
+                newTop = controlsRect.bottom + storedGap;
+            }
+            // 2. If below settings panel, maintain that relationship
+            else if (savedPos.belowSettings && settingsPanel && settingsPanel.classList.contains('show')) {
+                const settingsRect = settingsPanel.getBoundingClientRect();
+                const storedGap = savedPos.offsetFromSettings || 15;
+                newTop = settingsRect.bottom + storedGap;
+            }
+            // 3. If below comic, maintain that relationship
+            else if (savedPos.belowComic && comic) {
+                const comicRect = comic.getBoundingClientRect();
+                const storedGap = savedPos.offsetFromComic || 15;
+                newTop = comicRect.bottom + storedGap;
+            }
+            
+            // Viewport boundary clamping
+            const maxTop = viewportHeight - toolbarHeight - 10;
+            if (newTop < 0) newTop = 0;
+            if (newTop > maxTop) newTop = maxTop;
+            
+            // Ensure we don't overlap logo
+            if (logo) {
+                const logoRect = logo.getBoundingClientRect();
+                if (newTop < logoRect.bottom + 10) {
+                    newTop = logoRect.bottom + 15;
+                }
+            }
+            
+            // Ensure we don't overlap comic (unless intentionally below it)
+            if (comic && !savedPos.belowComic && !savedPos.belowControls) {
+                const comicRect = comic.getBoundingClientRect();
+                if (newTop + toolbarHeight > comicRect.top - 5 && newTop < comicRect.bottom) {
+                    // Toolbar would overlap comic - push it above
+                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + 15 : 0, comicRect.top - toolbarHeight - 10);
+                }
+            }
+            
+            // Apply position if changed
+            const currentTop = parseFloat(toolbar.style.top) || 0;
+            const currentLeft = parseFloat(toolbar.style.left) || 0;
+            
+            if (Math.abs(currentTop - newTop) > 1 || Math.abs(currentLeft - newLeft) > 1) {
+                toolbar.style.top = newTop + 'px';
+                toolbar.style.left = newLeft + 'px';
+                toolbar.style.transform = 'none';
+                storeToolbarPosition(newTop, newLeft, toolbar);
+            }
+        });
     });
 }
 
@@ -1117,6 +1164,7 @@ function Addfav() {
     
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
+    updateExportButtonState();
     CompareDates();
     showComic();
 }
@@ -1888,6 +1936,7 @@ function initApp() {
     CompareDates();
     showComic();
     updateDateDisplay(); // Add this line to update the display
+    updateExportButtonState(); // Enable/disable export button based on favorites
 }
 
 // Call initApp when DOM is ready
@@ -2089,6 +2138,17 @@ function LastClick() {
 
 
 /**
+ * Update export button state based on favorites existence
+ */
+function updateExportButtonState() {
+    const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    const exportBtn = document.getElementById('exportFavs');
+    if (exportBtn) {
+        exportBtn.disabled = favs.length === 0;
+    }
+}
+
+/**
  * Export favorites as downloadable JSON file
  */
 function exportFavorites() {
@@ -2173,6 +2233,9 @@ function importFavorites() {
                     if (showFavsCheckbox) {
                         showFavsCheckbox.disabled = false;
                     }
+                    
+                    // Update export button state
+                    updateExportButtonState();
                     
                     // Update heart icon if current comic is now a favorite
                     CompareDates();
