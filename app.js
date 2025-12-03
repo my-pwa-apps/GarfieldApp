@@ -1713,6 +1713,9 @@ function handleRotatedViewResize() {
     }
 }
 
+// Expose key functions globally for devtools and inline handlers
+window.Rotate = Rotate;
+
 // Expose Rotate function globally
 // Event listeners will be added in initApp
 
