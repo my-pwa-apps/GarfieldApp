@@ -1398,6 +1398,7 @@ function Rotate(applyRotation = true) {
             // Restore all hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
+                el.classList.remove('hidden-during-fullscreen');
                 el.style.removeProperty('display');
                 const inlineDisplay = el.dataset.originalDisplayInline;
                 const inlinePriority = el.dataset.originalDisplayPriority || '';
@@ -1548,6 +1549,18 @@ function Rotate(applyRotation = true) {
             el.dataset.originalDisplayPriority = el.style.getPropertyPriority('display') || '';
             el.dataset.wasHidden = "true";
             el.style.setProperty('display', 'none', 'important');
+            el.classList.add('hidden-during-fullscreen');
+        });
+
+        // Explicitly ensure UI is hidden (double-check critical elements)
+        const forceHide = document.querySelectorAll('.logo, .toolbar, #mainToolbar, #controls-container, .buttongrid, #settingsDIV');
+        forceHide.forEach(el => {
+             if (!el.dataset.wasHidden) {
+                 el.dataset.originalDisplay = window.getComputedStyle(el).display;
+                 el.dataset.wasHidden = "true";
+             }
+             el.style.setProperty('display', 'none', 'important');
+             el.classList.add('hidden-during-fullscreen');
         });
         
         // Create overlay
