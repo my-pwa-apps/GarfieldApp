@@ -1698,6 +1698,9 @@ function handleRotatedViewResize() {
 // Event listeners will be added in initApp
 
 
+// Expose Rotate function globally for orientationchange listener
+window.Rotate = Rotate;
+
 // Orientation change listener registered inline at end of file (DirkJan pattern)
 
 // Update the date display function to use regional date settings
@@ -2856,28 +2859,17 @@ async function checkForNewComicNow() {
 
 window.addEventListener('orientationchange', function() {
     setTimeout(() => {
-        const orientation = screen.orientation?.type || '';
-        const isLandscape = orientation.includes('landscape') || Math.abs(window.orientation) === 90;
         const rotatedComic = document.getElementById('rotated-comic');
-        
-        if (isLandscape) {
-            // Device rotated to landscape
-            if (!rotatedComic) {
-                // Not in fullscreen yet - enter landscape fullscreen mode
-                const comic = document.getElementById('comic');
-                if (comic && comic.className.includes('normal')) {
-                    Rotate(false); // Enter fullscreen WITHOUT rotation (device already landscape)
-                }
-            } else {
-                // Already in fullscreen - just reposition
-                maximizeRotatedImage(rotatedComic);
+
+        if (!rotatedComic) {
+            // Not in fullscreen yet – enter fullscreen mode
+            const comic = document.getElementById('comic');
+            if (comic && comic.className.includes('normal')) {
+                Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
             }
         } else {
-            // Device rotated to portrait
-            if (rotatedComic) {
-                // In fullscreen mode - exit it
-                Rotate();
-            }
+            // Already in fullscreen – exit it
+            Rotate();
         }
     }, 300);
 });
