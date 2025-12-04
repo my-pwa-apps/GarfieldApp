@@ -1508,7 +1508,6 @@ function Rotate(applyRotation = true) {
                 storeToolbarPosition(newTop, newLeft, toolbar);
             }, 250);
             
-            window.removeEventListener('keydown', handleRotateExitKey);
             return;
         }
         
