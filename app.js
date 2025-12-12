@@ -1679,8 +1679,11 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.zIndex = '10001';
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
 
-    // Ensure toolbar doesn't overlap
-    setTimeout(clampToolbarInView, 50);
+    // In fullscreen/rotated mode we intentionally hide UI (comic-only).
+    // Avoid toolbar layout work while the overlay is active.
+    if (!document.getElementById('comic-overlay')) {
+        setTimeout(clampToolbarInView, 50);
+    }
 }
 
 /**
