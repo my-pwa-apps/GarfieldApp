@@ -2853,22 +2853,72 @@ async function checkForNewComicNow() {
 // ========================================
 // ORIENTATION CHANGE LISTENER
 // ========================================
-// Register at end of file to ensure all functions are defined
-// Inline handler like DirkJan for immediate registration
+// DirkJan-style logic: keep fullscreen state in sync with device orientation.
+// Landscape => comic-only fullscreen overlay. Portrait => exit overlay.
 
-window.addEventListener('orientationchange', function() {
-    setTimeout(() => {
-        const rotatedComic = document.getElementById('rotated-comic');
+let rotationSyncTimeoutId = null;
 
-        if (!rotatedComic) {
-            // Not in fullscreen yet – enter fullscreen mode
-            const comic = document.getElementById('comic');
-            if (comic && comic.className.includes('normal')) {
-                Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
-            }
-        } else {
-            // Already in fullscreen – exit it
-            Rotate();
+function shouldAutoLandscapeFullscreen() {
+    if (isVerticalComicActive) return false;
+
+    // Avoid triggering on desktop window resizes.
+    const isCoarsePointer = !!window.matchMedia?.('(pointer: coarse)')?.matches;
+    return UTILS.isMobileOrTouch() || isCoarsePointer;
+}
+
+function isLandscapeOrientationNow() {
+    const mql = window.matchMedia?.('(orientation: landscape)');
+    if (mql && typeof mql.matches === 'boolean') {
+        return mql.matches;
+    }
+
+    const visualWidth = window.visualViewport?.width || window.innerWidth;
+    const visualHeight = window.visualViewport?.height || window.innerHeight;
+    return visualWidth > visualHeight;
+}
+
+function syncFullscreenWithOrientation() {
+    if (!shouldAutoLandscapeFullscreen()) return;
+
+    const overlayExists = !!document.getElementById('comic-overlay');
+    const landscape = isLandscapeOrientationNow();
+
+    if (landscape && !overlayExists) {
+        const comic = document.getElementById('comic');
+        if (comic) {
+            Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
         }
-    }, 300);
-});
+        return;
+    }
+
+    if (!landscape && overlayExists) {
+        Rotate(false); // Exit fullscreen (Rotate exits when overlay exists)
+    }
+}
+
+function scheduleFullscreenOrientationSync(delayMs = 250) {
+    clearTimeout(rotationSyncTimeoutId);
+    rotationSyncTimeoutId = setTimeout(syncFullscreenWithOrientation, delayMs);
+}
+
+(function registerOrientationHandlers() {
+    window.addEventListener('orientationchange', () => scheduleFullscreenOrientationSync(300));
+    window.addEventListener('resize', () => scheduleFullscreenOrientationSync(150));
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => scheduleFullscreenOrientationSync(150));
+        window.visualViewport.addEventListener('scroll', () => scheduleFullscreenOrientationSync(150));
+    }
+
+    const mql = window.matchMedia?.('(orientation: landscape)');
+    if (mql) {
+        if (typeof mql.addEventListener === 'function') {
+            mql.addEventListener('change', () => scheduleFullscreenOrientationSync(0));
+        } else if (typeof mql.addListener === 'function') {
+            mql.addListener(() => scheduleFullscreenOrientationSync(0));
+        }
+    }
+
+    // Initial sync for cases where the app loads while already in landscape.
+    scheduleFullscreenOrientationSync(0);
+})();
