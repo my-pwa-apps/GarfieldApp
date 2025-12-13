@@ -2860,13 +2860,21 @@ async function checkForNewComicNow() {
 // Landscape => comic-only fullscreen overlay. Portrait => exit overlay.
 
 let rotationSyncTimeoutId = null;
+let landscapeEnterAttempts = 0;
 
 function shouldAutoLandscapeFullscreen() {
     if (isVerticalComicActive) return false;
 
     // Avoid triggering on desktop window resizes.
     const isCoarsePointer = !!window.matchMedia?.('(pointer: coarse)')?.matches;
-    return UTILS.isMobileOrTouch() || isCoarsePointer;
+    const isAnyCoarsePointer = !!window.matchMedia?.('(any-pointer: coarse)')?.matches;
+    const noHover = !!window.matchMedia?.('(hover: none)')?.matches;
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isProbablyMobile = UTILS.isMobileOrTouch() || isTouch || isCoarsePointer || isAnyCoarsePointer || noHover;
+
+    // Allow small windows even if UA sniffing fails (PWA/desktop UA edge cases).
+    const isSmallViewport = Math.min(window.innerWidth, window.innerHeight) <= 900;
+    return isProbablyMobile || isSmallViewport;
 }
 
 function isLandscapeOrientationNow() {
@@ -2881,15 +2889,33 @@ function isLandscapeOrientationNow() {
 }
 
 function syncFullscreenWithOrientation() {
-    if (!shouldAutoLandscapeFullscreen()) return;
-
     const overlayExists = !!document.getElementById('comic-overlay');
     const landscape = isLandscapeOrientationNow();
+
+    // CSS fallback: when in landscape (or overlay active), hide the app UI.
+    // The overlay should still be created; this just prevents showing toolbar/logo during the transition.
+    document.body.classList.toggle('rotated-state', landscape || overlayExists);
+
+    if (!shouldAutoLandscapeFullscreen()) {
+        // Don't auto-enter/exit on desktop, but still keep the UI fallback in sync.
+        landscapeEnterAttempts = 0;
+        return;
+    }
+
+    if (!landscape) {
+        landscapeEnterAttempts = 0;
+    }
 
     if (landscape && !overlayExists) {
         const comic = document.getElementById('comic');
         if (comic) {
             Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
+        }
+
+        // Some devices report landscape before viewport settles; retry a few times.
+        if (landscapeEnterAttempts < 4) {
+            landscapeEnterAttempts++;
+            scheduleFullscreenOrientationSync(220);
         }
         return;
     }
