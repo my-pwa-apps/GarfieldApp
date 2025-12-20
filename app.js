@@ -2892,9 +2892,9 @@ function syncFullscreenWithOrientation() {
     const overlayExists = !!document.getElementById('comic-overlay');
     const landscape = isLandscapeOrientationNow();
 
-    // CSS fallback: when in landscape (or overlay active), hide the app UI.
-    // The overlay should still be created; this just prevents showing toolbar/logo during the transition.
-    document.body.classList.toggle('rotated-state', landscape || overlayExists);
+    // Only apply rotated-state when overlay actually exists (fullscreen mode is active).
+    // The Rotate() function handles hiding UI elements when entering fullscreen.
+    document.body.classList.toggle('rotated-state', overlayExists);
 
     if (!shouldAutoLandscapeFullscreen()) {
         // Don't auto-enter/exit on desktop, but still keep the UI fallback in sync.
