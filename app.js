@@ -1419,16 +1419,8 @@ function Rotate(applyRotation = true) {
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
         
-        // Apply sizing when image is loaded
-        if (clonedComic.complete) {
-            maximizeRotatedImage(clonedComic);
-        } else {
-            clonedComic.onload = function() {
-                maximizeRotatedImage(clonedComic);
-            };
-        }
-        
         // Hide all other elements (DirkJan pattern)
+        // MOVED UP: Hide elements BEFORE maximizing image to ensure they are hidden even if image logic fails
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
         elementsToHide.forEach(el => {
             el.dataset.originalDisplay = window.getComputedStyle(el).display;
@@ -1438,8 +1430,29 @@ function Rotate(applyRotation = true) {
             el.style.setProperty('visibility', 'hidden', 'important');
         });
         
+        // Explicitly hide known persistent elements by ID/Class
+        const explicitHide = ['.toolbar', '.logo', '#mainToolbar'];
+        explicitHide.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el && !el.dataset.wasHidden) {
+                el.dataset.originalDisplay = window.getComputedStyle(el).display;
+                el.dataset.wasHidden = "true";
+                el.style.setProperty('display', 'none', 'important');
+                el.style.setProperty('visibility', 'hidden', 'important');
+            }
+        });
+
         // Prevent scrolling while in fullscreen
         document.body.style.overflow = 'hidden';
+        
+        // Apply sizing when image is loaded
+        if (clonedComic.complete) {
+            maximizeRotatedImage(clonedComic);
+        } else {
+            clonedComic.onload = function() {
+                maximizeRotatedImage(clonedComic);
+            };
+        }
         
         // Handler function to exit fullscreen (DirkJan pattern)
         const exitFullscreen = function() {
