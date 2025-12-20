@@ -1513,6 +1513,14 @@ function Rotate(applyRotation = true) {
  * @param {HTMLImageElement} imgElement - Image element to resize
  */
 function maximizeRotatedImage(imgElement) {
+    // Position element in the center of the viewport (DirkJan pattern)
+    // Set this IMMEDIATELY so it's fixed even if dimensions are missing
+    imgElement.style.position = 'fixed';
+    imgElement.style.top = '50%';
+    imgElement.style.left = '50%';
+    imgElement.style.transformOrigin = 'center center';
+    imgElement.style.zIndex = '10001';
+
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
     const visualHeight = window.visualViewport?.height || viewportHeight;
@@ -1564,10 +1572,7 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.height = `${naturalHeight * scale}px`;
     
     // Position element in the center of the viewport (DirkJan pattern)
-    imgElement.style.position = 'fixed';
-    imgElement.style.top = '50%';
-    imgElement.style.left = '50%';
-    imgElement.style.transformOrigin = 'center center';
+    // Already set at top of function, but transform needs update based on mode
     
     if (isLandscapeMode) {
         // Landscape mode: no rotation, just center
@@ -1580,7 +1585,6 @@ function maximizeRotatedImage(imgElement) {
     // Clear max constraints for both modes to use calculated dimensions
     imgElement.style.maxWidth = 'none';
     imgElement.style.maxHeight = 'none';
-    imgElement.style.zIndex = '10001';
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
 
     // In fullscreen/rotated mode we intentionally hide UI (comic-only).
