@@ -149,22 +149,7 @@ input {
     visibility: visible !important;
 }
 
-body.rotated-state .logo,
-body.rotated-state .buttongrid,
-body.rotated-state #controls-container,
-body.rotated-state #settingsDIV,
-body.rotated-state .toolbar,
-body.rotated-state br,
-body.rotated-state #installBtn {
-    display: none !important;
-    visibility: hidden !important;
-}
-
-body.rotated-state #comic-container,
-body.rotated-state #comic-wrapper {
-    background: transparent !important;
-    visibility: visible !important;
-}
+/* Rotated state is handled purely by JavaScript inline styles (DirkJan pattern) */
 
 .normal {
     transform: rotate(0deg);

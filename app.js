@@ -1373,10 +1373,11 @@ function Rotate(applyRotation = true) {
             document.body.removeChild(rotatedComic);
         }
         
-        // Restore all elements with data-was-hidden attribute (DirkJan pattern)
+        // Restore all hidden elements (DirkJan pattern)
         const hiddenElements = document.querySelectorAll('[data-was-hidden]');
         hiddenElements.forEach(el => {
             el.style.display = el.dataset.originalDisplay || '';
+            el.style.visibility = '';  // Clear visibility override
             delete el.dataset.wasHidden;
             delete el.dataset.originalDisplay;
         });
@@ -1424,12 +1425,14 @@ function Rotate(applyRotation = true) {
             };
         }
         
-        // Hide all other elements (DirkJan pattern - simple approach)
+        // Hide all other elements (DirkJan pattern)
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
         elementsToHide.forEach(el => {
             el.dataset.originalDisplay = window.getComputedStyle(el).display;
             el.dataset.wasHidden = "true";
             el.style.setProperty('display', 'none', 'important');
+            // Extra: Force visibility hidden for fixed-position elements
+            el.style.setProperty('visibility', 'hidden', 'important');
         });
         
         // Handler function to exit fullscreen (DirkJan pattern)
@@ -1447,6 +1450,7 @@ function Rotate(applyRotation = true) {
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
                 el.style.display = el.dataset.originalDisplay || '';
+                el.style.visibility = '';  // Clear visibility override
                 delete el.dataset.wasHidden;
                 delete el.dataset.originalDisplay;
             });
