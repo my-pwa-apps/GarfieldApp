@@ -1533,19 +1533,16 @@ function Rotate(applyRotation = true) {
             wasSettingsPanelVisible = false;
         }
         
-        // Hide all page elements
-        const elementsToHide = document.querySelectorAll('body > *');
-        elementsToHide.forEach(el => {
-            el.dataset.originalDisplay = window.getComputedStyle(el).display;
-            el.dataset.originalDisplayInline = el.style.getPropertyValue('display') || '';
-            el.dataset.originalDisplayPriority = el.style.getPropertyPriority('display') || '';
-            el.dataset.wasHidden = "true";
-            el.style.setProperty('display', 'none', 'important');
-        });
-        
-        // Create overlay
+        // Create overlay (DirkJan pattern - set styles inline)
         const overlay = document.createElement('div');
         overlay.id = 'comic-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
+        overlay.style.zIndex = '10000';
         
         // Clone comic image
         const clonedComic = element.cloneNode(true);
@@ -1559,9 +1556,19 @@ function Rotate(applyRotation = true) {
         
         // No toolbar in fullscreen mode - maximize screen space for comic
         
-        // Add elements to page
+        // Add elements to page first (DirkJan pattern)
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
+        
+        // Hide all other elements AFTER appending overlay and comic (DirkJan pattern)
+        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
+        elementsToHide.forEach(el => {
+            el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.originalDisplayInline = el.style.getPropertyValue('display') || '';
+            el.dataset.originalDisplayPriority = el.style.getPropertyPriority('display') || '';
+            el.dataset.wasHidden = "true";
+            el.style.setProperty('display', 'none', 'important');
+        });
         
         // Show comic
         clonedComic.style.display = 'block';
