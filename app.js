@@ -1431,7 +1431,7 @@ function Rotate(applyRotation = true) {
         });
         
         // Explicitly hide known persistent elements by ID/Class
-        const explicitHide = ['.toolbar', '.logo', '#mainToolbar'];
+        const explicitHide = ['.toolbar', '.logo', '#mainToolbar', '#comic-container', '#controls-container', '#installBtn', '#settingsDIV'];
         explicitHide.forEach(selector => {
             const el = document.querySelector(selector);
             if (el && !el.dataset.wasHidden) {
