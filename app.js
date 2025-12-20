@@ -1488,44 +1488,45 @@ function Rotate(applyRotation = true) {
 function maximizeRotatedImage(imgElement) {
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    
+
     const naturalWidth = imgElement.naturalWidth;
     const naturalHeight = imgElement.naturalHeight;
-    
+
     if (!naturalWidth || !naturalHeight) {
         return;
     }
-    
-    // For a rotated image, the visual width is the original height, and vice versa
-    const rotatedWidth = naturalHeight;
-    const rotatedHeight = naturalWidth;
-    
-    // Calculate the scale factor needed to fit the image within the viewport
+
+    const isLandscapeFullscreen = imgElement.className.includes('fullscreen-landscape');
+    const shouldRotate = !isLandscapeFullscreen;
+
+    // When rotated 90deg, visual width/height swap.
+    const visualWidth = shouldRotate ? naturalHeight : naturalWidth;
+    const visualHeight = shouldRotate ? naturalWidth : naturalHeight;
+
+    // Calculate scale factor to fit within viewport
     let scale;
-    if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
-        // Image is wider than viewport (relative to aspect ratios)
-        scale = viewportWidth / rotatedWidth;
+    if (visualWidth / visualHeight > viewportWidth / viewportHeight) {
+        scale = viewportWidth / visualWidth;
     } else {
-        // Image is taller than viewport (relative to aspect ratios)
-        scale = viewportHeight / rotatedHeight;
+        scale = viewportHeight / visualHeight;
     }
-    
-    // Make the image slightly smaller (90% of the calculated size)
+
+    // Match DirkJan sizing feel
     scale = scale * 0.9;
-    
-    // Apply dimension with calculated scale
+
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
-    
-    // Position element in the center of the viewport
+
     imgElement.style.position = 'fixed';
     imgElement.style.top = '50%';
     imgElement.style.left = '50%';
-    imgElement.style.transform = 'translate(-50%, -50%) rotate(90deg)';
     imgElement.style.transformOrigin = 'center center';
+    imgElement.style.transform = shouldRotate
+        ? 'translate(-50%, -50%) rotate(90deg)'
+        : 'translate(-50%, -50%)';
     imgElement.style.maxWidth = 'none';
     imgElement.style.maxHeight = 'none';
-    imgElement.style.zIndex = '10001'; // Higher than the overlay
+    imgElement.style.zIndex = '10001';
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
 }
 
@@ -1736,6 +1737,16 @@ function initApp() {
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
         document.getElementById('DatePicker').showPicker?.();
     });
+
+    // DirkJan-style: tap comic to enter/exit rotated fullscreen.
+    const comic = document.getElementById('comic');
+    if (comic) {
+        comic.addEventListener('click', () => {
+            // Ignore clicks immediately after a swipe
+            if (Date.now() - lastSwipeTime < 300) return;
+            Rotate(true);
+        });
+    }
 
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
@@ -2708,6 +2719,13 @@ let landscapeEnterAttempts = 0;
 function shouldAutoLandscapeFullscreen() {
     if (isVerticalComicActive) return false;
 
+    // Always allow when running as an installed PWA/standalone app.
+    const isStandalone =
+        (window.matchMedia?.('(display-mode: standalone)')?.matches) ||
+        (window.matchMedia?.('(display-mode: fullscreen)')?.matches) ||
+        (window.navigator?.standalone === true);
+    if (isStandalone) return true;
+
     // Avoid triggering on desktop window resizes.
     const isCoarsePointer = !!window.matchMedia?.('(pointer: coarse)')?.matches;
     const isAnyCoarsePointer = !!window.matchMedia?.('(any-pointer: coarse)')?.matches;
@@ -2750,8 +2768,16 @@ function syncFullscreenWithOrientation() {
 
     if (landscape && !overlayExists) {
         const comic = document.getElementById('comic');
-        if (comic) {
+        // Only enter when we actually have an image to show.
+        if (comic && comic.getAttribute('src')) {
             Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
+        } else {
+            // Comic not ready yet; retry shortly.
+            if (landscapeEnterAttempts < 4) {
+                landscapeEnterAttempts++;
+                scheduleFullscreenOrientationSync(220);
+            }
+            return;
         }
 
         // Some devices report landscape before viewport settles; retry a few times.
