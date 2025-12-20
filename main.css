@@ -140,16 +140,9 @@ input {
 }
 
 .rotate {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) rotate(90deg) !important;
-    transform-origin: center center !important;
+    /* Position and transform set by JavaScript maximizeRotatedImage() */
     margin: 0 !important;
     padding: 0 !important;
-    z-index: 10000 !important;
-    transition: transform 0.3s ease !important;
-    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.35) !important;
     border-radius: 4px !important;
     background: transparent !important;
     display: block !important;

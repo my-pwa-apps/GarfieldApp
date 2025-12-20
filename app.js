@@ -1565,10 +1565,17 @@ function Rotate(applyRotation = true) {
         
         // Show comic
         clonedComic.style.display = 'block';
-        clonedComic.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        });
+        
+        // Exit fullscreen handler (DirkJan pattern - click to exit)
+        const exitFullscreen = () => {
+            // Ignore clicks immediately after a swipe
+            if (Date.now() - lastSwipeTime < 300) return;
+            Rotate(); // Toggle back to normal mode
+        };
+        
+        // Click on comic or overlay exits fullscreen (DirkJan behavior)
+        clonedComic.addEventListener('click', exitFullscreen);
+        overlay.addEventListener('click', exitFullscreen);
         
         // Add resize listeners
         window.addEventListener('resize', handleRotatedViewResize);
@@ -1583,17 +1590,20 @@ function Rotate(applyRotation = true) {
             };
         }
         
-        // Add swipe support in rotated view
+        // Add swipe support in rotated view (on both overlay and comic)
         overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
         overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
         overlay.addEventListener('touchend', function(e) {
             handleTouchEnd(e);
             e.stopPropagation();
         }, { passive: true });
-        overlay.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        });
+        
+        clonedComic.addEventListener('touchstart', handleTouchStart, { passive: false });
+        clonedComic.addEventListener('touchmove', handleTouchMove, { passive: false });
+        clonedComic.addEventListener('touchend', function(e) {
+            handleTouchEnd(e);
+            e.stopPropagation();
+        }, { passive: true });
         
     } catch (error) {
         console.error('Error in Rotate():', error);
@@ -1661,16 +1671,18 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
     
+    // Position element in the center of the viewport (DirkJan pattern)
+    imgElement.style.position = 'fixed';
+    imgElement.style.top = '50%';
+    imgElement.style.left = '50%';
+    imgElement.style.transformOrigin = 'center center';
+    
     if (isLandscapeMode) {
-        imgElement.style.position = 'fixed';
-        imgElement.style.top = '50%';
-        imgElement.style.left = '50%';
-        imgElement.style.transformOrigin = 'center center';
+        // Landscape mode: no rotation, just center
+        imgElement.style.transform = 'translate(-50%, -50%)';
     } else if (isRotatedMode) {
-        imgElement.style.position = 'relative';
-        imgElement.style.top = '';
-        imgElement.style.left = '';
-        imgElement.style.transformOrigin = '';
+        // Rotated mode: center and rotate 90 degrees
+        imgElement.style.transform = 'translate(-50%, -50%) rotate(90deg)';
     }
     
     // Clear max constraints for both modes to use calculated dimensions
@@ -2892,9 +2904,8 @@ function syncFullscreenWithOrientation() {
     const overlayExists = !!document.getElementById('comic-overlay');
     const landscape = isLandscapeOrientationNow();
 
-    // Only apply rotated-state when overlay actually exists (fullscreen mode is active).
     // The Rotate() function handles hiding UI elements when entering fullscreen.
-    document.body.classList.toggle('rotated-state', overlayExists);
+    // No need to toggle body.rotated-state here - elements are hidden inline.
 
     if (!shouldAutoLandscapeFullscreen()) {
         // Don't auto-enter/exit on desktop, but still keep the UI fallback in sync.
