@@ -1409,6 +1409,9 @@ function Rotate(applyRotation = true) {
         // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
+
+        // Prevent background scrolling while overlay is active
+        document.body.style.overflow = 'hidden';
         
         // Apply sizing when image is loaded
         if (clonedComic.complete) {
@@ -1448,6 +1451,9 @@ function Rotate(applyRotation = true) {
             
             // Ensure original comic is back to normal
             if (element) element.className = "normal";
+
+            // Restore scrolling
+            document.body.style.overflow = '';
             
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
@@ -2713,25 +2719,8 @@ let rotationSyncTimeoutId = null;
 let landscapeEnterAttempts = 0;
 
 function shouldAutoLandscapeFullscreen() {
-    if (isVerticalComicActive) return false;
-
-    // Always allow when running as an installed PWA/standalone app.
-    const isStandalone =
-        (window.matchMedia?.('(display-mode: standalone)')?.matches) ||
-        (window.matchMedia?.('(display-mode: fullscreen)')?.matches) ||
-        (window.navigator?.standalone === true);
-    if (isStandalone) return true;
-
-    // Avoid triggering on desktop window resizes.
-    const isCoarsePointer = !!window.matchMedia?.('(pointer: coarse)')?.matches;
-    const isAnyCoarsePointer = !!window.matchMedia?.('(any-pointer: coarse)')?.matches;
-    const noHover = !!window.matchMedia?.('(hover: none)')?.matches;
-    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    const isProbablyMobile = UTILS.isMobileOrTouch() || isTouch || isCoarsePointer || isAnyCoarsePointer || noHover;
-
-    // Allow small windows even if UA sniffing fails (PWA/desktop UA edge cases).
-    const isSmallViewport = Math.min(window.innerWidth, window.innerHeight) <= 900;
-    return isProbablyMobile || isSmallViewport;
+    // Match DirkJan behavior: no auto fullscreen on orientation changes.
+    return false;
 }
 
 function isLandscapeOrientationNow() {
