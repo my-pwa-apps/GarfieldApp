@@ -1382,6 +1382,9 @@ function Rotate(applyRotation = true) {
             delete el.dataset.originalDisplay;
         });
         
+        // Restore scrolling
+        document.body.style.overflow = '';
+        
         // Make sure original comic is in normal state
         element.className = "normal";
         
@@ -1435,6 +1438,9 @@ function Rotate(applyRotation = true) {
             el.style.setProperty('visibility', 'hidden', 'important');
         });
         
+        // Prevent scrolling while in fullscreen
+        document.body.style.overflow = 'hidden';
+        
         // Handler function to exit fullscreen (DirkJan pattern)
         const exitFullscreen = function() {
             // Ignore clicks immediately after a swipe
@@ -1454,6 +1460,9 @@ function Rotate(applyRotation = true) {
                 delete el.dataset.wasHidden;
                 delete el.dataset.originalDisplay;
             });
+            
+            // Restore scrolling
+            document.body.style.overflow = '';
             
             // Ensure original comic is back to normal
             if (element) element.className = "normal";
