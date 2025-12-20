@@ -1364,26 +1364,22 @@ function Rotate(applyRotation = true) {
     // Check if we're already in fullscreen mode
     const existingOverlay = document.getElementById('comic-overlay');
     if (existingOverlay) {
-        // Exit fullscreen mode - remove overlay
+        // We're in fullscreen mode, exit it immediately
         document.body.removeChild(existingOverlay);
         
-        // Remove rotated comic
+        // Remove rotated image if it exists
         const rotatedComic = document.getElementById('rotated-comic');
         if (rotatedComic) {
             document.body.removeChild(rotatedComic);
         }
         
-        // Restore all hidden elements (DirkJan pattern)
+        // Restore all elements with data-was-hidden attribute
         const hiddenElements = document.querySelectorAll('[data-was-hidden]');
         hiddenElements.forEach(el => {
             el.style.display = el.dataset.originalDisplay || '';
-            el.style.visibility = '';  // Clear visibility override
             delete el.dataset.wasHidden;
             delete el.dataset.originalDisplay;
         });
-        
-        // Restore scrolling
-        document.body.style.overflow = '';
         
         // Make sure original comic is in normal state
         element.className = "normal";
@@ -1395,11 +1391,10 @@ function Rotate(applyRotation = true) {
         return;
     }
     
-    // Enter fullscreen mode
     if (element.className === "normal" || element.className.includes("normal")) {
         isRotatedMode = true;
         
-        // Create overlay (DirkJan pattern - inline styles)
+        // Create an overlay without any layout constraints
         const overlay = document.createElement('div');
         overlay.id = 'comic-overlay';
         overlay.style.position = 'fixed';
@@ -1415,35 +1410,9 @@ function Rotate(applyRotation = true) {
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
         
-        // Immediately add to body (not to overlay) - DirkJan pattern
+        // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
-        
-        // Hide all other elements (DirkJan pattern)
-        // MOVED UP: Hide elements BEFORE maximizing image to ensure they are hidden even if image logic fails
-        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
-        elementsToHide.forEach(el => {
-            el.dataset.originalDisplay = window.getComputedStyle(el).display;
-            el.dataset.wasHidden = "true";
-            el.style.setProperty('display', 'none', 'important');
-            // Extra: Force visibility hidden for fixed-position elements
-            el.style.setProperty('visibility', 'hidden', 'important');
-        });
-        
-        // Explicitly hide known persistent elements by ID/Class
-        const explicitHide = ['.toolbar', '.logo', '#mainToolbar', '#comic-container', '#controls-container', '#installBtn', '#settingsDIV'];
-        explicitHide.forEach(selector => {
-            const el = document.querySelector(selector);
-            if (el && !el.dataset.wasHidden) {
-                el.dataset.originalDisplay = window.getComputedStyle(el).display;
-                el.dataset.wasHidden = "true";
-                el.style.setProperty('display', 'none', 'important');
-                el.style.setProperty('visibility', 'hidden', 'important');
-            }
-        });
-
-        // Prevent scrolling while in fullscreen
-        document.body.style.overflow = 'hidden';
         
         // Apply sizing when image is loaded
         if (clonedComic.complete) {
@@ -1454,7 +1423,15 @@ function Rotate(applyRotation = true) {
             };
         }
         
-        // Handler function to exit fullscreen (DirkJan pattern)
+        // Hide all other elements
+        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
+        elementsToHide.forEach(el => {
+            el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.wasHidden = "true";
+            el.style.setProperty('display', 'none', 'important');
+        });
+        
+        // Handler function to exit fullscreen
         const exitFullscreen = function() {
             // Ignore clicks immediately after a swipe
             if (Date.now() - lastSwipeTime < 300) return;
@@ -1469,13 +1446,9 @@ function Rotate(applyRotation = true) {
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
                 el.style.display = el.dataset.originalDisplay || '';
-                el.style.visibility = '';  // Clear visibility override
                 delete el.dataset.wasHidden;
                 delete el.dataset.originalDisplay;
             });
-            
-            // Restore scrolling
-            document.body.style.overflow = '';
             
             // Ensure original comic is back to normal
             if (element) element.className = "normal";
@@ -1484,7 +1457,7 @@ function Rotate(applyRotation = true) {
             isRotatedMode = false;
         };
         
-        // Add click handlers (DirkJan pattern)
+        // Add click handlers
         clonedComic.addEventListener('click', exitFullscreen);
         overlay.addEventListener('click', exitFullscreen);
         
@@ -1513,18 +1486,8 @@ function Rotate(applyRotation = true) {
  * @param {HTMLImageElement} imgElement - Image element to resize
  */
 function maximizeRotatedImage(imgElement) {
-    // Position element in the center of the viewport (DirkJan pattern)
-    // Set this IMMEDIATELY so it's fixed even if dimensions are missing
-    imgElement.style.position = 'fixed';
-    imgElement.style.top = '50%';
-    imgElement.style.left = '50%';
-    imgElement.style.transformOrigin = 'center center';
-    imgElement.style.zIndex = '10001';
-
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
-    const visualHeight = window.visualViewport?.height || viewportHeight;
-    const visualWidth = window.visualViewport?.width || viewportWidth;
     
     const naturalWidth = imgElement.naturalWidth;
     const naturalHeight = imgElement.naturalHeight;
@@ -1533,65 +1496,37 @@ function maximizeRotatedImage(imgElement) {
         return;
     }
     
-    const isWideOriginal = naturalWidth >= naturalHeight;
+    // For a rotated image, the visual width is the original height, and vice versa
+    const rotatedWidth = naturalHeight;
+    const rotatedHeight = naturalWidth;
     
-    const isLandscapeMode = imgElement.className.includes('fullscreen-landscape');
-    const isRotatedMode = imgElement.className.includes('rotate');
-    const availableHeight = isRotatedMode ? Math.max(visualHeight, visualWidth) : visualHeight;
-    const availableWidth = isRotatedMode ? Math.min(visualHeight, visualWidth) : visualWidth;
-    
-    // For rotated image, visual width is original height and vice versa
-    const rotatedWidth = isLandscapeMode ? naturalWidth : naturalHeight;
-    const rotatedHeight = isLandscapeMode ? naturalHeight : naturalWidth;
-    
-    // Calculate scale to fit viewport (Sunday strips may overflow horizontally to fill height)
-    const widthRatio = availableWidth / rotatedWidth;
-    const heightRatio = availableHeight / rotatedHeight;
+    // Calculate the scale factor needed to fit the image within the viewport
     let scale;
-    if (isRotatedMode && isWideOriginal) {
-        // For wide Sunday strips in rotated mode, the naturalWidth becomes the visual height after 90deg rotation
-        // Scale to fill viewport height completely
-        scale = availableHeight / naturalWidth;
-    } else if (isRotatedMode) {
-        scale = Math.min(widthRatio, heightRatio);
+    if (rotatedWidth / rotatedHeight > viewportWidth / viewportHeight) {
+        // Image is wider than viewport (relative to aspect ratios)
+        scale = viewportWidth / rotatedWidth;
     } else {
-        scale = Math.min(widthRatio, heightRatio);
+        // Image is taller than viewport (relative to aspect ratios)
+        scale = viewportHeight / rotatedHeight;
     }
     
-    // Apply padding only for non-rotated modes
-    let paddingFactor = 1.0;
-    if (isLandscapeMode) {
-        paddingFactor = 0.95;
-    } else if (!isRotatedMode) {
-        paddingFactor = 0.9;
-    }
-    scale = scale * paddingFactor;
+    // Make the image slightly smaller (90% of the calculated size)
+    scale = scale * 0.9;
     
-    // Set dimensions
+    // Apply dimension with calculated scale
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
     
-    // Position element in the center of the viewport (DirkJan pattern)
-    // Already set at top of function, but transform needs update based on mode
-    
-    if (isLandscapeMode) {
-        // Landscape mode: no rotation, just center
-        imgElement.style.transform = 'translate(-50%, -50%)';
-    } else if (isRotatedMode) {
-        // Rotated mode: center and rotate 90 degrees
-        imgElement.style.transform = 'translate(-50%, -50%) rotate(90deg)';
-    }
-    
-    // Clear max constraints for both modes to use calculated dimensions
+    // Position element in the center of the viewport
+    imgElement.style.position = 'fixed';
+    imgElement.style.top = '50%';
+    imgElement.style.left = '50%';
+    imgElement.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+    imgElement.style.transformOrigin = 'center center';
     imgElement.style.maxWidth = 'none';
     imgElement.style.maxHeight = 'none';
+    imgElement.style.zIndex = '10001'; // Higher than the overlay
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-
-    // In fullscreen/rotated mode we intentionally hide UI (comic-only).
-    // Avoid toolbar layout work while the overlay is active.
-    if (!document.getElementById('comic-overlay')) {
-        setTimeout(clampToolbarInView, 50);
-    }
 }
 
 /**
