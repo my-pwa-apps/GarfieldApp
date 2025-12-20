@@ -1354,10 +1354,6 @@ function handleTouchEnd(e) {
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  */
 function Rotate(applyRotation = true) {
-    if (isVerticalComicActive) {
-        return;
-    }
-    
     const element = document.getElementById('comic');
     if (!element) return;
     
