@@ -1349,191 +1349,53 @@ function handleTouchEnd(e) {
 // ========================================
 
 /**
- * Toggles comic rotation to fullscreen mode
- * Handles both entering and exiting fullscreen with optional 90-degree rotation
+ * Toggles comic rotation to fullscreen mode (DirkJan pattern)
+ * Shows only the comic rotated 90 degrees, no toolbar
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  */
 function Rotate(applyRotation = true) {
     if (isVerticalComicActive) {
         return;
     }
-    // Prevent rapid double-calls
-    if (isRotating) {
+    
+    const element = document.getElementById('comic');
+    if (!element) return;
+    
+    // Check if we're already in fullscreen mode
+    const existingOverlay = document.getElementById('comic-overlay');
+    if (existingOverlay) {
+        // Exit fullscreen mode - remove overlay
+        document.body.removeChild(existingOverlay);
+        
+        // Remove rotated comic
+        const rotatedComic = document.getElementById('rotated-comic');
+        if (rotatedComic) {
+            document.body.removeChild(rotatedComic);
+        }
+        
+        // Restore all elements with data-was-hidden attribute (DirkJan pattern)
+        const hiddenElements = document.querySelectorAll('[data-was-hidden]');
+        hiddenElements.forEach(el => {
+            el.style.display = el.dataset.originalDisplay || '';
+            delete el.dataset.wasHidden;
+            delete el.dataset.originalDisplay;
+        });
+        
+        // Make sure original comic is in normal state
+        element.className = "normal";
+        
+        // Remove resize listener
+        window.removeEventListener('resize', handleRotatedViewResize);
+        
+        isRotatedMode = false;
         return;
     }
     
-    isRotating = true;
-    
-    try {
-        const element = document.getElementById('comic');
-        
-        if (!element) {
-            isRotating = false;
-            return;
-        }
-        
-        // Check if we're already in fullscreen mode
-        const existingOverlay = document.getElementById('comic-overlay');
-        if (existingOverlay) {
-            // Exit fullscreen mode
-            document.body.removeChild(existingOverlay);
-            
-            const rotatedComic = document.getElementById('rotated-comic');
-            if (rotatedComic) {
-                document.body.removeChild(rotatedComic);
-            }
-            
-            const fullscreenToolbar = document.getElementById('fullscreen-toolbar');
-            if (fullscreenToolbar) {
-                document.body.removeChild(fullscreenToolbar);
-            }
-            
-            // Restore theme color
-            const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-            if (themeColorMeta && themeColorMeta.dataset.originalColor) {
-                themeColorMeta.content = themeColorMeta.dataset.originalColor;
-                delete themeColorMeta.dataset.originalColor;
-            }
-            
-            // Restore all hidden elements
-            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
-            hiddenElements.forEach(el => {
-                el.style.removeProperty('display');
-                const inlineDisplay = el.dataset.originalDisplayInline;
-                const inlinePriority = el.dataset.originalDisplayPriority || '';
-                if (inlineDisplay) {
-                    el.style.setProperty('display', inlineDisplay, inlinePriority);
-                } else if (el.dataset.originalDisplay && el.dataset.originalDisplay !== 'none') {
-                    el.style.setProperty('display', el.dataset.originalDisplay);
-                }
-                delete el.dataset.wasHidden;
-                delete el.dataset.originalDisplay;
-                delete el.dataset.originalDisplayInline;
-                delete el.dataset.originalDisplayPriority;
-            });
-            
-            element.className = element.className.replace(/\s*(rotate|fullscreen-landscape)/g, '');
-            
-            // Remove event listeners
-            window.removeEventListener('resize', handleRotatedViewResize);
-            window.removeEventListener('orientationchange', handleRotatedViewResize);
-            
-            isRotatedMode = false;
-            isRotating = false;
-            
-            const settingsPanel = document.getElementById('settingsDIV');
-            if (settingsPanel) {
-                if (wasSettingsPanelVisible) {
-                    settingsPanel.classList.add('visible');
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
-                } else {
-                    settingsPanel.classList.remove('visible');
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
-                }
-            }
-            wasSettingsPanelVisible = false;
-            
-            // Restore toolbar position from localStorage after layout changes
-            setTimeout(() => {
-                isToolbarPersistenceSuspended = false;
-                const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-                if (!toolbar) return;
-                
-                const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-                const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-                
-                if (!savedPos || typeof savedPos.top !== 'number' || typeof savedPos.left !== 'number') {
-                    positionToolbarCentered(toolbar, true);
-                    toolbar.style.visibility = 'visible';
-                    return;
-                }
-                
-                const settingsPanel = document.getElementById('settingsDIV');
-                const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-                const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
-                const comicElement = getPrimaryComicElement();
-                const comicRect = comicElement ? comicElement.getBoundingClientRect() : null;
-                const logo = document.querySelector('.logo');
-                const logoRect = logo ? logo.getBoundingClientRect() : null;
-                
-                let newTop = savedPos.top;
-                let newLeft = savedPos.left;
-                
-                if (comicRect) {
-                    const wantsBelowComic = savedPos.belowComic === true ||
-                        (savedPos.offsetFromComic !== undefined && savedPos.offsetFromComic !== null) ||
-                        savedPos.top >= comicRect.bottom;
-                    
-                    if (wantsBelowComic) {
-                        const storedGap = Number.isFinite(savedPos.offsetFromComic) ? savedPos.offsetFromComic : Math.max(15, savedPos.top - comicRect.bottom);
-                        newTop = comicRect.bottom + Math.max(15, storedGap);
-                    } else if (logoRect) {
-                        const overlapsComic = (newTop + toolbarHeight > comicRect.top) && (newTop < comicRect.bottom);
-                        
-                        if (overlapsComic) {
-                            const availableSpace = Math.max(0, comicRect.top - logoRect.bottom);
-                            newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-                        } else {
-                            const stillBetween = newTop > logoRect.bottom && (newTop + toolbarHeight) < comicRect.top;
-                            if (!stillBetween) {
-                                const availableSpace = Math.max(0, comicRect.top - logoRect.bottom);
-                                newTop = logoRect.bottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-                            }
-                        }
-                    }
-                }
-                
-                if (settingsPanel && settingsPanel.classList.contains('visible')) {
-                    const settingsRect = settingsPanel.getBoundingClientRect();
-                    const overlapsSettings = (newTop < settingsRect.bottom) && ((newTop + toolbarHeight) > settingsRect.top);
-                    
-                    if (savedPos.belowSettings) {
-                        const storedGap = Math.max(15, savedPos.offsetFromSettings || 15);
-                        newTop = settingsRect.bottom + storedGap;
-                    } else if (overlapsSettings) {
-                        newTop = Math.max(10, settingsRect.top - toolbarHeight - 15);
-                    }
-                }
-                
-                const maxLeft = Math.max(0, window.innerWidth - toolbarWidth);
-                const maxTop = Math.max(0, window.innerHeight - toolbarHeight);
-                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-                newTop = Math.max(0, Math.min(newTop, maxTop));
-                
-                toolbar.style.left = newLeft + 'px';
-                toolbar.style.top = newTop + 'px';
-                toolbar.style.visibility = 'visible';
-                
-                // Refresh stored metadata so future restores respect the updated layout
-                storeToolbarPosition(newTop, newLeft, toolbar);
-            }, 250);
-            
-            return;
-        }
-        
-        // Enter fullscreen mode
+    // Enter fullscreen mode
+    if (element.className === "normal" || element.className.includes("normal")) {
         isRotatedMode = true;
-        isToolbarPersistenceSuspended = true;
         
-        // Change theme color for Android status bar to match dark overlay
-        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-        if (themeColorMeta) {
-            themeColorMeta.dataset.originalColor = themeColorMeta.content;
-            themeColorMeta.content = '#1a1a1a'; // Dark to blend with overlay
-        }
-        
-        const settingsPanel = document.getElementById('settingsDIV');
-        if (settingsPanel) {
-            wasSettingsPanelVisible = settingsPanel.classList.contains('visible');
-            if (wasSettingsPanelVisible) {
-                settingsPanel.classList.remove('visible');
-                localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
-            }
-        } else {
-            wasSettingsPanelVisible = false;
-        }
-        
-        // Create overlay (DirkJan pattern - set styles inline)
+        // Create overlay (DirkJan pattern - inline styles)
         const overlay = document.createElement('div');
         overlay.id = 'comic-overlay';
         overlay.style.position = 'fixed';
@@ -1544,49 +1406,14 @@ function Rotate(applyRotation = true) {
         overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
         overlay.style.zIndex = '10000';
         
-        // Clone comic image
+        // Clone the comic image
         const clonedComic = element.cloneNode(true);
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
-        clonedComic.style.display = 'block';
-        clonedComic.style.maxHeight = 'none';
-        clonedComic.style.maxWidth = 'none';
-        clonedComic.style.width = 'auto';
-        clonedComic.style.height = 'auto';
         
-        // No toolbar in fullscreen mode - maximize screen space for comic
-        
-        // Add elements to page first (DirkJan pattern)
+        // Immediately add to body (not to overlay) - DirkJan pattern
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
-        
-        // Hide all other elements AFTER appending overlay and comic (DirkJan pattern)
-        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
-        elementsToHide.forEach(el => {
-            el.dataset.originalDisplay = window.getComputedStyle(el).display;
-            el.dataset.originalDisplayInline = el.style.getPropertyValue('display') || '';
-            el.dataset.originalDisplayPriority = el.style.getPropertyPriority('display') || '';
-            el.dataset.wasHidden = "true";
-            el.style.setProperty('display', 'none', 'important');
-        });
-        
-        // Show comic
-        clonedComic.style.display = 'block';
-        
-        // Exit fullscreen handler (DirkJan pattern - click to exit)
-        const exitFullscreen = () => {
-            // Ignore clicks immediately after a swipe
-            if (Date.now() - lastSwipeTime < 300) return;
-            Rotate(); // Toggle back to normal mode
-        };
-        
-        // Click on comic or overlay exits fullscreen (DirkJan behavior)
-        clonedComic.addEventListener('click', exitFullscreen);
-        overlay.addEventListener('click', exitFullscreen);
-        
-        // Add resize listeners
-        window.addEventListener('resize', handleRotatedViewResize);
-        window.addEventListener('orientationchange', handleRotatedViewResize);
         
         // Apply sizing when image is loaded
         if (clonedComic.complete) {
@@ -1597,7 +1424,48 @@ function Rotate(applyRotation = true) {
             };
         }
         
-        // Add swipe support in rotated view (on both overlay and comic)
+        // Hide all other elements (DirkJan pattern - simple approach)
+        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
+        elementsToHide.forEach(el => {
+            el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.wasHidden = "true";
+            el.style.setProperty('display', 'none', 'important');
+        });
+        
+        // Handler function to exit fullscreen (DirkJan pattern)
+        const exitFullscreen = function() {
+            // Ignore clicks immediately after a swipe
+            if (Date.now() - lastSwipeTime < 300) return;
+            
+            const overlay = document.getElementById('comic-overlay');
+            if (overlay) document.body.removeChild(overlay);
+            
+            const rotatedComic = document.getElementById('rotated-comic');
+            if (rotatedComic) document.body.removeChild(rotatedComic);
+            
+            // Restore visibility of hidden elements
+            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
+            hiddenElements.forEach(el => {
+                el.style.display = el.dataset.originalDisplay || '';
+                delete el.dataset.wasHidden;
+                delete el.dataset.originalDisplay;
+            });
+            
+            // Ensure original comic is back to normal
+            if (element) element.className = "normal";
+            
+            window.removeEventListener('resize', handleRotatedViewResize);
+            isRotatedMode = false;
+        };
+        
+        // Add click handlers (DirkJan pattern)
+        clonedComic.addEventListener('click', exitFullscreen);
+        overlay.addEventListener('click', exitFullscreen);
+        
+        // Add resize listener
+        window.addEventListener('resize', handleRotatedViewResize);
+        
+        // Add swipe support in rotated view
         overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
         overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
         overlay.addEventListener('touchend', function(e) {
@@ -1611,15 +1479,6 @@ function Rotate(applyRotation = true) {
             handleTouchEnd(e);
             e.stopPropagation();
         }, { passive: true });
-        
-    } catch (error) {
-        console.error('Error in Rotate():', error);
-        isRotating = false;
-        isRotatedMode = false;
-    } finally {
-        setTimeout(() => {
-            isRotating = false;
-        }, CONFIG.ROTATION_DEBOUNCE);
     }
 }
 
