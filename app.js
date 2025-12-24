@@ -2517,7 +2517,12 @@ const showFavsStatus = localStorage.getItem('showfavs');
 document.getElementById("showfavs").checked = showFavsStatus === "true";
 
 const lastDateStatus = localStorage.getItem('lastdate');
-document.getElementById("lastdate").checked = lastDateStatus === "true";	
+if (lastDateStatus === null) {
+	document.getElementById("lastdate").checked = true;
+	localStorage.setItem('lastdate', "true");
+} else {
+	document.getElementById("lastdate").checked = lastDateStatus === "true";
+}
 
 // Initialize Spanish language preference
 const spanishStatus = localStorage.getItem('spanish');
