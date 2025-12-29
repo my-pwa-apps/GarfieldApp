@@ -1813,6 +1813,35 @@ function initApp() {
         });
     }
 
+    // Listen for physical device orientation changes
+    // When device rotates to landscape, enter fullscreen mode (without CSS rotation since device is already rotated)
+    // When device rotates back to portrait, exit fullscreen mode
+    function handleOrientationChange() {
+        const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+        const existingOverlay = document.getElementById('comic-overlay');
+        
+        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
+        
+        if (isLandscape && !existingOverlay) {
+            // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
+            console.log('[DEBUG] Entering landscape fullscreen');
+            Rotate(false);
+        } else if (!isLandscape && existingOverlay) {
+            // Device rotated back to portrait - exit fullscreen
+            console.log('[DEBUG] Exiting to portrait');
+            Rotate(false); // This will exit since overlay exists
+        }
+    }
+    
+    // Use screen.orientation API if available, fallback to matchMedia
+    if (screen.orientation) {
+        screen.orientation.addEventListener('change', handleOrientationChange);
+    } else {
+        window.addEventListener('orientationchange', handleOrientationChange);
+    }
+    // Also listen to resize as a fallback for orientation detection
+    window.matchMedia("(orientation: landscape)").addEventListener('change', handleOrientationChange);
+
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
     // Set minimum body height at load time to prevent gradient shift
