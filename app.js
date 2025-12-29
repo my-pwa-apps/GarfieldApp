@@ -1735,11 +1735,14 @@ function initApp() {
     document.getElementById("showfavs").checked = showFavsStatus === "true";
 
     const lastDateStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_DATE);
+    console.log('[DEBUG] lastDateStatus from localStorage:', lastDateStatus, 'key:', CONFIG.STORAGE_KEYS.LAST_DATE);
     if (lastDateStatus === null) {
         document.getElementById("lastdate").checked = true;
         localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
+        console.log('[DEBUG] lastDateStatus was null, set to true');
     } else {
         document.getElementById("lastdate").checked = lastDateStatus === "true";
+        console.log('[DEBUG] lastdate checkbox set to:', lastDateStatus === "true");
     }
 
     // Initialize Spanish language preference
@@ -2286,13 +2289,16 @@ document.getElementById('swipe').addEventListener('change', function() {
 });
 
 document.getElementById('lastdate').addEventListener('change', function() {
+	console.log('[DEBUG] lastdate checkbox changed to:', this.checked);
 	if(this.checked) 
 	{
 		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
+		console.log('[DEBUG] Saved lastdate as true');
 	}
 	else
 	{
 		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "false");
+		console.log('[DEBUG] Saved lastdate as false');
 	}
 });
 
