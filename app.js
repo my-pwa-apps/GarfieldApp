@@ -1358,12 +1358,19 @@ function handleTouchEnd(e) {
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  */
 function Rotate(applyRotation = true) {
+    console.log('[DEBUG] Rotate() called with applyRotation:', applyRotation);
     const element = document.getElementById('comic');
-    if (!element) return;
+    console.log('[DEBUG] comic element:', element);
+    if (!element) {
+        console.log('[DEBUG] No comic element found, returning');
+        return;
+    }
     
     // Check if we're already in fullscreen mode
     const existingOverlay = document.getElementById('comic-overlay');
+    console.log('[DEBUG] existingOverlay:', existingOverlay);
     if (existingOverlay) {
+        console.log('[DEBUG] Exiting fullscreen mode');
         // We're in fullscreen mode, exit it immediately
         document.body.removeChild(existingOverlay);
         
@@ -1391,7 +1398,9 @@ function Rotate(applyRotation = true) {
         return;
     }
     
+    console.log('[DEBUG] element.className:', element.className);
     if (element.className === "normal" || element.className.includes("normal")) {
+        console.log('[DEBUG] Entering fullscreen mode');
         isRotatedMode = true;
         
         // Create an overlay without any layout constraints
@@ -1404,11 +1413,13 @@ function Rotate(applyRotation = true) {
         overlay.style.height = '100vh';
         overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
         overlay.style.zIndex = '10000';
+        console.log('[DEBUG] Created overlay');
         
         // Clone the comic image
         const clonedComic = element.cloneNode(true);
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
+        console.log('[DEBUG] Cloned comic with class:', clonedComic.className);
         
         // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
@@ -1787,10 +1798,17 @@ function initApp() {
 
     // DirkJan-style: tap comic to enter/exit rotated fullscreen.
     const comic = document.getElementById('comic');
+    console.log('[DEBUG] Comic element found:', comic);
     if (comic) {
-        comic.addEventListener('click', () => {
+        comic.addEventListener('click', (e) => {
+            console.log('[DEBUG] Comic clicked!', e);
+            console.log('[DEBUG] lastSwipeTime:', lastSwipeTime, 'now:', Date.now(), 'diff:', Date.now() - lastSwipeTime);
             // Ignore clicks immediately after a swipe
-            if (Date.now() - lastSwipeTime < 300) return;
+            if (Date.now() - lastSwipeTime < 300) {
+                console.log('[DEBUG] Ignoring click - too close to swipe');
+                return;
+            }
+            console.log('[DEBUG] Calling Rotate(true)');
             Rotate(true);
         });
     }
