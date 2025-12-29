@@ -1722,6 +1722,44 @@ function showErrorMessage(message) {
 }
 
 function initApp() {
+    // Restore checkbox states from localStorage FIRST, before any code depends on them
+    const swipeStatus = localStorage.getItem('stat');
+    if (swipeStatus === null) {
+        document.getElementById("swipe").checked = true;
+        localStorage.setItem('stat', "true");
+    } else {
+        document.getElementById("swipe").checked = swipeStatus === "true";
+    }
+
+    const showFavsStatus = localStorage.getItem('showfavs');
+    document.getElementById("showfavs").checked = showFavsStatus === "true";
+
+    const lastDateStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_DATE);
+    if (lastDateStatus === null) {
+        document.getElementById("lastdate").checked = true;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
+    } else {
+        document.getElementById("lastdate").checked = lastDateStatus === "true";
+    }
+
+    // Initialize Spanish language preference
+    const spanishStatus = localStorage.getItem('spanish');
+    const datePickerEl = document.getElementById('DatePicker');
+    const userLang = navigator.language || navigator.userLanguage;
+    const isSpanishLocale = userLang.startsWith('es');
+
+    let useSpanish = false;
+    if (spanishStatus === null) {
+        useSpanish = isSpanishLocale;
+        localStorage.setItem('spanish', useSpanish ? "true" : "false");
+    } else {
+        useSpanish = spanishStatus === "true";
+    }
+
+    document.getElementById("spanish").checked = useSpanish;
+    translateInterface(useSpanish ? 'es' : 'en');
+    if (datePickerEl) datePickerEl.min = useSpanish ? "1999-12-06" : "1978-06-19";
+
     // Add event listeners
     document.getElementById('First').addEventListener('click', FirstClick);
     document.getElementById('Previous').addEventListener('click', PreviousClick);
@@ -2250,11 +2288,11 @@ document.getElementById('swipe').addEventListener('change', function() {
 document.getElementById('lastdate').addEventListener('change', function() {
 	if(this.checked) 
 	{
-		localStorage.setItem('lastdate', "true");
+		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
 	}
 	else
 	{
-		localStorage.setItem('lastdate', "false");
+		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "false");
 	}
 });
 
@@ -2504,46 +2542,7 @@ function exitFullsizeVertical(event) {
     requestAnimationFrame(() => checkImageOrientation());
 }
 
-// Initialize checkbox states from localStorage
-const swipeStatus = localStorage.getItem('stat');
-if (swipeStatus === null) {
-	document.getElementById("swipe").checked = true;
-	localStorage.setItem('stat', "true");
-} else {
-	document.getElementById("swipe").checked = swipeStatus === "true";
-}
-
-const showFavsStatus = localStorage.getItem('showfavs');
-document.getElementById("showfavs").checked = showFavsStatus === "true";
-
-const lastDateStatus = localStorage.getItem('lastdate');
-if (lastDateStatus === null) {
-	document.getElementById("lastdate").checked = true;
-	localStorage.setItem('lastdate', "true");
-} else {
-	document.getElementById("lastdate").checked = lastDateStatus === "true";
-}
-
-// Initialize Spanish language preference
-const spanishStatus = localStorage.getItem('spanish');
-const datePickerEl = document.getElementById('DatePicker');
-const userLang = navigator.language || navigator.userLanguage;
-const isSpanishLocale = userLang.startsWith('es');
-
-let useSpanish = false;
-if (spanishStatus === null) {
-	useSpanish = isSpanishLocale;
-	localStorage.setItem('spanish', useSpanish ? "true" : "false");
-} else {
-	useSpanish = spanishStatus === "true";
-}
-
-document.getElementById("spanish").checked = useSpanish;
-translateInterface(useSpanish ? 'es' : 'en');
-if (datePickerEl) datePickerEl.min = useSpanish ? "1999-12-06" : "1978-06-19";
-
-// Initialize settings panel
-
+// Initialize settings panel (checkbox states are now initialized in initApp)
 const settingsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
 const panel = document.getElementById("settingsDIV");
 if (panel) {
