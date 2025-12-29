@@ -1199,6 +1199,7 @@ function changeComicImage(newSrc) {
 }
 
 function HideSettings(e) {
+    console.log('[DEBUG] HideSettings called', e);
     // Prevent event from bubbling if called from event handler
     if (e) {
         e.preventDefault();
@@ -1206,17 +1207,21 @@ function HideSettings(e) {
     }
     
     const panel = document.getElementById("settingsDIV");
+    console.log('[DEBUG] Settings panel:', panel);
     
     if (!panel) {
         console.warn('Settings panel not found');
         return;
     }
     
+    console.log('[DEBUG] Panel currently visible:', panel.classList.contains('visible'));
+    
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
         panel.classList.remove('visible');
         panel.classList.remove('animate');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+        console.log('[DEBUG] Panel hidden');
     } else {
         panel.classList.add('visible');
         // Only animate if showing from centered position (no saved position)
@@ -1226,6 +1231,7 @@ function HideSettings(e) {
             panel.classList.add('animate');
         }
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
+        console.log('[DEBUG] Panel shown');
     }
 }
 
@@ -1383,9 +1389,15 @@ function Rotate(applyRotation = true) {
         // Restore all elements with data-was-hidden attribute
         const hiddenElements = document.querySelectorAll('[data-was-hidden]');
         hiddenElements.forEach(el => {
-            el.style.display = el.dataset.originalDisplay || '';
+            // Remove the inline display style completely - let CSS classes take over
+            el.style.removeProperty('display');
+            // If there was an original inline display value, restore it
+            if (el.dataset.originalDisplayInline) {
+                el.style.display = el.dataset.originalDisplayInline;
+            }
             delete el.dataset.wasHidden;
             delete el.dataset.originalDisplay;
+            delete el.dataset.originalDisplayInline;
         });
         
         // Make sure original comic is in normal state
@@ -1441,6 +1453,7 @@ function Rotate(applyRotation = true) {
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
         elementsToHide.forEach(el => {
             el.dataset.originalDisplay = window.getComputedStyle(el).display;
+            el.dataset.originalDisplayInline = el.style.display || ''; // Store inline style separately
             el.dataset.wasHidden = "true";
             el.style.setProperty('display', 'none', 'important');
         });
@@ -1459,9 +1472,15 @@ function Rotate(applyRotation = true) {
             // Restore visibility of hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
-                el.style.display = el.dataset.originalDisplay || '';
+                // Remove the inline display style completely - let CSS classes take over
+                el.style.removeProperty('display');
+                // If there was an original inline display value, restore it
+                if (el.dataset.originalDisplayInline) {
+                    el.style.display = el.dataset.originalDisplayInline;
+                }
                 delete el.dataset.wasHidden;
                 delete el.dataset.originalDisplay;
+                delete el.dataset.originalDisplayInline;
             });
             
             // Ensure original comic is back to normal
