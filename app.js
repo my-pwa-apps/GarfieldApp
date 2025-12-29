@@ -106,7 +106,6 @@ let isToolbarPersistenceSuspended = false;
 let wasSettingsPanelVisible = false;
 let isVerticalComicActive = false;
 let isVerticalFullscreen = false;
-let wasManuallyRotated = false; // Track if user clicked to rotate (vs auto-rotation from device)
 
 
 // ========================================
@@ -1408,7 +1407,6 @@ function Rotate(applyRotation = true) {
         window.removeEventListener('resize', handleRotatedViewResize);
         
         isRotatedMode = false;
-        wasManuallyRotated = false; // Reset manual rotation flag on exit
         return;
     }
     
@@ -1493,7 +1491,6 @@ function Rotate(applyRotation = true) {
             
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
-            wasManuallyRotated = false; // Reset manual rotation flag on exit
         };
         
         // Add click handlers
@@ -1818,39 +1815,14 @@ function initApp() {
         document.getElementById('DatePicker').showPicker?.();
     });
 
-    // DirkJan-style: tap comic to enter/exit rotated fullscreen.
-    const comic = document.getElementById('comic');
-    console.log('[DEBUG] Comic element found:', comic);
-    if (comic) {
-        comic.addEventListener('click', (e) => {
-            console.log('[DEBUG] Comic clicked!', e);
-            console.log('[DEBUG] lastSwipeTime:', lastSwipeTime, 'now:', Date.now(), 'diff:', Date.now() - lastSwipeTime);
-            // Ignore clicks immediately after a swipe
-            if (Date.now() - lastSwipeTime < 300) {
-                console.log('[DEBUG] Ignoring click - too close to swipe');
-                return;
-            }
-            console.log('[DEBUG] Calling Rotate(true)');
-            wasManuallyRotated = true; // User clicked to rotate
-            Rotate(true);
-        });
-    }
-
     // Listen for physical device orientation changes
     // When device rotates to landscape, enter fullscreen mode (without CSS rotation since device is already rotated)
     // When device rotates back to portrait, exit fullscreen mode
-    // ONLY auto-enter/exit if user didn't manually click to rotate
     function handleOrientationChange() {
         const isLandscape = window.matchMedia("(orientation: landscape)").matches;
         const existingOverlay = document.getElementById('comic-overlay');
         
-        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay, 'wasManuallyRotated:', wasManuallyRotated);
-        
-        // If user manually rotated (clicked), don't interfere with device orientation changes
-        if (wasManuallyRotated) {
-            console.log('[DEBUG] Ignoring orientation change - user manually rotated');
-            return;
-        }
+        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
         
         if (isLandscape && !existingOverlay) {
             // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
