@@ -61,8 +61,12 @@ const UTILS = {
      * @returns {*} Parsed value or fallback
      */
     safeJSONParse(str, fallback) {
+        if (str === null || str === undefined) {
+            return fallback;
+        }
         try {
-            return JSON.parse(str);
+            const parsed = JSON.parse(str);
+            return parsed !== null ? parsed : fallback;
         } catch (e) {
             return fallback;
         }
