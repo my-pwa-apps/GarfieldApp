@@ -106,6 +106,7 @@ let isToolbarPersistenceSuspended = false;
 let wasSettingsPanelVisible = false;
 let isVerticalComicActive = false;
 let isVerticalFullscreen = false;
+let wasManuallyRotated = false; // Track if user clicked to rotate (vs auto-rotation from device)
 
 
 // ========================================
@@ -1407,6 +1408,7 @@ function Rotate(applyRotation = true) {
         window.removeEventListener('resize', handleRotatedViewResize);
         
         isRotatedMode = false;
+        wasManuallyRotated = false; // Reset manual rotation flag on exit
         return;
     }
     
@@ -1491,6 +1493,7 @@ function Rotate(applyRotation = true) {
             
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
+            wasManuallyRotated = false; // Reset manual rotation flag on exit
         };
         
         // Add click handlers
@@ -1828,6 +1831,7 @@ function initApp() {
                 return;
             }
             console.log('[DEBUG] Calling Rotate(true)');
+            wasManuallyRotated = true; // User clicked to rotate
             Rotate(true);
         });
     }
@@ -1835,11 +1839,18 @@ function initApp() {
     // Listen for physical device orientation changes
     // When device rotates to landscape, enter fullscreen mode (without CSS rotation since device is already rotated)
     // When device rotates back to portrait, exit fullscreen mode
+    // ONLY auto-enter/exit if user didn't manually click to rotate
     function handleOrientationChange() {
         const isLandscape = window.matchMedia("(orientation: landscape)").matches;
         const existingOverlay = document.getElementById('comic-overlay');
         
-        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
+        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay, 'wasManuallyRotated:', wasManuallyRotated);
+        
+        // If user manually rotated (clicked), don't interfere with device orientation changes
+        if (wasManuallyRotated) {
+            console.log('[DEBUG] Ignoring orientation change - user manually rotated');
+            return;
+        }
         
         if (isLandscape && !existingOverlay) {
             // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
