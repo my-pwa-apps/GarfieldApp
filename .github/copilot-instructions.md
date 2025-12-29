@@ -12,119 +12,118 @@ Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic st
 - All functions exposed globally via `window.FunctionName = FunctionName` pattern
 
 ### Key Files & Responsibilities
-- **`app.js`** (2000+ lines): Main app logic—UI interactions, navigation, settings, draggable elements, translations
-- **`comicExtractor.js`**: Comic fetching with CORS proxy fallback system, authentication handling
-- **`serviceworker.js`**: PWA caching strategy (precache assets, runtime cache, image cache with LRU eviction)
+- **`app.js`** (~2900 lines): Main app logic—UI, navigation, settings, draggables, translations, rotation/fullscreen
+- **`comicExtractor.js`**: Comic fetching with CORS proxy fallback system, performance tracking
+- **`serviceworker.js`**: PWA caching (precache, runtime, image cache with LRU eviction)
 - **`init.js`**: Language detection and fullscreen management—runs before DOM ready
-- **`auth.js`**: Empty placeholder for future authentication features
-- **`main.css`**: Single stylesheet with CSS custom properties and mobile-first responsive design
+- **`main.css`**: Single stylesheet with CSS custom properties, mobile-first responsive
 
 ### Comic Fetching Strategy
-1. Try multiple CORS proxies in order (`comicExtractor.js` maintains proxy performance stats)
-2. Fallback chain: Best proxy → Next proxy → Final proxy → Error
-3. GoComics URLs: `https://assets.amuniversal.com/[hash]` for English, Spanish has separate endpoint
-4. Language parameter: `'en'` or `'es'` passed to `getAuthenticatedComic(date, language)`
+1. Multiple CORS proxies with performance stats (`comicExtractor.js`)
+2. Fallback chain: Best proxy → Next proxy → Error with user-friendly message
+3. GoComics URLs: `https://assets.amuniversal.com/[hash]`
+4. Language: `'en'` or `'es'` passed to `getAuthenticatedComic(date, language)`
 
 ## Critical Patterns
 
-### Configuration Object
-All magic numbers centralized in `CONFIG` frozen object at top of `app.js`:
+### CONFIG Object (app.js top)
+All magic numbers centralized in frozen `CONFIG`:
 ```javascript
 const CONFIG = Object.freeze({
     SWIPE_MIN_DISTANCE: 50,
     GARFIELD_START_EN: '1978-06-19',
     GARFIELD_START_ES: '1999-12-06',
-    STORAGE_KEYS: { FAVS: 'favs', SPANISH: 'spanish', ... }
+    STORAGE_KEYS: { FAVS: 'favs', SPANISH: 'spanish', LAST_DATE: 'lastdate', ... }
 });
 ```
 
-### Touch Handling (Native Implementation)
-- **DirkJan-style swipe detection** using native touch events (replaced `swiped-events` library)
-- Rotation-aware: In rotated mode (90° clockwise), swipe directions map differently:
-  - Swipe Up → Next comic (visually moves right)
-  - Swipe Down → Previous comic (visually moves left)
-- Prevents click-after-swipe with `lastSwipeTime` tracking (300ms debounce)
-- See `handleTouchStart()`, `handleTouchMove()`, `handleTouchEnd()` in `app.js`
+### UTILS Object (app.js)
+Centralized helper functions—**always use these instead of inline code**:
+```javascript
+UTILS.getFavorites()           // Returns favorites array, never null
+UTILS.isSpanishMode()          // Returns boolean for Spanish checkbox
+UTILS.safeJSONParse(str, [])   // Safe JSON parse with fallback
+UTILS.getOrCreateMessageContainer(className)  // For error/paywall messages
+```
 
-### Draggable UI Elements
-`makeDraggable(element, dragHandle, storageKey)` function handles both toolbar and settings panel:
-- **Toolbar**: Vertical-only dragging, always horizontally centered (saved position = `{ top }` only)
-- **Settings panel**: Full 2D dragging (saved position = `{ top, left }`)
-- Auto-reset when toolbar dragged to default zone (between logo and comic)
-- Storage keys distinguish behavior: `'toolbarPosition'` vs `'settings_pos'`
+### Rotation & Fullscreen
+Device-specific behavior in `initApp()`:
+- **Mobile PWA**: Physical device rotation triggers fullscreen (screen.orientation API)
+- **Mobile Browser**: Click comic to enter fullscreen with CSS rotation
+- **Tablet/Desktop**: No rotation feature (already landscape-capable)
+- `Rotate(applyRotation)` handles overlay creation and CSS transforms
 
-### Translation System
-- `translations` object with `en` and `es` keys in `app.js`
-- `translateInterface(lang)` updates all UI elements (button tooltips, labels, aria-labels)
-- Icon buttons (Settings, Share, Favorites) identified by `onclick` attribute matching
-- Called on Spanish checkbox toggle and page load
+### Touch Handling
+Native touch events with rotation-awareness:
+- `handleTouchStart()`, `handleTouchMove()`, `handleTouchEnd()` in app.js
+- In rotated mode: Swipe Up→Next, Swipe Down→Previous (remapped)
+- Prevents click-after-swipe with `lastSwipeTime` (300ms debounce)
 
-### Date Handling
-- Spanish comics: Start Dec 6, 1999; Sundays often unavailable (check actual availability)
-- English comics: Start Jun 19, 1978
-- When switching to Spanish, attempt to load comic—if fails, switch to today with notification
-- `currentselectedDate` is global date state, compared against `CONFIG.GARFIELD_START_*`
+### Draggable Elements
+`makeDraggable(element, dragHandle, storageKey)`:
+- **Toolbar**: Vertical-only, always horizontally centered
+- **Settings panel**: Full 2D dragging
+- Position persistence via localStorage
 
 ## Development Workflow
 
 ### Service Worker Versioning
-**CRITICAL**: Bump `VERSION` constant in `serviceworker.js` with every deployment:
+**CRITICAL**: Bump `VERSION` in `serviceworker.js` with every deployment:
 ```javascript
-const VERSION = 'v35'; // Increment on each change
+const VERSION = 'v1.2.7';  // Current version - increment on changes
 ```
-This triggers cache invalidation and forces clients to update.
 
 ### Testing Locally
-No build step required. Use any HTTP server:
+No build step. Any HTTP server works:
 ```powershell
 python -m http.server 8000
 ```
-Access at `http://localhost:8000`
 
 ### Deployment
-Hosted on Cloudflare Pages: `garfieldapp.pages.dev`
-- Direct push to `main` branch triggers auto-deploy
-- No build process—static files served as-is
+Cloudflare Pages: `garfieldapp.pages.dev`
+- Push to `main` → auto-deploy
+- No build process—static files
 
 ## Common Pitfalls
 
-### 1. Swipe + Click Conflicts
-When adding click handlers to comic image, check `lastSwipeTime`:
+### 1. Use UTILS Helpers
 ```javascript
-function Rotate() {
-    if (Date.now() - lastSwipeTime < 300) return; // Ignore clicks after swipes
-    // ... rotation logic
-}
+// ✅ Good
+const favs = UTILS.getFavorites();
+const isSpanish = UTILS.isSpanishMode();
+
+// ❌ Bad - duplicates code, unsafe
+const favs = JSON.parse(localStorage.getItem('favs'));
+const isSpanish = document.getElementById('spanish')?.checked;
 ```
 
-### 2. localStorage Namespace
-Use `CONFIG.STORAGE_KEYS` constants, never hardcode keys:
+### 2. Storage Keys
+Always use `CONFIG.STORAGE_KEYS.*`, never hardcode strings.
+
+### 3. Swipe + Click Conflicts
+Check `lastSwipeTime` before handling clicks on comic:
 ```javascript
-localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, "true"); // Good
-localStorage.setItem('spanish', "true"); // Bad
+if (Date.now() - lastSwipeTime < 300) return;
 ```
 
-### 3. Spanish Comic Availability
-Don't assume all dates/Sundays unavailable—always try loading first:
+### 4. Spanish Comic Availability
+Try loading first, then handle failure:
 ```javascript
-const loaded = await loadComic(date, true); // silentMode = true
-if (!loaded) { /* then handle unavailability */ }
+const success = await loadComic(date, true); // silentMode=true
+if (!success) { /* handle unavailable */ }
 ```
-
-### 4. Horizontal Centering
-Toolbar horizontal position is always calculated—never save or apply `left` from localStorage for toolbar.
 
 ## UI Conventions
-- Buttons use SVG icons (no text labels in toolbar)
-- Tooltips via `title` attribute + custom CSS animation
-- Mobile: `@media (max-width: 768px)` for responsive breakpoints
-- Gradients: `--primary-gradient`, `--toolbar-gradient` CSS variables
-- Touch devices: Disable hover effects with `@media (hover: none)`
+- SVG icons (no text labels in toolbar)
+- Tooltips via `title` + CSS animation
+- Mobile: `@media (max-width: 768px)`
+- CSS variables: `--primary-gradient`, `--toolbar-gradient`
+- Touch: `@media (hover: none)` disables hover effects
 
 ## External Dependencies
-- GoComics for comic images (requires CORS proxy)
-- Ko-fi integration for donations (CDN loaded)
-- No npm packages—everything is vanilla JS
+- GoComics (via CORS proxies)
+- Ko-fi widget (CDN loaded)
+- No npm packages—pure vanilla JS
 
 ---
-*Last updated: Service Worker v35 | Main patterns: Native touch handling, vertical-only toolbar dragging, Spanish availability checking*
+*Service Worker v1.2.7 | Key patterns: UTILS helpers, CONFIG constants, device-specific rotation*

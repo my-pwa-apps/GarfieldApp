@@ -80,6 +80,45 @@ const UTILS = {
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         return isMobile || isTouch;
+    },
+
+    /**
+     * Get favorites array from localStorage
+     * @returns {Array} Array of favorite dates or empty array
+     */
+    getFavorites() {
+        return this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    },
+
+    /**
+     * Check if Spanish mode is enabled
+     * @returns {boolean} True if Spanish checkbox is checked
+     */
+    isSpanishMode() {
+        return document.getElementById('spanish')?.checked || false;
+    },
+
+    /**
+     * Get or create message container element
+     * @param {string} className - CSS class for the container
+     * @returns {HTMLElement} The message container element
+     */
+    getOrCreateMessageContainer(className) {
+        const comicContainer = document.getElementById('comic-container');
+        const comic = document.getElementById('comic');
+        
+        comic.style.display = 'none';
+        
+        let messageContainer = document.getElementById('comic-message');
+        if (!messageContainer) {
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'comic-message';
+            comicContainer.appendChild(messageContainer);
+        }
+        
+        messageContainer.className = className;
+        messageContainer.style.display = 'flex';
+        return messageContainer;
     }
 };
 
@@ -100,10 +139,8 @@ let touchStartTime = 0;
 let lastSwipeTime = 0;
 
 // Rotation state tracking
-let isRotating = false;
 let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
-let wasSettingsPanelVisible = false;
 let isVerticalComicActive = false;
 let isVerticalFullscreen = false;
 
@@ -1199,7 +1236,6 @@ function changeComicImage(newSrc) {
 }
 
 function HideSettings(e) {
-    console.log('[DEBUG] HideSettings called', e);
     // Prevent event from bubbling if called from event handler
     if (e) {
         e.preventDefault();
@@ -1207,21 +1243,17 @@ function HideSettings(e) {
     }
     
     const panel = document.getElementById("settingsDIV");
-    console.log('[DEBUG] Settings panel:', panel);
     
     if (!panel) {
         console.warn('Settings panel not found');
         return;
     }
     
-    console.log('[DEBUG] Panel currently visible:', panel.classList.contains('visible'));
-    
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
         panel.classList.remove('visible');
         panel.classList.remove('animate');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
-        console.log('[DEBUG] Panel hidden');
     } else {
         panel.classList.add('visible');
         // Only animate if showing from centered position (no saved position)
@@ -1231,7 +1263,6 @@ function HideSettings(e) {
             panel.classList.add('animate');
         }
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
-        console.log('[DEBUG] Panel shown');
     }
 }
 
@@ -1364,19 +1395,12 @@ function handleTouchEnd(e) {
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  */
 function Rotate(applyRotation = true) {
-    console.log('[DEBUG] Rotate() called with applyRotation:', applyRotation);
     const element = document.getElementById('comic');
-    console.log('[DEBUG] comic element:', element);
-    if (!element) {
-        console.log('[DEBUG] No comic element found, returning');
-        return;
-    }
+    if (!element) return;
     
     // Check if we're already in fullscreen mode
     const existingOverlay = document.getElementById('comic-overlay');
-    console.log('[DEBUG] existingOverlay:', existingOverlay);
     if (existingOverlay) {
-        console.log('[DEBUG] Exiting fullscreen mode');
         // We're in fullscreen mode, exit it immediately
         document.body.removeChild(existingOverlay);
         
@@ -1410,9 +1434,7 @@ function Rotate(applyRotation = true) {
         return;
     }
     
-    console.log('[DEBUG] element.className:', element.className);
     if (element.className === "normal" || element.className.includes("normal")) {
-        console.log('[DEBUG] Entering fullscreen mode');
         isRotatedMode = true;
         
         // Create an overlay without any layout constraints
@@ -1425,13 +1447,11 @@ function Rotate(applyRotation = true) {
         overlay.style.height = '100vh';
         overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
         overlay.style.zIndex = '10000';
-        console.log('[DEBUG] Created overlay');
         
         // Clone the comic image
         const clonedComic = element.cloneNode(true);
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
-        console.log('[DEBUG] Cloned comic with class:', clonedComic.className);
         
         // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
@@ -1630,7 +1650,7 @@ function updateDateDisplay() {
  */
 async function loadComic(date, silentMode = false) {
     try {
-        const useSpanish = document.getElementById("spanish")?.checked || false;
+        const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
         
         const result = await getAuthenticatedComic(date, language);
@@ -1690,21 +1710,7 @@ async function loadComic(date, silentMode = false) {
  * Show paywall message for unavailable comics
  */
 function showPaywallMessage() {
-    const comicContainer = document.getElementById('comic-container');
-    const comic = document.getElementById('comic');
-    
-    comic.style.display = 'none';
-    
-    let messageContainer = document.getElementById('comic-message');
-    if (!messageContainer) {
-        messageContainer = document.createElement('div');
-        messageContainer.id = 'comic-message';
-        messageContainer.className = 'paywall-message';
-        comicContainer.appendChild(messageContainer);
-    }
-    
-    messageContainer.style.display = 'flex';
-    
+    const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
     
     messageContainer.innerHTML = daysDiff > 30
@@ -1721,21 +1727,7 @@ function showPaywallMessage() {
  * @param {string} message - Error message to display
  */
 function showErrorMessage(message) {
-    const comicContainer = document.getElementById('comic-container');
-    const comic = document.getElementById('comic');
-    
-    comic.style.display = 'none';
-    
-    let messageContainer = document.getElementById('comic-message');
-    if (!messageContainer) {
-        messageContainer = document.createElement('div');
-        messageContainer.id = 'comic-message';
-        messageContainer.className = 'error-message';
-        comicContainer.appendChild(messageContainer);
-    }
-    
-    messageContainer.style.display = 'flex';
-    
+    const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     messageContainer.innerHTML = isLocalhost
@@ -1769,14 +1761,11 @@ function initApp() {
     document.getElementById("showfavs").checked = showFavsStatus === "true";
 
     const lastDateStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_DATE);
-    console.log('[DEBUG] lastDateStatus from localStorage:', lastDateStatus, 'key:', CONFIG.STORAGE_KEYS.LAST_DATE);
     if (lastDateStatus === null) {
         document.getElementById("lastdate").checked = true;
         localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
-        console.log('[DEBUG] lastDateStatus was null, set to true');
     } else {
         document.getElementById("lastdate").checked = lastDateStatus === "true";
-        console.log('[DEBUG] lastdate checkbox set to:', lastDateStatus === "true");
     }
 
     // Initialize Spanish language preference
@@ -1832,16 +1821,12 @@ function initApp() {
                 const isLandscape = window.matchMedia("(orientation: landscape)").matches;
                 const existingOverlay = document.getElementById('comic-overlay');
                 
-                console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
-                
                 if (isLandscape && !existingOverlay) {
-                    // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
-                    console.log('[DEBUG] Entering landscape fullscreen');
+                    // Device rotated to landscape - enter fullscreen WITHOUT rotation
                     Rotate(false);
                 } else if (!isLandscape && existingOverlay) {
                     // Device rotated back to portrait - exit fullscreen
-                    console.log('[DEBUG] Exiting to portrait');
-                    Rotate(false); // This will exit since overlay exists
+                    Rotate(false);
                 }
             }
             
@@ -1867,7 +1852,7 @@ function initApp() {
     }
     // Tablet and Desktop: no rotation feature - they're already landscape-capable
 
-    var favs = JSON.parse(localStorage.getItem('favs')) || [];
+    var favs = UTILS.getFavorites();
 
     // Set minimum body height at load time to prevent gradient shift
     document.body.style.minHeight = "100vh";
@@ -1946,7 +1931,7 @@ async function DateChange() {
     CompareDates();
     
     // Check if user selected a Sunday in Spanish mode
-    const isSpanish = document.getElementById('spanish')?.checked || false;
+    const isSpanish = UTILS.isSpanishMode();
     const isSunday = currentselectedDate.getDay() === 0;
     
     if (isSpanish && isSunday) {
@@ -2065,7 +2050,7 @@ async function showComic(skipOnFailure = false, direction = null) {
 
 function PreviousClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
+		const favs = UTILS.getFavorites();
 		if(favs.indexOf(formattedComicDate) > 0){
 			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);} }
 	else{
@@ -2081,7 +2066,7 @@ function PreviousClick() {
 
 function NextClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
+		const favs = UTILS.getFavorites();
 		if(favs.indexOf(formattedComicDate) < favs.length - 1){
 			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);} }
 	else{
@@ -2096,12 +2081,11 @@ function NextClick() {
 
 function FirstClick() {
 	if(document.getElementById("showfavs").checked) {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[0]);}
+		const favs = UTILS.getFavorites();
+		currentselectedDate = new Date(favs[0]);}
 	else{
 		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		const isSpanish = document.getElementById('spanish').checked;
-		currentselectedDate = isSpanish ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
+		currentselectedDate = UTILS.isSpanishMode() ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
 	}
 	CompareDates();
 	showComic();
@@ -2113,9 +2097,8 @@ function FirstClick() {
 function LastClick() {
 	if(document.getElementById("showfavs").checked)
 	 {
-		var favs = JSON.parse(localStorage.getItem('favs'));
-		let favslength = favs.length - 1;
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[favslength]);
+		const favs = UTILS.getFavorites();
+		currentselectedDate = new Date(favs[favs.length - 1]);
 	 }
 	else
 	{
@@ -2149,7 +2132,7 @@ function exportFavorites() {
     if (exportBtn?.disabled) return;
     
     const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-    const isSpanish = document.getElementById('spanish')?.checked || false;
+    const isSpanish = UTILS.isSpanishMode();
     const lang = isSpanish ? 'es' : 'en';
     const t = translations[lang];
     
@@ -2199,7 +2182,7 @@ function importFavorites() {
             try {
                 const data = JSON.parse(event.target.result);
                 
-                const isSpanish = document.getElementById('spanish')?.checked || false;
+                const isSpanish = UTILS.isSpanishMode();
                 const lang = isSpanish ? 'es' : 'en';
                 const t = translations[lang];
                 
@@ -2242,13 +2225,13 @@ function importFavorites() {
                         heartSvg.setAttribute('fill', 'currentColor');
                     }
                 } else {
-                    const isSpanish = document.getElementById('spanish')?.checked || false;
+                    const isSpanish = UTILS.isSpanishMode();
                     const lang = isSpanish ? 'es' : 'en';
                     const t = translations[lang];
                     showNotification(t.allFavoritesExist, 3000);
                 }
             } catch (error) {
-                const isSpanish = document.getElementById('spanish')?.checked || false;
+                const isSpanish = UTILS.isSpanishMode();
                 const lang = isSpanish ? 'es' : 'en';
                 const t = translations[lang];
                 showNotification(t.errorReadingFile, 4000);
@@ -2268,11 +2251,11 @@ function importFavorites() {
 function RandomClick()
 {
 	if(document.getElementById("showfavs").checked) {
-		currentselectedDate = new Date(JSON.parse(localStorage.getItem('favs'))[Math.floor(Math.random() * JSON.parse(localStorage.getItem('favs')).length)]);}
+		const favs = UTILS.getFavorites();
+		currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);}
 	else{
 		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		const isSpanish = document.getElementById('spanish').checked;
-		let start = isSpanish ? new Date("1999-12-06") : new Date("1978-06-19");
+		const start = UTILS.isSpanishMode() ? new Date("1999-12-06") : new Date("1978-06-19");
 		let end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 	}
@@ -2284,7 +2267,7 @@ function RandomClick()
 
 
 function CompareDates() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
+	const favs = UTILS.getFavorites();
 	let startDate;
 	if(document.getElementById("showfavs").checked)
 	{
@@ -2293,8 +2276,7 @@ function CompareDates() {
 	else{	
 		document.getElementById("DatePicker").disabled = false;
 		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		const isSpanish = document.getElementById('spanish').checked;
-		startDate = isSpanish ? new Date("1999/12/06") : new Date("1978/06/19");
+		startDate = UTILS.isSpanishMode() ? new Date("1999/12/06") : new Date("1978/06/19");
 	}
 	startDate = startDate.setHours(0, 0, 0, 0);
 	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
@@ -2365,28 +2347,22 @@ document.getElementById('swipe').addEventListener('change', function() {
 });
 
 document.getElementById('lastdate').addEventListener('change', function() {
-	console.log('[DEBUG] lastdate checkbox changed to:', this.checked);
 	if(this.checked) 
 	{
 		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "true");
-		console.log('[DEBUG] Saved lastdate as true');
 	}
 	else
 	{
 		localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, "false");
-		console.log('[DEBUG] Saved lastdate as false');
 	}
 });
 
 document.getElementById('showfavs').addEventListener('change', function() {
-	var favs = JSON.parse(localStorage.getItem('favs'));
+	const favs = UTILS.getFavorites();
 	if(this.checked)
 	{
 		localStorage.setItem('showfavs', "true");
-		if(favs.indexOf(formattedComicDate) !== -1)
-		{
-		}
-		else
+		if(favs.indexOf(formattedComicDate) === -1)
 		{
 			currentselectedDate = new Date(favs[0]);	
 		}
