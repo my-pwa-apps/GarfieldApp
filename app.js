@@ -119,6 +119,43 @@ const UTILS = {
         messageContainer.className = className;
         messageContainer.style.display = 'flex';
         return messageContainer;
+    },
+
+    /**
+     * Preload adjacent comic images for faster navigation
+     * @param {Date} currentDate - Current comic date
+     */
+    preloadAdjacentComics(currentDate) {
+        const language = this.isSpanishMode() ? 'es' : 'en';
+        const startDate = this.isSpanishMode() 
+            ? new Date(CONFIG.GARFIELD_START_ES) 
+            : new Date(CONFIG.GARFIELD_START_EN);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        // Preload previous comic (if not before start date)
+        const prevDate = new Date(currentDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        if (prevDate >= startDate) {
+            getAuthenticatedComic(prevDate, language).then(result => {
+                if (result.success && result.imageUrl) {
+                    const img = new Image();
+                    img.src = result.imageUrl;
+                }
+            }).catch(() => {}); // Silently ignore errors
+        }
+        
+        // Preload next comic (if not after today)
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(nextDate.getDate() + 1);
+        if (nextDate <= today) {
+            getAuthenticatedComic(nextDate, language).then(result => {
+                if (result.success && result.imageUrl) {
+                    const img = new Image();
+                    img.src = result.imageUrl;
+                }
+            }).catch(() => {}); // Silently ignore errors
+        }
     }
 };
 
@@ -1692,6 +1729,9 @@ async function loadComic(date, silentMode = false) {
             const messageContainer = document.getElementById('comic-message');
             if (messageContainer) messageContainer.style.display = 'none';
             
+            // Preload adjacent comics for faster navigation
+            UTILS.preloadAdjacentComics(date);
+            
             return true;
         }
         
@@ -2773,99 +2813,3 @@ async function checkForNewComicNow() {
 // Notification feature removed - only worked when app was open
 
 // Notification functions removed
-
-// ========================================
-// ORIENTATION CHANGE LISTENER
-// ========================================
-// DirkJan-style logic: keep fullscreen state in sync with device orientation.
-// Landscape => comic-only fullscreen overlay. Portrait => exit overlay.
-
-let rotationSyncTimeoutId = null;
-let landscapeEnterAttempts = 0;
-
-function shouldAutoLandscapeFullscreen() {
-    // Match DirkJan behavior: no auto fullscreen on orientation changes.
-    return false;
-}
-
-function isLandscapeOrientationNow() {
-    const mql = window.matchMedia?.('(orientation: landscape)');
-    if (mql && typeof mql.matches === 'boolean') {
-        return mql.matches;
-    }
-
-    const visualWidth = window.visualViewport?.width || window.innerWidth;
-    const visualHeight = window.visualViewport?.height || window.innerHeight;
-    return visualWidth > visualHeight;
-}
-
-function syncFullscreenWithOrientation() {
-    const overlayExists = !!document.getElementById('comic-overlay');
-    const landscape = isLandscapeOrientationNow();
-
-    // The Rotate() function handles hiding UI elements when entering fullscreen.
-    // No need to toggle body.rotated-state here - elements are hidden inline.
-
-    if (!shouldAutoLandscapeFullscreen()) {
-        // Don't auto-enter/exit on desktop, but still keep the UI fallback in sync.
-        landscapeEnterAttempts = 0;
-        return;
-    }
-
-    if (!landscape) {
-        landscapeEnterAttempts = 0;
-    }
-
-    if (landscape && !overlayExists) {
-        const comic = document.getElementById('comic');
-        // Only enter when we actually have an image to show.
-        if (comic && comic.getAttribute('src')) {
-            Rotate(false); // Enter fullscreen WITHOUT extra rotation (device handles orientation)
-        } else {
-            // Comic not ready yet; retry shortly.
-            if (landscapeEnterAttempts < 4) {
-                landscapeEnterAttempts++;
-                scheduleFullscreenOrientationSync(220);
-            }
-            return;
-        }
-
-        // Some devices report landscape before viewport settles; retry a few times.
-        if (landscapeEnterAttempts < 4) {
-            landscapeEnterAttempts++;
-            scheduleFullscreenOrientationSync(220);
-        }
-        return;
-    }
-
-    if (!landscape && overlayExists) {
-        Rotate(false); // Exit fullscreen (Rotate exits when overlay exists)
-    }
-}
-
-function scheduleFullscreenOrientationSync(delayMs = 250) {
-    clearTimeout(rotationSyncTimeoutId);
-    rotationSyncTimeoutId = setTimeout(syncFullscreenWithOrientation, delayMs);
-}
-
-(function registerOrientationHandlers() {
-    window.addEventListener('orientationchange', () => scheduleFullscreenOrientationSync(300));
-    window.addEventListener('resize', () => scheduleFullscreenOrientationSync(150));
-
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => scheduleFullscreenOrientationSync(150));
-        window.visualViewport.addEventListener('scroll', () => scheduleFullscreenOrientationSync(150));
-    }
-
-    const mql = window.matchMedia?.('(orientation: landscape)');
-    if (mql) {
-        if (typeof mql.addEventListener === 'function') {
-            mql.addEventListener('change', () => scheduleFullscreenOrientationSync(0));
-        } else if (typeof mql.addListener === 'function') {
-            mql.addListener(() => scheduleFullscreenOrientationSync(0));
-        }
-    }
-
-    // Initial sync for cases where the app loads while already in landscape.
-    scheduleFullscreenOrientationSync(0);
-})();
