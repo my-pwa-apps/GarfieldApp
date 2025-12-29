@@ -1547,8 +1547,8 @@ function maximizeRotatedImage(imgElement) {
         scale = viewportHeight / visualHeight;
     }
 
-    // Match DirkJan sizing feel
-    scale = scale * 0.9;
+    // Scale to nearly fill the viewport
+    scale = scale * 0.95;
 
     imgElement.style.width = `${naturalWidth * scale}px`;
     imgElement.style.height = `${naturalHeight * scale}px`;
@@ -1815,34 +1815,52 @@ function initApp() {
         document.getElementById('DatePicker').showPicker?.();
     });
 
-    // Listen for physical device orientation changes
-    // When device rotates to landscape, enter fullscreen mode (without CSS rotation since device is already rotated)
-    // When device rotates back to portrait, exit fullscreen mode
-    function handleOrientationChange() {
-        const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-        const existingOverlay = document.getElementById('comic-overlay');
+    // Check if device supports orientation detection
+    const supportsOrientationChange = 'orientation' in screen || 'onorientationchange' in window || window.matchMedia("(orientation: landscape)").matches !== undefined;
+    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    // On devices that support orientation changes, use physical rotation
+    // On devices without orientation support (desktop), use click to rotate
+    if (isMobileDevice && supportsOrientationChange) {
+        // Listen for physical device orientation changes
+        // When device rotates to landscape, enter fullscreen mode (without CSS rotation since device is already rotated)
+        // When device rotates back to portrait, exit fullscreen mode
+        function handleOrientationChange() {
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            const existingOverlay = document.getElementById('comic-overlay');
+            
+            console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
+            
+            if (isLandscape && !existingOverlay) {
+                // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
+                console.log('[DEBUG] Entering landscape fullscreen');
+                Rotate(false);
+            } else if (!isLandscape && existingOverlay) {
+                // Device rotated back to portrait - exit fullscreen
+                console.log('[DEBUG] Exiting to portrait');
+                Rotate(false); // This will exit since overlay exists
+            }
+        }
         
-        console.log('[DEBUG] Orientation changed. isLandscape:', isLandscape, 'existingOverlay:', !!existingOverlay);
-        
-        if (isLandscape && !existingOverlay) {
-            // Device rotated to landscape - enter fullscreen WITHOUT rotation (applyRotation = false)
-            console.log('[DEBUG] Entering landscape fullscreen');
-            Rotate(false);
-        } else if (!isLandscape && existingOverlay) {
-            // Device rotated back to portrait - exit fullscreen
-            console.log('[DEBUG] Exiting to portrait');
-            Rotate(false); // This will exit since overlay exists
+        // Use screen.orientation API if available, fallback to matchMedia
+        if (screen.orientation) {
+            screen.orientation.addEventListener('change', handleOrientationChange);
+        } else {
+            window.addEventListener('orientationchange', handleOrientationChange);
+        }
+        // Also listen to resize as a fallback for orientation detection
+        window.matchMedia("(orientation: landscape)").addEventListener('change', handleOrientationChange);
+    } else {
+        // Fallback: click on comic to enter/exit rotated fullscreen (for desktop or devices without orientation support)
+        const comic = document.getElementById('comic');
+        if (comic) {
+            comic.addEventListener('click', (e) => {
+                // Ignore clicks immediately after a swipe
+                if (Date.now() - lastSwipeTime < 300) return;
+                Rotate(true); // Apply CSS rotation on click
+            });
         }
     }
-    
-    // Use screen.orientation API if available, fallback to matchMedia
-    if (screen.orientation) {
-        screen.orientation.addEventListener('change', handleOrientationChange);
-    } else {
-        window.addEventListener('orientationchange', handleOrientationChange);
-    }
-    // Also listen to resize as a fallback for orientation detection
-    window.matchMedia("(orientation: landscape)").addEventListener('change', handleOrientationChange);
 
     var favs = JSON.parse(localStorage.getItem('favs')) || [];
 
