@@ -1393,8 +1393,9 @@ function handleTouchEnd(e) {
  * Toggles comic rotation to fullscreen mode (DirkJan pattern)
  * Shows only the comic rotated 90 degrees, no toolbar
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
+ * @param {boolean} clickToExit - Whether clicking exits fullscreen (default: true, false for PWA physical rotation)
  */
-function Rotate(applyRotation = true) {
+function Rotate(applyRotation = true, clickToExit = true) {
     const element = document.getElementById('comic');
     if (!element) return;
     
@@ -1513,9 +1514,11 @@ function Rotate(applyRotation = true) {
             isRotatedMode = false;
         };
         
-        // Add click handlers
-        clonedComic.addEventListener('click', exitFullscreen);
-        overlay.addEventListener('click', exitFullscreen);
+        // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
+        if (clickToExit) {
+            clonedComic.addEventListener('click', exitFullscreen);
+            overlay.addEventListener('click', exitFullscreen);
+        }
         
         // Add resize listener
         window.addEventListener('resize', handleRotatedViewResize);
@@ -1822,11 +1825,11 @@ function initApp() {
                 const existingOverlay = document.getElementById('comic-overlay');
                 
                 if (isLandscape && !existingOverlay) {
-                    // Device rotated to landscape - enter fullscreen WITHOUT rotation
-                    Rotate(false);
+                    // Device rotated to landscape - enter fullscreen WITHOUT rotation, NO click-to-exit
+                    Rotate(false, false);
                 } else if (!isLandscape && existingOverlay) {
                     // Device rotated back to portrait - exit fullscreen
-                    Rotate(false);
+                    Rotate(false, false);
                 }
             }
             
