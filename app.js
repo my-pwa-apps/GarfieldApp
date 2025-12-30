@@ -1697,7 +1697,40 @@ async function loadComic(date, silentMode = false) {
         
         if (result.success && result.imageUrl) {
             const comicImg = document.getElementById('comic');
-            comicImg.src = result.imageUrl;
+            
+            // Animate transition: fade out, change src, fade in
+            const animateTransition = () => {
+                return new Promise((resolve) => {
+                    // Only animate if there's an existing image
+                    if (comicImg.src && comicImg.src !== window.location.href) {
+                        // Fade out
+                        comicImg.classList.add('dissolve');
+                        
+                        // Wait for fade out, then change image
+                        setTimeout(() => {
+                            comicImg.src = result.imageUrl;
+                            
+                            // When new image loads, fade in
+                            const fadeIn = () => {
+                                comicImg.classList.remove('dissolve');
+                                resolve();
+                            };
+                            
+                            if (comicImg.complete) {
+                                fadeIn();
+                            } else {
+                                comicImg.addEventListener('load', fadeIn, { once: true });
+                            }
+                        }, CONFIG.FADE_TRANSITION_TIME);
+                    } else {
+                        // First load - no animation needed
+                        comicImg.src = result.imageUrl;
+                        resolve();
+                    }
+                });
+            };
+            
+            await animateTransition();
             comicImg.style.display = 'block';
 
             const ensureOrientationCheck = () => {
