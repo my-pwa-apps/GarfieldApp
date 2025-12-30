@@ -352,34 +352,47 @@ label {
     opacity: 0;
 }
 
-#rotated-comic.slide-out-left {
+/* Slide animations for rotated comics (with 90deg rotation) */
+#rotated-comic.rotate.slide-out-left,
+.rotated-comic-outgoing.rotate.slide-out-left {
+    transform: translate(-50%, calc(-50% - 100vh - 20px)) rotate(90deg) !important;
+}
+
+#rotated-comic.rotate.slide-out-right,
+.rotated-comic-outgoing.rotate.slide-out-right {
+    transform: translate(-50%, calc(-50% + 100vh + 20px)) rotate(90deg) !important;
+}
+
+#rotated-comic.rotate.slide-in-left {
+    transform: translate(-50%, calc(-50% + 100vh + 20px)) rotate(90deg) !important;
+}
+
+#rotated-comic.rotate.slide-in-right {
+    transform: translate(-50%, calc(-50% - 100vh - 20px)) rotate(90deg) !important;
+}
+
+/* Slide animations for landscape fullscreen (no rotation) */
+#rotated-comic.fullscreen-landscape.slide-out-left,
+.rotated-comic-outgoing.fullscreen-landscape.slide-out-left {
     transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
 }
 
-#rotated-comic.slide-out-right {
+#rotated-comic.fullscreen-landscape.slide-out-right,
+.rotated-comic-outgoing.fullscreen-landscape.slide-out-right {
     transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
-#rotated-comic.slide-in-left {
+#rotated-comic.fullscreen-landscape.slide-in-left {
     transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
-#rotated-comic.slide-in-right {
+#rotated-comic.fullscreen-landscape.slide-in-right {
     transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
 }
 
 /* Outgoing rotated comic clone for filmstrip effect */
 .rotated-comic-outgoing {
-    transition: transform 0.5s ease-out;
     pointer-events: none;
-}
-
-.rotated-comic-outgoing.slide-out-left {
-    transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
-}
-
-.rotated-comic-outgoing.slide-out-right {
-    transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
 #rotated-comic.fullscreen-landscape {

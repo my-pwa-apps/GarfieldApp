@@ -1799,12 +1799,14 @@ async function loadComic(date, silentMode = false, direction = null) {
                             const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
                             
                             // Create a clone of current rotated comic to slide out
-                            const overlay = document.getElementById('fullscreen-overlay');
                             const outgoingClone = rotatedComic.cloneNode(true);
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('rotated-comic-outgoing');
                             outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve');
-                            overlay.appendChild(outgoingClone);
+                            // Copy all inline styles to preserve positioning
+                            outgoingClone.style.cssText = rotatedComic.style.cssText;
+                            outgoingClone.style.transition = 'transform 0.5s ease-out';
+                            document.body.appendChild(outgoingClone);
                             
                             // Set new image source on original (it will slide in)
                             rotatedComic.style.transition = 'none';
