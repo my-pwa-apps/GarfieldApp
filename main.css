@@ -22,91 +22,78 @@ html {
 .tail-stripes {
     position: fixed;
     bottom: 0;
-    width: 120px;
-    height: 80px;
+    width: 100px;
+    height: 120px;
     z-index: -1;
     pointer-events: none;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 8px;
-    padding-bottom: 15px;
+    gap: 6px;
+    padding-bottom: 20px;
 }
 
 .tail-stripes-left {
-    left: 0;
-    transform: rotate(15deg);
-    transform-origin: bottom left;
-    padding-left: 10px;
+    left: -20px;
 }
 
 .tail-stripes-right {
-    right: 0;
-    transform: rotate(-15deg);
-    transform-origin: bottom right;
-    padding-right: 10px;
-    align-items: flex-end;
+    right: -20px;
 }
 
 .tail-stripes .stripe {
     background: #1a1a1a;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    height: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Left side - curves to the left */
+.tail-stripes-left .stripe {
+    border-radius: 0 50px 50px 0;
+    margin-left: 0;
 }
 
 .tail-stripes-left .stripe:nth-child(1) {
-    width: 70px;
-    height: 10px;
+    width: 50px;
+    margin-left: 25px;
 }
 
 .tail-stripes-left .stripe:nth-child(2) {
-    width: 85px;
-    height: 12px;
+    width: 60px;
+    margin-left: 15px;
 }
 
 .tail-stripes-left .stripe:nth-child(3) {
-    width: 100px;
-    height: 14px;
+    width: 70px;
+    margin-left: 5px;
+}
+
+/* Right side - curves to the right */
+.tail-stripes-right .stripe {
+    border-radius: 50px 0 0 50px;
+    margin-left: auto;
+    margin-right: 0;
 }
 
 .tail-stripes-right .stripe:nth-child(1) {
-    width: 70px;
-    height: 10px;
+    width: 50px;
+    margin-right: 25px;
 }
 
 .tail-stripes-right .stripe:nth-child(2) {
-    width: 85px;
-    height: 12px;
+    width: 60px;
+    margin-right: 15px;
 }
 
 .tail-stripes-right .stripe:nth-child(3) {
-    width: 100px;
-    height: 14px;
+    width: 70px;
+    margin-right: 5px;
 }
 
 /* Hide stripes on very small screens */
-@media (max-width: 480px) {
+@media (max-width: 400px) {
     .tail-stripes {
-        width: 80px;
-        height: 60px;
-    }
-    
-    .tail-stripes-left .stripe:nth-child(1),
-    .tail-stripes-right .stripe:nth-child(1) {
-        width: 45px;
-        height: 8px;
-    }
-    
-    .tail-stripes-left .stripe:nth-child(2),
-    .tail-stripes-right .stripe:nth-child(2) {
-        width: 55px;
-        height: 9px;
-    }
-    
-    .tail-stripes-left .stripe:nth-child(3),
-    .tail-stripes-right .stripe:nth-child(3) {
-        width: 65px;
-        height: 10px;
+        display: none;
     }
 }
 
