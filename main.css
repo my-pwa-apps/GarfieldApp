@@ -214,7 +214,7 @@ label {
 }
 
 #comic {
-    transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+    transition: transform 0.5s ease-out, opacity 0.4s ease-out;
     opacity: 1;
     cursor: pointer;
     position: relative;
@@ -225,25 +225,40 @@ label {
     opacity: 0;
 }
 
-/* Slide animations */
-#comic.slide-out-left {
-    transform: translateX(-100%);
-    opacity: 0;
+#comic.no-transition {
+    transition: none !important;
 }
 
-#comic.slide-out-right {
-    transform: translateX(100%);
-    opacity: 0;
+/* Outgoing comic clone for filmstrip effect */
+.comic-outgoing {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    transition: transform 0.5s ease-out;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Slide animations - no opacity fade, just movement */
+#comic.slide-out-left,
+.comic-outgoing.slide-out-left {
+    transform: translateX(calc(-100% - 20px));
+}
+
+#comic.slide-out-right,
+.comic-outgoing.slide-out-right {
+    transform: translateX(calc(100% + 20px));
 }
 
 #comic.slide-in-left {
-    transform: translateX(100%);
-    opacity: 0;
+    transform: translateX(calc(100% + 20px));
 }
 
 #comic.slide-in-right {
-    transform: translateX(-100%);
-    opacity: 0;
+    transform: translateX(calc(-100% - 20px));
 }
 
 .fullscreen-landscape {
@@ -338,23 +353,33 @@ label {
 }
 
 #rotated-comic.slide-out-left {
-    transform: translate(-50%, -50%) translateX(-100%) !important;
-    opacity: 0;
+    transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
 }
 
 #rotated-comic.slide-out-right {
-    transform: translate(-50%, -50%) translateX(100%) !important;
-    opacity: 0;
+    transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
 #rotated-comic.slide-in-left {
-    transform: translate(-50%, -50%) translateX(100%) !important;
-    opacity: 0;
+    transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
 #rotated-comic.slide-in-right {
-    transform: translate(-50%, -50%) translateX(-100%) !important;
-    opacity: 0;
+    transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
+}
+
+/* Outgoing rotated comic clone for filmstrip effect */
+.rotated-comic-outgoing {
+    transition: transform 0.5s ease-out;
+    pointer-events: none;
+}
+
+.rotated-comic-outgoing.slide-out-left {
+    transform: translate(calc(-50% - 100vw - 20px), -50%) !important;
+}
+
+.rotated-comic-outgoing.slide-out-right {
+    transform: translate(calc(-50% + 100vw + 20px), -50%) !important;
 }
 
 #rotated-comic.fullscreen-landscape {

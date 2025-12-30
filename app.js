@@ -1698,6 +1698,7 @@ async function loadComic(date, silentMode = false, direction = null) {
         
         if (result.success && result.imageUrl) {
             const comicImg = document.getElementById('comic');
+            const wrapper = document.getElementById('comic-wrapper');
             
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
@@ -1706,38 +1707,43 @@ async function loadComic(date, silentMode = false, direction = null) {
                     if (comicImg.src && comicImg.src !== window.location.href) {
                         
                         if (direction === 'next' || direction === 'previous') {
-                            // SLIDE animation for next/previous
+                            // FILMSTRIP SLIDE animation - both comics visible during transition
                             const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
                             const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
                             
-                            // Slide out current comic
-                            comicImg.classList.add(slideOutClass);
+                            // Create a clone of current comic to slide out
+                            const outgoingClone = comicImg.cloneNode(true);
+                            outgoingClone.removeAttribute('id');
+                            outgoingClone.classList.add('comic-outgoing');
+                            outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve', 'no-transition');
+                            wrapper.appendChild(outgoingClone);
                             
-                            // Wait for slide out, then change image
-                            setTimeout(() => {
-                                comicImg.src = result.imageUrl;
-                                
-                                // Position for slide in (instantly, no transition)
-                                comicImg.style.transition = 'none';
-                                comicImg.classList.remove(slideOutClass);
-                                comicImg.classList.add(slideInClass);
-                                
-                                // Force reflow to apply instant position
-                                comicImg.offsetHeight;
-                                
-                                // Re-enable transition and slide in
-                                comicImg.style.transition = '';
-                                
-                                // Small delay to ensure transition is applied
+                            // Set new image source on original (it will slide in)
+                            comicImg.classList.add('no-transition');
+                            comicImg.src = result.imageUrl;
+                            comicImg.classList.add(slideInClass);
+                            
+                            // Force reflow
+                            comicImg.offsetHeight;
+                            outgoingClone.offsetHeight;
+                            
+                            // Re-enable transitions and animate both
+                            comicImg.classList.remove('no-transition');
+                            
+                            requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
-                                    requestAnimationFrame(() => {
-                                        comicImg.classList.remove(slideInClass);
-                                        
-                                        // Wait for slide in animation to complete
-                                        setTimeout(resolve, 400);
-                                    });
+                                    // Slide outgoing clone away
+                                    outgoingClone.classList.add(slideOutClass);
+                                    // Slide incoming comic to center
+                                    comicImg.classList.remove(slideInClass);
+                                    
+                                    // Cleanup after animation
+                                    setTimeout(() => {
+                                        outgoingClone.remove();
+                                        resolve();
+                                    }, 500);
                                 });
-                            }, 400); // Match CSS transition time
+                            });
                         } else {
                             // CROSSFADE animation for random, date picker, first, last
                             comicImg.classList.add('dissolve');
@@ -1788,33 +1794,48 @@ async function loadComic(date, silentMode = false, direction = null) {
                 const animateRotatedComic = () => {
                     return new Promise((resolve) => {
                         if (direction === 'next' || direction === 'previous') {
-                            // SLIDE animation
+                            // FILMSTRIP SLIDE animation for rotated comic
                             const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
                             const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
                             
-                            rotatedComic.classList.add(slideOutClass);
+                            // Create a clone of current rotated comic to slide out
+                            const overlay = document.getElementById('fullscreen-overlay');
+                            const outgoingClone = rotatedComic.cloneNode(true);
+                            outgoingClone.removeAttribute('id');
+                            outgoingClone.classList.add('rotated-comic-outgoing');
+                            outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve');
+                            overlay.appendChild(outgoingClone);
                             
-                            setTimeout(() => {
-                                rotatedComic.src = result.imageUrl;
-                                
-                                rotatedComic.style.transition = 'none';
-                                rotatedComic.classList.remove(slideOutClass);
-                                rotatedComic.classList.add(slideInClass);
-                                
-                                rotatedComic.offsetHeight; // Force reflow
-                                
-                                rotatedComic.style.transition = '';
-                                
+                            // Set new image source on original (it will slide in)
+                            rotatedComic.style.transition = 'none';
+                            rotatedComic.src = result.imageUrl;
+                            rotatedComic.classList.add(slideInClass);
+                            
+                            // Force reflow
+                            rotatedComic.offsetHeight;
+                            outgoingClone.offsetHeight;
+                            
+                            // Re-enable transitions and animate both
+                            rotatedComic.style.transition = '';
+                            
+                            requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
-                                    requestAnimationFrame(() => {
-                                        rotatedComic.classList.remove(slideInClass);
-                                        rotatedComic.onload = function() {
-                                            maximizeRotatedImage(rotatedComic);
-                                        };
-                                        setTimeout(resolve, 400);
-                                    });
+                                    // Slide outgoing clone away
+                                    outgoingClone.classList.add(slideOutClass);
+                                    // Slide incoming comic to center
+                                    rotatedComic.classList.remove(slideInClass);
+                                    
+                                    rotatedComic.onload = function() {
+                                        maximizeRotatedImage(rotatedComic);
+                                    };
+                                    
+                                    // Cleanup after animation
+                                    setTimeout(() => {
+                                        outgoingClone.remove();
+                                        resolve();
+                                    }, 500);
                                 });
-                            }, 400);
+                            });
                         } else {
                             // CROSSFADE animation
                             rotatedComic.classList.add('dissolve');
