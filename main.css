@@ -329,6 +329,32 @@ label {
 
 #rotated-comic {
     margin: 0 !important;
+    transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+    opacity: 1;
+}
+
+#rotated-comic.dissolve {
+    opacity: 0;
+}
+
+#rotated-comic.slide-out-left {
+    transform: translate(-50%, -50%) translateX(-100%) !important;
+    opacity: 0;
+}
+
+#rotated-comic.slide-out-right {
+    transform: translate(-50%, -50%) translateX(100%) !important;
+    opacity: 0;
+}
+
+#rotated-comic.slide-in-left {
+    transform: translate(-50%, -50%) translateX(100%) !important;
+    opacity: 0;
+}
+
+#rotated-comic.slide-in-right {
+    transform: translate(-50%, -50%) translateX(-100%) !important;
+    opacity: 0;
 }
 
 #rotated-comic.fullscreen-landscape {

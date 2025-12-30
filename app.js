@@ -1781,14 +1781,65 @@ async function loadComic(date, silentMode = false, direction = null) {
                 comicImg.addEventListener('load', ensureOrientationCheck, { once: true });
             }
             
-            // Also update the rotated comic if it exists
+            // Also update the rotated comic if it exists (with animation)
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) {
-                rotatedComic.src = result.imageUrl;
-                // Recalculate sizing when new image loads (handles Sunday vs weekday differences)
-                rotatedComic.onload = function() {
-                    maximizeRotatedImage(rotatedComic);
+                // Animate the rotated comic too
+                const animateRotatedComic = () => {
+                    return new Promise((resolve) => {
+                        if (direction === 'next' || direction === 'previous') {
+                            // SLIDE animation
+                            const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
+                            const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
+                            
+                            rotatedComic.classList.add(slideOutClass);
+                            
+                            setTimeout(() => {
+                                rotatedComic.src = result.imageUrl;
+                                
+                                rotatedComic.style.transition = 'none';
+                                rotatedComic.classList.remove(slideOutClass);
+                                rotatedComic.classList.add(slideInClass);
+                                
+                                rotatedComic.offsetHeight; // Force reflow
+                                
+                                rotatedComic.style.transition = '';
+                                
+                                requestAnimationFrame(() => {
+                                    requestAnimationFrame(() => {
+                                        rotatedComic.classList.remove(slideInClass);
+                                        rotatedComic.onload = function() {
+                                            maximizeRotatedImage(rotatedComic);
+                                        };
+                                        setTimeout(resolve, 400);
+                                    });
+                                });
+                            }, 400);
+                        } else {
+                            // CROSSFADE animation
+                            rotatedComic.classList.add('dissolve');
+                            
+                            setTimeout(() => {
+                                rotatedComic.src = result.imageUrl;
+                                
+                                const fadeIn = () => {
+                                    rotatedComic.classList.remove('dissolve');
+                                    maximizeRotatedImage(rotatedComic);
+                                    setTimeout(resolve, 400);
+                                };
+                                
+                                if (rotatedComic.complete) {
+                                    fadeIn();
+                                } else {
+                                    rotatedComic.addEventListener('load', fadeIn, { once: true });
+                                }
+                            }, 400);
+                        }
+                    });
                 };
+                
+                // Run animation (don't await - let it run in parallel with main comic)
+                animateRotatedComic();
             }
             
             // Store for sharing
