@@ -2027,6 +2027,11 @@ function initApp() {
         if (isPWA) {
             // Mobile PWA: use physical rotation for fullscreen
             function handleOrientationChange() {
+                // Skip rotation handling for vertical comics - they have their own fullscreen system
+                if (isVerticalComicActive) {
+                    return;
+                }
+                
                 const isLandscape = window.matchMedia("(orientation: landscape)").matches;
                 const existingOverlay = document.getElementById('comic-overlay');
                 
