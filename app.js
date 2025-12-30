@@ -1354,6 +1354,11 @@ function handleTouchMove(e) {
  * @param {TouchEvent} e - Touch event
  */
 function handleTouchEnd(e) {
+    // Disable swiping when viewing maximized vertical comic
+    if (isVerticalFullscreen) {
+        return;
+    }
+    
     const touch = e.changedTouches[0];
     touchEndX = touch.clientX;
     touchEndY = touch.clientY;
@@ -2028,7 +2033,7 @@ function initApp() {
             // Mobile PWA: use physical rotation for fullscreen
             function handleOrientationChange() {
                 // Skip rotation handling for vertical comics - they have their own fullscreen system
-                if (isVerticalComicActive) {
+                if (isVerticalComicActive || isVerticalFullscreen) {
                     return;
                 }
                 
