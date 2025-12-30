@@ -1599,15 +1599,12 @@ function maximizeRotatedImage(imgElement) {
     const visualWidth = shouldRotate ? naturalHeight : naturalWidth;
     const visualHeight = shouldRotate ? naturalWidth : naturalHeight;
 
-    // Calculate scale factor to fit within viewport
-    let scale;
-    if (visualWidth / visualHeight > viewportWidth / viewportHeight) {
-        scale = viewportWidth / visualWidth;
-    } else {
-        scale = viewportHeight / visualHeight;
-    }
+    // Calculate scale factor to fit within viewport (pick smaller of width/height fits)
+    const scaleByWidth = viewportWidth / visualWidth;
+    const scaleByHeight = viewportHeight / visualHeight;
+    let scale = Math.min(scaleByWidth, scaleByHeight);
 
-    // Scale to nearly fill the viewport
+    // Scale to nearly fill the viewport (with some padding)
     scale = scale * 0.95;
 
     imgElement.style.width = `${naturalWidth * scale}px`;
