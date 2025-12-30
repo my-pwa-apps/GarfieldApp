@@ -52,8 +52,6 @@ main {
     background-image: var(--button-gradient);
     cursor: pointer;
     -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: var(--shadow-md);
@@ -630,13 +628,6 @@ input[type="date"]::-webkit-datetime-edit {
     display: none !important;
 }
 
-#exit-fullscreen {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 1100;
-}
-
 #controls-container {
     display: flex;
     justify-content: space-between;
@@ -660,11 +651,6 @@ input[type="date"]::-webkit-datetime-edit {
 
 #support-container {
     flex: 1;
-}
-
-#action-buttons {
-    display: flex;
-    align-items: center;
 }
 
 .kofi-button-styled {

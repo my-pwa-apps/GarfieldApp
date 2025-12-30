@@ -9,15 +9,6 @@ import { getAuthenticatedComic } from './comicExtractor.js';
  * Central location for all magic numbers and configuration values
  */
 const CONFIG = Object.freeze({
-    // Timing
-    UPDATE_CHECK_INTERVAL: 3600000,       // Check for updates every 1 hour (in ms)
-    FADE_TRANSITION_TIME: 500,            // Image fade transition duration (in ms)
-    NOTIFICATION_CHECK_TIME: '12:10',     // Time to check for new comics (EST)
-    ROTATION_DEBOUNCE: 300,               // Debounce time for rotation (in ms)
-    
-    // Fetch timeouts
-    FETCH_TIMEOUT: 15000,                 // 15 second timeout for fetch requests
-    
     // Swipe & touch detection
     SWIPE_MIN_DISTANCE: 50,               // Minimum swipe distance in px
     SWIPE_MAX_TIME: 500,                  // Maximum swipe time in ms
@@ -28,9 +19,6 @@ const CONFIG = Object.freeze({
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
     GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
     
-    // Cache limits
-    MAX_IMAGE_CACHE_SIZE: 50,             // Maximum cached comic images
-    
     // Storage keys
     STORAGE_KEYS: Object.freeze({
         FAVS: 'favs',
@@ -40,7 +28,6 @@ const CONFIG = Object.freeze({
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
         SETTINGS: 'settings',
-        NOTIFICATIONS: 'notifications',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal'
     })
@@ -1115,10 +1102,6 @@ function translateInterface(lang) {
 }
 
 // Global variables for app functionality
-let translationEnabled = localStorage.getItem('translation') === 'true';
-let userLanguage = navigator.language || navigator.userLanguage || 'en';
-let translationInProgress = false;
-let previousclicked = false;
 let previousUrl = "";
 let currentselectedDate;
 let day, month, year;
@@ -2275,7 +2258,6 @@ function PreviousClick() {
 	else{
 		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
 	}
-	previousclicked = true;
 	CompareDates();
 	showComic(true, 'previous'); // Auto-skip unavailable comics going backwards
 }

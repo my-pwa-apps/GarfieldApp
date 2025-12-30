@@ -1,19 +1,4 @@
 /**
- * Language detection and app initialization
- * Runs before DOM loads to set initial language preference
- */
-(function() {
-    document.addEventListener('DOMContentLoaded', function() {
-        // Language is now handled in app.js for consistency
-        
-        // Initialize app
-        if (typeof window.onLoad === 'function') {
-            window.onLoad();
-        }
-    });
-})();
-
-/**
  * Fullscreen detection and state management
  */
 document.addEventListener('DOMContentLoaded', function() {
