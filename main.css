@@ -18,6 +18,98 @@ html {
     overflow-x: hidden;
 }
 
+/* Garfield Tail Stripes Decoration */
+.tail-stripes {
+    position: fixed;
+    bottom: 0;
+    width: 120px;
+    height: 80px;
+    z-index: -1;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-bottom: 15px;
+}
+
+.tail-stripes-left {
+    left: 0;
+    transform: rotate(15deg);
+    transform-origin: bottom left;
+    padding-left: 10px;
+}
+
+.tail-stripes-right {
+    right: 0;
+    transform: rotate(-15deg);
+    transform-origin: bottom right;
+    padding-right: 10px;
+    align-items: flex-end;
+}
+
+.tail-stripes .stripe {
+    background: #1a1a1a;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.tail-stripes-left .stripe:nth-child(1) {
+    width: 70px;
+    height: 10px;
+}
+
+.tail-stripes-left .stripe:nth-child(2) {
+    width: 85px;
+    height: 12px;
+}
+
+.tail-stripes-left .stripe:nth-child(3) {
+    width: 100px;
+    height: 14px;
+}
+
+.tail-stripes-right .stripe:nth-child(1) {
+    width: 70px;
+    height: 10px;
+}
+
+.tail-stripes-right .stripe:nth-child(2) {
+    width: 85px;
+    height: 12px;
+}
+
+.tail-stripes-right .stripe:nth-child(3) {
+    width: 100px;
+    height: 14px;
+}
+
+/* Hide stripes on very small screens */
+@media (max-width: 480px) {
+    .tail-stripes {
+        width: 80px;
+        height: 60px;
+    }
+    
+    .tail-stripes-left .stripe:nth-child(1),
+    .tail-stripes-right .stripe:nth-child(1) {
+        width: 45px;
+        height: 8px;
+    }
+    
+    .tail-stripes-left .stripe:nth-child(2),
+    .tail-stripes-right .stripe:nth-child(2) {
+        width: 55px;
+        height: 9px;
+    }
+    
+    .tail-stripes-left .stripe:nth-child(3),
+    .tail-stripes-right .stripe:nth-child(3) {
+        width: 65px;
+        height: 10px;
+    }
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: black;
