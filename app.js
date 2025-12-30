@@ -1745,50 +1745,47 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 });
                             });
                         } else {
-                            // PIXELATION MORPH animation for random, date picker, first, last
-                            // Create clone of current comic to pixelate out
+                            // BLUR MORPH animation for random, date picker, first, last
+                            // Create clone of current comic to morph out (sits on top)
                             const outgoingClone = comicImg.cloneNode(true);
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('comic-pixelate-outgoing');
-                            outgoingClone.classList.remove('dissolve', 'pixelate-out', 'pixelate-in', 'pixelate-resolve', 'no-transition');
+                            outgoingClone.classList.remove('dissolve', 'morph-out', 'morph-in', 'morph-resolve', 'no-transition');
                             wrapper.appendChild(outgoingClone);
                             
-                            // Prepare incoming comic - start pixelated
+                            // Set new image - starts blurred beneath the clone
                             comicImg.classList.add('no-transition');
-                            comicImg.classList.add('pixelate-in');
+                            comicImg.classList.add('morph-in');
                             comicImg.src = result.imageUrl;
                             
                             // Force reflow
                             comicImg.offsetHeight;
                             outgoingClone.offsetHeight;
                             
-                            // Start pixelating outgoing clone
-                            requestAnimationFrame(() => {
-                                outgoingClone.classList.add('pixelate-out');
-                            });
-                            
-                            // When new image loads, de-pixelate it
-                            const resolvePixelation = () => {
+                            // When new image loads (or is cached), start the morph
+                            const startMorph = () => {
+                                // Remove no-transition and enable animation
                                 comicImg.classList.remove('no-transition');
+                                comicImg.classList.remove('morph-in');
+                                comicImg.classList.add('morph-resolve');
                                 
-                                // Small delay to ensure outgoing has started animating
+                                // Blur out the old image (clone)
+                                requestAnimationFrame(() => {
+                                    outgoingClone.classList.add('morph-out');
+                                });
+                                
+                                // Cleanup after animation
                                 setTimeout(() => {
-                                    comicImg.classList.remove('pixelate-in');
-                                    comicImg.classList.add('pixelate-resolve');
-                                    
-                                    // Cleanup after animation
-                                    setTimeout(() => {
-                                        outgoingClone.remove();
-                                        comicImg.classList.remove('pixelate-resolve');
-                                        resolve();
-                                    }, 500);
-                                }, 150);
+                                    outgoingClone.remove();
+                                    comicImg.classList.remove('morph-resolve');
+                                    resolve();
+                                }, 600);
                             };
                             
                             if (comicImg.complete) {
-                                resolvePixelation();
+                                startMorph();
                             } else {
-                                comicImg.addEventListener('load', resolvePixelation, { once: true });
+                                comicImg.addEventListener('load', startMorph, { once: true });
                             }
                         }
                     } else {
@@ -1865,51 +1862,50 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 });
                             });
                         } else {
-                            // PIXELATION MORPH animation for rotated comic
-                            // Create clone of current comic to pixelate out
+                            // BLUR MORPH animation for rotated comic
+                            // Create clone of current comic to morph out (sits on top)
                             const outgoingClone = rotatedComic.cloneNode(true);
                             outgoingClone.removeAttribute('id');
-                            outgoingClone.classList.add('rotated-comic-pixelate-outgoing');
-                            outgoingClone.classList.remove('dissolve', 'pixelate-out', 'pixelate-in');
+                            outgoingClone.classList.add('rotated-comic-morph-outgoing');
+                            outgoingClone.classList.remove('dissolve', 'morph-out', 'morph-in', 'morph-resolve');
                             // Copy all inline styles to preserve positioning
                             outgoingClone.style.cssText = rotatedComic.style.cssText;
+                            outgoingClone.style.transition = 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
                             document.body.appendChild(outgoingClone);
                             
-                            // Prepare incoming comic - start pixelated
+                            // Set new image - starts blurred beneath the clone
                             rotatedComic.style.transition = 'none';
-                            rotatedComic.classList.add('pixelate-in');
+                            rotatedComic.classList.add('morph-in');
                             rotatedComic.src = result.imageUrl;
                             
                             // Force reflow
                             rotatedComic.offsetHeight;
                             outgoingClone.offsetHeight;
                             
-                            // Start pixelating outgoing clone
-                            requestAnimationFrame(() => {
-                                outgoingClone.classList.add('pixelate-out');
-                            });
-                            
-                            // When new image loads, de-pixelate it
-                            const resolvePixelation = () => {
+                            // When new image loads, start the morph
+                            const startMorph = () => {
                                 rotatedComic.style.transition = '';
+                                rotatedComic.classList.remove('morph-in');
+                                rotatedComic.classList.add('morph-resolve');
+                                maximizeRotatedImage(rotatedComic);
                                 
-                                // Small delay to ensure outgoing has started animating
+                                // Blur out the old image (clone)
+                                requestAnimationFrame(() => {
+                                    outgoingClone.classList.add('morph-out');
+                                });
+                                
+                                // Cleanup after animation
                                 setTimeout(() => {
-                                    rotatedComic.classList.remove('pixelate-in');
-                                    maximizeRotatedImage(rotatedComic);
-                                    
-                                    // Cleanup after animation
-                                    setTimeout(() => {
-                                        outgoingClone.remove();
-                                        resolve();
-                                    }, 500);
-                                }, 150);
+                                    outgoingClone.remove();
+                                    rotatedComic.classList.remove('morph-resolve');
+                                    resolve();
+                                }, 600);
                             };
                             
                             if (rotatedComic.complete) {
-                                resolvePixelation();
+                                startMorph();
                             } else {
-                                rotatedComic.addEventListener('load', resolvePixelation, { once: true });
+                                rotatedComic.addEventListener('load', startMorph, { once: true });
                             }
                         }
                     });
