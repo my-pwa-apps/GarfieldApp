@@ -1752,22 +1752,27 @@ async function loadComic(date, silentMode = false, direction = null) {
                             outgoingClone.classList.add('comic-pixelate-outgoing');
                             wrapper.appendChild(outgoingClone);
                             
-                            // Load new image underneath - it's fully visible immediately
+                            // Load new image underneath (hidden by clone until loaded)
                             comicImg.src = result.imageUrl;
                             
-                            // Force reflow
-                            outgoingClone.offsetHeight;
+                            // Wait for new image to load, THEN blur out clone
+                            const startMorph = () => {
+                                requestAnimationFrame(() => {
+                                    outgoingClone.classList.add('morph-out');
+                                });
+                                
+                                // Cleanup after animation
+                                setTimeout(() => {
+                                    outgoingClone.remove();
+                                    resolve();
+                                }, 600);
+                            };
                             
-                            // Blur out the old image (clone) to reveal new one beneath
-                            requestAnimationFrame(() => {
-                                outgoingClone.classList.add('morph-out');
-                            });
-                            
-                            // Cleanup after animation
-                            setTimeout(() => {
-                                outgoingClone.remove();
-                                resolve();
-                            }, 600);
+                            if (comicImg.complete) {
+                                startMorph();
+                            } else {
+                                comicImg.addEventListener('load', startMorph, { once: true });
+                            }
                         }
                     } else {
                         // First load - no animation needed
