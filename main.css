@@ -218,7 +218,8 @@ label {
     opacity: 1;
     cursor: pointer;
     position: relative;
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
+    transform-origin: center center;
 }
 
 #comic.dissolve {
@@ -227,6 +228,47 @@ label {
 
 #comic.no-transition {
     transition: none !important;
+}
+
+/* Pixelation morph animation */
+#comic.pixelate-out {
+    transition: transform 0.5s ease-in, opacity 0.3s ease-in 0.2s;
+    transform: scale(0.05);
+    image-rendering: pixelated;
+    opacity: 0;
+}
+
+#comic.pixelate-in {
+    transform: scale(0.05);
+    image-rendering: pixelated;
+    opacity: 0;
+}
+
+#comic.pixelate-resolve {
+    transition: transform 0.5s ease-out, opacity 0.3s ease-out;
+    transform: scale(1);
+    image-rendering: auto;
+    opacity: 1;
+}
+
+/* Outgoing comic clone for pixelation morph */
+.comic-pixelate-outgoing {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+    transition: transform 0.5s ease-in, opacity 0.3s ease-in 0.2s;
+    pointer-events: none;
+    z-index: 2;
+    transform-origin: center center;
+}
+
+.comic-pixelate-outgoing.pixelate-out {
+    transform: scale(0.05);
+    image-rendering: pixelated;
+    opacity: 0;
 }
 
 /* Outgoing comic clone for filmstrip effect */
@@ -393,6 +435,52 @@ label {
 /* Outgoing rotated comic clone for filmstrip effect */
 .rotated-comic-outgoing {
     pointer-events: none;
+}
+
+/* Pixelation morph for rotated comic */
+#rotated-comic.pixelate-out {
+    transition: transform 0.5s ease-in, opacity 0.3s ease-in 0.2s !important;
+    image-rendering: pixelated;
+    opacity: 0 !important;
+}
+
+#rotated-comic.rotate.pixelate-out {
+    transform: translate(-50%, -50%) rotate(90deg) scale(0.05) !important;
+}
+
+#rotated-comic.fullscreen-landscape.pixelate-out {
+    transform: translate(-50%, -50%) scale(0.05) !important;
+}
+
+#rotated-comic.pixelate-in {
+    image-rendering: pixelated;
+    opacity: 0 !important;
+}
+
+#rotated-comic.rotate.pixelate-in {
+    transform: translate(-50%, -50%) rotate(90deg) scale(0.05) !important;
+}
+
+#rotated-comic.fullscreen-landscape.pixelate-in {
+    transform: translate(-50%, -50%) scale(0.05) !important;
+}
+
+.rotated-comic-pixelate-outgoing {
+    pointer-events: none;
+    transition: transform 0.5s ease-in, opacity 0.3s ease-in 0.2s !important;
+}
+
+.rotated-comic-pixelate-outgoing.pixelate-out {
+    image-rendering: pixelated;
+    opacity: 0 !important;
+}
+
+.rotated-comic-pixelate-outgoing.rotate.pixelate-out {
+    transform: translate(-50%, -50%) rotate(90deg) scale(0.05) !important;
+}
+
+.rotated-comic-pixelate-outgoing.fullscreen-landscape.pixelate-out {
+    transform: translate(-50%, -50%) scale(0.05) !important;
 }
 
 #rotated-comic.fullscreen-landscape {

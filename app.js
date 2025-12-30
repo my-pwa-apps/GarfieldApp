@@ -1745,25 +1745,51 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 });
                             });
                         } else {
-                            // CROSSFADE animation for random, date picker, first, last
-                            comicImg.classList.add('dissolve');
+                            // PIXELATION MORPH animation for random, date picker, first, last
+                            // Create clone of current comic to pixelate out
+                            const outgoingClone = comicImg.cloneNode(true);
+                            outgoingClone.removeAttribute('id');
+                            outgoingClone.classList.add('comic-pixelate-outgoing');
+                            outgoingClone.classList.remove('dissolve', 'pixelate-out', 'pixelate-in', 'pixelate-resolve', 'no-transition');
+                            wrapper.appendChild(outgoingClone);
                             
-                            // Wait for fade out, then change image
-                            setTimeout(() => {
-                                comicImg.src = result.imageUrl;
+                            // Prepare incoming comic - start pixelated
+                            comicImg.classList.add('no-transition');
+                            comicImg.classList.add('pixelate-in');
+                            comicImg.src = result.imageUrl;
+                            
+                            // Force reflow
+                            comicImg.offsetHeight;
+                            outgoingClone.offsetHeight;
+                            
+                            // Start pixelating outgoing clone
+                            requestAnimationFrame(() => {
+                                outgoingClone.classList.add('pixelate-out');
+                            });
+                            
+                            // When new image loads, de-pixelate it
+                            const resolvePixelation = () => {
+                                comicImg.classList.remove('no-transition');
                                 
-                                // When new image loads, fade in
-                                const fadeIn = () => {
-                                    comicImg.classList.remove('dissolve');
-                                    setTimeout(resolve, 400);
-                                };
-                                
-                                if (comicImg.complete) {
-                                    fadeIn();
-                                } else {
-                                    comicImg.addEventListener('load', fadeIn, { once: true });
-                                }
-                            }, 400);
+                                // Small delay to ensure outgoing has started animating
+                                setTimeout(() => {
+                                    comicImg.classList.remove('pixelate-in');
+                                    comicImg.classList.add('pixelate-resolve');
+                                    
+                                    // Cleanup after animation
+                                    setTimeout(() => {
+                                        outgoingClone.remove();
+                                        comicImg.classList.remove('pixelate-resolve');
+                                        resolve();
+                                    }, 500);
+                                }, 150);
+                            };
+                            
+                            if (comicImg.complete) {
+                                resolvePixelation();
+                            } else {
+                                comicImg.addEventListener('load', resolvePixelation, { once: true });
+                            }
                         }
                     } else {
                         // First load - no animation needed
@@ -1839,24 +1865,52 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 });
                             });
                         } else {
-                            // CROSSFADE animation
-                            rotatedComic.classList.add('dissolve');
+                            // PIXELATION MORPH animation for rotated comic
+                            // Create clone of current comic to pixelate out
+                            const outgoingClone = rotatedComic.cloneNode(true);
+                            outgoingClone.removeAttribute('id');
+                            outgoingClone.classList.add('rotated-comic-pixelate-outgoing');
+                            outgoingClone.classList.remove('dissolve', 'pixelate-out', 'pixelate-in');
+                            // Copy all inline styles to preserve positioning
+                            outgoingClone.style.cssText = rotatedComic.style.cssText;
+                            document.body.appendChild(outgoingClone);
                             
-                            setTimeout(() => {
-                                rotatedComic.src = result.imageUrl;
+                            // Prepare incoming comic - start pixelated
+                            rotatedComic.style.transition = 'none';
+                            rotatedComic.classList.add('pixelate-in');
+                            rotatedComic.src = result.imageUrl;
+                            
+                            // Force reflow
+                            rotatedComic.offsetHeight;
+                            outgoingClone.offsetHeight;
+                            
+                            // Start pixelating outgoing clone
+                            requestAnimationFrame(() => {
+                                outgoingClone.classList.add('pixelate-out');
+                            });
+                            
+                            // When new image loads, de-pixelate it
+                            const resolvePixelation = () => {
+                                rotatedComic.style.transition = '';
                                 
-                                const fadeIn = () => {
-                                    rotatedComic.classList.remove('dissolve');
+                                // Small delay to ensure outgoing has started animating
+                                setTimeout(() => {
+                                    rotatedComic.classList.remove('pixelate-in');
                                     maximizeRotatedImage(rotatedComic);
-                                    setTimeout(resolve, 400);
-                                };
-                                
-                                if (rotatedComic.complete) {
-                                    fadeIn();
-                                } else {
-                                    rotatedComic.addEventListener('load', fadeIn, { once: true });
-                                }
-                            }, 400);
+                                    
+                                    // Cleanup after animation
+                                    setTimeout(() => {
+                                        outgoingClone.remove();
+                                        resolve();
+                                    }, 500);
+                                }, 150);
+                            };
+                            
+                            if (rotatedComic.complete) {
+                                resolvePixelation();
+                            } else {
+                                rotatedComic.addEventListener('load', resolvePixelation, { once: true });
+                            }
                         }
                     });
                 };
