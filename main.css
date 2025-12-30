@@ -430,17 +430,6 @@ label {
 }
 
 /* Blur morph for rotated comic */
-#rotated-comic.morph-in {
-    filter: blur(20px);
-    opacity: 0.5 !important;
-}
-
-#rotated-comic.morph-resolve {
-    transition: filter 0.6s ease-in-out, opacity 0.6s ease-in-out !important;
-    filter: blur(0px);
-    opacity: 1 !important;
-}
-
 .rotated-comic-morph-outgoing {
     pointer-events: none;
     transition: filter 0.6s ease-in-out, opacity 0.6s ease-in-out !important;
@@ -449,7 +438,7 @@ label {
 }
 
 .rotated-comic-morph-outgoing.morph-out {
-    filter: blur(20px);
+    filter: blur(15px);
     opacity: 0 !important;
 }
 

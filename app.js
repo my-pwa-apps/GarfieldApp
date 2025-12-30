@@ -1750,43 +1750,24 @@ async function loadComic(date, silentMode = false, direction = null) {
                             const outgoingClone = comicImg.cloneNode(true);
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('comic-pixelate-outgoing');
-                            outgoingClone.classList.remove('dissolve', 'morph-out', 'morph-in', 'morph-resolve', 'no-transition');
                             wrapper.appendChild(outgoingClone);
                             
-                            // Set new image - starts blurred beneath the clone
-                            comicImg.classList.add('no-transition');
-                            comicImg.classList.add('morph-in');
+                            // Load new image underneath - it's fully visible immediately
                             comicImg.src = result.imageUrl;
                             
                             // Force reflow
-                            comicImg.offsetHeight;
                             outgoingClone.offsetHeight;
                             
-                            // When new image loads (or is cached), start the morph
-                            const startMorph = () => {
-                                // Remove no-transition and enable animation
-                                comicImg.classList.remove('no-transition');
-                                comicImg.classList.remove('morph-in');
-                                comicImg.classList.add('morph-resolve');
-                                
-                                // Blur out the old image (clone)
-                                requestAnimationFrame(() => {
-                                    outgoingClone.classList.add('morph-out');
-                                });
-                                
-                                // Cleanup after animation
-                                setTimeout(() => {
-                                    outgoingClone.remove();
-                                    comicImg.classList.remove('morph-resolve');
-                                    resolve();
-                                }, 600);
-                            };
+                            // Blur out the old image (clone) to reveal new one beneath
+                            requestAnimationFrame(() => {
+                                outgoingClone.classList.add('morph-out');
+                            });
                             
-                            if (comicImg.complete) {
-                                startMorph();
-                            } else {
-                                comicImg.addEventListener('load', startMorph, { once: true });
-                            }
+                            // Cleanup after animation
+                            setTimeout(() => {
+                                outgoingClone.remove();
+                                resolve();
+                            }, 600);
                         }
                     } else {
                         // First load - no animation needed
@@ -1867,26 +1848,16 @@ async function loadComic(date, silentMode = false, direction = null) {
                             const outgoingClone = rotatedComic.cloneNode(true);
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('rotated-comic-morph-outgoing');
-                            outgoingClone.classList.remove('dissolve', 'morph-out', 'morph-in', 'morph-resolve');
-                            // Copy all inline styles to preserve positioning
+                            // Copy inline styles to preserve positioning
                             outgoingClone.style.cssText = rotatedComic.style.cssText;
                             outgoingClone.style.transition = 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
                             document.body.appendChild(outgoingClone);
                             
-                            // Set new image - starts blurred beneath the clone
-                            rotatedComic.style.transition = 'none';
-                            rotatedComic.classList.add('morph-in');
+                            // Load new image underneath - fully visible
                             rotatedComic.src = result.imageUrl;
                             
-                            // Force reflow
-                            rotatedComic.offsetHeight;
-                            outgoingClone.offsetHeight;
-                            
-                            // When new image loads, start the morph
+                            // When loaded, resize and blur out the clone
                             const startMorph = () => {
-                                rotatedComic.style.transition = '';
-                                rotatedComic.classList.remove('morph-in');
-                                rotatedComic.classList.add('morph-resolve');
                                 maximizeRotatedImage(rotatedComic);
                                 
                                 // Blur out the old image (clone)
@@ -1897,7 +1868,6 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 // Cleanup after animation
                                 setTimeout(() => {
                                     outgoingClone.remove();
-                                    rotatedComic.classList.remove('morph-resolve');
                                     resolve();
                                 }, 600);
                             };
