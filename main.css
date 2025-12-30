@@ -704,12 +704,13 @@ input[type="date"]::-webkit-datetime-edit {
 
 .fullscreen-vertical {
     position: fixed;
-    top: 0;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     width: auto;
-    height: 100vh;
+    max-height: 95vh;
     max-width: 95vw;
+    height: auto;
     object-fit: contain;
     margin: 0;
     padding: 0;
