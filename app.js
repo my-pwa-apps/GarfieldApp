@@ -1686,9 +1686,10 @@ function updateDateDisplay() {
  * Load comic for a specific date
  * @param {Date} date - Date to load comic for
  * @param {boolean} silentMode - If true, suppress error messages
+ * @param {string|null} direction - Navigation direction: 'next', 'previous', or null
  * @returns {Promise<boolean>} True if comic loaded successfully
  */
-async function loadComic(date, silentMode = false) {
+async function loadComic(date, silentMode = false, direction = null) {
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
@@ -1698,30 +1699,66 @@ async function loadComic(date, silentMode = false) {
         if (result.success && result.imageUrl) {
             const comicImg = document.getElementById('comic');
             
-            // Animate transition: fade out, change src, fade in
+            // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
                 return new Promise((resolve) => {
                     // Only animate if there's an existing image
                     if (comicImg.src && comicImg.src !== window.location.href) {
-                        // Fade out
-                        comicImg.classList.add('dissolve');
                         
-                        // Wait for fade out, then change image
-                        setTimeout(() => {
-                            comicImg.src = result.imageUrl;
+                        if (direction === 'next' || direction === 'previous') {
+                            // SLIDE animation for next/previous
+                            const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
+                            const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
                             
-                            // When new image loads, fade in
-                            const fadeIn = () => {
-                                comicImg.classList.remove('dissolve');
-                                resolve();
-                            };
+                            // Slide out current comic
+                            comicImg.classList.add(slideOutClass);
                             
-                            if (comicImg.complete) {
-                                fadeIn();
-                            } else {
-                                comicImg.addEventListener('load', fadeIn, { once: true });
-                            }
-                        }, CONFIG.FADE_TRANSITION_TIME);
+                            // Wait for slide out, then change image
+                            setTimeout(() => {
+                                comicImg.src = result.imageUrl;
+                                
+                                // Position for slide in (instantly, no transition)
+                                comicImg.style.transition = 'none';
+                                comicImg.classList.remove(slideOutClass);
+                                comicImg.classList.add(slideInClass);
+                                
+                                // Force reflow to apply instant position
+                                comicImg.offsetHeight;
+                                
+                                // Re-enable transition and slide in
+                                comicImg.style.transition = '';
+                                
+                                // Small delay to ensure transition is applied
+                                requestAnimationFrame(() => {
+                                    requestAnimationFrame(() => {
+                                        comicImg.classList.remove(slideInClass);
+                                        
+                                        // Wait for slide in animation to complete
+                                        setTimeout(resolve, 400);
+                                    });
+                                });
+                            }, 400); // Match CSS transition time
+                        } else {
+                            // CROSSFADE animation for random, date picker, first, last
+                            comicImg.classList.add('dissolve');
+                            
+                            // Wait for fade out, then change image
+                            setTimeout(() => {
+                                comicImg.src = result.imageUrl;
+                                
+                                // When new image loads, fade in
+                                const fadeIn = () => {
+                                    comicImg.classList.remove('dissolve');
+                                    setTimeout(resolve, 400);
+                                };
+                                
+                                if (comicImg.complete) {
+                                    fadeIn();
+                                } else {
+                                    comicImg.addEventListener('load', fadeIn, { once: true });
+                                }
+                            }, 400);
+                        }
                     } else {
                         // First load - no animation needed
                         comicImg.src = result.imageUrl;
@@ -2065,7 +2102,7 @@ async function showComic(skipOnFailure = false, direction = null) {
     }
     
     // Load the comic (silent mode off for first attempt when not auto-skipping)
-    const success = await loadComic(currentselectedDate, skipOnFailure);
+    const success = await loadComic(currentselectedDate, skipOnFailure, direction);
     
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
@@ -2103,7 +2140,7 @@ async function showComic(skipOnFailure = false, direction = null) {
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
             
-            const retrySuccess = await loadComic(currentselectedDate, true);
+            const retrySuccess = await loadComic(currentselectedDate, true, direction);
             if (retrySuccess) {
                 // Update favorites heart status for the new date
                 var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
