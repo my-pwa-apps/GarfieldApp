@@ -1,5 +1,8 @@
 # Garfield Comics PWA - AI Agent Instructions
 
+## Workflow
+**IMPORTANT**: Before implementing any code changes, always ask for confirmation first. Explain what you plan to do and wait for approval before making edits.
+
 ## Project Overview
 Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic strips in English and Spanish. No frameworks—pure HTML, CSS, and modular JavaScript with service worker caching.
 
