@@ -1397,25 +1397,23 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Copyright Footer */
 .copyright-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     text-align: center;
-    padding: 20px 15px;
-    margin-top: 30px;
-    font-size: 0.75rem;
-    color: rgba(0, 0, 0, 0.7);
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.copyright-footer p {
-    margin: 4px 0;
-    line-height: 1.4;
+    padding: 6px 10px;
+    font-size: 0.65rem;
+    color: rgba(0, 0, 0, 0.5);
+    background: rgba(238, 226, 57, 0.9);
+    z-index: 10;
 }
 
 .copyright-footer a {
-    color: rgba(0, 0, 0, 0.8);
-    text-decoration: underline;
-    transition: color var(--transition-fast);
+    color: rgba(0, 0, 0, 0.6);
+    text-decoration: none;
 }
 
 .copyright-footer a:hover {
-    color: #FF5E00;
+    text-decoration: underline;
 }
