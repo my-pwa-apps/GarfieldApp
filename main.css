@@ -1394,3 +1394,28 @@ input[type="date"]::-webkit-datetime-edit {
         font-size: 13px;
     }
 }
+
+/* Copyright Footer */
+.copyright-footer {
+    text-align: center;
+    padding: 20px 15px;
+    margin-top: 30px;
+    font-size: 0.75rem;
+    color: rgba(0, 0, 0, 0.7);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.copyright-footer p {
+    margin: 4px 0;
+    line-height: 1.4;
+}
+
+.copyright-footer a {
+    color: rgba(0, 0, 0, 0.8);
+    text-decoration: underline;
+    transition: color var(--transition-fast);
+}
+
+.copyright-footer a:hover {
+    color: #FF5E00;
+}
