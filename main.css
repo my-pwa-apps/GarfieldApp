@@ -1402,7 +1402,7 @@ input[type="date"]::-webkit-datetime-edit {
     left: 0;
     right: 0;
     text-align: center;
-    padding: 6px 10px;
+    padding: 0 10px;
     font-size: 0.65rem;
     color: rgba(0, 0, 0, 0.5);
     background: rgba(238, 226, 57, 0.9);
