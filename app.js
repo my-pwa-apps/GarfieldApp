@@ -1753,11 +1753,15 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 }, 600);
                             };
                             
-                            if (comicImg.complete) {
-                                startMorph();
-                            } else {
-                                comicImg.addEventListener('load', startMorph, { once: true });
-                            }
+                            // Use requestAnimationFrame to ensure browser has processed the src change
+                            // This fixes the race condition where complete is still true from old image
+                            requestAnimationFrame(() => {
+                                if (comicImg.complete) {
+                                    startMorph();
+                                } else {
+                                    comicImg.addEventListener('load', startMorph, { once: true });
+                                }
+                            });
                         }
                     } else {
                         // First load - no animation needed
@@ -1862,11 +1866,15 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 }, 600);
                             };
                             
-                            if (rotatedComic.complete) {
-                                startMorph();
-                            } else {
-                                rotatedComic.addEventListener('load', startMorph, { once: true });
-                            }
+                            // Use requestAnimationFrame to ensure browser has processed the src change
+                            // This fixes the race condition where complete is still true from old image
+                            requestAnimationFrame(() => {
+                                if (rotatedComic.complete) {
+                                    startMorph();
+                                } else {
+                                    rotatedComic.addEventListener('load', startMorph, { once: true });
+                                }
+                            });
                         }
                     });
                 };
