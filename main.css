@@ -16,10 +16,12 @@
 html {
     height: 100%;
     overflow-x: hidden;
+    overscroll-behavior: none;
 }
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overscroll-behavior: none;
     color: black;
     background: linear-gradient(#eee239, orange) no-repeat fixed;
     background-color: orange;
