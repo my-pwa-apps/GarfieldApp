@@ -86,6 +86,51 @@ const UTILS = {
     },
 
     /**
+     * Check if navigation is allowed in a given direction
+     * @param {string} direction - 'next' or 'previous'
+     * @returns {boolean} True if navigation is allowed
+     */
+    canNavigate(direction) {
+        const favs = this.getFavorites();
+        const showFavs = document.getElementById('showfavs')?.checked || false;
+        
+        // Get current date for comparison
+        const current = new Date(currentselectedDate);
+        current.setHours(0, 0, 0, 0);
+        
+        if (direction === 'previous') {
+            if (showFavs) {
+                // In favorites mode, check if we're at the first favorite
+                if (favs.length === 0) return false;
+                const firstFav = new Date(favs[0]);
+                firstFav.setHours(0, 0, 0, 0);
+                return current.getTime() > firstFav.getTime();
+            } else {
+                // Normal mode: check if we're at the first comic date
+                const startDate = this.isSpanishMode() 
+                    ? new Date(CONFIG.GARFIELD_START_ES) 
+                    : new Date(CONFIG.GARFIELD_START_EN);
+                startDate.setHours(0, 0, 0, 0);
+                return current.getTime() > startDate.getTime();
+            }
+        } else if (direction === 'next') {
+            if (showFavs) {
+                // In favorites mode, check if we're at the last favorite
+                if (favs.length === 0) return false;
+                const lastFav = new Date(favs[favs.length - 1]);
+                lastFav.setHours(0, 0, 0, 0);
+                return current.getTime() < lastFav.getTime();
+            } else {
+                // Normal mode: check if we're at today's date
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return current.getTime() < today.getTime();
+            }
+        }
+        return false;
+    },
+
+    /**
      * Get or create message container element
      * @param {string} className - CSS class for the container
      * @returns {HTMLElement} The message container element
@@ -1371,40 +1416,52 @@ function handleTouchEnd(e) {
     if (isInRotatedMode) {
         // Rotated mode (90° clockwise): Only support logical left/right navigation
         if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
-            swipeDetected = true;
-            lastSwipeTime = Date.now();
-            if (deltaY < 0) {
-                NextClick();
-            } else {
-                PreviousClick();
+            const direction = deltaY < 0 ? 'next' : 'previous';
+            // Only trigger swipe if navigation is possible in that direction
+            if (UTILS.canNavigate(direction)) {
+                swipeDetected = true;
+                lastSwipeTime = Date.now();
+                if (deltaY < 0) {
+                    NextClick();
+                } else {
+                    PreviousClick();
+                }
             }
         }
     } else if (isInLandscapeMode) {
         // Landscape fullscreen (no rotation): Normal horizontal/vertical mapping
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Horizontal swipe
-            swipeDetected = true;
-            lastSwipeTime = Date.now();
-            if (deltaX < 0) {
-                // Swipe Left -> Next
-                NextClick();
-            } else {
-                // Swipe Right -> Previous
-                PreviousClick();
+            const direction = deltaX < 0 ? 'next' : 'previous';
+            // Only trigger swipe if navigation is possible in that direction
+            if (UTILS.canNavigate(direction)) {
+                // Horizontal swipe
+                swipeDetected = true;
+                lastSwipeTime = Date.now();
+                if (deltaX < 0) {
+                    // Swipe Left -> Next
+                    NextClick();
+                } else {
+                    // Swipe Right -> Previous
+                    PreviousClick();
+                }
             }
         }
     } else {
         // Normal portrait mode: Horizontal only for Next/Prev
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
-            // Horizontal swipe
-            swipeDetected = true;
-            lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
-            if (deltaX > 0) {
-                // Swipe right -> Previous
-                PreviousClick();
-            } else {
-                // Swipe left -> Next
-                NextClick();
+            const direction = deltaX > 0 ? 'previous' : 'next';
+            // Only trigger swipe if navigation is possible in that direction
+            if (UTILS.canNavigate(direction)) {
+                // Horizontal swipe
+                swipeDetected = true;
+                lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
+                if (deltaX > 0) {
+                    // Swipe right -> Previous
+                    PreviousClick();
+                } else {
+                    // Swipe left -> Next
+                    NextClick();
+                }
             }
         }
     }
