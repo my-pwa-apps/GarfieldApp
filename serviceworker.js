@@ -1,4 +1,4 @@
-const VERSION = 'v1.4.6';
+const VERSION = 'v1.4.7';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -92,8 +92,12 @@ async function cacheFirstStrategy(request, cacheName) {
   if (cachedResponse) return cachedResponse;
 
   try {
-    const networkResponse = await fetch(request);
-    if (networkResponse?.status === 200) {
+    // For navigation requests, ensure redirects are followed properly
+    const fetchOptions = request.mode === 'navigate' ? { redirect: 'follow' } : {};
+    const networkResponse = await fetch(request, fetchOptions);
+    
+    // Only cache successful, non-redirected responses
+    if (networkResponse?.status === 200 && !networkResponse.redirected) {
       const cache = await caches.open(cacheName);
       cache.put(request, networkResponse.clone());
     }
