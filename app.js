@@ -1148,6 +1148,7 @@ function translateInterface(lang) {
 
 // Global variables for app functionality
 let previousUrl = "";
+let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
 let currentselectedDate;
 let day, month, year;
 let pictureUrl;
@@ -1739,6 +1740,12 @@ async function loadComic(date, silentMode = false, direction = null) {
         const result = await getAuthenticatedComic(date, language);
         
         if (result.success && result.imageUrl) {
+            // Check if this is the same comic we already have (timezone edge case)
+            if (currentComicUrl === result.imageUrl) {
+                // Same comic, skip animation and do nothing
+                return true;
+            }
+            
             const comicImg = document.getElementById('comic');
             const wrapper = document.getElementById('comic-wrapper');
             
@@ -1830,6 +1837,9 @@ async function loadComic(date, silentMode = false, direction = null) {
             
             await animateTransition();
             comicImg.style.display = 'block';
+            
+            // Update current comic URL after successful load
+            currentComicUrl = result.imageUrl;
 
             const ensureOrientationCheck = () => {
                 checkImageOrientation();
