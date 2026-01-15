@@ -185,8 +185,34 @@ const UTILS = {
                 if (result.success && result.imageUrl) {
                     const img = new Image();
                     img.src = result.imageUrl;
+                    // Store next comic URL and check for timezone edge case
+                    nextComicUrl = result.imageUrl;
+                    this.checkNextComicAvailability();
+                } else {
+                    // Next comic not available, disable forward navigation
+                    nextComicUrl = currentComicUrl; // Force same-comic detection
+                    this.checkNextComicAvailability();
                 }
-            }).catch(() => {}); // Silently ignore errors
+            }).catch(() => {
+                // On error, assume next comic not available
+                nextComicUrl = currentComicUrl;
+                this.checkNextComicAvailability();
+            });
+        } else {
+            // Already at or past today, clear next comic URL
+            nextComicUrl = "";
+        }
+    },
+
+    /**
+     * Check if next comic is available (different from current)
+     * Disables Next/Last buttons if next comic is same as current (timezone edge case)
+     */
+    checkNextComicAvailability() {
+        if (currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl) {
+            // Next comic is same as current - we're at the latest available comic
+            document.getElementById("Next").disabled = true;
+            document.getElementById("Last").disabled = true;
         }
     }
 };
@@ -1149,6 +1175,7 @@ function translateInterface(lang) {
 // Global variables for app functionality
 let previousUrl = "";
 let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
+let nextComicUrl = ""; // Track preloaded next comic URL to detect timezone edge cases
 let currentselectedDate;
 let day, month, year;
 let pictureUrl;
@@ -1742,8 +1769,8 @@ async function loadComic(date, silentMode = false, direction = null) {
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
             if (currentComicUrl === result.imageUrl) {
-                // Same comic, skip animation and do nothing
-                return true;
+                // Same comic - return special value to indicate duplicate
+                return { success: true, isSameComic: true };
             }
             
             const comicImg = document.getElementById('comic');
@@ -1961,7 +1988,7 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Preload adjacent comics for faster navigation
             UTILS.preloadAdjacentComics(date);
             
-            return true;
+            return { success: true, isSameComic: false };
         }
         
         if (result.isPaywalled && !silentMode) {
@@ -1974,7 +2001,7 @@ async function loadComic(date, silentMode = false, direction = null) {
         if (!silentMode) {
             showErrorMessage('Failed to load comic. Please try again.');
         }
-        return false;
+        return { success: false, isSameComic: false };
     }
 }
 
@@ -2218,9 +2245,9 @@ async function DateChange() {
         formattedDate = year + "-" + month + "-" + day;
         document.getElementById("DatePicker").value = formattedDate;
         
-        const success = await loadComic(currentselectedDate, true);
+        const result = await loadComic(currentselectedDate, true);
         
-        if (!success) {
+        if (!result.success) {
             // Comic doesn't exist, show notification and revert to previous date
             const currentLang = isSpanish ? 'es' : 'en';
             const message = translations[currentLang].sundayNotAvailable;
@@ -2266,7 +2293,41 @@ async function showComic(skipOnFailure = false, direction = null) {
     }
     
     // Load the comic (silent mode off for first attempt when not auto-skipping)
-    const success = await loadComic(currentselectedDate, skipOnFailure, direction);
+    const result = await loadComic(currentselectedDate, skipOnFailure, direction);
+    const success = result.success;
+    
+    // Handle same comic detection (timezone edge case)
+    if (result.isSameComic && direction) {
+        if (direction === 'previous') {
+            // Going backwards and hit same comic - continue to previous day
+            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            CompareDates();
+            
+            // Check if we've reached the start boundary
+            if (!document.getElementById("Previous")?.disabled) {
+                formatDate(currentselectedDate);
+                formattedComicDate = year + "/" + month + "/" + day;
+                formattedDate = year + "-" + month + "-" + day;
+                document.getElementById("DatePicker").value = formattedDate;
+                updateDateDisplay();
+                await showComic(true, 'previous'); // Recursive call to continue backwards
+            }
+            return;
+        } else if (direction === 'next') {
+            // Going forward and hit same comic - we're at the latest available
+            // Revert to previous date and disable forward navigation
+            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            CompareDates();
+            formatDate(currentselectedDate);
+            formattedComicDate = year + "/" + month + "/" + day;
+            formattedDate = year + "-" + month + "-" + day;
+            document.getElementById("DatePicker").value = formattedDate;
+            updateDateDisplay();
+            document.getElementById("Next").disabled = true;
+            document.getElementById("Last").disabled = true;
+            return;
+        }
+    }
     
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
@@ -2304,8 +2365,8 @@ async function showComic(skipOnFailure = false, direction = null) {
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
             
-            const retrySuccess = await loadComic(currentselectedDate, true, direction);
-            if (retrySuccess) {
+            const retryResult = await loadComic(currentselectedDate, true, direction);
+            if (retryResult.success && !retryResult.isSameComic) {
                 // Update favorites heart status for the new date
                 var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
                 const heartBtn = document.getElementById("favheart");
@@ -2684,10 +2745,10 @@ if (spanishCheckbox) {
 			} else {
 				// Try to load the comic in Spanish to check availability
 				CompareDates();
-				const loaded = await loadComic(currentselectedDate, true);
+				const loadResult = await loadComic(currentselectedDate, true);
 				
 				// If comic not available in Spanish, switch to today
-				if (!loaded) {
+				if (!loadResult.success) {
 					const currentLang = 'es';
 					const t = translations[currentLang];
 					const message = t.sundayNotAvailable;
