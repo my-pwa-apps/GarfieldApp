@@ -70,6 +70,16 @@ const UTILS = {
     },
 
     /**
+     * Check if the currently displayed date is today's date (local time)
+     * @returns {boolean} True if displayed date matches today
+     */
+    isDisplayedDateToday() {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+        return formattedComicDate === todayStr;
+    },
+
+    /**
      * Get favorites array from localStorage
      * @returns {Array} Array of favorite dates or empty array
      */
@@ -1280,6 +1290,31 @@ function Addfav() {
         return;
     }
     
+    // Determine the actual date to use for favorites
+    // In timezone edge case (Europe ahead of US), the displayed date may not have a comic yet
+    // The current comic is actually from the previous day, so use that date instead
+    let dateToFavorite = formattedComicDate;
+    
+    // Detect timezone edge case:
+    // 1. Next comic URL is same as current (detected after navigation attempt)
+    // 2. OR: We're on "today" with Next/Last disabled and date picker shows today
+    //    (detected on initial load when local date is ahead of comic release)
+    const isTimezoneEdgeCase = (currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl) ||
+        (document.getElementById("Next")?.disabled && 
+         document.getElementById("Last")?.disabled &&
+         UTILS.isDisplayedDateToday());
+    
+    if (isTimezoneEdgeCase) {
+        // Timezone edge case: we're showing yesterday's comic on today's date
+        // Calculate the previous day's date
+        const currentDate = new Date(formattedComicDate.replace(/\//g, '-'));
+        currentDate.setDate(currentDate.getDate() - 1);
+        const prevYear = currentDate.getFullYear();
+        const prevMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const prevDay = String(currentDate.getDate()).padStart(2, '0');
+        dateToFavorite = `${prevYear}/${prevMonth}/${prevDay}`;
+    }
+    
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     
     // Ensure favs is always an array
@@ -1291,11 +1326,11 @@ function Addfav() {
     const heartSvg = heartBtn?.querySelector('svg path');
     const showFavsCheckbox = document.getElementById("showfavs");
     
-    const favIndex = favs.indexOf(formattedComicDate);
+    const favIndex = favs.indexOf(dateToFavorite);
     
     if (favIndex === -1) {
         // Add to favorites
-        favs.push(formattedComicDate);
+        favs.push(dateToFavorite);
         if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
         if (showFavsCheckbox) showFavsCheckbox.disabled = false;
     } else {
