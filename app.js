@@ -440,6 +440,72 @@ function isInSnapZone(top, toolbar) {
     return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
 }
 
+/**
+ * Get bounding rectangles of elements the toolbar should not overlap
+ * @returns {Array<DOMRect>} Array of bounding rectangles
+ */
+function getProtectedElementRects() {
+    const selectors = ['.logo', '#comic-container', '#controls-container', '.settings-panel', '.copyright-footer', '#installBtn'];
+    const rects = [];
+    
+    for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el && el.offsetParent !== null) { // Check if visible
+            const rect = el.getBoundingClientRect();
+            // Only include if element has actual dimensions
+            if (rect.width > 0 && rect.height > 0) {
+                rects.push(rect);
+            }
+        }
+    }
+    return rects;
+}
+
+/**
+ * Check if a rectangle overlaps with any protected elements
+ * @param {number} top - Top position
+ * @param {number} left - Left position  
+ * @param {number} width - Element width
+ * @param {number} height - Element height
+ * @returns {{overlaps: boolean, suggestedTop: number}} Overlap status and suggested position
+ */
+function checkToolbarOverlap(top, left, width, height) {
+    const toolbarRect = {
+        top: top,
+        bottom: top + height,
+        left: left,
+        right: left + width
+    };
+    
+    const protectedRects = getProtectedElementRects();
+    let suggestedTop = top;
+    let overlaps = false;
+    
+    for (const rect of protectedRects) {
+        // Check for overlap (both must overlap horizontally AND vertically)
+        const horizontalOverlap = toolbarRect.left < rect.right && toolbarRect.right > rect.left;
+        const verticalOverlap = toolbarRect.top < rect.bottom && toolbarRect.bottom > rect.top;
+        
+        if (horizontalOverlap && verticalOverlap) {
+            overlaps = true;
+            // Find the nearest non-overlapping position (prefer moving down below the element)
+            const moveDown = rect.bottom + 10; // 10px gap
+            const moveUp = rect.top - height - 10;
+            
+            // Choose the direction that requires less movement
+            if (Math.abs(moveDown - top) < Math.abs(moveUp - top) && moveDown + height < window.innerHeight) {
+                suggestedTop = Math.max(suggestedTop, moveDown);
+            } else if (moveUp >= 0) {
+                suggestedTop = Math.min(suggestedTop === top ? moveUp : suggestedTop, moveUp);
+            } else {
+                suggestedTop = Math.max(suggestedTop, moveDown);
+            }
+        }
+    }
+    
+    return { overlaps, suggestedTop };
+}
+
 function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
@@ -495,6 +561,12 @@ function makeDraggable(element, dragHandle, storageKey) {
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             // Toolbar is ALWAYS horizontally centered - only vertical drag allowed
             newLeft = (window.innerWidth - width) / 2;
+            
+            // Check for overlap with protected elements and adjust position
+            const { overlaps, suggestedTop } = checkToolbarOverlap(newTop, newLeft, width, height);
+            if (overlaps) {
+                newTop = suggestedTop;
+            }
         } else {
             // For other elements (like settings panel), allow horizontal movement
             newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));

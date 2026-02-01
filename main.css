@@ -733,23 +733,6 @@ input[type="date"]::-webkit-datetime-edit {
     box-sizing: border-box;
 }
 
-/* Desktop: toolbar scrolls with content, centered, not draggable */
-@media (min-width: 769px) and (hover: hover) and (pointer: fine) {
-    .toolbar {
-        position: relative;
-        top: auto !important;
-        left: auto !important;
-        width: auto;
-        max-width: 600px;
-        margin: 10px auto;
-        cursor: default;
-    }
-    
-    .toolbar:active {
-        cursor: default;
-    }
-}
-
 .toolbar:active {
     cursor: grabbing;
 }
