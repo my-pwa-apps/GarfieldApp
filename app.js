@@ -42,6 +42,30 @@ const CONFIG = Object.freeze({
  */
 const UTILS = {
     /**
+     * Get current date in US Eastern Time (where GoComics releases comics)
+     * Comics are released around midnight ET, so this ensures consistent behavior globally
+     * @returns {Date} Current date adjusted to Eastern Time
+     */
+    getEasternDate() {
+        const now = new Date();
+        // Get Eastern Time string and parse it back to a Date
+        const etString = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
+        return new Date(etString);
+    },
+
+    /**
+     * Get today's date string in Eastern Time (YYYY-MM-DD format)
+     * @returns {string} Today's date in ET as YYYY-MM-DD
+     */
+    getEasternTodayString() {
+        const etDate = this.getEasternDate();
+        const year = etDate.getFullYear();
+        const month = String(etDate.getMonth() + 1).padStart(2, '0');
+        const day = String(etDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+
+    /**
      * Safely parses JSON with fallback
      * @param {string} str - JSON string to parse
      * @param {*} fallback - Fallback value if parse fails
@@ -70,12 +94,13 @@ const UTILS = {
     },
 
     /**
-     * Check if the currently displayed date is today's date (local time)
-     * @returns {boolean} True if displayed date matches today
+     * Check if the currently displayed date is today's date (Eastern Time)
+     * Uses Eastern Time since that's when GoComics releases new comics
+     * @returns {boolean} True if displayed date matches today in ET
      */
     isDisplayedDateToday() {
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+        const etDate = this.getEasternDate();
+        const todayStr = `${etDate.getFullYear()}/${String(etDate.getMonth() + 1).padStart(2, '0')}/${String(etDate.getDate()).padStart(2, '0')}`;
         return formattedComicDate === todayStr;
     },
 
@@ -131,8 +156,9 @@ const UTILS = {
                 lastFav.setHours(0, 0, 0, 0);
                 return current.getTime() < lastFav.getTime();
             } else {
-                // Normal mode: check if we're at today's date
-                const today = new Date();
+                // Normal mode: check if we're at today's date (Eastern Time)
+                // Use Eastern Time since comics are released based on ET
+                const today = this.getEasternDate();
                 today.setHours(0, 0, 0, 0);
                 return current.getTime() < today.getTime();
             }
@@ -172,7 +198,8 @@ const UTILS = {
         const startDate = this.isSpanishMode() 
             ? new Date(CONFIG.GARFIELD_START_ES) 
             : new Date(CONFIG.GARFIELD_START_EN);
-        const today = new Date();
+        // Use Eastern Time since comics are released based on ET
+        const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
         
         // Preload previous comic (if not before start date)
@@ -2203,12 +2230,8 @@ function initApp() {
     // Add event listener to prevent emptying the date
     datePicker.addEventListener('change', function(e) {
         if (!this.value) {
-            // If cleared, reset to current date
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            this.value = `${yyyy}-${mm}-${dd}`;
+            // If cleared, reset to Eastern Time today (comic release timezone)
+            this.value = UTILS.getEasternTodayString();
         }
     });
 
@@ -2220,19 +2243,19 @@ function initApp() {
     if (view === 'favorites' && favs.length > 0) {
         document.getElementById("showfavs").checked = true;
         localStorage.setItem('showfavs', "true");
-        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        currentselectedDate = favs.length ? new Date(favs[0]) : UTILS.getEasternDate();
     } else if (action === 'random') {
         // Will trigger random after loading
         setTimeout(() => RandomClick(), 500);
-        currentselectedDate = new Date();
+        currentselectedDate = UTILS.getEasternDate();
     } else if (document.getElementById("showfavs").checked) {
-        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        currentselectedDate = favs.length ? new Date(favs[0]) : UTILS.getEasternDate();
         if (!favs.length) {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
         }
     } else {
-        currentselectedDate = new Date();
+        currentselectedDate = UTILS.getEasternDate();
         if (!favs.length) {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
@@ -2241,9 +2264,12 @@ function initApp() {
         document.getElementById("Last").disabled = true;
     }
     
-    formatDate(new Date());
-    let today = `${year}-${month}-${day}`;
-    document.getElementById("DatePicker").setAttribute("max", today);
+    // Use Eastern Time for date picker max since comics release based on ET
+    const etToday = UTILS.getEasternTodayString();
+    document.getElementById("DatePicker").setAttribute("max", etToday);
+    
+    // Also format today's date for other uses
+    formatDate(UTILS.getEasternDate());
 
     if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic') && !action && !view) {
         currentselectedDate = new Date(localStorage.getItem('lastcomic'));
