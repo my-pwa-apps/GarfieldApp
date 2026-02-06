@@ -3,21 +3,12 @@
  */
 document.addEventListener('DOMContentLoaded', function() {
     function checkFullscreen() {
-        const isFullscreen = !!(
-            document.fullscreenElement ||
-            document.webkitFullscreenElement ||
-            document.mozFullScreenElement ||
-            document.msFullscreenElement
-        );
-        
+        const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
         document.body.classList.toggle('fullscreen-active', isFullscreen);
     }
     
-    // Listen for fullscreen changes (cross-browser)
-    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(event => {
-        document.addEventListener(event, checkFullscreen);
-    });
-    
+    document.addEventListener('fullscreenchange', checkFullscreen);
+    document.addEventListener('webkitfullscreenchange', checkFullscreen);
     checkFullscreen();
 });
 
@@ -30,13 +21,11 @@ if ('serviceWorker' in navigator) {
             .then(registration => {
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
-                    if (newWorker) {
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                showUpdateNotification();
-                            }
-                        });
-                    }
+                    newWorker?.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            showUpdateNotification();
+                        }
+                    });
                 });
             })
             .catch(() => {/* Silent fail - app still works without SW */});
