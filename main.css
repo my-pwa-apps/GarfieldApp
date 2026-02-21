@@ -1425,3 +1425,17 @@ input[type="date"]::-webkit-datetime-edit {
 .copyright-footer a:hover {
     text-decoration: underline;
 }
+
+/* ============================================================
+   Landscape mobile: phones rotated to (or opened in) landscape
+   Viewport height is very small (~360-414px) on phones, so
+   the logo must be hidden to make room for the comic.
+   max-height: 500px targets phones only (tablets/desktops are
+   taller than 500px even in landscape).
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+    /* Hide logo — no vertical space to spare on a phone in landscape */
+    .logo {
+        display: none;
+    }
+}
