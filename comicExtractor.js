@@ -195,8 +195,3 @@ function extractImageFromHTML(html) {
     return null;
 }
 
-// Legacy export for backward compatibility
-export async function extractGoComicsImage(date) {
-    const result = await getAuthenticatedComic(date, 'en');
-    return result.imageUrl;
-}
