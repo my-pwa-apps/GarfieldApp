@@ -19,6 +19,13 @@ const CONFIG = Object.freeze({
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
     GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
     
+    // Windows Store review prompting
+    REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
+    REVIEW_MIN_DAYS: 3,                   // Days since first use before prompting
+    REVIEW_RETRY_DAYS: 60,                // Days to wait before re-prompting after a cancel
+    REVIEW_MAX_PROMPTS: 3,                // Stop asking after this many prompts
+    REVIEW_PROMPT_DELAY_MS: 45000,        // Delay after startup before showing the dialog
+
     // Storage keys
     STORAGE_KEYS: Object.freeze({
         FAVS: 'favs',
@@ -29,7 +36,8 @@ const CONFIG = Object.freeze({
         SPANISH: 'spanish',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
-        TOOLBAR_OPTIMAL: 'toolbarOptimal'
+        TOOLBAR_OPTIMAL: 'toolbarOptimal',
+        REVIEW: 'reviewData'
     })
 });
 
@@ -219,6 +227,79 @@ const UTILS = {
 
 function getPrimaryComicElement() {
     return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
+}
+
+// ========================================
+// WINDOWS STORE REVIEW
+// ========================================
+
+/**
+ * Track the current session and schedule the store review prompt.
+ * Called immediately from initApp so the session count is always recorded,
+ * even if the user closes the app before the delayed prompt fires.
+ */
+function initStoreReview() {
+    // Increment session count right away
+    const now = new Date();
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
+    const data = UTILS.safeJSONParse(raw, {});
+
+    if (!data.firstUsed) data.firstUsed = now.toISOString();
+    data.sessionCount = (data.sessionCount || 0) + 1;
+    localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
+
+    // Schedule the eligibility check / prompt after the user has had a chance to use the app
+    setTimeout(requestStoreReview, CONFIG.REVIEW_PROMPT_DELAY_MS);
+}
+
+/**
+ * Check eligibility criteria and, if met, call the WinRT Store review API.
+ * Only runs when the app is installed from the Microsoft Store (WinRT context).
+ */
+async function requestStoreReview() {
+    // Only available in a packaged WinRT context (Windows Store PWA)
+    const storeNS = window?.Windows?.Services?.Store;
+    if (!storeNS?.StoreContext) return;
+
+    const now = new Date();
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
+    const data = UTILS.safeJSONParse(raw, {});
+
+    // Stop after maximum prompts
+    if ((data.promptCount || 0) >= CONFIG.REVIEW_MAX_PROMPTS) return;
+
+    // Not enough sessions yet
+    if ((data.sessionCount || 0) < CONFIG.REVIEW_MIN_SESSIONS) return;
+
+    // First use too recent
+    const daysSinceFirst = data.firstUsed
+        ? (now - new Date(data.firstUsed)) / 86400000
+        : 0;
+    if (daysSinceFirst < CONFIG.REVIEW_MIN_DAYS) return;
+
+    // Was prompted recently (user canceled last time)
+    if (data.lastPrompted) {
+        const daysSinceLast = (now - new Date(data.lastPrompted)) / 86400000;
+        if (daysSinceLast < CONFIG.REVIEW_RETRY_DAYS) return;
+    }
+
+    try {
+        const storeContext = storeNS.StoreContext.getDefault();
+        const result = await storeContext.requestRateAndReviewAppAsync();
+
+        data.lastPrompted = now.toISOString();
+        data.promptCount = (data.promptCount || 0) + 1;
+
+        // If the user actually submitted a review, stop prompting forever
+        const { StoreRateAndReviewStatus } = storeNS;
+        if (result?.status === StoreRateAndReviewStatus?.succeeded) {
+            data.promptCount = CONFIG.REVIEW_MAX_PROMPTS;
+        }
+
+        localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
+    } catch {
+        // Non-critical – silently ignore
+    }
 }
 
 // ========================================
@@ -2217,6 +2298,9 @@ function initApp() {
     showComic();
     updateDateDisplay(); // Add this line to update the display
     updateExportButtonState(); // Enable/disable export button based on favorites
+
+    // Windows Store review: track session & schedule prompt
+    initStoreReview();
 }
 
 // Call initApp when DOM is ready

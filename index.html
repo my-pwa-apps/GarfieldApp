@@ -19,6 +19,10 @@
     <meta property="og:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
     <meta property="og:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://garfieldapp.pages.dev/">
+    <meta name="twitter:title" content="Daily Garfield Comics - English & Spanish">
+    <meta name="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta name="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
     
     <title>Daily Garfield Comics - English & Spanish</title>
     
@@ -43,7 +47,7 @@
 
 <body id="app-body">
     <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" alt="Daily Garfield Comics" fetchpriority="high" loading="eager">
     </div>
     
     <!-- Notification Toast -->
@@ -106,8 +110,6 @@
         </button>
     </div>
     
-    <br>
-    
     <div id="comic-container">
         <div id="comic-wrapper">
             <img id="comic" class="normal" alt="Loading comic..." decoding="async">
@@ -141,8 +143,6 @@
             </button>
         </div>
     </div>
-    
-    <br>
     
     <button id="installBtn" class="button">Install App</button>
     

@@ -1,4 +1,4 @@
-const VERSION = 'v1.4.8';
+const VERSION = 'v1.4.9';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -11,10 +11,12 @@ const MAX_RUNTIME_CACHE_SIZE = 30;
 const PRECACHE_ASSETS = [
   './',
   './index.html',
+  './offline.html',
   './main.css',
   './app.js',
   './init.js',
   './comicExtractor.js',
+  './manifest.webmanifest',
   './garlogo.png'
 ];
 

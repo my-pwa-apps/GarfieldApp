@@ -1,5 +1,6 @@
 /* CSS Custom Properties */
 :root {
+    color-scheme: light;
     --primary-gradient: linear-gradient(135deg, #F09819 0%, #FF5E00 100%);
     --toolbar-gradient: linear-gradient(135deg, #F09819 0%, #FFD700 100%);
     --button-gradient: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
@@ -11,6 +12,7 @@
     --transition-fast: 0.15s ease;
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
+    --footer-height: 24px;
 }
 
 html {
@@ -21,13 +23,15 @@ html {
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     overscroll-behavior: none;
     color: black;
     background: linear-gradient(#eee239, orange) no-repeat fixed;
     background-color: orange;
     min-height: 100vh;
     margin: 0;
-    padding: 0;
+    padding: 0 0 calc(var(--footer-height) + env(safe-area-inset-bottom, 0px));
     overflow-x: hidden;
     box-sizing: border-box;
 }
@@ -46,7 +50,7 @@ main {
     background-size: 200% auto;
     color: black;
     border-radius: 10px;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     transition: all var(--transition-slow);
     display: block;
     font-weight: 500;
@@ -61,7 +65,6 @@ main {
     height: auto;
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255, 255, 255, 0.2);
     will-change: transform, box-shadow;
 }
 
@@ -1404,10 +1407,13 @@ input[type="date"]::-webkit-datetime-edit {
     left: 0;
     right: 0;
     text-align: center;
-    padding: 0 10px;
+    padding: 4px 10px env(safe-area-inset-bottom, 0px);
+    line-height: 1.6;
     font-size: 0.65rem;
     color: rgba(0, 0, 0, 0.5);
     background: rgba(238, 226, 57, 0.9);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
     z-index: 10;
 }
 
