@@ -167,9 +167,7 @@ const UTILS = {
      */
     preloadAdjacentComics(currentDate) {
         const language = this.isSpanishMode() ? 'es' : 'en';
-        const startDate = this.isSpanishMode() 
-            ? new Date(CONFIG.GARFIELD_START_ES) 
-            : new Date(CONFIG.GARFIELD_START_EN);
+        const startDate = new Date(language === 'es' ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -309,8 +307,6 @@ async function requestStoreReview() {
 // Touch tracking variables for swipe detection
 let touchStartX = 0;
 let touchStartY = 0;
-let touchEndX = 0;
-let touchEndY = 0;
 let touchStartTime = 0;
 let lastSwipeTime = 0;
 
@@ -1461,8 +1457,8 @@ function handleTouchEnd(e) {
     }
     
     const touch = e.changedTouches[0];
-    touchEndX = touch.clientX;
-    touchEndY = touch.clientY;
+    const touchEndX = touch.clientX;
+    const touchEndY = touch.clientY;
     
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
@@ -1479,8 +1475,6 @@ function handleTouchEnd(e) {
     // Check if the swipe is valid (meets distance and time requirements)
     if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
     
-    let swipeDetected = false;
-    
     // Check if we're in rotated fullscreen mode (reuse rotatedComic from above)
     const isInRotatedMode = rotatedComic && rotatedComic.className.includes('rotate');
     const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
@@ -1492,7 +1486,6 @@ function handleTouchEnd(e) {
             const direction = deltaY < 0 ? 'next' : 'previous';
             // Only trigger swipe if navigation is possible in that direction
             if (UTILS.canNavigate(direction)) {
-                swipeDetected = true;
                 lastSwipeTime = Date.now();
                 if (deltaY < 0) {
                     NextClick();
@@ -1508,7 +1501,6 @@ function handleTouchEnd(e) {
             // Only trigger swipe if navigation is possible in that direction
             if (UTILS.canNavigate(direction)) {
                 // Horizontal swipe
-                swipeDetected = true;
                 lastSwipeTime = Date.now();
                 if (deltaX < 0) {
                     // Swipe Left -> Next
@@ -1526,7 +1518,6 @@ function handleTouchEnd(e) {
             // Only trigger swipe if navigation is possible in that direction
             if (UTILS.canNavigate(direction)) {
                 // Horizontal swipe
-                swipeDetected = true;
                 lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
                 if (deltaX > 0) {
                     // Swipe right -> Previous
@@ -1554,6 +1545,19 @@ function Rotate(applyRotation = true, clickToExit = true) {
     const element = document.getElementById('comic');
     if (!element) return;
     
+    // Restores all elements that were hidden when entering fullscreen
+    function restoreHiddenElements() {
+        document.querySelectorAll('[data-was-hidden]').forEach(el => {
+            el.style.removeProperty('display');
+            if (el.dataset.originalDisplayInline) {
+                el.style.display = el.dataset.originalDisplayInline;
+            }
+            delete el.dataset.wasHidden;
+            delete el.dataset.originalDisplay;
+            delete el.dataset.originalDisplayInline;
+        });
+    }
+    
     // Check if we're already in fullscreen mode
     const existingOverlay = document.getElementById('comic-overlay');
     if (existingOverlay) {
@@ -1567,18 +1571,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         }
         
         // Restore all elements with data-was-hidden attribute
-        const hiddenElements = document.querySelectorAll('[data-was-hidden]');
-        hiddenElements.forEach(el => {
-            // Remove the inline display style completely - let CSS classes take over
-            el.style.removeProperty('display');
-            // If there was an original inline display value, restore it
-            if (el.dataset.originalDisplayInline) {
-                el.style.display = el.dataset.originalDisplayInline;
-            }
-            delete el.dataset.wasHidden;
-            delete el.dataset.originalDisplay;
-            delete el.dataset.originalDisplayInline;
-        });
+        restoreHiddenElements();
         
         // Make sure original comic is in normal state
         element.className = "normal";
@@ -1590,7 +1583,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         return;
     }
     
-    if (element.className === "normal" || element.className.includes("normal")) {
+    if (element.classList.contains('normal')) {
         isRotatedMode = true;
         
         // Create an overlay without any layout constraints
@@ -1620,9 +1613,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         if (clonedComic.complete) {
             maximizeRotatedImage(clonedComic);
         } else {
-            clonedComic.onload = function() {
-                maximizeRotatedImage(clonedComic);
-            };
+            clonedComic.addEventListener('load', () => maximizeRotatedImage(clonedComic), { once: true });
         }
         
         // Hide all other elements
@@ -1646,18 +1637,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
             if (rotatedComic) document.body.removeChild(rotatedComic);
             
             // Restore visibility of hidden elements
-            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
-            hiddenElements.forEach(el => {
-                // Remove the inline display style completely - let CSS classes take over
-                el.style.removeProperty('display');
-                // If there was an original inline display value, restore it
-                if (el.dataset.originalDisplayInline) {
-                    el.style.display = el.dataset.originalDisplayInline;
-                }
-                delete el.dataset.wasHidden;
-                delete el.dataset.originalDisplay;
-                delete el.dataset.originalDisplayInline;
-            });
+            restoreHiddenElements();
             
             // Ensure original comic is back to normal
             if (element) element.className = "normal";
@@ -1760,28 +1740,14 @@ function updateDateDisplay() {
         // Parse the date value from the input
         const dateValue = dateInput.value; // Format: YYYY-MM-DD
         if (dateValue) {
-            const dateParts = dateValue.split('-');
-            if (dateParts.length === 3) {
-                const year = parseInt(dateParts[0]);
-                const month = parseInt(dateParts[1]) - 1; // JS months are 0-based
-                const day = parseInt(dateParts[2]);
-                
-                // Create a date object
-                const date = new Date(year, month, day);
-                
-                // Format the date according to user's locale
-                const localizedDate = date.toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'numeric',
-                    day: 'numeric'
-                });
-                
-                // Set the localized date as the display value
-                wrapper.setAttribute('data-display-date', localizedDate);
-            } else {
-                // Fallback if date format is unexpected
-                wrapper.setAttribute('data-display-date', dateValue);
-            }
+            // Noon suffix prevents UTC-midnight timezone shifts from rolling the date back
+            const date = new Date(dateValue + 'T12:00:00');
+            const localizedDate = date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric'
+            });
+            wrapper.setAttribute('data-display-date', localizedDate);
         } else {
             wrapper.setAttribute('data-display-date', '');
         }
@@ -2227,25 +2193,22 @@ function initApp() {
     if (view === 'favorites' && favs.length > 0) {
         document.getElementById("showfavs").checked = true;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
-        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        currentselectedDate = new Date(favs[0]);
     } else if (action === 'random') {
         // Will trigger random after loading
         setTimeout(() => RandomClick(), 500);
         currentselectedDate = new Date();
     } else if (document.getElementById("showfavs").checked) {
         currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
-        if (!favs.length) {
-            document.getElementById("showfavs").checked = false;
-            document.getElementById("showfavs").disabled = true;
-        }
     } else {
         currentselectedDate = new Date();
-        if (!favs.length) {
-            document.getElementById("showfavs").checked = false;
-            document.getElementById("showfavs").disabled = true;
-        }
         document.getElementById("Next").disabled = true;
         document.getElementById("Last").disabled = true;
+    }
+    // Disable the favourites toggle if there are no favourites to show
+    if (!favs.length) {
+        document.getElementById("showfavs").checked = false;
+        document.getElementById("showfavs").disabled = true;
     }
     
     formatDate(new Date());
@@ -2257,7 +2220,7 @@ function initApp() {
     }
     CompareDates();
     showComic();
-    updateDateDisplay(); // Add this line to update the display
+    updateDateDisplay();
     updateExportButtonState(); // Enable/disable export button based on favorites
 
     // Windows Store review: track session & schedule prompt
@@ -2274,40 +2237,32 @@ if (document.readyState === 'loading') {
 // Call this function when the date changes
 async function DateChange() {
     const previousDate = new Date(currentselectedDate);
-    currentselectedDate = document.getElementById('DatePicker');
-    currentselectedDate = new Date(currentselectedDate.value);
+    currentselectedDate = new Date(document.getElementById('DatePicker').value);
     updateDateDisplay();
     CompareDates();
     
-    // Check if user selected a Sunday in Spanish mode
-    const isSpanish = UTILS.isSpanishMode();
-    const isSunday = currentselectedDate.getDay() === 0;
-    
-    if (isSpanish && isSunday) {
-        // Try to load the comic
-        formatDate(currentselectedDate);
-        formattedComicDate = year + "/" + month + "/" + day;
-        formattedDate = year + "-" + month + "-" + day;
-        document.getElementById("DatePicker").value = formattedDate;
-        
+    // Garfield en español did not run on Sundays — probe first and revert if unavailable
+    if (UTILS.isSpanishMode() && currentselectedDate.getDay() === 0) {
         const result = await loadComic(currentselectedDate, true);
-        
         if (!result.success) {
-            // Comic doesn't exist, show notification and revert to previous date
-            const currentLang = isSpanish ? 'es' : 'en';
-            const message = translations[currentLang].sundayNotAvailable;
-            showNotification(message, 6000);
+            showNotification(translations.es.sundayNotAvailable, 6000);
             currentselectedDate = previousDate;
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
-            document.getElementById("DatePicker").value = formattedDate;
-            updateDateDisplay();
+            await showComic(); // showComic re-formats and re-displays the reverted date
             return;
         }
     }
     
     await showComic();
+}
+
+/**
+ * Updates the heart icon fill to reflect whether the current comic date is a favourite.
+ * Reads from the module-level formattedComicDate variable.
+ */
+function updateHeartIcon() {
+    const heartSvg = document.getElementById('favheart')?.querySelector('svg path');
+    if (!heartSvg) return;
+    heartSvg.setAttribute('fill', UTILS.getFavorites().includes(formattedComicDate) ? 'currentColor' : 'none');
 }
 
 async function showComic(skipOnFailure = false, direction = null) {
@@ -2319,14 +2274,7 @@ async function showComic(skipOnFailure = false, direction = null) {
     updateDateDisplay();
     
     // Check if date is in favorites
-    const favs = UTILS.getFavorites();
-    const heartBtn = document.getElementById("favheart");
-    const heartSvg = heartBtn?.querySelector('svg path');
-    if (favs.indexOf(formattedComicDate) !== -1) {
-        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
-    } else {
-        if (heartSvg) heartSvg.setAttribute('fill', 'none');
-    }
+    updateHeartIcon();
     
     // Save last viewed comic
     if (document.getElementById("lastdate").checked) {
@@ -2409,14 +2357,7 @@ async function showComic(skipOnFailure = false, direction = null) {
             const retryResult = await loadComic(currentselectedDate, true, direction);
             if (retryResult.success && !retryResult.isSameComic) {
                 // Update favorites heart status for the new date
-                const favs = UTILS.getFavorites();
-                const heartBtn = document.getElementById("favheart");
-                const heartSvg = heartBtn?.querySelector('svg path');
-                if (favs.indexOf(formattedComicDate) !== -1) {
-                    if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
-                } else {
-                    if (heartSvg) heartSvg.setAttribute('fill', 'none');
-                }
+                updateHeartIcon();
                 return;
             }
         }
