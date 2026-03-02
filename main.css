@@ -130,18 +130,6 @@ input {
     background-color: #eee239;
 }
 
-.buttongrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto auto;
-    text-align: center;
-    gap: 5px;
-    padding: 0;
-    box-sizing: border-box;
-    width: 100%;
-    margin: 0 auto;
-}
-
 .rotate {
     /* Position and transform set by JavaScript maximizeRotatedImage() */
     margin: 0 !important;
@@ -616,6 +604,47 @@ input[type="date"]::-webkit-datetime-edit {
     transition: all 0.3s ease;
 }
 
+/* ========================================
+   COMIC LOADING SKELETON
+   ======================================== */
+@keyframes shimmerBg {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes spinLoader {
+    to { transform: rotate(360deg); }
+}
+
+#comic-wrapper.loading {
+    min-height: 240px;
+    border-radius: 8px;
+    background: linear-gradient(
+        90deg,
+        rgba(238, 226, 57, 0.12) 0%,
+        rgba(240, 152, 25, 0.28) 35%,
+        rgba(238, 226, 57, 0.12) 65%,
+        rgba(240, 152, 25, 0.18) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmerBg 1.8s ease-in-out infinite;
+}
+
+#comic-wrapper.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid rgba(240, 152, 25, 0.25);
+    border-top-color: #F09819;
+    border-radius: 50%;
+    animation: spinLoader 0.8s linear infinite;
+    z-index: 1;
+}
+
 #comic-container.fullscreen #comic-wrapper {
     width: 100%;
     height: 100%;
@@ -646,12 +675,19 @@ input[type="date"]::-webkit-datetime-edit {
 
 #installBtn {
     position: fixed;
-    bottom: 20px;
+    bottom: calc(var(--footer-height) + env(safe-area-inset-bottom, 0px) + 14px);
     right: 20px;
     margin: 0;
-    max-width: 150px;
+    max-width: 200px;
     z-index: 1000;
     display: none;
+    border-radius: 24px;
+    padding: 10px 18px;
+    font-weight: 600;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 #support-container {
@@ -681,16 +717,20 @@ input[type="date"]::-webkit-datetime-edit {
 
 .thumbnail-notice {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(238, 226, 57, 0.8);
-    color: black;
-    padding: 8px;
-    font-size: 0.85rem;
+    bottom: 12px;
+    right: 12px;
+    left: auto;
+    background: rgba(0, 0, 0, 0.65);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 5px 12px;
+    font-size: 0.75rem;
     font-weight: 500;
-    text-align: center;
-    border-radius: 0 0 10px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+    white-space: nowrap;
 }
 
 .fullscreen-vertical {
@@ -1076,8 +1116,10 @@ input[type="date"]::-webkit-datetime-edit {
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
-    background: #ccc;
-    color: #888;
+    background: linear-gradient(135deg, #b8b8b8 0%, #989898 100%);
+    color: #555;
+    box-shadow: none;
+    transform: none;
 }
 
 .hidden-file-input {
@@ -1331,6 +1373,7 @@ input[type="date"]::-webkit-datetime-edit {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
                 0 2px 8px rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.1);
+    border-left: 3px solid #F09819;
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     z-index: 10000;
@@ -1412,6 +1455,7 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 0.65rem;
     color: rgba(0, 0, 0, 0.5);
     background: rgba(238, 226, 57, 0.9);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 10;
@@ -1424,4 +1468,18 @@ input[type="date"]::-webkit-datetime-edit {
 
 .copyright-footer a:hover {
     text-decoration: underline;
+}
+
+/* ============================================================
+   Landscape mobile: phones rotated to (or opened in) landscape.
+   Viewport height is very small (~360-414px) on phones, so
+   the logo must be hidden to make room for the comic.
+   max-height: 500px targets phones only (tablets/desktops are
+   taller than 500px even in landscape).
+   ============================================================ */
+@media (orientation: landscape) and (max-height: 500px) {
+    /* Hide logo — no vertical space to spare on a phone in landscape */
+    .logo {
+        display: none;
+    }
 }

@@ -1111,7 +1111,6 @@ const translations = {
         selectDate: 'Select comic date',
         installApp: 'Install App',
         supportApp: 'Support this App',
-        notifyNewComics: 'Notify me of new comics',
         sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
         exportFavorites: 'Export Favorites',
         importFavorites: 'Import Favorites',
@@ -1140,7 +1139,6 @@ const translations = {
         selectDate: 'Seleccionar fecha del cómic',
         installApp: 'Instalar App',
         supportApp: 'Apoyar esta App',
-        notifyNewComics: 'Notificar nuevos cómics',
         sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
         exportFavorites: 'Exportar Favoritos',
         importFavorites: 'Importar Favoritos',
@@ -1165,8 +1163,7 @@ function translateInterface(lang) {
         'swipe': t.swipeEnabled,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
-        'spanish': t.spanish,
-        'notifications': t.notifyNewComics
+        'spanish': t.spanish
     };
     
     for (const [id, text] of Object.entries(labels)) {
@@ -1216,7 +1213,8 @@ function translateInterface(lang) {
     // Translate install and support buttons
     const installBtn = document.getElementById('installBtn');
     if (installBtn) {
-        installBtn.textContent = t.installApp;
+        const installSpan = installBtn.querySelector('span') || installBtn;
+        installSpan.textContent = t.installApp;
         installBtn.setAttribute('aria-label', t.installApp);
     }
     
@@ -1338,9 +1336,6 @@ async function Share() {
     }
 }
 
-// Event listeners will be added in initApp
-
-
 /**
  * Add or remove comic from favorites
  */
@@ -1351,13 +1346,7 @@ function Addfav() {
         return;
     }
     
-    let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-    
-    // Ensure favs is always an array
-    if (!Array.isArray(favs)) {
-        favs = [];
-    }
-    
+    let favs = UTILS.getFavorites();
     const heartBtn = document.getElementById("favheart");
     const heartSvg = heartBtn?.querySelector('svg path');
     const showFavsCheckbox = document.getElementById("showfavs");
@@ -1386,9 +1375,6 @@ function Addfav() {
     CompareDates();
     showComic();
 }
-
-// Event listeners will be added in initApp
-
 
 function HideSettings(e) {
     // Prevent event from bubbling if called from event handler
@@ -1420,9 +1406,6 @@ function HideSettings(e) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
     }
 }
-
-// Expose globally as early as possible
-// Event listeners will be added in initApp
 
 
 // ========================================
@@ -1813,6 +1796,9 @@ function updateDateDisplay() {
  * @returns {Promise<boolean>} True if comic loaded successfully
  */
 async function loadComic(date, silentMode = false, direction = null) {
+    const wrapper = document.getElementById('comic-wrapper');
+    const isFirstLoad = !currentComicUrl;
+    if (isFirstLoad) wrapper?.classList.add('loading');
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
@@ -1917,6 +1903,7 @@ async function loadComic(date, silentMode = false, direction = null) {
             
             await animateTransition();
             comicImg.style.display = 'block';
+            wrapper?.classList.remove('loading');
             
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;
@@ -2045,12 +2032,14 @@ async function loadComic(date, silentMode = false, direction = null) {
         }
         
         if (result.isPaywalled && !silentMode) {
+            wrapper?.classList.remove('loading');
             showPaywallMessage();
-            return false;
+            return { success: false, isSameComic: false };
         }
         
         throw new Error('Comic not available');
     } catch (error) {
+        wrapper?.classList.remove('loading');
         if (!silentMode) {
             showErrorMessage('Failed to load comic. Please try again.');
         }
@@ -2321,10 +2310,6 @@ async function DateChange() {
     await showComic();
 }
 
-// Event listeners will be added in initApp
-
-
-// Add this to update the display when showing a comic
 async function showComic(skipOnFailure = false, direction = null) {
     formatDate(currentselectedDate);
     formattedComicDate = year + "/" + month + "/" + day;
@@ -2334,10 +2319,10 @@ async function showComic(skipOnFailure = false, direction = null) {
     updateDateDisplay();
     
     // Check if date is in favorites
-    var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    const favs = UTILS.getFavorites();
     const heartBtn = document.getElementById("favheart");
     const heartSvg = heartBtn?.querySelector('svg path');
-    if(favs && favs.indexOf(formattedComicDate) !== -1) {
+    if (favs.indexOf(formattedComicDate) !== -1) {
         if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
     } else {
         if (heartSvg) heartSvg.setAttribute('fill', 'none');
@@ -2424,10 +2409,10 @@ async function showComic(skipOnFailure = false, direction = null) {
             const retryResult = await loadComic(currentselectedDate, true, direction);
             if (retryResult.success && !retryResult.isSameComic) {
                 // Update favorites heart status for the new date
-                var favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+                const favs = UTILS.getFavorites();
                 const heartBtn = document.getElementById("favheart");
                 const heartSvg = heartBtn?.querySelector('svg path');
-                if(favs && favs.indexOf(formattedComicDate) !== -1) {
+                if (favs.indexOf(formattedComicDate) !== -1) {
                     if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
                 } else {
                     if (heartSvg) heartSvg.setAttribute('fill', 'none');
@@ -2443,66 +2428,55 @@ async function showComic(skipOnFailure = false, direction = null) {
 }
 
 function PreviousClick() {
-	if(document.getElementById("showfavs").checked) {
-		const favs = UTILS.getFavorites();
-		if(favs.indexOf(formattedComicDate) > 0){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);} }
-	else{
-		currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-	}
-	CompareDates();
-	showComic(true, 'previous'); // Auto-skip unavailable comics going backwards
+    if (document.getElementById("showfavs").checked) {
+        const favs = UTILS.getFavorites();
+        const idx = favs.indexOf(formattedComicDate);
+        if (idx > 0) {
+            currentselectedDate = new Date(favs[idx - 1]);
+        }
+    } else {
+        currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+    }
+    CompareDates();
+    showComic(true, 'previous');
 }
-
-// Event listeners will be added in initApp
-
 
 function NextClick() {
-	if(document.getElementById("showfavs").checked) {
-		const favs = UTILS.getFavorites();
-		if(favs.indexOf(formattedComicDate) < favs.length - 1){
-			currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);} }
-	else{
-		currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-	}
-	CompareDates();
-	showComic(true, 'next'); // Auto-skip unavailable comics going forward
+    if (document.getElementById("showfavs").checked) {
+        const favs = UTILS.getFavorites();
+        const idx = favs.indexOf(formattedComicDate);
+        if (idx < favs.length - 1) {
+            currentselectedDate = new Date(favs[idx + 1]);
+        }
+    } else {
+        currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+    }
+    CompareDates();
+    showComic(true, 'next');
 }
-
-// Event listeners will be added in initApp
-
 
 function FirstClick() {
-	if(document.getElementById("showfavs").checked) {
-		const favs = UTILS.getFavorites();
-		currentselectedDate = new Date(favs[0]);}
-	else{
-		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		currentselectedDate = UTILS.isSpanishMode() ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
-	}
-	CompareDates();
-	showComic();
+    if (document.getElementById("showfavs").checked) {
+        const favs = UTILS.getFavorites();
+        currentselectedDate = new Date(favs[0]);
+    } else {
+        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+        currentselectedDate = UTILS.isSpanishMode() ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
+    }
+    CompareDates();
+    showComic();
 }
-
-// Event listeners will be added in initApp
-
 
 function LastClick() {
-	if(document.getElementById("showfavs").checked)
-	 {
-		const favs = UTILS.getFavorites();
-		currentselectedDate = new Date(favs[favs.length - 1]);
-	 }
-	else
-	{
-	currentselectedDate = new Date();
-	}
-	CompareDates();
-	showComic();
+    if (document.getElementById("showfavs").checked) {
+        const favs = UTILS.getFavorites();
+        currentselectedDate = new Date(favs[favs.length - 1]);
+    } else {
+        currentselectedDate = new Date();
+    }
+    CompareDates();
+    showComic();
 }
-
-// Event listeners will be added in initApp
-
 
 /**
  * Update export button state based on favorites existence
@@ -2555,9 +2529,6 @@ function exportFavorites() {
     const message = t.exportedFavorites.replace('{count}', favs.length).replace('{plural}', plural);
     showNotification(message, 3000);
 }
-
-// Event listeners will be added in initApp
-
 
 /**
  * Import favorites from uploaded JSON file
@@ -2632,80 +2603,68 @@ function importFavorites() {
     fileInput.click();
 }
 
-// Event listeners will be added in initApp
-
-
-function RandomClick()
-{
-	if(document.getElementById("showfavs").checked) {
-		const favs = UTILS.getFavorites();
-		currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);}
-	else{
-		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		const start = UTILS.isSpanishMode() ? new Date("1999-12-06") : new Date("1978-06-19");
-		let end = new Date();
-		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-	}
-	CompareDates();
-	showComic();
+function RandomClick() {
+    if (document.getElementById("showfavs").checked) {
+        const favs = UTILS.getFavorites();
+        currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
+    } else {
+        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+        const start = UTILS.isSpanishMode() ? new Date("1999-12-06") : new Date("1978-06-19");
+        const end = new Date();
+        currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+    }
+    CompareDates();
+    showComic();
 }
 
-// Event listeners will be added in initApp
-
-
 function CompareDates() {
-	const favs = UTILS.getFavorites();
-	let startDate;
-	if(document.getElementById("showfavs").checked)
-	{
-		document.getElementById("DatePicker").disabled = true;
-		startDate = new Date(favs[0])}
-	else{	
-		document.getElementById("DatePicker").disabled = false;
-		// Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-		startDate = UTILS.isSpanishMode() ? new Date("1999/12/06") : new Date("1978/06/19");
-	}
-	startDate = startDate.setHours(0, 0, 0, 0);
-	currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
-	startDate = new Date(startDate);
-	currentselectedDate = new Date(currentselectedDate);
-	if(currentselectedDate.getTime() <= startDate.getTime()) {
-		document.getElementById("Previous").disabled = true;
-		document.getElementById("First").disabled = true;
-		formatDate(startDate);
-		startDate = year + '-' + month + '-' + day;
-		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
-	} else {
-		document.getElementById("Previous").disabled = false;
-		document.getElementById("First").disabled = false;
-	}
-	let endDate;
-	if(document.getElementById("showfavs").checked) {
-		endDate = new Date(favs[favs.length - 1]);
-	}
-	else{ 
-		endDate = new Date();
-	}
-	endDate = endDate.setHours(0, 0, 0, 0);
-	endDate = new Date(endDate);
-	if(currentselectedDate.getTime() >= endDate.getTime()) {
-		document.getElementById("Next").disabled = true;
-		document.getElementById("Last").disabled = true;
-		formatDate(endDate);
-		endDate = year + '-' + month + '-' + day;
-		currentselectedDate = new Date(Date.UTC(year, month-1, day,12));
-	} else {
-		document.getElementById("Next").disabled = false;
-		document.getElementById("Last").disabled = false;
-	}
-	if(document.getElementById("showfavs").checked) {
-		if(favs.length == 1) {
-			document.getElementById("Random").disabled = true;
-			document.getElementById("Previous").disabled = true;
-			document.getElementById("First").disabled = true;
-		} }
-	else {
-		document.getElementById("Random").disabled = false;}
+    const favs = UTILS.getFavorites();
+    const showFavs = document.getElementById("showfavs").checked;
+    let startDate;
+    if (showFavs) {
+        document.getElementById("DatePicker").disabled = true;
+        startDate = new Date(favs[0]);
+    } else {
+        document.getElementById("DatePicker").disabled = false;
+        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
+        startDate = UTILS.isSpanishMode() ? new Date("1999/12/06") : new Date("1978/06/19");
+    }
+    startDate = new Date(startDate.setHours(0, 0, 0, 0));
+    currentselectedDate = new Date(currentselectedDate.setHours(0, 0, 0, 0));
+    if (currentselectedDate.getTime() <= startDate.getTime()) {
+        document.getElementById("Previous").disabled = true;
+        document.getElementById("First").disabled = true;
+        formatDate(startDate);
+        currentselectedDate = new Date(Date.UTC(year, month - 1, day, 12));
+    } else {
+        document.getElementById("Previous").disabled = false;
+        document.getElementById("First").disabled = false;
+    }
+    let endDate;
+    if (showFavs) {
+        endDate = new Date(favs[favs.length - 1]);
+    } else {
+        endDate = new Date();
+    }
+    endDate = new Date(endDate.setHours(0, 0, 0, 0));
+    if (currentselectedDate.getTime() >= endDate.getTime()) {
+        document.getElementById("Next").disabled = true;
+        document.getElementById("Last").disabled = true;
+        formatDate(endDate);
+        currentselectedDate = new Date(Date.UTC(year, month - 1, day, 12));
+    } else {
+        document.getElementById("Next").disabled = false;
+        document.getElementById("Last").disabled = false;
+    }
+    if (showFavs) {
+        if (favs.length === 1) {
+            document.getElementById("Random").disabled = true;
+            document.getElementById("Previous").disabled = true;
+            document.getElementById("First").disabled = true;
+        }
+    } else {
+        document.getElementById("Random").disabled = false;
+    }
 }
 
 function formatDate(datetoFormat) {
@@ -2721,13 +2680,7 @@ function formatDate(datetoFormat) {
 // ========================================
 
 document.getElementById('swipe').addEventListener('change', function() {
-    if (this.checked) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'true');
-    } else {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'false');
-        CompareDates();
-        showComic();
-    }
+    localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, this.checked ? 'true' : 'false');
 });
 
 document.getElementById('lastdate').addEventListener('change', function() {
@@ -2976,7 +2929,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallButton() {
   const installBtn = document.getElementById('installBtn');
   if (installBtn) {
-    installBtn.style.display = 'block';
+    installBtn.style.display = 'flex';
     
     installBtn.addEventListener('click', async function() {
       if (!deferredPrompt) {
