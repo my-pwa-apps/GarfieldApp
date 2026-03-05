@@ -2145,7 +2145,18 @@ function showErrorMessage(message) {
         const tip = document.createElement('p');
         tip.textContent = 'Please try again later or select a different date.';
         
-        messageContainer.append(h, desc, tip);
+        const retryBtn = document.createElement('button');
+        retryBtn.textContent = 'Retry';
+        retryBtn.className = 'button';
+        retryBtn.style.cssText = 'margin-top:12px;display:inline-block;';
+        retryBtn.addEventListener('click', () => {
+            messageContainer.style.display = 'none';
+            const comicImg = document.getElementById('comic');
+            if (comicImg) comicImg.style.display = 'block';
+            showComic();
+        });
+        
+        messageContainer.append(h, desc, tip, retryBtn);
     }
 }
 
