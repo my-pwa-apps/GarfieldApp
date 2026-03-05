@@ -2637,8 +2637,25 @@ function importFavorites() {
                 const currentFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
                 const importedFavs = data.favorites;
                 
+                // Validate imported favorites: must be strings in YYYY/MM/DD format within valid range
+                const datePattern = /^\d{4}\/\d{2}\/\d{2}$/;
+                const earliestDate = new Date(CONFIG.GARFIELD_START_EN);
+                const today = new Date();
+                today.setHours(23, 59, 59, 999);
+                
+                const validFavs = importedFavs.filter(fav => {
+                    if (typeof fav !== 'string' || !datePattern.test(fav)) return false;
+                    const d = new Date(fav.replace(/\//g, '-') + 'T12:00:00');
+                    return !isNaN(d.getTime()) && d >= earliestDate && d <= today;
+                });
+                
+                if (validFavs.length === 0 && importedFavs.length > 0) {
+                    showNotification(t.invalidFavoritesFile, 4000);
+                    return;
+                }
+                
                 // Merge and deduplicate
-                const mergedFavs = [...new Set([...currentFavs, ...importedFavs])].sort();
+                const mergedFavs = [...new Set([...currentFavs, ...validFavs])].sort();
                 
                 localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(mergedFavs));
                 
