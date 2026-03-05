@@ -2309,8 +2309,8 @@ function initApp() {
         document.getElementById("Last").disabled = true;
     }
     
-    formatDate(new Date());
-    let today = `${year}-${month}-${day}`;
+    const todayParts = formatDate(new Date());
+    let today = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
     document.getElementById("DatePicker").setAttribute("max", today);
 
     if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
@@ -2376,9 +2376,9 @@ async function DateChange() {
 
 // Add this to update the display when showing a comic
 async function showComic(skipOnFailure = false, direction = null) {
-    formatDate(currentselectedDate);
-    formattedComicDate = year + "/" + month + "/" + day;
-    formattedDate = year + "-" + month + "-" + day;
+    const dateParts = formatDate(currentselectedDate);
+    formattedComicDate = dateParts.year + "/" + dateParts.month + "/" + dateParts.day;
+    formattedDate = dateParts.year + "-" + dateParts.month + "-" + dateParts.day;
     
     document.getElementById("DatePicker").value = formattedDate;
     updateDateDisplay();
@@ -2758,12 +2758,22 @@ function CompareDates() {
 		document.getElementById("Random").disabled = false;}
 }
 
+/**
+ * Format a date into year, month, day components
+ * @param {Date} datetoFormat - Date to format
+ * @returns {{year: number, month: string, day: string}} Formatted date parts
+ */
 function formatDate(datetoFormat) {
     const d = datetoFormat.getDate();
     const m = datetoFormat.getMonth() + 1;
-    year = datetoFormat.getFullYear();
-    month = String(m).padStart(2, '0');
-    day = String(d).padStart(2, '0');
+    const y = datetoFormat.getFullYear();
+    const mm = String(m).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    // Update globals for backward compatibility
+    year = y;
+    month = mm;
+    day = dd;
+    return { year: y, month: mm, day: dd };
 }
 
 // ========================================
