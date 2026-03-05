@@ -1,0 +1,6 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://storage.ko-fi.com; style-src 'self' 'unsafe-inline'; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com data:; connect-src 'self' https://corsproxy.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://www.gocomics.com https://featureassets.gocomics.com https://assets.amuniversal.com; frame-src https://ko-fi.com; font-src 'self'
