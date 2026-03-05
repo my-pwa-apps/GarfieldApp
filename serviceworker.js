@@ -66,6 +66,17 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
+  
+  // Cache cross-origin comic images from GoComics CDNs
+  const isComicImage = (url.hostname === 'featureassets.gocomics.com' || 
+                        url.hostname === 'assets.amuniversal.com') &&
+                       event.request.destination === 'image';
+  if (isComicImage) {
+    event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
+    return;
+  }
+  
+  // Only apply other strategies to same-origin requests
   if (url.origin !== location.origin) return;
   
   const { destination } = event.request;
