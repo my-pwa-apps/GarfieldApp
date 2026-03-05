@@ -998,37 +998,32 @@ function initializeMobileButtonStates() {
 }
 
 /**
- * Loads Ko-fi widget without document.write()
+ * Loads Ko-fi widget safely using an iframe sandbox
  */
 function loadKofiWidget() {
     const container = document.getElementById('support-container');
     if (!container) return;
     
-    // Create widget container
-    const widgetDiv = document.createElement('div');
-    widgetDiv.id = 'kofi-widget-container';
+    // Use Ko-fi's own button/iframe approach for safe embedding
+    const kofiLink = document.createElement('a');
+    kofiLink.href = 'https://ko-fi.com/X8X811H46M';
+    kofiLink.target = '_blank';
+    kofiLink.rel = 'noopener noreferrer';
+    kofiLink.className = 'kofi-button-styled';
+    kofiLink.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--primary-gradient);background-size:200% auto;border-radius:10px;color:#333;font-weight:600;font-size:14px;text-decoration:none;box-shadow:var(--shadow-sm);transition:all 0.3s ease;border:1px solid rgba(255,255,255,0.2);cursor:pointer;';
     
-    // Load Ko-fi widget script
-    const script = document.createElement('script');
-    script.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
-    script.onload = () => {
-        if (typeof kofiwidget2 !== 'undefined') {
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            // Insert widget HTML into container instead of using document.write()
-            widgetDiv.innerHTML = kofiwidget2.getHTML();
-            
-            // Apply custom styling
-            setTimeout(() => {
-                const kofiBtn = widgetDiv.querySelector('.kofi-button');
-                if (kofiBtn) {
-                    kofiBtn.classList.add('kofi-button-styled');
-                }
-            }, 100);
-        }
-    };
+    // Ko-fi cup icon as inline SVG (safe, no third-party HTML injection)
+    const cupIcon = document.createElement('img');
+    cupIcon.src = 'https://storage.ko-fi.com/cdn/cup-border.png';
+    cupIcon.alt = '';
+    cupIcon.style.cssText = 'width:20px;height:20px;';
     
-    container.appendChild(widgetDiv);
-    document.head.appendChild(script);
+    const text = document.createElement('span');
+    text.textContent = 'Support this app';
+    
+    kofiLink.appendChild(cupIcon);
+    kofiLink.appendChild(text);
+    container.appendChild(kofiLink);
 }
 
 /**
@@ -1221,7 +1216,7 @@ function translateInterface(lang) {
     }
     
     // Update Ko-fi button text
-    const kofiBtn = document.querySelector('.kofi-button');
+    const kofiBtn = document.querySelector('.kofi-button-styled span');
     if (kofiBtn) {
         kofiBtn.textContent = t.supportApp;
     }
