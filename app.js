@@ -923,6 +923,32 @@ function initializeToolbar() {
         });
         toolbarResizeObserver.observe(mainToolbar);
     }
+    
+    // Arrow key navigation within toolbar (WAI-ARIA toolbar pattern)
+    mainToolbar.addEventListener('keydown', (e) => {
+        const buttons = [...mainToolbar.querySelectorAll('.toolbar-button:not([disabled])')];
+        const currentIndex = buttons.indexOf(document.activeElement);
+        if (currentIndex === -1) return;
+        
+        let nextIndex;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            nextIndex = (currentIndex + 1) % buttons.length;
+            e.preventDefault();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+            e.preventDefault();
+        } else if (e.key === 'Home') {
+            nextIndex = 0;
+            e.preventDefault();
+        } else if (e.key === 'End') {
+            nextIndex = buttons.length - 1;
+            e.preventDefault();
+        }
+        
+        if (nextIndex !== undefined) {
+            buttons[nextIndex].focus();
+        }
+    });
 }
 
 // ========================================
