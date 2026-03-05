@@ -2060,13 +2060,35 @@ function showPaywallMessage() {
     const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
     
-    messageContainer.innerHTML = daysDiff > 30
-        ? `<p><strong>Unable to load this archive comic</strong></p>
-           <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
-           <p>Try viewing more recent comics (last 30 days), which are free!</p>`
-        : `<p><strong>Unable to load this comic</strong></p>
-           <p>This recent comic should normally be free, but we're having trouble loading it.</p>
-           <p>Please try again later or try a different date.</p>`;
+    messageContainer.textContent = '';
+    
+    if (daysDiff > 30) {
+        const h = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = 'Unable to load this archive comic';
+        h.appendChild(strong);
+        
+        const desc = document.createElement('p');
+        desc.textContent = `This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.`;
+        
+        const tip = document.createElement('p');
+        tip.textContent = 'Try viewing more recent comics (last 30 days), which are free!';
+        
+        messageContainer.append(h, desc, tip);
+    } else {
+        const h = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = 'Unable to load this comic';
+        h.appendChild(strong);
+        
+        const desc = document.createElement('p');
+        desc.textContent = 'This recent comic should normally be free, but we\'re having trouble loading it.';
+        
+        const tip = document.createElement('p');
+        tip.textContent = 'Please try again later or try a different date.';
+        
+        messageContainer.append(h, desc, tip);
+    }
 }
 
 /**
@@ -2077,21 +2099,54 @@ function showErrorMessage(message) {
     const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
-    messageContainer.innerHTML = isLocalhost
-        ? `<p><strong>Local Testing Mode</strong></p>
-           <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
-           <p><strong>Your authentication system is ready!</strong></p>
-           <ul style="text-align: left; max-width: 500px;">
-               <li>✓ Login/logout functionality implemented</li>
-               <li>✓ Paywall detection in place</li>
-               <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
-               <li>✓ Multiple CORS proxy fallback system</li>
-           </ul>
-           <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
-           <p>Try committing and pushing your changes to test on the live site!</p>`
-        : `<p><strong>Unable to Load Comic</strong></p>
-           <p>${message}</p>
-           <p>Please try again later or select a different date.</p>`;
+    messageContainer.textContent = '';
+    
+    if (isLocalhost) {
+        const h = document.createElement('p');
+        const strong1 = document.createElement('strong');
+        strong1.textContent = 'Local Testing Mode';
+        h.appendChild(strong1);
+        
+        const desc = document.createElement('p');
+        desc.textContent = 'The CORS proxies are currently not accessible from localhost. This is normal during local development.';
+        
+        const ready = document.createElement('p');
+        const strong2 = document.createElement('strong');
+        strong2.textContent = 'Your authentication system is ready!';
+        ready.appendChild(strong2);
+        
+        const ul = document.createElement('ul');
+        ul.style.textAlign = 'left';
+        ul.style.maxWidth = '500px';
+        ['Login/logout functionality implemented', 'Paywall detection in place', 
+         'Age-based comic access logic (recent = free, archive = paywalled)',
+         'Multiple CORS proxy fallback system'].forEach(text => {
+            const li = document.createElement('li');
+            li.textContent = `✓ ${text}`;
+            ul.appendChild(li);
+        });
+        
+        const deploy = document.createElement('p');
+        deploy.textContent = 'When deployed to garfieldapp.pages.dev, the app will work properly with your Cloudflare Worker proxy.';
+        
+        const tip = document.createElement('p');
+        tip.textContent = 'Try committing and pushing your changes to test on the live site!';
+        
+        messageContainer.append(h, desc, ready, ul, deploy, tip);
+    } else {
+        const h = document.createElement('p');
+        const strong = document.createElement('strong');
+        strong.textContent = 'Unable to Load Comic';
+        h.appendChild(strong);
+        
+        const desc = document.createElement('p');
+        desc.textContent = message;
+        
+        const tip = document.createElement('p');
+        tip.textContent = 'Please try again later or select a different date.';
+        
+        messageContainer.append(h, desc, tip);
+    }
 }
 
 function initApp() {
