@@ -2695,6 +2695,15 @@ function RandomClick()
 		const start = UTILS.isSpanishMode() ? new Date("1999-12-06") : new Date("1978-06-19");
 		let end = new Date();
 		currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+		
+		// Spanish comics were not published on Sundays — pick another day if we landed on one
+		if (UTILS.isSpanishMode()) {
+			let retries = 0;
+			while (currentselectedDate.getDay() === 0 && retries < 7) {
+				currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+				retries++;
+			}
+		}
 	}
 	CompareDates();
 	showComic();
