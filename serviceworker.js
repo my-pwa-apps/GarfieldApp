@@ -70,9 +70,9 @@ self.addEventListener('fetch', (event) => {
   
   const { destination } = event.request;
   
-  // Cache-first for app shell
+  // Stale-while-revalidate for app shell (serves cached version immediately, updates cache in background)
   if (['document', 'style', 'script'].includes(destination) || url.pathname.endsWith('.svg')) {
-    event.respondWith(cacheFirstStrategy(event.request, CACHE_NAME));
+    event.respondWith(staleWhileRevalidate(event.request, CACHE_NAME));
     return;
   }
   
@@ -87,29 +87,33 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * Cache-first strategy for app shell
+ * Stale-while-revalidate strategy for app shell
+ * Serves cached response immediately for speed, then updates cache in background
+ * so the next visit always gets fresh assets.
  */
-async function cacheFirstStrategy(request, cacheName) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) return cachedResponse;
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cachedResponse = await cache.match(request);
 
-  try {
-    // For navigation requests, ensure redirects are followed properly
-    const fetchOptions = request.mode === 'navigate' ? { redirect: 'follow' } : {};
-    const networkResponse = await fetch(request, fetchOptions);
-    
-    // Only cache successful, non-redirected responses
-    if (networkResponse?.status === 200 && !networkResponse.redirected) {
-      const cache = await caches.open(cacheName);
-      cache.put(request, networkResponse.clone());
+  // Always fetch in background to update cache
+  const fetchPromise = (async () => {
+    try {
+      const fetchOptions = request.mode === 'navigate' ? { redirect: 'follow' } : {};
+      const networkResponse = await fetch(request, fetchOptions);
+      if (networkResponse?.status === 200 && !networkResponse.redirected) {
+        cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    } catch (error) {
+      if (request.headers.get('accept')?.includes('text/html')) {
+        return cache.match('./index.html');
+      }
+      throw error;
     }
-    return networkResponse;
-  } catch (error) {
-    if (request.headers.get('accept')?.includes('text/html')) {
-      return caches.match('./index.html');
-    }
-    throw error;
-  }
+  })();
+
+  // Return cached version immediately if available, otherwise wait for network
+  return cachedResponse || fetchPromise;
 }
 
 /**
