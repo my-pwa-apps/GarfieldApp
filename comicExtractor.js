@@ -153,27 +153,40 @@ export async function getAuthenticatedComic(date, language = 'en') {
 
 /**
  * Extracts comic image URL from GoComics HTML
+ * Uses DOMParser for robust structured extraction with regex CDN URL fallback
  * @param {string} html - HTML content from GoComics
  * @returns {string|null} Comic image URL or null
  */
 function extractImageFromHTML(html) {
-    // Try featureassets CDN (current)
+    // Quick regex scan for known CDN URLs (fastest, most reliable for direct URLs in HTML)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
     if (match) return match[0];
     
-    // Try amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (match) return match[0];
     
-    // Try og:image meta tag
-    match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-    if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
-        return match[1];
+    // Use DOMParser for structured extraction (og:image, picture tags)
+    try {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        
+        // Try og:image meta tag
+        const ogImage = doc.querySelector('meta[property="og:image"]');
+        if (ogImage) {
+            const content = ogImage.getAttribute('content');
+            if (content && (content.includes('gocomics') || content.includes('amuniversal'))) {
+                return content;
+            }
+        }
+        
+        // Try picture > img src
+        const pictureImg = doc.querySelector('picture img[src]');
+        if (pictureImg) {
+            const src = pictureImg.getAttribute('src');
+            if (src) return src;
+        }
+    } catch {
+        // DOMParser not available or parse error — silent fallback
     }
-    
-    // Fallback to picture tag
-    match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-    if (match && match[1]) return match[1];
     
     return null;
 }
