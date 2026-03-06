@@ -38,6 +38,40 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
+    <link rel="alternate" hreflang="en" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="es" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="x-default" href="https://garfieldapp.pages.dev/">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Daily Garfield Comics",
+        "url": "https://garfieldapp.pages.dev/",
+        "description": "Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!",
+        "applicationCategory": "Entertainment",
+        "operatingSystem": "Any",
+        "inLanguage": ["en", "es"],
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "GarfieldApp"
+        },
+        "about": {
+            "@type": "ComicSeries",
+            "name": "Garfield",
+            "author": {
+                "@type": "Person",
+                "name": "Jim Davis"
+            }
+        }
+    }
+    </script>
     
     <!-- Styles and scripts -->
     <link rel="stylesheet" href="./main.css">
@@ -46,6 +80,7 @@
 </head>
 
 <body id="app-body">
+    <h1 class="visually-hidden">Daily Garfield Comics - Browse Comic Strips in English &amp; Spanish</h1>
     <div class="logo">
         <img src="./garlogo.png" alt="Daily Garfield Comics" fetchpriority="high" loading="eager">
     </div>
