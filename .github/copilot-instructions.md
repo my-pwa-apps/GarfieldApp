@@ -77,8 +77,8 @@ const VERSION = 'v1.2.7';  // Current version - increment on changes
 ```
 
 ### Sitemap Maintenance
-- Update `sitemap.xml` `<lastmod>` when a deployment includes a meaningful site change.
-- Keep the sitemap date aligned with real app or metadata updates; do not change it only to appear fresh.
+- There is no lastmod date to update anymore because we use a simple `sitemap.txt` file instead of XML to avoid Search Console parsing bugs.
+- Only update `sitemap.txt` if new indexable pages are added.
 
 ### Testing Locally
 No build step. Any HTTP server works:
