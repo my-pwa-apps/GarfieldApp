@@ -77,7 +77,8 @@ const VERSION = 'v1.2.7';  // Current version - increment on changes
 ```
 
 ### Sitemap Maintenance
-- There is no lastmod date to update anymore because we use a simple `sitemap.txt` file instead of XML to avoid Search Console parsing bugs.
+- We maintain both a static `sitemap.xml` and a `sitemap.txt` as a fallback for Search Console parsing bugs.
+- Update `sitemap.xml` `<lastmod>` when a deployment includes a meaningful site change. Do not change it only to appear fresh.
 - Only update `sitemap.txt` if new indexable pages are added.
 
 ### Testing Locally
