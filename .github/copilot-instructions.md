@@ -76,6 +76,10 @@ Native touch events with rotation-awareness:
 const VERSION = 'v1.2.7';  // Current version - increment on changes
 ```
 
+### Sitemap Maintenance
+- Update `sitemap.xml` `<lastmod>` when a deployment includes a meaningful site change.
+- Keep the sitemap date aligned with real app or metadata updates; do not change it only to appear fresh.
+
 ### Testing Locally
 No build step. Any HTTP server works:
 ```powershell
