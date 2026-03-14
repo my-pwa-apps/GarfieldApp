@@ -1345,7 +1345,7 @@ input[type="date"]::-webkit-datetime-edit {
     border: 1px solid rgba(255, 255, 255, 0.1);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
-    z-index: 10000;
+    z-index: 11000;
     display: flex;
     align-items: center;
     gap: 12px;
