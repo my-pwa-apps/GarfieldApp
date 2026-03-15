@@ -1855,6 +1855,16 @@ async function loadComic(date, silentMode = false, direction = null) {
             
             const comicImg = document.getElementById('comic');
             const wrapper = document.getElementById('comic-wrapper');
+            const resizeRotatedComicWhenReady = (imgElement) => {
+                const resize = () => maximizeRotatedImage(imgElement);
+
+                if (imgElement.complete && imgElement.naturalWidth > 0) {
+                    resize();
+                    return;
+                }
+
+                imgElement.addEventListener('load', resize, { once: true });
+            };
             
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
@@ -1999,9 +2009,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                                     // Slide incoming comic to center
                                     rotatedComic.classList.remove(slideInClass);
                                     
-                                    rotatedComic.onload = function() {
-                                        maximizeRotatedImage(rotatedComic);
-                                    };
+                                    resizeRotatedComicWhenReady(rotatedComic);
                                     
                                     // Cleanup after animation
                                     setTimeout(() => {
@@ -2026,7 +2034,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                             
                             // When loaded, resize and blur out the clone
                             const startMorph = () => {
-                                maximizeRotatedImage(rotatedComic);
+                                resizeRotatedComicWhenReady(rotatedComic);
                                 
                                 // Blur out the old image (clone)
                                 requestAnimationFrame(() => {
