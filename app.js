@@ -1661,13 +1661,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         document.body.style.overflow = 'hidden';
         
         // Apply sizing when image is loaded
-        if (clonedComic.complete) {
-            maximizeRotatedImage(clonedComic);
-        } else {
-            clonedComic.onload = function() {
-                maximizeRotatedImage(clonedComic);
-            };
-        }
+        scheduleRotatedComicResize(clonedComic);
         
         // Hide all other elements
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
@@ -1785,13 +1779,38 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
 }
 
+function scheduleRotatedComicResize(imgElement) {
+    if (!imgElement) {
+        return;
+    }
+
+    const resize = () => {
+        if (imgElement.isConnected && imgElement.complete && imgElement.naturalWidth > 0) {
+            maximizeRotatedImage(imgElement);
+        }
+    };
+
+    if (imgElement.complete && imgElement.naturalWidth > 0) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resize);
+        });
+        return;
+    }
+
+    imgElement.addEventListener('load', () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resize);
+        });
+    }, { once: true });
+}
+
 /**
  * Handles resize and orientation changes in rotated view
  */
 function handleRotatedViewResize() {
     const rotatedComic = document.getElementById('rotated-comic');
     if (rotatedComic) {
-        maximizeRotatedImage(rotatedComic);
+        scheduleRotatedComicResize(rotatedComic);
     }
 }
 
@@ -1856,14 +1875,7 @@ async function loadComic(date, silentMode = false, direction = null) {
             const comicImg = document.getElementById('comic');
             const wrapper = document.getElementById('comic-wrapper');
             const resizeRotatedComicWhenReady = (imgElement) => {
-                const resize = () => maximizeRotatedImage(imgElement);
-
-                if (imgElement.complete && imgElement.naturalWidth > 0) {
-                    resize();
-                    return;
-                }
-
-                imgElement.addEventListener('load', resize, { once: true });
+                scheduleRotatedComicResize(imgElement);
             };
             
             // Animate transition - slide for next/previous, crossfade for other navigation
@@ -2216,6 +2228,8 @@ function initApp() {
                 if (isLandscape && !existingOverlay) {
                     // Device rotated to landscape - enter fullscreen WITHOUT rotation, NO click-to-exit
                     Rotate(false, false);
+                } else if (isLandscape && existingOverlay) {
+                    scheduleRotatedComicResize(document.getElementById('rotated-comic'));
                 } else if (!isLandscape && existingOverlay) {
                     // Device rotated back to portrait - exit fullscreen
                     Rotate(false, false);
