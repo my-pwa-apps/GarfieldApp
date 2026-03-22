@@ -17,7 +17,7 @@ const PRECACHE_ASSETS = [
   './init.js',
   './comicExtractor.js',
   './manifest.webmanifest',
-  './garlogo.png'
+  './garlogo.webp'
 ];
 
 /**
