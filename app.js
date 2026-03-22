@@ -1527,13 +1527,10 @@ function Addfav() {
     let dateToFavorite = formattedComicDate;
     
     // Detect timezone edge case:
-    // 1. Next comic URL is same as current (detected after navigation attempt)
-    // 2. OR: We're on "today" with Next/Last disabled and date picker shows today
-    //    (detected on initial load when local date is ahead of comic release)
-    const isTimezoneEdgeCase = (currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl) ||
-        (document.getElementById("Next")?.disabled && 
-         document.getElementById("Last")?.disabled &&
-         UTILS.isDisplayedDateToday());
+    // Next comic URL is same as current (detected by prefetch same-comic detection).
+    // This happens when the user's local time is ahead of Eastern Time and today's
+    // comic hasn't been released yet — the "next" comic is actually the same image.
+    const isTimezoneEdgeCase = currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl;
     
     if (isTimezoneEdgeCase) {
         // Timezone edge case: we're showing yesterday's comic on today's date
@@ -1646,7 +1643,7 @@ function handleTouchMove(e) {
     const deltaY = Math.abs(touch.clientY - touchStartY);
     
     // If horizontal swipe is more significant than vertical, prevent vertical scrolling
-    if (deltaX > deltaY && deltaX > 20) {
+    if (deltaX > deltaY && deltaX > 20 && e.cancelable) {
         e.preventDefault();
     }
 }
