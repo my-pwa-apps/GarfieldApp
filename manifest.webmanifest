@@ -507,9 +507,9 @@
   ],
   "screenshots": [
     {
-      "src": "./garscreenshot1.png",
+      "src": "./garscreenshot1.webp",
       "sizes": "1226x1290",
-      "type": "image/png"
+      "type": "image/webp"
     },
     {
       "src": "./screenshot2.webp",
