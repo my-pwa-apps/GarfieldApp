@@ -19,6 +19,13 @@ const CONFIG = Object.freeze({
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
     GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
     
+    // Windows Store review prompting
+    REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
+    REVIEW_MIN_DAYS: 3,                   // Days since first use before prompting
+    REVIEW_RETRY_DAYS: 60,                // Days to wait before re-prompting after a cancel
+    REVIEW_MAX_PROMPTS: 3,                // Stop asking after this many prompts
+    REVIEW_PROMPT_DELAY_MS: 45000,        // Delay after startup before showing the dialog
+
     // Storage keys
     STORAGE_KEYS: Object.freeze({
         FAVS: 'favs',
@@ -29,7 +36,8 @@ const CONFIG = Object.freeze({
         SPANISH: 'spanish',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
-        TOOLBAR_OPTIMAL: 'toolbarOptimal'
+        TOOLBAR_OPTIMAL: 'toolbarOptimal',
+        REVIEW: 'reviewData'
     })
 });
 
@@ -190,10 +198,35 @@ const UTILS = {
     },
 
     /**
+     * Check if connection is fast enough for prefetching
+     * Uses Network Information API when available, falls back to conservative default
+     * @returns {boolean} True if prefetching should be allowed
+     */
+    shouldPrefetch() {
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (!connection) return true; // API unavailable, allow prefetch by default
+
+        // Disable prefetch on save-data mode
+        if (connection.saveData) return false;
+
+        // Disable prefetch on slow connections (slow-2g, 2g)
+        const dominated = ['slow-2g', '2g'];
+        if (connection.effectiveType && dominated.includes(connection.effectiveType)) return false;
+
+        // Disable prefetch when downlink is very low (< 0.5 Mbps)
+        if (typeof connection.downlink === 'number' && connection.downlink < 0.5) return false;
+
+        return true;
+    },
+
+    /**
      * Preload adjacent comic images for faster navigation
+     * Skips prefetching on slow / metered connections
      * @param {Date} currentDate - Current comic date
      */
     preloadAdjacentComics(currentDate) {
+        if (!this.shouldPrefetch()) return;
+
         const language = this.isSpanishMode() ? 'es' : 'en';
         const startDate = this.isSpanishMode() 
             ? new Date(CONFIG.GARFIELD_START_ES) 
@@ -270,6 +303,79 @@ function getPrimaryComicElement() {
 }
 
 // ========================================
+// WINDOWS STORE REVIEW
+// ========================================
+
+/**
+ * Track the current session and schedule the store review prompt.
+ * Called immediately from initApp so the session count is always recorded,
+ * even if the user closes the app before the delayed prompt fires.
+ */
+function initStoreReview() {
+    // Increment session count right away
+    const now = new Date();
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
+    const data = UTILS.safeJSONParse(raw, {});
+
+    if (!data.firstUsed) data.firstUsed = now.toISOString();
+    data.sessionCount = (data.sessionCount || 0) + 1;
+    localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
+
+    // Schedule the eligibility check / prompt after the user has had a chance to use the app
+    setTimeout(requestStoreReview, CONFIG.REVIEW_PROMPT_DELAY_MS);
+}
+
+/**
+ * Check eligibility criteria and, if met, call the WinRT Store review API.
+ * Only runs when the app is installed from the Microsoft Store (WinRT context).
+ */
+async function requestStoreReview() {
+    // Only available in a packaged WinRT context (Windows Store PWA)
+    const storeNS = window?.Windows?.Services?.Store;
+    if (!storeNS?.StoreContext) return;
+
+    const now = new Date();
+    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
+    const data = UTILS.safeJSONParse(raw, {});
+
+    // Stop after maximum prompts
+    if ((data.promptCount || 0) >= CONFIG.REVIEW_MAX_PROMPTS) return;
+
+    // Not enough sessions yet
+    if ((data.sessionCount || 0) < CONFIG.REVIEW_MIN_SESSIONS) return;
+
+    // First use too recent
+    const daysSinceFirst = data.firstUsed
+        ? (now - new Date(data.firstUsed)) / 86400000
+        : 0;
+    if (daysSinceFirst < CONFIG.REVIEW_MIN_DAYS) return;
+
+    // Was prompted recently (user canceled last time)
+    if (data.lastPrompted) {
+        const daysSinceLast = (now - new Date(data.lastPrompted)) / 86400000;
+        if (daysSinceLast < CONFIG.REVIEW_RETRY_DAYS) return;
+    }
+
+    try {
+        const storeContext = storeNS.StoreContext.getDefault();
+        const result = await storeContext.requestRateAndReviewAppAsync();
+
+        data.lastPrompted = now.toISOString();
+        data.promptCount = (data.promptCount || 0) + 1;
+
+        // If the user actually submitted a review, stop prompting forever
+        const { StoreRateAndReviewStatus } = storeNS;
+        if (result?.status === StoreRateAndReviewStatus?.succeeded) {
+            data.promptCount = CONFIG.REVIEW_MAX_PROMPTS;
+        }
+
+        localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
+    } catch {
+        // Non-critical – silently ignore
+    }
+}
+
+// ========================================
 // TOUCH & SWIPE TRACKING VARIABLES
 // ========================================
 
@@ -292,12 +398,6 @@ let isVerticalFullscreen = false;
 // DRAGGABLE ELEMENT FUNCTIONALITY
 // ========================================
 
-/**
- * Generic draggable element maker
- * @param {HTMLElement} element - Element to make draggable
- * @param {HTMLElement} dragHandle - Element that triggers dragging (usually header)
- * @param {string} storageKey - localStorage key for saving position
- */
 /**
  * Persist the main toolbar position together with relative metadata (DirkJan pattern)
  * @param {number} top - Toolbar top position in px
@@ -1076,6 +1176,9 @@ function loadKofiWidget() {
     document.head.appendChild(script);
 }
 
+// Track active notification timer so re-invocations cancel the previous one
+let _notificationTimeout = null;
+
 /**
  * Show in-app notification toast
  */
@@ -1086,21 +1189,27 @@ function showNotification(message, duration = 5000) {
     
     if (!toast || !content) return;
     
+    // Clear any pending auto-hide from a previous notification
+    if (_notificationTimeout) {
+        clearTimeout(_notificationTimeout);
+        _notificationTimeout = null;
+    }
+    
     content.textContent = message;
     toast.classList.add('show');
     
     // Auto-hide after duration
-    const autoHideTimeout = setTimeout(() => {
+    _notificationTimeout = setTimeout(() => {
         hideNotification();
+        _notificationTimeout = null;
     }, duration);
     
     // Close button handler
-    const closeHandler = () => {
-        clearTimeout(autoHideTimeout);
+    closeBtn.onclick = () => {
+        clearTimeout(_notificationTimeout);
+        _notificationTimeout = null;
         hideNotification();
     };
-    
-    closeBtn.onclick = closeHandler;
 }
 
 /**
@@ -1244,23 +1353,19 @@ function translateInterface(lang) {
         datePicker.setAttribute('aria-label', t.selectDate);
     }
     
-    // Translate icon buttons (Settings, Favorites, Share)
-    const iconButtons = document.querySelectorAll('.icon-button');
-    iconButtons.forEach(btn => {
-        const onclickAttr = btn.getAttribute('onclick');
-        if (onclickAttr) {
-            if (onclickAttr.includes('HideSettings')) {
-                btn.title = t.settings;
-                btn.setAttribute('aria-label', t.settings);
-            } else if (onclickAttr.includes('Addfav')) {
-                btn.title = t.favorites;
-                btn.setAttribute('aria-label', t.favorites);
-            } else if (onclickAttr.includes('Share')) {
-                btn.title = t.share;
-                btn.setAttribute('aria-label', t.share);
-            }
+    // Translate icon buttons (Settings, Favorites, Share) by their known IDs
+    const iconButtonMap = {
+        settingsBtn: t.settings,
+        favheart: t.favorites,
+        shareBtn: t.share
+    };
+    for (const [id, tooltip] of Object.entries(iconButtonMap)) {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.title = tooltip;
+            btn.setAttribute('aria-label', tooltip);
         }
-    });
+    }
     
     // Translate install and support buttons
     const installBtn = document.getElementById('installBtn');
@@ -1458,14 +1563,6 @@ function Addfav() {
     showComic();
 }
 
-function changeComicImage(newSrc) {
-    const comic = document.getElementById('comic');
-    comic.classList.add('dissolve');
-    setTimeout(() => {
-        comic.src = newSrc;
-        comic.classList.remove('dissolve');
-    }, 500); // Match the duration of the CSS transition
-}
 
 function HideSettings(e) {
     // Prevent event from bubbling if called from event handler
@@ -1707,13 +1804,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         document.body.style.overflow = 'hidden';
         
         // Apply sizing when image is loaded
-        if (clonedComic.complete) {
-            maximizeRotatedImage(clonedComic);
-        } else {
-            clonedComic.onload = function() {
-                maximizeRotatedImage(clonedComic);
-            };
-        }
+        scheduleRotatedComicResize(clonedComic);
         
         // Hide all other elements
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
@@ -1831,20 +1922,40 @@ function maximizeRotatedImage(imgElement) {
     imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
 }
 
+function scheduleRotatedComicResize(imgElement) {
+    if (!imgElement) {
+        return;
+    }
+
+    const resize = () => {
+        if (imgElement.isConnected && imgElement.complete && imgElement.naturalWidth > 0) {
+            maximizeRotatedImage(imgElement);
+        }
+    };
+
+    if (imgElement.complete && imgElement.naturalWidth > 0) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resize);
+        });
+        return;
+    }
+
+    imgElement.addEventListener('load', () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(resize);
+        });
+    }, { once: true });
+}
+
 /**
  * Handles resize and orientation changes in rotated view
  */
 function handleRotatedViewResize() {
     const rotatedComic = document.getElementById('rotated-comic');
     if (rotatedComic) {
-        maximizeRotatedImage(rotatedComic);
+        scheduleRotatedComicResize(rotatedComic);
     }
 }
-
-// Expose Rotate function globally
-window.Rotate = Rotate;
-
-// Orientation change listener registered inline at end of file (DirkJan pattern)
 
 // Update the date display function to use regional date settings
 function updateDateDisplay() {
@@ -1906,6 +2017,9 @@ async function loadComic(date, silentMode = false, direction = null) {
             
             const comicImg = document.getElementById('comic');
             const wrapper = document.getElementById('comic-wrapper');
+            const resizeRotatedComicWhenReady = (imgElement) => {
+                scheduleRotatedComicResize(imgElement);
+            };
             
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
@@ -2050,9 +2164,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                                     // Slide incoming comic to center
                                     rotatedComic.classList.remove(slideInClass);
                                     
-                                    rotatedComic.onload = function() {
-                                        maximizeRotatedImage(rotatedComic);
-                                    };
+                                    resizeRotatedComicWhenReady(rotatedComic);
                                     
                                     // Cleanup after animation
                                     setTimeout(() => {
@@ -2077,7 +2189,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                             
                             // When loaded, resize and blur out the clone
                             const startMorph = () => {
-                                maximizeRotatedImage(rotatedComic);
+                                resizeRotatedComicWhenReady(rotatedComic);
                                 
                                 // Blur out the old image (clone)
                                 requestAnimationFrame(() => {
@@ -2124,7 +2236,7 @@ async function loadComic(date, silentMode = false, direction = null) {
         
         if (result.isPaywalled && !silentMode) {
             showPaywallMessage();
-            return false;
+            return { success: false, isSameComic: false };
         }
         
         throw new Error('Comic not available');
@@ -2179,15 +2291,15 @@ function showErrorMessage(message) {
 
 function initApp() {
     // Restore checkbox states from localStorage FIRST, before any code depends on them
-    const swipeStatus = localStorage.getItem('stat');
+    const swipeStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE);
     if (swipeStatus === null) {
         document.getElementById("swipe").checked = true;
-        localStorage.setItem('stat', "true");
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'true');
     } else {
         document.getElementById("swipe").checked = swipeStatus === "true";
     }
 
-    const showFavsStatus = localStorage.getItem('showfavs');
+    const showFavsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SHOW_FAVS);
     document.getElementById("showfavs").checked = showFavsStatus === "true";
 
     const lastDateStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_DATE);
@@ -2199,7 +2311,7 @@ function initApp() {
     }
 
     // Initialize Spanish language preference
-    const spanishStatus = localStorage.getItem('spanish');
+    const spanishStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH);
     const datePickerEl = document.getElementById('DatePicker');
     const userLang = navigator.language || navigator.userLanguage;
     const isSpanishLocale = userLang.startsWith('es');
@@ -2207,7 +2319,7 @@ function initApp() {
     let useSpanish = false;
     if (spanishStatus === null) {
         useSpanish = isSpanishLocale;
-        localStorage.setItem('spanish', useSpanish ? "true" : "false");
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, useSpanish ? 'true' : 'false');
     } else {
         useSpanish = spanishStatus === "true";
     }
@@ -2259,6 +2371,8 @@ function initApp() {
                 if (isLandscape && !existingOverlay) {
                     // Device rotated to landscape - enter fullscreen WITHOUT rotation, NO click-to-exit
                     Rotate(false, false);
+                } else if (isLandscape && existingOverlay) {
+                    scheduleRotatedComicResize(document.getElementById('rotated-comic'));
                 } else if (!isLandscape && existingOverlay) {
                     // Device rotated back to portrait - exit fullscreen
                     Rotate(false, false);
@@ -2287,7 +2401,7 @@ function initApp() {
     }
     // Tablet and Desktop: no rotation feature - they're already landscape-capable
 
-    var favs = UTILS.getFavorites();
+    const favs = UTILS.getFavorites();
 
     // Set minimum body height at load time to prevent gradient shift
     document.body.style.minHeight = "100vh";
@@ -2311,7 +2425,7 @@ function initApp() {
 
     if (view === 'favorites' && favs.length > 0) {
         document.getElementById("showfavs").checked = true;
-        localStorage.setItem('showfavs', "true");
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
         currentselectedDate = favs.length ? new Date(favs[0]) : UTILS.getEasternDate();
     } else if (action === 'random') {
         // Will trigger random after loading
@@ -2340,13 +2454,16 @@ function initApp() {
     // Also format today's date for other uses
     formatDate(UTILS.getEasternDate());
 
-    if (document.getElementById("lastdate").checked && localStorage.getItem('lastcomic') && !action && !view) {
-        currentselectedDate = new Date(localStorage.getItem('lastcomic'));
+    if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
+        currentselectedDate = new Date(localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC));
     }
     CompareDates();
     showComic();
     updateDateDisplay(); // Add this line to update the display
     updateExportButtonState(); // Enable/disable export button based on favorites
+
+    // Windows Store review: track session & schedule prompt
+    initStoreReview();
 }
 
 // Call initApp when DOM is ready
@@ -2395,7 +2512,12 @@ async function DateChange() {
     await showComic();
 }
 
-async function showComic(skipOnFailure = false, direction = null) {
+
+// Show comic for the current date, with optional auto-skip for unavailable dates
+async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
+    // Depth guard: prevent runaway recursion from same-comic detection
+    if (_depth > 10) return;
+
     formatDate(currentselectedDate);
     formattedComicDate = year + "/" + month + "/" + day;
     formattedDate = year + "-" + month + "-" + day;
@@ -2407,8 +2529,8 @@ async function showComic(skipOnFailure = false, direction = null) {
     UTILS.updateHeartIcon();
     
     // Save last viewed comic
-    if(document.getElementById("lastdate").checked) {
-        localStorage.setItem('lastcomic', currentselectedDate);
+    if (document.getElementById("lastdate").checked) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
     }
     
     // Load the comic (silent mode off for first attempt when not auto-skipping)
@@ -2422,14 +2544,14 @@ async function showComic(skipOnFailure = false, direction = null) {
             currentselectedDate.setDate(currentselectedDate.getDate() - 1);
             CompareDates();
             
-            // Check if we've reached the start boundary
+            // Check if we've reached the start boundary (depth-limited via the while loop below)
             if (!document.getElementById("Previous")?.disabled) {
                 formatDate(currentselectedDate);
                 formattedComicDate = year + "/" + month + "/" + day;
                 formattedDate = year + "-" + month + "-" + day;
                 document.getElementById("DatePicker").value = formattedDate;
                 updateDateDisplay();
-                await showComic(true, 'previous'); // Recursive call to continue backwards
+                await showComic(true, 'previous', _depth + 1);
             }
             return;
         } else if (direction === 'next') {
@@ -2625,7 +2747,16 @@ function importFavorites() {
                 }
                 
                 const currentFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-                const importedFavs = data.favorites;
+                // Validate that every entry is a valid date string (YYYY/MM/DD)
+                const datePattern = /^\d{4}\/\d{2}\/\d{2}$/;
+                const importedFavs = data.favorites.filter(entry =>
+                    typeof entry === 'string' && datePattern.test(entry) && !isNaN(new Date(entry).getTime())
+                );
+                
+                if (importedFavs.length === 0) {
+                    showNotification(t.invalidFavoritesFile, 4000);
+                    return;
+                }
                 
                 // Merge and deduplicate
                 const mergedFavs = [...new Set([...currentFavs, ...importedFavs])].sort();
@@ -2751,8 +2882,10 @@ function formatDate(datetoFormat) {
 // ========================================
 
 document.getElementById('swipe').addEventListener('change', function() {
-    localStorage.setItem('stat', this.checked ? 'true' : 'false');
-    if (!this.checked) {
+    if (this.checked) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'true');
+    } else {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'false');
         CompareDates();
         showComic();
     }
@@ -2765,12 +2898,12 @@ document.getElementById('lastdate').addEventListener('change', function() {
 document.getElementById('showfavs').addEventListener('change', function() {
     const favs = UTILS.getFavorites();
     if (this.checked) {
-        localStorage.setItem('showfavs', 'true');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
         if (favs.indexOf(formattedComicDate) === -1) {
             currentselectedDate = new Date(favs[0]);
         }
     } else {
-        localStorage.setItem('showfavs', 'false');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'false');
     }
     CompareDates();
     showComic();
@@ -2781,18 +2914,18 @@ if (spanishCheckbox) {
     spanishCheckbox.addEventListener('change', async function() {
         const isSpanish = this.checked;
         const datePicker = document.getElementById('DatePicker');
-        
+        const t = translations[isSpanish ? 'es' : 'en'];
+
         if (isSpanish) {
-            localStorage.setItem('spanish', 'true');
+            localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, 'true');
             translateInterface('es');
             document.documentElement.lang = 'es';
-            if (datePicker) datePicker.min = '1999-12-06';
-            
+            if (datePicker) datePicker.min = CONFIG.GARFIELD_START_ES;
+
             const spanishStartDate = new Date(CONFIG.GARFIELD_START_ES);
             const isBeforeStart = currentselectedDate < spanishStartDate;
-            
+
             if (isBeforeStart) {
-                const t = translations.es;
                 currentselectedDate = new Date();
                 showNotification(t.sundayNotAvailable, 6000);
                 CompareDates();
@@ -2800,9 +2933,7 @@ if (spanishCheckbox) {
             } else {
                 CompareDates();
                 const loadResult = await loadComic(currentselectedDate, true);
-                
                 if (!loadResult.success) {
-                    const t = translations.es;
                     currentselectedDate = new Date();
                     showNotification(t.sundayNotAvailable, 6000);
                     CompareDates();
@@ -2810,10 +2941,10 @@ if (spanishCheckbox) {
                 }
             }
         } else {
-            localStorage.setItem('spanish', 'false');
+            localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, 'false');
             translateInterface('en');
             document.documentElement.lang = 'en';
-            if (datePicker) datePicker.min = '1978-06-19';
+            if (datePicker) datePicker.min = CONFIG.GARFIELD_START_EN;
             CompareDates();
             showComic();
         }
@@ -2885,7 +3016,7 @@ function showFullsizeVertical(event) {
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, br');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
     const controlsDiv = document.querySelector('#controls-container');
     
     // Switch to fullscreen view
@@ -2898,13 +3029,9 @@ function showFullsizeVertical(event) {
     container.style.background = 'none';
     container.style.backgroundSize = '';
     
-    // Hide install button if present - use a more generic selector that will work
-    const installButtons = document.querySelectorAll('button');
-    installButtons.forEach(button => {
-        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-            button.style.display = 'none';
-        }
-    });
+    // Hide install button if present
+    const installBtn = document.getElementById('installBtn');
+    if (installBtn) installBtn.style.display = 'none';
     
     // Hide other UI elements
     elementsToHide.forEach(el => {
@@ -2935,7 +3062,7 @@ function exitFullsizeVertical(event) {
     
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, br');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
     const controlsDiv = document.querySelector('#controls-container');
     
     // Reset container background
@@ -2944,12 +3071,8 @@ function exitFullsizeVertical(event) {
     document.body.classList.remove('rotated-state');
     
     // Show install button again if present
-    const installButtons = document.querySelectorAll('button');
-    installButtons.forEach(button => {
-        if (button.innerText === 'Install App' || button.textContent === 'Install App') {
-            button.style.display = '';
-        }
-    });
+    const installBtnRestore = document.getElementById('installBtn');
+    if (installBtnRestore) installBtnRestore.style.display = '';
     
     // Switch back to thumbnail view
     comic.classList.remove('fullscreen-vertical');
@@ -3034,11 +3157,4 @@ function showInstallButton() {
   }
 }
 
-// Add status handling
-function setStatus(message) {
-    const comic = document.getElementById('comic');
-    if (comic) {
-        comic.alt = message;
-    }
-}
 

@@ -11,10 +11,12 @@ const MAX_RUNTIME_CACHE_SIZE = 30;
 const PRECACHE_ASSETS = [
   './',
   './index.html',
+  './offline.html',
   './main.css',
   './app.js',
   './init.js',
   './comicExtractor.js',
+  './manifest.webmanifest',
   './garlogo.png'
 ];
 
@@ -64,9 +66,16 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
-  if (url.origin !== location.origin) return;
-  
   const { destination } = event.request;
+  
+  // Cache-first with LRU eviction for images (including cross-origin GoComics images)
+  if (destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+    event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
+    return;
+  }
+  
+  // Only handle same-origin for other assets
+  if (url.origin !== location.origin) return;
   
   // Cache-first for app shell
   if (['document', 'style', 'script'].includes(destination) || url.pathname.endsWith('.svg')) {
@@ -118,8 +127,9 @@ async function cacheFirstWithLimit(request, cacheName, maxSize) {
   if (cachedResponse) return cachedResponse;
 
   try {
+    // For opaque responses (no-cors cross-origin images), status will be 0
     const networkResponse = await fetch(request);
-    if (networkResponse?.status === 200) {
+    if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
       const cache = await caches.open(cacheName);
       
       // LRU eviction

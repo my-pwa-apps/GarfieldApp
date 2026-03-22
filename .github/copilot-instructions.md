@@ -76,6 +76,11 @@ Native touch events with rotation-awareness:
 const VERSION = 'v1.2.7';  // Current version - increment on changes
 ```
 
+### Sitemap Maintenance
+- We maintain both a static `sitemap.xml` and a `sitemap.txt` as a fallback for Search Console parsing bugs.
+- Update `sitemap.xml` `<lastmod>` when a deployment includes a meaningful site change. Do not change it only to appear fresh.
+- Only update `sitemap.txt` if new indexable pages are added.
+
 ### Testing Locally
 No build step. Any HTTP server works:
 ```powershell

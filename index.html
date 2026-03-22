@@ -22,6 +22,10 @@
     <meta property="og:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
     <meta property="og:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://garfieldapp.pages.dev/">
+    <meta name="twitter:title" content="Daily Garfield Comics - English & Spanish">
+    <meta name="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta name="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
     
     <title>Daily Garfield Comics - English & Spanish</title>
     
@@ -37,6 +41,40 @@
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="canonical" href="https://garfieldapp.pages.dev">
+    <link rel="alternate" hreflang="en" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="es" href="https://garfieldapp.pages.dev/">
+    <link rel="alternate" hreflang="x-default" href="https://garfieldapp.pages.dev/">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Daily Garfield Comics",
+        "url": "https://garfieldapp.pages.dev/",
+        "description": "Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!",
+        "applicationCategory": "Entertainment",
+        "operatingSystem": "Any",
+        "inLanguage": ["en", "es"],
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "GarfieldApp"
+        },
+        "about": {
+            "@type": "ComicSeries",
+            "name": "Garfield",
+            "author": {
+                "@type": "Person",
+                "name": "Jim Davis"
+            }
+        }
+    }
+    </script>
     
     <!-- Styles and scripts -->
     <link rel="stylesheet" href="./main.css">
@@ -45,12 +83,13 @@
 </head>
 
 <body id="app-body">
+    <h1 class="visually-hidden">Daily Garfield Comics - Browse Comic Strips in English &amp; Spanish</h1>
     <div class="logo">
-        <img src="./garlogo.png" alt="Daily Garfield Comics">
+        <img src="./garlogo.png" alt="Daily Garfield Comics" fetchpriority="high" loading="eager">
     </div>
     
     <!-- Notification Toast -->
-    <div class="notification-toast" id="notificationToast">
+    <div class="notification-toast" id="notificationToast" role="alert" aria-live="assertive" aria-atomic="true">
         <svg class="notification-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>

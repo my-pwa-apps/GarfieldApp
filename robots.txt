@@ -2,4 +2,5 @@ User-Agent: *
 Allow: /
 
 Sitemap: https://garfieldapp.pages.dev/sitemap.xml
+Sitemap: https://garfieldapp.pages.dev/sitemap.txt
 
