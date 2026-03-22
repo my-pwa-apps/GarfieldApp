@@ -1245,6 +1245,23 @@ if (document.readyState === 'loading') {
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
 }
 
+// Keyboard navigation (arrow keys for prev/next)
+document.addEventListener('keydown', function(e) {
+    // Don't handle if user is typing in an input, textarea, or contenteditable
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+    // Don't handle if rotated/fullscreen mode (has its own handlers)
+    if (document.getElementById('comic-overlay')) return;
+    
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        PreviousClick();
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        NextClick();
+    }
+});
+
 // Translation dictionaries
 const translations = {
     en: {
@@ -1267,6 +1284,7 @@ const translations = {
         supportApp: 'Support this App',
         notifyNewComics: 'Notify me of new comics',
         sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
+        spanishNotAvailable: 'This comic is not available in Spanish. The date may be before the Spanish edition started (December 6, 1999), or the comic for this date does not exist.',
         exportFavorites: 'Export Favorites',
         importFavorites: 'Import Favorites',
         noFavoritesToExport: 'No favorites to export.',
@@ -1296,6 +1314,7 @@ const translations = {
         supportApp: 'Apoyar esta App',
         notifyNewComics: 'Notificar nuevos cómics',
         sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
+        spanishNotAvailable: 'Este cómic no está disponible en español. La fecha puede ser anterior al inicio de la edición en español (6 de diciembre de 1999), o el cómic para esta fecha no existe.',
         exportFavorites: 'Exportar Favoritos',
         importFavorites: 'Importar Favoritos',
         noFavoritesToExport: 'No hay favoritos para exportar.',
@@ -1534,8 +1553,6 @@ function Addfav() {
         favs = [];
     }
     
-    const heartBtn = document.getElementById("favheart");
-    const heartSvg = heartBtn?.querySelector('svg path');
     const showFavsCheckbox = document.getElementById("showfavs");
     
     const favIndex = favs.indexOf(dateToFavorite);
@@ -1543,12 +1560,10 @@ function Addfav() {
     if (favIndex === -1) {
         // Add to favorites
         favs.push(dateToFavorite);
-        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
         if (showFavsCheckbox) showFavsCheckbox.disabled = false;
     } else {
         // Remove from favorites
         favs.splice(favIndex, 1);
-        if (heartSvg) heartSvg.setAttribute('fill', 'none');
         
         if (favs.length === 0 && showFavsCheckbox) {
             showFavsCheckbox.checked = false;
@@ -1558,6 +1573,7 @@ function Addfav() {
     
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
+    UTILS.updateHeartIcon();
     updateExportButtonState();
     CompareDates();
     showComic();
@@ -1849,6 +1865,15 @@ function Rotate(applyRotation = true, clickToExit = true) {
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
         };
+        
+        // Escape key to exit fullscreen
+        const handleEscapeKey = function(e) {
+            if (e.key === 'Escape') {
+                exitFullscreen();
+                document.removeEventListener('keydown', handleEscapeKey);
+            }
+        };
+        document.addEventListener('keydown', handleEscapeKey);
         
         // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
         if (clickToExit) {
@@ -2254,14 +2279,25 @@ async function loadComic(date, silentMode = false, direction = null) {
 function showPaywallMessage() {
     const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
+    messageContainer.textContent = '';
     
-    messageContainer.innerHTML = daysDiff > 30
-        ? `<p><strong>Unable to load this archive comic</strong></p>
-           <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
-           <p>Try viewing more recent comics (last 30 days), which are free!</p>`
-        : `<p><strong>Unable to load this comic</strong></p>
-           <p>This recent comic should normally be free, but we're having trouble loading it.</p>
-           <p>Please try again later or try a different date.</p>`;
+    const title = document.createElement('p');
+    const strong = document.createElement('strong');
+    const body = document.createElement('p');
+    const hint = document.createElement('p');
+    
+    if (daysDiff > 30) {
+        strong.textContent = 'Unable to load this archive comic';
+        body.textContent = `This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.`;
+        hint.textContent = 'Try viewing more recent comics (last 30 days), which are free!';
+    } else {
+        strong.textContent = 'Unable to load this comic';
+        body.textContent = 'This recent comic should normally be free, but we\'re having trouble loading it.';
+        hint.textContent = 'Please try again later or try a different date.';
+    }
+    
+    title.appendChild(strong);
+    messageContainer.append(title, body, hint);
 }
 
 /**
@@ -2270,23 +2306,20 @@ function showPaywallMessage() {
  */
 function showErrorMessage(message) {
     const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    messageContainer.textContent = '';
     
-    messageContainer.innerHTML = isLocalhost
-        ? `<p><strong>Local Testing Mode</strong></p>
-           <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
-           <p><strong>Your authentication system is ready!</strong></p>
-           <ul style="text-align: left; max-width: 500px;">
-               <li>✓ Login/logout functionality implemented</li>
-               <li>✓ Paywall detection in place</li>
-               <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
-               <li>✓ Multiple CORS proxy fallback system</li>
-           </ul>
-           <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
-           <p>Try committing and pushing your changes to test on the live site!</p>`
-        : `<p><strong>Unable to Load Comic</strong></p>
-           <p>${message}</p>
-           <p>Please try again later or select a different date.</p>`;
+    const title = document.createElement('p');
+    const strong = document.createElement('strong');
+    strong.textContent = 'Unable to Load Comic';
+    title.appendChild(strong);
+    
+    const body = document.createElement('p');
+    body.textContent = message;
+    
+    const hint = document.createElement('p');
+    hint.textContent = 'Please try again later or select a different date.';
+    
+    messageContainer.append(title, body, hint);
 }
 
 function initApp() {
@@ -2341,7 +2374,7 @@ function initApp() {
     document.getElementById('shareBtn').addEventListener('click', Share);
     document.getElementById('exportFavs').addEventListener('click', exportFavorites);
     document.getElementById('importFavs').addEventListener('click', importFavorites);
-    document.getElementById('installBtn').addEventListener('click', () => { /* handled in showInstallButton */ });
+    // Install button click is handled in showInstallButton()
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
         document.getElementById('DatePicker').showPicker?.();
     });
@@ -2473,8 +2506,16 @@ if (document.readyState === 'loading') {
     initApp();
 }
 
+// Debounce timer for date changes
+let _dateChangeTimeout = null;
+
 // Call this function when the date changes
 async function DateChange() {
+    if (_dateChangeTimeout) clearTimeout(_dateChangeTimeout);
+    _dateChangeTimeout = setTimeout(() => _dateChangeImpl(), 300);
+}
+
+async function _dateChangeImpl() {
     const previousDate = new Date(currentselectedDate);
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = new Date(currentselectedDate.value);
@@ -2732,6 +2773,14 @@ function importFavorites() {
         const file = e.target.files[0];
         if (!file) return;
         
+        // Cap file size to prevent localStorage quota exhaustion (1MB max)
+        if (file.size > 1024 * 1024) {
+            const isSpanish = UTILS.isSpanishMode();
+            const t = translations[isSpanish ? 'es' : 'en'];
+            showNotification(t.invalidFavoritesFile, 4000);
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
@@ -2820,8 +2869,13 @@ function CompareDates() {
     const favs = UTILS.getFavorites();
     let startDate;
     if (document.getElementById('showfavs').checked) {
+        if (!favs.length) {
+            document.getElementById('showfavs').checked = false;
+            document.getElementById('showfavs').disabled = true;
+            localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'false');
+        }
         document.getElementById('DatePicker').disabled = true;
-        startDate = new Date(favs[0]);
+        startDate = favs.length ? new Date(favs[0]) : new Date();
     } else {
         document.getElementById('DatePicker').disabled = false;
         startDate = UTILS.isSpanishMode() ? new Date('1999/12/06') : new Date('1978/06/19');
@@ -2927,7 +2981,7 @@ if (spanishCheckbox) {
 
             if (isBeforeStart) {
                 currentselectedDate = new Date();
-                showNotification(t.sundayNotAvailable, 6000);
+                showNotification(t.spanishNotAvailable, 6000);
                 CompareDates();
                 showComic();
             } else {
@@ -2935,7 +2989,7 @@ if (spanishCheckbox) {
                 const loadResult = await loadComic(currentselectedDate, true);
                 if (!loadResult.success) {
                     currentselectedDate = new Date();
-                    showNotification(t.sundayNotAvailable, 6000);
+                    showNotification(t.spanishNotAvailable, 6000);
                     CompareDates();
                     showComic();
                 }
@@ -3049,6 +3103,16 @@ function showFullsizeVertical(event) {
     // Add click handler to exit fullscreen
     comic.addEventListener('click', exitFullsizeVertical);
     container.addEventListener('click', exitFullsizeVertical);
+    
+    // Escape key to exit vertical fullscreen
+    document.addEventListener('keydown', _verticalEscapeHandler);
+}
+
+function _verticalEscapeHandler(e) {
+    if (e.key === 'Escape') {
+        exitFullsizeVertical();
+        document.removeEventListener('keydown', _verticalEscapeHandler);
+    }
 }
 
 // Function to exit fullsize vertical comic view
@@ -3096,6 +3160,7 @@ function exitFullsizeVertical(event) {
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
     container.removeEventListener('click', exitFullsizeVertical);
+    document.removeEventListener('keydown', _verticalEscapeHandler);
 
     // Rebuild thumbnail view after exiting
     requestAnimationFrame(() => checkImageOrientation());
