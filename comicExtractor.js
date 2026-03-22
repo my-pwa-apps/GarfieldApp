@@ -11,8 +11,8 @@ const FETCH_TIMEOUT = 15000;
 
 // Performance tracking
 let workingProxyIndex = 0;
-let proxyFailureCount = [0, 0, 0];
-let proxyResponseTimes = [0, 0, 0];
+const proxyFailureCount = new Array(CORS_PROXIES.length).fill(0);
+const proxyResponseTimes = new Array(CORS_PROXIES.length).fill(0);
 
 /**
  * Gets the best performing proxy based on success rate and response time

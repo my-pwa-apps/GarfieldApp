@@ -50,6 +50,30 @@ const CONFIG = Object.freeze({
  */
 const UTILS = {
     /**
+     * Get current date in US Eastern Time (where GoComics releases comics)
+     * Comics are released around midnight ET, so this ensures consistent behavior globally
+     * @returns {Date} Current date adjusted to Eastern Time
+     */
+    getEasternDate() {
+        const now = new Date();
+        // Get Eastern Time string and parse it back to a Date
+        const etString = now.toLocaleString('en-US', { timeZone: 'America/New_York' });
+        return new Date(etString);
+    },
+
+    /**
+     * Get today's date string in Eastern Time (YYYY-MM-DD format)
+     * @returns {string} Today's date in ET as YYYY-MM-DD
+     */
+    getEasternTodayString() {
+        const etDate = this.getEasternDate();
+        const year = etDate.getFullYear();
+        const month = String(etDate.getMonth() + 1).padStart(2, '0');
+        const day = String(etDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+
+    /**
      * Safely parses JSON with fallback
      * @param {string} str - JSON string to parse
      * @param {*} fallback - Fallback value if parse fails
@@ -75,6 +99,17 @@ const UTILS = {
         const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         return isMobile || isTouch;
+    },
+
+    /**
+     * Check if the currently displayed date is today's date (Eastern Time)
+     * Uses Eastern Time since that's when GoComics releases new comics
+     * @returns {boolean} True if displayed date matches today in ET
+     */
+    isDisplayedDateToday() {
+        const etDate = this.getEasternDate();
+        const todayStr = `${etDate.getFullYear()}/${String(etDate.getMonth() + 1).padStart(2, '0')}/${String(etDate.getDate()).padStart(2, '0')}`;
+        return formattedComicDate === todayStr;
     },
 
     /**
@@ -129,8 +164,9 @@ const UTILS = {
                 lastFav.setHours(0, 0, 0, 0);
                 return current.getTime() < lastFav.getTime();
             } else {
-                // Normal mode: check if we're at today's date
-                const today = new Date();
+                // Normal mode: check if we're at today's date (Eastern Time)
+                // Use Eastern Time since comics are released based on ET
+                const today = this.getEasternDate();
                 today.setHours(0, 0, 0, 0);
                 return current.getTime() < today.getTime();
             }
@@ -195,7 +231,8 @@ const UTILS = {
         const startDate = this.isSpanishMode() 
             ? new Date(CONFIG.GARFIELD_START_ES) 
             : new Date(CONFIG.GARFIELD_START_EN);
-        const today = new Date();
+        // Use Eastern Time since comics are released based on ET
+        const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
         
         // Preload previous comic (if not before start date)
@@ -234,6 +271,17 @@ const UTILS = {
         } else {
             // Already at or past today, clear next comic URL
             nextComicUrl = "";
+        }
+    },
+
+    /**
+     * Update the favorite heart icon based on current comic date
+     */
+    updateHeartIcon() {
+        const favs = this.getFavorites();
+        const heartSvg = document.getElementById('favheart')?.querySelector('svg path');
+        if (heartSvg) {
+            heartSvg.setAttribute('fill', favs.includes(formattedComicDate) ? 'currentColor' : 'none');
         }
     },
 
@@ -503,6 +551,72 @@ function isInSnapZone(top, toolbar) {
     return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
 }
 
+/**
+ * Get bounding rectangles of elements the toolbar should not overlap
+ * @returns {Array<DOMRect>} Array of bounding rectangles
+ */
+function getProtectedElementRects() {
+    const selectors = ['.logo', '#comic-container', '#controls-container', '.settings-panel', '.copyright-footer', '#installBtn'];
+    const rects = [];
+    
+    for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el && el.offsetParent !== null) { // Check if visible
+            const rect = el.getBoundingClientRect();
+            // Only include if element has actual dimensions
+            if (rect.width > 0 && rect.height > 0) {
+                rects.push(rect);
+            }
+        }
+    }
+    return rects;
+}
+
+/**
+ * Check if a rectangle overlaps with any protected elements
+ * @param {number} top - Top position
+ * @param {number} left - Left position  
+ * @param {number} width - Element width
+ * @param {number} height - Element height
+ * @returns {{overlaps: boolean, suggestedTop: number}} Overlap status and suggested position
+ */
+function checkToolbarOverlap(top, left, width, height) {
+    const toolbarRect = {
+        top: top,
+        bottom: top + height,
+        left: left,
+        right: left + width
+    };
+    
+    const protectedRects = getProtectedElementRects();
+    let suggestedTop = top;
+    let overlaps = false;
+    
+    for (const rect of protectedRects) {
+        // Check for overlap (both must overlap horizontally AND vertically)
+        const horizontalOverlap = toolbarRect.left < rect.right && toolbarRect.right > rect.left;
+        const verticalOverlap = toolbarRect.top < rect.bottom && toolbarRect.bottom > rect.top;
+        
+        if (horizontalOverlap && verticalOverlap) {
+            overlaps = true;
+            // Find the nearest non-overlapping position (prefer moving down below the element)
+            const moveDown = rect.bottom + 10; // 10px gap
+            const moveUp = rect.top - height - 10;
+            
+            // Choose the direction that requires less movement
+            if (Math.abs(moveDown - top) < Math.abs(moveUp - top) && moveDown + height < window.innerHeight) {
+                suggestedTop = Math.max(suggestedTop, moveDown);
+            } else if (moveUp >= 0) {
+                suggestedTop = Math.min(suggestedTop === top ? moveUp : suggestedTop, moveUp);
+            } else {
+                suggestedTop = Math.max(suggestedTop, moveDown);
+            }
+        }
+    }
+    
+    return { overlaps, suggestedTop };
+}
+
 function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
@@ -558,6 +672,12 @@ function makeDraggable(element, dragHandle, storageKey) {
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             // Toolbar is ALWAYS horizontally centered - only vertical drag allowed
             newLeft = (window.innerWidth - width) / 2;
+            
+            // Check for overlap with protected elements and adjust position
+            const { overlaps, suggestedTop } = checkToolbarOverlap(newTop, newLeft, width, height);
+            if (overlaps) {
+                newTop = suggestedTop;
+            }
         } else {
             // For other elements (like settings panel), allow horizontal movement
             newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
@@ -1125,6 +1245,23 @@ if (document.readyState === 'loading') {
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
 }
 
+// Keyboard navigation (arrow keys for prev/next)
+document.addEventListener('keydown', function(e) {
+    // Don't handle if user is typing in an input, textarea, or contenteditable
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+    // Don't handle if rotated/fullscreen mode (has its own handlers)
+    if (document.getElementById('comic-overlay')) return;
+    
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        PreviousClick();
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        NextClick();
+    }
+});
+
 // Translation dictionaries
 const translations = {
     en: {
@@ -1147,6 +1284,7 @@ const translations = {
         supportApp: 'Support this App',
         notifyNewComics: 'Notify me of new comics',
         sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
+        spanishNotAvailable: 'This comic is not available in Spanish. The date may be before the Spanish edition started (December 6, 1999), or the comic for this date does not exist.',
         exportFavorites: 'Export Favorites',
         importFavorites: 'Import Favorites',
         noFavoritesToExport: 'No favorites to export.',
@@ -1176,6 +1314,7 @@ const translations = {
         supportApp: 'Apoyar esta App',
         notifyNewComics: 'Notificar nuevos cómics',
         sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
+        spanishNotAvailable: 'Este cómic no está disponible en español. La fecha puede ser anterior al inicio de la edición en español (6 de diciembre de 1999), o el cómic para esta fecha no existe.',
         exportFavorites: 'Exportar Favoritos',
         importFavorites: 'Importar Favoritos',
         noFavoritesToExport: 'No hay favoritos para exportar.',
@@ -1372,7 +1511,6 @@ async function Share() {
     }
 }
 
-
 /**
  * Add or remove comic from favorites
  */
@@ -1383,6 +1521,28 @@ function Addfav() {
         return;
     }
     
+    // Determine the actual date to use for favorites
+    // In timezone edge case (Europe ahead of US), the displayed date may not have a comic yet
+    // The current comic is actually from the previous day, so use that date instead
+    let dateToFavorite = formattedComicDate;
+    
+    // Detect timezone edge case:
+    // Next comic URL is same as current (detected by prefetch same-comic detection).
+    // This happens when the user's local time is ahead of Eastern Time and today's
+    // comic hasn't been released yet — the "next" comic is actually the same image.
+    const isTimezoneEdgeCase = currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl;
+    
+    if (isTimezoneEdgeCase) {
+        // Timezone edge case: we're showing yesterday's comic on today's date
+        // Calculate the previous day's date
+        const currentDate = new Date(formattedComicDate.replace(/\//g, '-'));
+        currentDate.setDate(currentDate.getDate() - 1);
+        const prevYear = currentDate.getFullYear();
+        const prevMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const prevDay = String(currentDate.getDate()).padStart(2, '0');
+        dateToFavorite = `${prevYear}/${prevMonth}/${prevDay}`;
+    }
+    
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     
     // Ensure favs is always an array
@@ -1390,21 +1550,17 @@ function Addfav() {
         favs = [];
     }
     
-    const heartBtn = document.getElementById("favheart");
-    const heartSvg = heartBtn?.querySelector('svg path');
     const showFavsCheckbox = document.getElementById("showfavs");
     
-    const favIndex = favs.indexOf(formattedComicDate);
+    const favIndex = favs.indexOf(dateToFavorite);
     
     if (favIndex === -1) {
         // Add to favorites
-        favs.push(formattedComicDate);
-        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
+        favs.push(dateToFavorite);
         if (showFavsCheckbox) showFavsCheckbox.disabled = false;
     } else {
         // Remove from favorites
         favs.splice(favIndex, 1);
-        if (heartSvg) heartSvg.setAttribute('fill', 'none');
         
         if (favs.length === 0 && showFavsCheckbox) {
             showFavsCheckbox.checked = false;
@@ -1414,6 +1570,7 @@ function Addfav() {
     
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
+    UTILS.updateHeartIcon();
     updateExportButtonState();
     CompareDates();
     showComic();
@@ -1451,7 +1608,6 @@ function HideSettings(e) {
     }
 }
 
-
 // ========================================
 // TOUCH & SWIPE HANDLING
 // ========================================
@@ -1487,7 +1643,7 @@ function handleTouchMove(e) {
     const deltaY = Math.abs(touch.clientY - touchStartY);
     
     // If horizontal swipe is more significant than vertical, prevent vertical scrolling
-    if (deltaX > deltaY && deltaX > 20) {
+    if (deltaX > deltaY && deltaX > 20 && e.cancelable) {
         e.preventDefault();
     }
 }
@@ -1706,6 +1862,15 @@ function Rotate(applyRotation = true, clickToExit = true) {
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
         };
+        
+        // Escape key to exit fullscreen
+        const handleEscapeKey = function(e) {
+            if (e.key === 'Escape') {
+                exitFullscreen();
+                document.removeEventListener('keydown', handleEscapeKey);
+            }
+        };
+        document.addEventListener('keydown', handleEscapeKey);
         
         // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
         if (clickToExit) {
@@ -2111,14 +2276,25 @@ async function loadComic(date, silentMode = false, direction = null) {
 function showPaywallMessage() {
     const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
+    messageContainer.textContent = '';
     
-    messageContainer.innerHTML = daysDiff > 30
-        ? `<p><strong>Unable to load this archive comic</strong></p>
-           <p>This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.</p>
-           <p>Try viewing more recent comics (last 30 days), which are free!</p>`
-        : `<p><strong>Unable to load this comic</strong></p>
-           <p>This recent comic should normally be free, but we're having trouble loading it.</p>
-           <p>Please try again later or try a different date.</p>`;
+    const title = document.createElement('p');
+    const strong = document.createElement('strong');
+    const body = document.createElement('p');
+    const hint = document.createElement('p');
+    
+    if (daysDiff > 30) {
+        strong.textContent = 'Unable to load this archive comic';
+        body.textContent = `This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.`;
+        hint.textContent = 'Try viewing more recent comics (last 30 days), which are free!';
+    } else {
+        strong.textContent = 'Unable to load this comic';
+        body.textContent = 'This recent comic should normally be free, but we\'re having trouble loading it.';
+        hint.textContent = 'Please try again later or try a different date.';
+    }
+    
+    title.appendChild(strong);
+    messageContainer.append(title, body, hint);
 }
 
 /**
@@ -2127,23 +2303,20 @@ function showPaywallMessage() {
  */
 function showErrorMessage(message) {
     const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    messageContainer.textContent = '';
     
-    messageContainer.innerHTML = isLocalhost
-        ? `<p><strong>Local Testing Mode</strong></p>
-           <p>The CORS proxies are currently not accessible from localhost. This is normal during local development.</p>
-           <p><strong>Your authentication system is ready!</strong></p>
-           <ul style="text-align: left; max-width: 500px;">
-               <li>✓ Login/logout functionality implemented</li>
-               <li>✓ Paywall detection in place</li>
-               <li>✓ Age-based comic access logic (recent = free, archive = paywalled)</li>
-               <li>✓ Multiple CORS proxy fallback system</li>
-           </ul>
-           <p>When deployed to <strong>garfieldapp.pages.dev</strong>, the app will work properly with your Cloudflare Worker proxy.</p>
-           <p>Try committing and pushing your changes to test on the live site!</p>`
-        : `<p><strong>Unable to Load Comic</strong></p>
-           <p>${message}</p>
-           <p>Please try again later or select a different date.</p>`;
+    const title = document.createElement('p');
+    const strong = document.createElement('strong');
+    strong.textContent = 'Unable to Load Comic';
+    title.appendChild(strong);
+    
+    const body = document.createElement('p');
+    body.textContent = message;
+    
+    const hint = document.createElement('p');
+    hint.textContent = 'Please try again later or select a different date.';
+    
+    messageContainer.append(title, body, hint);
 }
 
 function initApp() {
@@ -2198,7 +2371,7 @@ function initApp() {
     document.getElementById('shareBtn').addEventListener('click', Share);
     document.getElementById('exportFavs').addEventListener('click', exportFavorites);
     document.getElementById('importFavs').addEventListener('click', importFavorites);
-    document.getElementById('installBtn').addEventListener('click', () => { /* handled in showInstallButton */ });
+    // Install button click is handled in showInstallButton()
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
         document.getElementById('DatePicker').showPicker?.();
     });
@@ -2270,12 +2443,8 @@ function initApp() {
     // Add event listener to prevent emptying the date
     datePicker.addEventListener('change', function(e) {
         if (!this.value) {
-            // If cleared, reset to current date
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            this.value = `${yyyy}-${mm}-${dd}`;
+            // If cleared, reset to Eastern Time today (comic release timezone)
+            this.value = UTILS.getEasternTodayString();
         }
     });
 
@@ -2287,19 +2456,19 @@ function initApp() {
     if (view === 'favorites' && favs.length > 0) {
         document.getElementById("showfavs").checked = true;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
-        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        currentselectedDate = favs.length ? new Date(favs[0]) : UTILS.getEasternDate();
     } else if (action === 'random') {
         // Will trigger random after loading
         setTimeout(() => RandomClick(), 500);
-        currentselectedDate = new Date();
+        currentselectedDate = UTILS.getEasternDate();
     } else if (document.getElementById("showfavs").checked) {
-        currentselectedDate = favs.length ? new Date(favs[0]) : new Date();
+        currentselectedDate = favs.length ? new Date(favs[0]) : UTILS.getEasternDate();
         if (!favs.length) {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
         }
     } else {
-        currentselectedDate = new Date();
+        currentselectedDate = UTILS.getEasternDate();
         if (!favs.length) {
             document.getElementById("showfavs").checked = false;
             document.getElementById("showfavs").disabled = true;
@@ -2308,9 +2477,12 @@ function initApp() {
         document.getElementById("Last").disabled = true;
     }
     
-    formatDate(new Date());
-    let today = `${year}-${month}-${day}`;
-    document.getElementById("DatePicker").setAttribute("max", today);
+    // Use Eastern Time for date picker max since comics release based on ET
+    const etToday = UTILS.getEasternTodayString();
+    document.getElementById("DatePicker").setAttribute("max", etToday);
+    
+    // Also format today's date for other uses
+    formatDate(UTILS.getEasternDate());
 
     if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
         currentselectedDate = new Date(localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC));
@@ -2331,8 +2503,16 @@ if (document.readyState === 'loading') {
     initApp();
 }
 
+// Debounce timer for date changes
+let _dateChangeTimeout = null;
+
 // Call this function when the date changes
 async function DateChange() {
+    if (_dateChangeTimeout) clearTimeout(_dateChangeTimeout);
+    _dateChangeTimeout = setTimeout(() => _dateChangeImpl(), 300);
+}
+
+async function _dateChangeImpl() {
     const previousDate = new Date(currentselectedDate);
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = new Date(currentselectedDate.value);
@@ -2384,14 +2564,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     updateDateDisplay();
     
     // Check if date is in favorites
-    const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-    const heartBtn = document.getElementById("favheart");
-    const heartSvg = heartBtn?.querySelector('svg path');
-    if(favs && favs.indexOf(formattedComicDate) !== -1) {
-        if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
-    } else {
-        if (heartSvg) heartSvg.setAttribute('fill', 'none');
-    }
+    UTILS.updateHeartIcon();
     
     // Save last viewed comic
     if (document.getElementById("lastdate").checked) {
@@ -2473,15 +2646,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             
             const retryResult = await loadComic(currentselectedDate, true, direction);
             if (retryResult.success && !retryResult.isSameComic) {
-                // Update favorites heart status for the new date
-                const retryFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-                const heartBtn = document.getElementById("favheart");
-                const heartSvg = heartBtn?.querySelector('svg path');
-                if(retryFavs && retryFavs.indexOf(formattedComicDate) !== -1) {
-                    if (heartSvg) heartSvg.setAttribute('fill', 'currentColor');
-                } else {
-                    if (heartSvg) heartSvg.setAttribute('fill', 'none');
-                }
+                UTILS.updateHeartIcon();
                 return;
             }
         }
@@ -2493,7 +2658,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 }
 
 function PreviousClick() {
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         if (favs.indexOf(formattedComicDate) > 0) {
             currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);
@@ -2502,12 +2667,11 @@ function PreviousClick() {
         currentselectedDate.setDate(currentselectedDate.getDate() - 1);
     }
     CompareDates();
-    showComic(true, 'previous'); // Auto-skip unavailable comics going backwards
+    showComic(true, 'previous');
 }
 
-
 function NextClick() {
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         if (favs.indexOf(formattedComicDate) < favs.length - 1) {
             currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);
@@ -2516,25 +2680,24 @@ function NextClick() {
         currentselectedDate.setDate(currentselectedDate.getDate() + 1);
     }
     CompareDates();
-    showComic(true, 'next'); // Auto-skip unavailable comics going forward
+    showComic(true, 'next');
 }
 
-
 function FirstClick() {
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[0]);
     } else {
-        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-        currentselectedDate = UTILS.isSpanishMode() ? new Date(Date.UTC(1999, 11, 6, 12)) : new Date(Date.UTC(1978, 5, 19, 12));
+        currentselectedDate = UTILS.isSpanishMode()
+            ? new Date(Date.UTC(1999, 11, 6, 12))
+            : new Date(Date.UTC(1978, 5, 19, 12));
     }
     CompareDates();
     showComic();
 }
 
-
 function LastClick() {
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[favs.length - 1]);
     } else {
@@ -2543,7 +2706,6 @@ function LastClick() {
     CompareDates();
     showComic();
 }
-
 
 /**
  * Update export button state based on favorites existence
@@ -2592,11 +2754,10 @@ function exportFavorites() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    const plural = lang === 'es' ? (favs.length !== 1 ? 's' : '') : (favs.length !== 1 ? 's' : '');
+    const plural = favs.length !== 1 ? 's' : '';
     const message = t.exportedFavorites.replace('{count}', favs.length).replace('{plural}', plural);
     showNotification(message, 3000);
 }
-
 
 /**
  * Import favorites from uploaded JSON file
@@ -2608,6 +2769,14 @@ function importFavorites() {
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        
+        // Cap file size to prevent localStorage quota exhaustion (1MB max)
+        if (file.size > 1024 * 1024) {
+            const isSpanish = UTILS.isSpanishMode();
+            const t = translations[isSpanish ? 'es' : 'en'];
+            showNotification(t.invalidFavoritesFile, 4000);
+            return;
+        }
         
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -2642,7 +2811,7 @@ function importFavorites() {
                 
                 const newCount = mergedFavs.length - currentFavs.length;
                 if (newCount > 0) {
-                    const plural = lang === 'es' ? (newCount !== 1 ? 's' : '') : (newCount !== 1 ? 's' : '');
+                    const plural = newCount !== 1 ? 's' : '';
                     const message = t.importedFavorites
                         .replace('{count}', newCount)
                         .replace(/{plural}/g, plural)
@@ -2680,73 +2849,74 @@ function importFavorites() {
     fileInput.click();
 }
 
-
 function RandomClick() {
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
     } else {
-        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-        const start = UTILS.isSpanishMode() ? new Date("1999-12-06") : new Date("1978-06-19");
-        let end = new Date();
+        const start = UTILS.isSpanishMode() ? new Date('1999-12-06') : new Date('1978-06-19');
+        const end = new Date();
         currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
     }
     CompareDates();
     showComic();
 }
 
-
 function CompareDates() {
     const favs = UTILS.getFavorites();
     let startDate;
-    if (document.getElementById("showfavs").checked) {
-        document.getElementById("DatePicker").disabled = true;
-        startDate = new Date(favs[0]);
-    } else {    
-        document.getElementById("DatePicker").disabled = false;
-        // Spanish comics start on December 6, 1999; English comics start on June 19, 1978
-        startDate = UTILS.isSpanishMode() ? new Date("1999/12/06") : new Date("1978/06/19");
+    if (document.getElementById('showfavs').checked) {
+        if (!favs.length) {
+            document.getElementById('showfavs').checked = false;
+            document.getElementById('showfavs').disabled = true;
+            localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'false');
+        }
+        document.getElementById('DatePicker').disabled = true;
+        startDate = favs.length ? new Date(favs[0]) : new Date();
+    } else {
+        document.getElementById('DatePicker').disabled = false;
+        startDate = UTILS.isSpanishMode() ? new Date('1999/12/06') : new Date('1978/06/19');
     }
     startDate = startDate.setHours(0, 0, 0, 0);
     currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
     startDate = new Date(startDate);
     currentselectedDate = new Date(currentselectedDate);
     if (currentselectedDate.getTime() <= startDate.getTime()) {
-        document.getElementById("Previous").disabled = true;
-        document.getElementById("First").disabled = true;
+        document.getElementById('Previous').disabled = true;
+        document.getElementById('First').disabled = true;
         formatDate(startDate);
         startDate = year + '-' + month + '-' + day;
         currentselectedDate = new Date(Date.UTC(year, month - 1, day, 12));
     } else {
-        document.getElementById("Previous").disabled = false;
-        document.getElementById("First").disabled = false;
+        document.getElementById('Previous').disabled = false;
+        document.getElementById('First').disabled = false;
     }
     let endDate;
-    if (document.getElementById("showfavs").checked) {
+    if (document.getElementById('showfavs').checked) {
         endDate = new Date(favs[favs.length - 1]);
-    } else { 
+    } else {
         endDate = new Date();
     }
     endDate = endDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDate);
     if (currentselectedDate.getTime() >= endDate.getTime()) {
-        document.getElementById("Next").disabled = true;
-        document.getElementById("Last").disabled = true;
+        document.getElementById('Next').disabled = true;
+        document.getElementById('Last').disabled = true;
         formatDate(endDate);
         endDate = year + '-' + month + '-' + day;
         currentselectedDate = new Date(Date.UTC(year, month - 1, day, 12));
     } else {
-        document.getElementById("Next").disabled = false;
-        document.getElementById("Last").disabled = false;
+        document.getElementById('Next').disabled = false;
+        document.getElementById('Last').disabled = false;
     }
-    if (document.getElementById("showfavs").checked) {
-        if (favs.length == 1) {
-            document.getElementById("Random").disabled = true;
-            document.getElementById("Previous").disabled = true;
-            document.getElementById("First").disabled = true;
+    if (document.getElementById('showfavs').checked) {
+        if (favs.length === 1) {
+            document.getElementById('Random').disabled = true;
+            document.getElementById('Previous').disabled = true;
+            document.getElementById('First').disabled = true;
         }
     } else {
-        document.getElementById("Random").disabled = false;
+        document.getElementById('Random').disabled = false;
     }
 }
 
@@ -2808,7 +2978,7 @@ if (spanishCheckbox) {
 
             if (isBeforeStart) {
                 currentselectedDate = new Date();
-                showNotification(t.sundayNotAvailable, 6000);
+                showNotification(t.spanishNotAvailable, 6000);
                 CompareDates();
                 showComic();
             } else {
@@ -2816,7 +2986,7 @@ if (spanishCheckbox) {
                 const loadResult = await loadComic(currentselectedDate, true);
                 if (!loadResult.success) {
                     currentselectedDate = new Date();
-                    showNotification(t.sundayNotAvailable, 6000);
+                    showNotification(t.spanishNotAvailable, 6000);
                     CompareDates();
                     showComic();
                 }
@@ -2831,8 +3001,6 @@ if (spanishCheckbox) {
         }
     });
 }
-
-// Notification feature removed - only worked when app was open
 
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
@@ -2932,6 +3100,16 @@ function showFullsizeVertical(event) {
     // Add click handler to exit fullscreen
     comic.addEventListener('click', exitFullsizeVertical);
     container.addEventListener('click', exitFullsizeVertical);
+    
+    // Escape key to exit vertical fullscreen
+    document.addEventListener('keydown', _verticalEscapeHandler);
+}
+
+function _verticalEscapeHandler(e) {
+    if (e.key === 'Escape') {
+        exitFullsizeVertical();
+        document.removeEventListener('keydown', _verticalEscapeHandler);
+    }
 }
 
 // Function to exit fullsize vertical comic view
@@ -2979,6 +3157,7 @@ function exitFullsizeVertical(event) {
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
     container.removeEventListener('click', exitFullsizeVertical);
+    document.removeEventListener('keydown', _verticalEscapeHandler);
 
     // Rebuild thumbnail view after exiting
     requestAnimationFrame(() => checkImageOrientation());
