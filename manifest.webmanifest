@@ -1,7 +1,7 @@
 {
   "id": "/",
   "name": "Daily Garfield Comics",
-  "description": "View daily Garfield comic strips in English and Spanish. Navigate through comics, save favorites, and enjoy the classic cat!",
+  "description": "View daily Garfield comic strips. Navigate through comics, save favorites, and enjoy the classic cat!",
   "short_name": "Garfield",
   "start_url": "/",
   "display": "standalone",

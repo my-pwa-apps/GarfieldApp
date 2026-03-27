@@ -1365,3 +1365,51 @@ input[type="date"]::-webkit-datetime-edit {
 .copyright-footer a:hover {
     text-decoration: underline;
 }
+
+/* ----- One-time source-change notice modal ----- */
+.notice-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.notice-overlay.hidden {
+    display: none;
+}
+
+.notice-modal {
+    background: #fffdf0;
+    border-radius: 14px;
+    padding: 28px 24px 20px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    text-align: center;
+    border: 2px solid #eee239;
+}
+
+.notice-modal h2 {
+    margin: 0 0 14px;
+    font-size: 1.15rem;
+    color: #222;
+}
+
+.notice-modal p {
+    margin: 0 0 12px;
+    color: #444;
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+.notice-modal .button {
+    margin: 8px auto 0;
+    display: inline-block;
+    min-width: 120px;
+}

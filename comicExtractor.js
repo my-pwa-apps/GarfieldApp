@@ -114,84 +114,78 @@ async function fetchWithProxyFallback(url) {
 }
 
 /**
- * Fetches authenticated comic from GoComics
+ * Fetches daily Garfield comic from ArcaMax.
+ * Tries a date-based URL first; falls back to the landing page for today's date.
  * @param {Date} date - Date of the comic
- * @param {string} language - Language code ('en' or 'es')
- * @returns {Promise<{success: boolean, imageUrl: string|null, isPaywalled?: boolean, notFound?: boolean}>}
+ * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
-export async function getAuthenticatedComic(date, language = 'en') {
+export async function getAuthenticatedComic(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    
-    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
-    const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
-    
+
+    const dateUrl = `https://www.arcamax.com/thefunnies/garfield/${year}/${month}/${day}`;
+
+    // Determine if this is today in Eastern Time (ArcaMax always has today on the landing page)
+    const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const isToday = year === etNow.getFullYear() &&
+                    parseInt(month, 10) === (etNow.getMonth() + 1) &&
+                    parseInt(day, 10) === etNow.getDate();
+
     try {
-        // Try direct fetch first
-        const directResponse = await fetch(url, {
-            signal: AbortSignal.timeout(10000),
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'default'
-        }).catch(() => null);
-        
-        if (directResponse?.ok) {
-            const html = await directResponse.text();
-            const imageUrl = extractImageFromHTML(html);
-            
-            if (imageUrl) {
-                return { success: true, imageUrl };
-            }
-        }
-        
-        // Fallback to proxy
-        const html = await fetchWithProxyFallback(url);
-        
-        // Check for 404
-        if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
+        const html = await fetchWithProxyFallback(dateUrl);
+
+        if (html.includes('404: Page Not Found') || html.includes('Page Not Found')) {
+            if (isToday) return fetchCurrentStrip();
             return { success: false, imageUrl: null, notFound: true };
         }
-        
+
         const imageUrl = extractImageFromHTML(html);
-        
-        if (imageUrl) {
-            // Proxy fetch succeeded
-            return { success: true, imageUrl };
-        }
-        
-        console.warn(`No image extracted (HTML length: ${html.length})`);
+        if (imageUrl) return { success: true, imageUrl };
+
+        // Date URL returned a page but no recognisable image — try landing page for today
+        if (isToday) return fetchCurrentStrip();
+
+        console.warn(`No image extracted from ArcaMax (HTML length: ${html.length})`);
         return { success: false, imageUrl: null };
     } catch (error) {
         console.error('Comic fetch failed:', error);
+        if (isToday) {
+            try { return await fetchCurrentStrip(); } catch { /* ignore */ }
+        }
         return { success: false, imageUrl: null };
     }
 }
 
 /**
- * Extracts comic image URL from GoComics HTML
- * @param {string} html - HTML content from GoComics
+ * Fetches today's strip from the ArcaMax Garfield landing page.
+ * @returns {Promise<{success: boolean, imageUrl: string|null}>}
+ */
+async function fetchCurrentStrip() {
+    try {
+        const html = await fetchWithProxyFallback('https://www.arcamax.com/thefunnies/garfield/');
+        const imageUrl = extractImageFromHTML(html);
+        if (imageUrl) return { success: true, imageUrl };
+        return { success: false, imageUrl: null };
+    } catch {
+        return { success: false, imageUrl: null };
+    }
+}
+
+/**
+ * Extracts the Garfield comic image URL from ArcaMax HTML.
+ * @param {string} html - HTML content from ArcaMax
  * @returns {string|null} Comic image URL or null
  */
 function extractImageFromHTML(html) {
-    // Try featureassets CDN (current)
-    let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
+    // Primary: direct resources.arcamax.com/newspics URL in any attribute or text
+    let match = html.match(/https:\/\/resources\.arcamax\.com\/newspics\/[^"'\s<>]+/);
     if (match) return match[0];
-    
-    // Try amuniversal CDN (legacy)
-    match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
-    if (match) return match[0];
-    
-    // Try og:image meta tag
+
+    // Fallback: og:image meta tag
     match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-    if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
-        return match[1];
-    }
-    
-    // Fallback to picture tag
-    match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-    if (match && match[1]) return match[1];
-    
+    if (match && match[1] && match[1].includes('arcamax')) return match[1];
+
     return null;
 }
 

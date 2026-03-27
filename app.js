@@ -17,7 +17,6 @@ const CONFIG = Object.freeze({
     
     // Comic dates
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
-    GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
     
     // Windows Store review prompting
     REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
@@ -33,7 +32,6 @@ const CONFIG = Object.freeze({
         SWIPE: 'stat',
         SHOW_FAVS: 'showfavs',
         LAST_DATE: 'lastdate',
-        SPANISH: 'spanish',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
@@ -121,14 +119,6 @@ const UTILS = {
     },
 
     /**
-     * Check if Spanish mode is enabled
-     * @returns {boolean} True if Spanish checkbox is checked
-     */
-    isSpanishMode() {
-        return document.getElementById('spanish')?.checked || false;
-    },
-
-    /**
      * Check if navigation is allowed in a given direction
      * @param {string} direction - 'next' or 'previous'
      * @returns {boolean} True if navigation is allowed
@@ -150,9 +140,7 @@ const UTILS = {
                 return current.getTime() > firstFav.getTime();
             } else {
                 // Normal mode: check if we're at the first comic date
-                const startDate = this.isSpanishMode() 
-                    ? new Date(CONFIG.GARFIELD_START_ES) 
-                    : new Date(CONFIG.GARFIELD_START_EN);
+                const startDate = new Date(CONFIG.GARFIELD_START_EN);
                 startDate.setHours(0, 0, 0, 0);
                 return current.getTime() > startDate.getTime();
             }
@@ -227,10 +215,7 @@ const UTILS = {
     preloadAdjacentComics(currentDate) {
         if (!this.shouldPrefetch()) return;
 
-        const language = this.isSpanishMode() ? 'es' : 'en';
-        const startDate = this.isSpanishMode() 
-            ? new Date(CONFIG.GARFIELD_START_ES) 
-            : new Date(CONFIG.GARFIELD_START_EN);
+        const startDate = new Date(CONFIG.GARFIELD_START_EN);
         // Use Eastern Time since comics are released based on ET
         const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
@@ -239,7 +224,7 @@ const UTILS = {
         const prevDate = new Date(currentDate);
         prevDate.setDate(prevDate.getDate() - 1);
         if (prevDate >= startDate) {
-            getAuthenticatedComic(prevDate, language).then(result => {
+            getAuthenticatedComic(prevDate).then(result => {
                 if (result.success && result.imageUrl) {
                     const img = new Image();
                     img.src = result.imageUrl;
@@ -251,7 +236,7 @@ const UTILS = {
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
         if (nextDate <= today) {
-            getAuthenticatedComic(nextDate, language).then(result => {
+            getAuthenticatedComic(nextDate).then(result => {
                 if (result.success && result.imageUrl) {
                     const img = new Image();
                     img.src = result.imageUrl;
@@ -1262,7 +1247,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// Translation dictionaries
+// Translation dictionary
 const translations = {
     en: {
         previous: 'Previous',
@@ -1274,7 +1259,6 @@ const translations = {
         swipeEnabled: 'Swipe enabled',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
-        spanish: 'Spanish / Español',
         loadingComic: 'Loading comic...',
         settings: 'Settings',
         favorites: 'Add to favorites',
@@ -1283,8 +1267,6 @@ const translations = {
         installApp: 'Install App',
         supportApp: 'Support this App',
         notifyNewComics: 'Notify me of new comics',
-        sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
-        spanishNotAvailable: 'This comic is not available in Spanish. The date may be before the Spanish edition started (December 6, 1999), or the comic for this date does not exist.',
         exportFavorites: 'Export Favorites',
         importFavorites: 'Import Favorites',
         noFavoritesToExport: 'No favorites to export.',
@@ -1293,36 +1275,6 @@ const translations = {
         allFavoritesExist: 'All favorites already exist.',
         invalidFavoritesFile: 'Invalid favorites file format.',
         errorReadingFile: 'Error reading favorites file.'
-    },
-    es: {
-        previous: 'Anterior',
-        random: 'Aleatorio',
-        next: 'Siguiente',
-        first: 'Primero',
-        today: 'Hoy',
-        last: 'Último',
-        swipeEnabled: 'Deslizar habilitado',
-        showFavorites: 'Mostrar solo mis favoritos',
-        rememberComic: 'Recordar último cómic al salir/actualizar',
-        spanish: 'Spanish / Español',
-        loadingComic: 'Cargando cómic...',
-        settings: 'Configuración',
-        favorites: 'Agregar a favoritos',
-        share: 'Compartir',
-        selectDate: 'Seleccionar fecha del cómic',
-        installApp: 'Instalar App',
-        supportApp: 'Apoyar esta App',
-        notifyNewComics: 'Notificar nuevos cómics',
-        sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
-        spanishNotAvailable: 'Este cómic no está disponible en español. La fecha puede ser anterior al inicio de la edición en español (6 de diciembre de 1999), o el cómic para esta fecha no existe.',
-        exportFavorites: 'Exportar Favoritos',
-        importFavorites: 'Importar Favoritos',
-        noFavoritesToExport: 'No hay favoritos para exportar.',
-        exportedFavorites: '{count} favorito{plural} exportado{plural}.',
-        importedFavorites: '{count} favorito{plural} nuevo{plural} importado{plural}. Total: {total}',
-        allFavoritesExist: 'Todos los favoritos ya existen.',
-        invalidFavoritesFile: 'Formato de archivo de favoritos no válido.',
-        errorReadingFile: 'Error al leer el archivo de favoritos.'
     }
 };
 
@@ -1338,7 +1290,6 @@ function translateInterface(lang) {
         'swipe': t.swipeEnabled,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
-        'spanish': t.spanish,
         'notifications': t.notifyNewComics
     };
     
@@ -2025,10 +1976,7 @@ function updateDateDisplay() {
  */
 async function loadComic(date, silentMode = false, direction = null) {
     try {
-        const useSpanish = UTILS.isSpanishMode();
-        const language = useSpanish ? 'es' : 'en';
-        
-        const result = await getAuthenticatedComic(date, language);
+        const result = await getAuthenticatedComic(date);
         
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
@@ -2340,23 +2288,10 @@ function initApp() {
         document.getElementById("lastdate").checked = lastDateStatus === "true";
     }
 
-    // Initialize Spanish language preference
-    const spanishStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH);
+    // Initialize interface language
+    translateInterface('en');
     const datePickerEl = document.getElementById('DatePicker');
-    const userLang = navigator.language || navigator.userLanguage;
-    const isSpanishLocale = userLang.startsWith('es');
-
-    let useSpanish = false;
-    if (spanishStatus === null) {
-        useSpanish = isSpanishLocale;
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, useSpanish ? 'true' : 'false');
-    } else {
-        useSpanish = spanishStatus === "true";
-    }
-
-    document.getElementById("spanish").checked = useSpanish;
-    translateInterface(useSpanish ? 'es' : 'en');
-    if (datePickerEl) datePickerEl.min = useSpanish ? "1999-12-06" : "1978-06-19";
+    if (datePickerEl) datePickerEl.min = CONFIG.GARFIELD_START_EN;
 
     // Add event listeners
     document.getElementById('First').addEventListener('click', FirstClick);
@@ -2494,6 +2429,24 @@ function initApp() {
 
     // Windows Store review: track session & schedule prompt
     initStoreReview();
+
+    // Show one-time notice about GoComics source change
+    showGoComicsNotice();
+}
+
+/**
+ * Show a one-time modal informing users that GoComics added bot protection
+ * and that comics are now sourced from ArcaMax.
+ */
+function showGoComicsNotice() {
+    if (localStorage.getItem('sourceNotice_v1')) return;
+    const overlay = document.getElementById('sourceNoticeOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    document.getElementById('sourceNoticeClose').addEventListener('click', () => {
+        overlay.classList.add('hidden');
+        localStorage.setItem('sourceNotice_v1', '1');
+    }, { once: true });
 }
 
 // Call initApp when DOM is ready
@@ -2513,40 +2466,10 @@ async function DateChange() {
 }
 
 async function _dateChangeImpl() {
-    const previousDate = new Date(currentselectedDate);
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = new Date(currentselectedDate.value);
     updateDateDisplay();
     CompareDates();
-    
-    // Check if user selected a Sunday in Spanish mode
-    const isSpanish = UTILS.isSpanishMode();
-    const isSunday = currentselectedDate.getDay() === 0;
-    
-    if (isSpanish && isSunday) {
-        // Try to load the comic
-        formatDate(currentselectedDate);
-        formattedComicDate = year + "/" + month + "/" + day;
-        formattedDate = year + "-" + month + "-" + day;
-        document.getElementById("DatePicker").value = formattedDate;
-        
-        const result = await loadComic(currentselectedDate, true);
-        
-        if (!result.success) {
-            // Comic doesn't exist, show notification and revert to previous date
-            const currentLang = isSpanish ? 'es' : 'en';
-            const message = translations[currentLang].sundayNotAvailable;
-            showNotification(message, 6000);
-            currentselectedDate = previousDate;
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
-            document.getElementById("DatePicker").value = formattedDate;
-            updateDateDisplay();
-            return;
-        }
-    }
-    
     await showComic();
 }
 
@@ -2688,9 +2611,7 @@ function FirstClick() {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[0]);
     } else {
-        currentselectedDate = UTILS.isSpanishMode()
-            ? new Date(Date.UTC(1999, 11, 6, 12))
-            : new Date(Date.UTC(1978, 5, 19, 12));
+        currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
     }
     CompareDates();
     showComic();
@@ -2728,9 +2649,7 @@ function exportFavorites() {
     if (exportBtn?.disabled) return;
     
     const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-    const isSpanish = UTILS.isSpanishMode();
-    const lang = isSpanish ? 'es' : 'en';
-    const t = translations[lang];
+    const t = translations.en;
     
     if (!favs || favs.length === 0) {
         // Update button state in case it wasn't properly disabled
@@ -2772,9 +2691,7 @@ function importFavorites() {
         
         // Cap file size to prevent localStorage quota exhaustion (1MB max)
         if (file.size > 1024 * 1024) {
-            const isSpanish = UTILS.isSpanishMode();
-            const t = translations[isSpanish ? 'es' : 'en'];
-            showNotification(t.invalidFavoritesFile, 4000);
+            showNotification(translations.en.invalidFavoritesFile, 4000);
             return;
         }
         
@@ -2783,9 +2700,7 @@ function importFavorites() {
             try {
                 const data = JSON.parse(event.target.result);
                 
-                const isSpanish = UTILS.isSpanishMode();
-                const lang = isSpanish ? 'es' : 'en';
-                const t = translations[lang];
+                const t = translations.en;
                 
                 if (!data.favorites || !Array.isArray(data.favorites)) {
                     showNotification(t.invalidFavoritesFile, 4000);
@@ -2854,7 +2769,7 @@ function RandomClick() {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
     } else {
-        const start = UTILS.isSpanishMode() ? new Date('1999-12-06') : new Date('1978-06-19');
+        const start = new Date('1978-06-19');
         const end = new Date();
         currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
     }
@@ -2875,7 +2790,7 @@ function CompareDates() {
         startDate = favs.length ? new Date(favs[0]) : new Date();
     } else {
         document.getElementById('DatePicker').disabled = false;
-        startDate = UTILS.isSpanishMode() ? new Date('1999/12/06') : new Date('1978/06/19');
+        startDate = new Date('1978/06/19');
     }
     startDate = startDate.setHours(0, 0, 0, 0);
     currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
@@ -2959,48 +2874,6 @@ document.getElementById('showfavs').addEventListener('change', function() {
     CompareDates();
     showComic();
 });
-
-const spanishCheckbox = document.getElementById('spanish');
-if (spanishCheckbox) {
-    spanishCheckbox.addEventListener('change', async function() {
-        const isSpanish = this.checked;
-        const datePicker = document.getElementById('DatePicker');
-        const t = translations[isSpanish ? 'es' : 'en'];
-
-        if (isSpanish) {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, 'true');
-            translateInterface('es');
-            document.documentElement.lang = 'es';
-            if (datePicker) datePicker.min = CONFIG.GARFIELD_START_ES;
-
-            const spanishStartDate = new Date(CONFIG.GARFIELD_START_ES);
-            const isBeforeStart = currentselectedDate < spanishStartDate;
-
-            if (isBeforeStart) {
-                currentselectedDate = new Date();
-                showNotification(t.spanishNotAvailable, 6000);
-                CompareDates();
-                showComic();
-            } else {
-                CompareDates();
-                const loadResult = await loadComic(currentselectedDate, true);
-                if (!loadResult.success) {
-                    currentselectedDate = new Date();
-                    showNotification(t.spanishNotAvailable, 6000);
-                    CompareDates();
-                    showComic();
-                }
-            }
-        } else {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, 'false');
-            translateInterface('en');
-            document.documentElement.lang = 'en';
-            if (datePicker) datePicker.min = CONFIG.GARFIELD_START_EN;
-            CompareDates();
-            showComic();
-        }
-    });
-}
 
 // Function to check if the comic is vertical and show thumbnail if needed
 function checkImageOrientation() {
