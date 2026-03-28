@@ -1377,6 +1377,11 @@ let pictureUrl;
 let formattedComicDate;
 let formattedDate;
 
+// ArcaMax article-ID navigation state
+let currentArticleId = null;  // Article ID of the currently displayed strip
+let prevArticleId = null;     // Article ID of the previous strip
+let nextArticleId = null;     // Article ID of the next strip (null = at latest)
+
 /**
  * Share comic via Web Share API
  */
@@ -1968,20 +1973,29 @@ function updateDateDisplay() {
 }
 
 /**
- * Load comic for a specific date
- * @param {Date} date - Date to load comic for
- * @param {boolean} silentMode - If true, suppress error messages
- * @param {string|null} direction - Navigation direction: 'next', 'previous', or null
- * @returns {Promise<boolean>} True if comic loaded successfully
+ * Load comic — uses ArcaMax article-ID navigation.
+ * @param {string|'latest'} articleIdOrLatest  - article ID or 'latest'
+ * @param {boolean} silentMode - suppress error UI
+ * @param {string|null} direction - 'next', 'previous', or null
+ * @returns {Promise<{success: boolean, isSameComic: boolean}>}
  */
-async function loadComic(date, silentMode = false, direction = null) {
+async function loadComic(articleIdOrLatest = 'latest', silentMode = false, direction = null) {
     try {
-        const result = await getAuthenticatedComic(date);
+        const result = await getAuthenticatedComic(articleIdOrLatest);
         
         if (result.success && result.imageUrl) {
-            // Check if this is the same comic we already have (timezone edge case)
+            // Store article navigation state
+            currentArticleId = result.articleId;
+            prevArticleId = result.prevArticleId;
+            nextArticleId = result.nextArticleId;
+
+            // Update currentselectedDate from the strip's real date if available
+            if (result.stripDate && !isNaN(result.stripDate)) {
+                currentselectedDate = result.stripDate;
+            }
+
+            // Check if this is the same comic we already have
             if (currentComicUrl === result.imageUrl) {
-                // Same comic - return special value to indicate duplicate
                 return { success: true, isSameComic: true };
             }
             
@@ -2197,18 +2211,20 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Hide error messages
             const messageContainer = document.getElementById('comic-message');
             if (messageContainer) messageContainer.style.display = 'none';
-            
-            // Preload adjacent comics for faster navigation
-            UTILS.preloadAdjacentComics(date);
-            
+
+            // Update nav button states based on article IDs
+            const hasPrev = !!prevArticleId;
+            const hasNext = !!nextArticleId;
+            if (!document.getElementById('showfavs').checked) {
+                document.getElementById('Previous').disabled = !hasPrev;
+                document.getElementById('First').disabled = !hasPrev;
+                document.getElementById('Next').disabled = !hasNext;
+                document.getElementById('Last').disabled = !hasNext;
+            }
+
             return { success: true, isSameComic: false };
         }
-        
-        if (result.isPaywalled && !silentMode) {
-            showPaywallMessage();
-            return { success: false, isSameComic: false };
-        }
-        
+
         throw new Error('Comic not available');
     } catch (error) {
         if (!silentMode) {
@@ -2418,14 +2434,12 @@ function initApp() {
     
     // Also format today's date for other uses
     formatDate(UTILS.getEasternDate());
+    currentselectedDate = UTILS.getEasternDate();
 
-    if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
-        currentselectedDate = new Date(localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC));
-    }
-    CompareDates();
-    showComic();
-    updateDateDisplay(); // Add this line to update the display
-    updateExportButtonState(); // Enable/disable export button based on favorites
+    // Always start from the latest strip (ArcaMax uses article IDs, not date URLs)
+    showComic(false, null, 0, 'latest');
+    updateDateDisplay();
+    updateExportButtonState();
 
     // Windows Store review: track session & schedule prompt
     initStoreReview();
@@ -2466,117 +2480,63 @@ async function DateChange() {
 }
 
 async function _dateChangeImpl() {
-    currentselectedDate = document.getElementById('DatePicker');
-    currentselectedDate = new Date(currentselectedDate.value);
+    currentselectedDate = new Date(document.getElementById('DatePicker').value);
     updateDateDisplay();
-    CompareDates();
-    await showComic();
+    // Date picker navigation: load the landing page and rely on article-ID nav from there.
+    // ArcaMax doesn't support date-based URLs, so we reload latest and let the user navigate.
+    await showComic(false, null, 0, 'latest');
 }
 
 
-// Show comic for the current date, with optional auto-skip for unavailable dates
-async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
-    // Depth guard: prevent runaway recursion from same-comic detection
+// Show comic — articleId drives ArcaMax navigation; date picker is display-only.
+async function showComic(skipOnFailure = false, direction = null, _depth = 0, articleId = null) {
+    // Depth guard: prevent runaway recursion
     if (_depth > 10) return;
 
-    formatDate(currentselectedDate);
-    formattedComicDate = year + "/" + month + "/" + day;
-    formattedDate = year + "-" + month + "-" + day;
-    
-    document.getElementById("DatePicker").value = formattedDate;
-    updateDateDisplay();
-    
+    // Determine which article to load
+    const target = articleId || currentArticleId || 'latest';
+
+    // If we have a valid currentselectedDate already, format it for UI;
+    // the real date will be updated by loadComic once the article loads.
+    if (currentselectedDate && !isNaN(new Date(currentselectedDate))) {
+        formatDate(currentselectedDate);
+        formattedComicDate = year + "/" + month + "/" + day;
+        formattedDate = year + "-" + month + "-" + day;
+        document.getElementById("DatePicker").value = formattedDate;
+        updateDateDisplay();
+    }
+
     // Check if date is in favorites
     UTILS.updateHeartIcon();
-    
+
     // Save last viewed comic
     if (document.getElementById("lastdate").checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
     }
-    
-    // Load the comic (silent mode off for first attempt when not auto-skipping)
-    const result = await loadComic(currentselectedDate, skipOnFailure, direction);
+
+    // Load the comic
+    const result = await loadComic(target, skipOnFailure, direction);
     const success = result.success;
-    
-    // Handle same comic detection (timezone edge case)
-    if (result.isSameComic && direction) {
-        if (direction === 'previous') {
-            // Going backwards and hit same comic - continue to previous day
-            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-            CompareDates();
-            
-            // Check if we've reached the start boundary (depth-limited via the while loop below)
-            if (!document.getElementById("Previous")?.disabled) {
-                formatDate(currentselectedDate);
-                formattedComicDate = year + "/" + month + "/" + day;
-                formattedDate = year + "-" + month + "-" + day;
-                document.getElementById("DatePicker").value = formattedDate;
-                updateDateDisplay();
-                await showComic(true, 'previous', _depth + 1);
-            }
-            return;
-        } else if (direction === 'next') {
-            // Going forward and hit same comic - we're at the latest available
-            // Revert to previous date and disable forward navigation
-            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-            CompareDates();
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
-            document.getElementById("DatePicker").value = formattedDate;
-            updateDateDisplay();
-            document.getElementById("Next").disabled = true;
-            document.getElementById("Last").disabled = true;
-            return;
-        }
+
+    // After load, update date display with the real strip date
+    if (success && currentselectedDate && !isNaN(new Date(currentselectedDate))) {
+        formatDate(currentselectedDate);
+        formattedComicDate = year + "/" + month + "/" + day;
+        formattedDate = year + "-" + month + "-" + day;
+        document.getElementById("DatePicker").value = formattedDate;
+        updateDateDisplay();
+        UTILS.updateHeartIcon();
     }
     
-    // If comic failed to load and we should skip, try the next one
+    // If comic failed to load and we should skip, try adj article
     if (!success && skipOnFailure && direction) {
-        // Prevent infinite loops by limiting attempts
-        const maxAttempts = 10;
-        let attempts = 0;
-        
-        while (!success && attempts < maxAttempts) {
-            attempts++;
-            
-            if (direction === 'next') {
-                currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-            } else if (direction === 'previous') {
-                currentselectedDate.setDate(currentselectedDate.getDate() - 1);
-            } else {
-                break; // Unknown direction, stop trying
-            }
-            
-            CompareDates();
-            
-            // Check if we've reached the boundaries
-            if (document.getElementById("Next")?.disabled && direction === 'next') {
-                showErrorMessage('No more comics available in this direction.');
-                break;
-            }
-            if (document.getElementById("Previous")?.disabled && direction === 'previous') {
-                showErrorMessage('No more comics available in this direction.');
-                break;
-            }
-            
-            // Try loading this comic in silent mode (no error messages)
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
-            document.getElementById("DatePicker").value = formattedDate;
-            updateDateDisplay();
-            
-            const retryResult = await loadComic(currentselectedDate, true, direction);
-            if (retryResult.success && !retryResult.isSameComic) {
-                UTILS.updateHeartIcon();
-                return;
-            }
+        const nextId = direction === 'next' ? nextArticleId : prevArticleId;
+        if (nextId && _depth < 10) {
+            await showComic(true, direction, _depth + 1, nextId);
+        } else {
+            showErrorMessage('No more comics available in this direction.');
         }
-        
-        if (attempts >= maxAttempts) {
-            showErrorMessage('Unable to find an available comic after multiple attempts.');
-        }
+        return;
     }
 }
 
@@ -2586,11 +2546,11 @@ function PreviousClick() {
         if (favs.indexOf(formattedComicDate) > 0) {
             currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) - 1]);
         }
-    } else {
-        currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+        CompareDates();
+        showComic(true, 'previous');
+    } else if (prevArticleId) {
+        showComic(false, 'previous', 0, prevArticleId);
     }
-    CompareDates();
-    showComic(true, 'previous');
 }
 
 function NextClick() {
@@ -2599,33 +2559,40 @@ function NextClick() {
         if (favs.indexOf(formattedComicDate) < favs.length - 1) {
             currentselectedDate = new Date(favs[favs.indexOf(formattedComicDate) + 1]);
         }
-    } else {
-        currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+        CompareDates();
+        showComic(true, 'next');
+    } else if (nextArticleId) {
+        showComic(false, 'next', 0, nextArticleId);
     }
-    CompareDates();
-    showComic(true, 'next');
 }
 
 function FirstClick() {
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[0]);
+        CompareDates();
+        showComic();
     } else {
-        currentselectedDate = new Date(Date.UTC(1978, 5, 19, 12));
+        // ArcaMax archive: just navigate backwards from current as far as possible
+        // by going to previous until there's no prevArticleId - use Latest as that
+        // resets to today; First is not meaningful with a limited archive so we go
+        // back as far as the archive allows via rapid previous navigation.
+        if (prevArticleId) {
+            showComic(false, 'previous', 0, prevArticleId);
+        }
     }
-    CompareDates();
-    showComic();
 }
 
 function LastClick() {
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[favs.length - 1]);
+        CompareDates();
+        showComic();
     } else {
-        currentselectedDate = new Date();
+        // Load the latest strip from the landing page
+        showComic(false, null, 0, 'latest');
     }
-    CompareDates();
-    showComic();
 }
 
 /**
@@ -2768,13 +2735,13 @@ function RandomClick() {
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
+        CompareDates();
+        showComic();
     } else {
-        const start = new Date('1978-06-19');
-        const end = new Date();
-        currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+        // ArcaMax doesn't support arbitrary date lookup;
+        // just load the latest strip.
+        showComic(false, null, 0, 'latest');
     }
-    CompareDates();
-    showComic();
 }
 
 function CompareDates() {
