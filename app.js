@@ -2573,14 +2573,31 @@ function FirstClick() {
         CompareDates();
         showComic();
     } else {
-        // ArcaMax archive: just navigate backwards from current as far as possible
-        // by going to previous until there's no prevArticleId - use Latest as that
-        // resets to today; First is not meaningful with a limited archive so we go
-        // back as far as the archive allows via rapid previous navigation.
-        if (prevArticleId) {
-            showComic(false, 'previous', 0, prevArticleId);
-        }
+        // Chain backwards through prevArticleId links until the oldest available strip
+        _navigateToOldest();
     }
+}
+
+async function _navigateToOldest() {
+    if (!prevArticleId) return;
+
+    const firstBtn = document.getElementById('First');
+    if (firstBtn) firstBtn.disabled = true;
+
+    let candidateId = prevArticleId;
+    // Keep probing backward silently until no prevArticleId is returned
+    while (candidateId) {
+        const result = await getAuthenticatedComic(candidateId);
+        if (!result.success) break;
+        if (!result.prevArticleId) {
+            // This is the oldest available strip — display it
+            showComic(false, 'previous', 0, candidateId);
+            return;
+        }
+        candidateId = result.prevArticleId;
+    }
+    // Fallback: just load whatever we ended up with
+    if (candidateId) showComic(false, 'previous', 0, candidateId);
 }
 
 function LastClick() {
