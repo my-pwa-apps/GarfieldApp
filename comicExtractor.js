@@ -173,42 +173,42 @@ function extractImageFromHTML(html) {
 
 /**
  * Extracts the canonical article ID from the page HTML.
- * On the landing page this comes from the first share link; on an article page
- * it is derived from the URL or the share link.
+ * On the landing page the current ID only appears in URL-encoded share links
+ * (e.g. %2Fgarfield%2Fs-4047745); on article pages the known ID is supplied.
  * @param {string} html
  * @param {string|null} knownId - ID already known from the URL (article pages)
  * @returns {string|null}
  */
 function extractArticleId(html, knownId) {
     if (knownId) return knownId;
-    // Share links: /thefunnies/garfield/s-XXXXXXX
+    // Share/social links encode the URL: garfield%2Fs-XXXXXXX
+    const encodedMatch = html.match(/garfield%2F(s-\d+)/i);
+    if (encodedMatch) return encodedMatch[1];
+    // Fallback: literal /thefunnies/garfield/s-XXXXXXX (rarely present on landing page)
     const match = html.match(/\/thefunnies\/garfield\/(s-\d+)/);
     return match ? match[1] : null;
 }
 
 /**
  * Extracts prev and next article IDs from navigation links in the ArcaMax page.
- * The nav row looks like:
- *   <a href="/thefunnies/garfield/s-4046234">   March 26   <a href="/thefunnies/garfield/s-4047745">
+ * The nav row embeds two relative href links to garfield article IDs.
+ * On the latest page only the prev link is present (nextArticleId will be null).
  * @param {string} html
  * @returns {{ prevArticleId: string|null, nextArticleId: string|null }}
  */
 function extractNavIds(html) {
-    // Find the date navigation row that has exactly two garfield article links
-    // Pattern: [prev-link] MonthName Day [next-link]
-    const navMatch = html.match(
-        /href="\/thefunnies\/garfield\/(s-\d+)"[^<]*<\/a>\s*[A-Za-z]+\s+\d+\s*<a[^>]*href="\/thefunnies\/garfield\/(s-\d+)"/
-    );
-    if (navMatch) {
-        return { prevArticleId: navMatch[1], nextArticleId: navMatch[2] };
-    }
-
-    // Fallback: collect all garfield article ID links and infer position
+    // Collect all relative href="/thefunnies/garfield/s-XXXXX" links in page order.
+    // Share/social links use URL-encoding so they won't appear here.
     const ids = [...html.matchAll(/href="\/thefunnies\/garfield\/(s-\d+)"/g)].map(m => m[1]);
     const unique = [...new Set(ids)];
+
     if (unique.length >= 2) {
-        // First occurrence is typically the prev link, last is next
-        return { prevArticleId: unique[0], nextArticleId: unique[unique.length - 1] };
+        // First = prev nav link, second = next nav link
+        return { prevArticleId: unique[0], nextArticleId: unique[1] };
+    }
+    if (unique.length === 1) {
+        // Only one nav link present → we are on the latest strip (no next)
+        return { prevArticleId: unique[0], nextArticleId: null };
     }
     return { prevArticleId: null, nextArticleId: null };
 }
