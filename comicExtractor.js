@@ -1,5 +1,10 @@
 /**
  * CORS proxy configuration and performance tracking
+ *
+ * Comic source fallback chain:
+ *   1. GoComics (primary) — all dates from 1978, supports EN + ES
+ *   2. Garfield Fandom Wiki (first fallback) — all dates from 1978, EN only
+ *   3. ArcaMax (second fallback) — last ~30 days, EN only
  */
 const CORS_PROXIES = [
     'https://corsproxy.garfieldapp.workers.dev/?',
@@ -113,68 +118,275 @@ async function fetchWithProxyFallback(url) {
     }
 }
 
-/**
- * Fetches authenticated comic from GoComics
- * @param {Date} date - Date of the comic
- * @param {string} language - Language code ('en' or 'es')
- * @returns {Promise<{success: boolean, imageUrl: string|null, isPaywalled?: boolean, notFound?: boolean}>}
- */
-export async function getAuthenticatedComic(date, language = 'en') {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
-    const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
-    
-    try {
-        // GoComics blocks browser-origin fetches via CORS, so use proxy routing only.
-        const html = await fetchWithProxyFallback(url);
-        
-        // Check for 404
-        if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
-            return { success: false, imageUrl: null, notFound: true };
-        }
-        
-        const imageUrl = extractImageFromHTML(html);
-        
-        if (imageUrl) {
-            // Proxy fetch succeeded
-            return { success: true, imageUrl };
-        }
-        
-        console.warn(`No image extracted (HTML length: ${html.length})`);
-        return { success: false, imageUrl: null };
-    } catch (error) {
-        console.error('Comic fetch failed:', error);
-        return { success: false, imageUrl: null };
-    }
+// ============================================================
+// SHARED UTILITIES
+// ============================================================
+
+function _dateToISO(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
+
+// ============================================================
+// SOURCE 1: GOCOMICS (PRIMARY) — EN + ES
+// ============================================================
 
 /**
  * Extracts comic image URL from GoComics HTML
- * @param {string} html - HTML content from GoComics
- * @returns {string|null} Comic image URL or null
+ * @param {string} html
+ * @returns {string|null}
  */
-function extractImageFromHTML(html) {
-    // Try featureassets CDN (current)
+function _extractGoComicsImage(html) {
+    // featureassets CDN (current)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
     if (match) return match[0];
     
-    // Try amuniversal CDN (legacy)
+    // amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (match) return match[0];
     
-    // Try og:image meta tag
+    // og:image meta tag
     match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
     if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
         return match[1];
     }
     
-    // Fallback to picture tag
+    // picture tag fallback
     match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
     if (match && match[1]) return match[1];
     
     return null;
+}
+
+async function _getComicFromGoComics(date, language) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
+    const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
+    
+    const html = await fetchWithProxyFallback(url);
+    
+    if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
+        return { success: false, imageUrl: null, notFound: true };
+    }
+    
+    const imageUrl = _extractGoComicsImage(html);
+    if (imageUrl) return { success: true, imageUrl };
+    
+    console.warn(`GoComics: no image extracted (HTML length: ${html.length})`);
+    return { success: false, imageUrl: null };
+}
+
+// ============================================================
+// SOURCE 2: GARFIELD FANDOM WIKI (FIRST FALLBACK) — EN only
+// ============================================================
+
+const _MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+/**
+ * Extracts the Garfield comic image URL for a specific date from Fandom wiki HTML.
+ * Images are hosted at static.wikia.nocookie.net with the date as the filename.
+ * @param {string} html
+ * @param {string} dateStr - ISO date string YYYY-MM-DD
+ * @returns {string|null}
+ */
+function _extractFandomImage(html, dateStr) {
+    const escaped = dateStr.replace(/-/g, '-'); // already safe
+    const pattern = new RegExp(
+        `https://static\\.wikia\\.nocookie\\.net/garfield/images/[^"'\\s]+/${escaped}\\.(gif|jpg|jpeg|png|webp)/revision/latest[^"'\\s]*`,
+        'i'
+    );
+    const match = html.match(pattern);
+    return match ? match[0] : null;
+}
+
+async function _getComicFromFandom(date) {
+    const month = _MONTH_NAMES[date.getMonth()];
+    const year = date.getFullYear();
+    const dateStr = _dateToISO(date);
+    const url = `https://garfield.fandom.com/wiki/Garfield,_${month}_${year}_comic_strips`;
+    
+    const html = await fetchWithProxyFallback(url);
+    const imageUrl = _extractFandomImage(html, dateStr);
+    
+    if (imageUrl) return { success: true, imageUrl };
+    
+    console.warn(`Fandom wiki: no image found for ${dateStr}`);
+    return { success: false, imageUrl: null };
+}
+
+// ============================================================
+// SOURCE 3: ARCAMAX (SECOND FALLBACK) — EN only, last ~30 days
+// ============================================================
+
+// In-session date→articleId cache built up during traversal
+const _arcamaxDateCache = new Map();
+
+function _isValidArcaMaxPage(html) {
+    return html.includes('resources.arcamax.com/newspics') ||
+        html.includes('Garfield for') ||
+        html.includes('/thefunnies/garfield/');
+}
+
+function _extractArcaMaxImage(html) {
+    // Primary: direct CDN URL
+    let match = html.match(/https:\/\/resources\.arcamax\.com\/newspics\/[^"'\s<>]+/i);
+    if (match) return match[0];
+    // og:image fallback
+    match = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i);
+    if (match && match[1] && match[1].includes('resources.arcamax.com/newspics')) return match[1];
+    // data-src / src fallback
+    match = html.match(/(?:data-src|src)="(https:\/\/resources\.arcamax\.com\/newspics\/[^"\s<>]+)"/i);
+    if (match) return match[1];
+    return null;
+}
+
+function _extractArcaMaxArticleId(html, knownId) {
+    if (knownId) return knownId;
+    const encoded = html.match(/garfield%2F(s-\d+)/i);
+    if (encoded) return encoded[1];
+    const direct = html.match(/\/thefunnies\/garfield\/(s-\d+)/);
+    return direct ? direct[1] : null;
+}
+
+function _extractArcaMaxNavIds(html) {
+    const anchors = [...html.matchAll(/<a\b[^>]*href="(?:https?:\/\/[^/"]*)?\/thefunnies\/garfield\/(s-\d+)"[^>]*>/gi)];
+    let prevArticleId = null;
+    let nextArticleId = null;
+    for (const m of anchors) {
+        const cls = (m[0].match(/class="([^"]+)"/i)?.[1] || '').split(/\s+/);
+        if (cls.includes('prev') && !prevArticleId) prevArticleId = m[1];
+        if (cls.includes('next') && !nextArticleId) nextArticleId = m[1];
+    }
+    return { prevArticleId, nextArticleId };
+}
+
+function _extractArcaMaxStripDate(html) {
+    // Share link: h=Garfield+for+3%2F31%2F2026
+    let match = html.match(/h=Garfield\+for\+([^"&]+)/);
+    if (match) {
+        const d = new Date(decodeURIComponent(match[1].replace(/\+/g, ' ')));
+        if (!isNaN(d)) return d;
+    }
+    // alt attribute on comic image
+    match = html.match(/alt="Garfield\s+for\s+(\d{1,2}\/\d{1,2}\/\d{4})"/i);
+    if (match) {
+        const d = new Date(match[1]);
+        if (!isNaN(d)) return d;
+    }
+    return null;
+}
+
+async function _getComicFromArcaMax(date) {
+    // ArcaMax only holds ~30 days; skip immediately for older requests
+    const daysAgo = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (daysAgo > 31) return { success: false, imageUrl: null };
+    
+    const targetDateStr = _dateToISO(date);
+    
+    // If we already know the articleId for this date, go straight to it
+    if (_arcamaxDateCache.has(targetDateStr)) {
+        const cachedId = _arcamaxDateCache.get(targetDateStr);
+        try {
+            const html = await fetchWithProxyFallback(`https://www.arcamax.com/thefunnies/garfield/${cachedId}`);
+            const imageUrl = _extractArcaMaxImage(html);
+            if (imageUrl) return { success: true, imageUrl };
+        } catch { /* fall through to traversal */ }
+    }
+    
+    // Traverse from "latest" backwards up to 32 steps to find the target date.
+    // Each successful page is cached so subsequent lookups are O(1).
+    let url = 'https://www.arcamax.com/thefunnies/garfield/';
+    const MAX_STEPS = 32;
+    
+    for (let step = 0; step < MAX_STEPS; step++) {
+        let html;
+        try {
+            html = await fetchWithProxyFallback(url);
+        } catch {
+            break;
+        }
+        
+        if (!_isValidArcaMaxPage(html)) break;
+        
+        const imageUrl = _extractArcaMaxImage(html);
+        const isLanding = step === 0 && url.endsWith('/garfield/');
+        const urlId = !isLanding ? url.split('/').pop() : null;
+        const articleId = _extractArcaMaxArticleId(html, urlId);
+        const stripDate = _extractArcaMaxStripDate(html);
+        const { prevArticleId } = _extractArcaMaxNavIds(html);
+        
+        if (articleId && stripDate) {
+            const dateStr = _dateToISO(stripDate);
+            _arcamaxDateCache.set(dateStr, articleId);
+            
+            if (dateStr === targetDateStr && imageUrl) {
+                return { success: true, imageUrl };
+            }
+            
+            // Gone past the target date — stop
+            if (stripDate.getTime() < date.getTime()) break;
+        }
+        
+        if (!prevArticleId) break;
+        url = `https://www.arcamax.com/thefunnies/garfield/${prevArticleId}`;
+    }
+    
+    return { success: false, imageUrl: null };
+}
+
+// ============================================================
+// MAIN EXPORT — orchestrates the fallback chain
+// ============================================================
+
+/**
+ * Fetches a Garfield comic for the given date.
+ *
+ * Fallback order:
+ *   1. GoComics (primary, EN + ES)
+ *   2. Garfield Fandom Wiki (EN only)
+ *   3. ArcaMax (EN only, last ~30 days)
+ *
+ * @param {Date} date
+ * @param {string} language - 'en' or 'es'
+ * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
+ */
+export async function getAuthenticatedComic(date, language = 'en') {
+    // 1. GoComics
+    try {
+        const result = await _getComicFromGoComics(date, language);
+        if (result.success) return result;
+        console.warn('GoComics unavailable, trying fallbacks');
+    } catch (err) {
+        console.warn('GoComics error:', err.message);
+    }
+    
+    // Spanish is only available on GoComics — no further fallback
+    if (language === 'es') {
+        return { success: false, imageUrl: null };
+    }
+    
+    // 2. Garfield Fandom Wiki
+    try {
+        const result = await _getComicFromFandom(date);
+        if (result.success) return result;
+        console.warn('Fandom wiki unavailable, trying ArcaMax');
+    } catch (err) {
+        console.warn('Fandom wiki error:', err.message);
+    }
+    
+    // 3. ArcaMax
+    try {
+        return await _getComicFromArcaMax(date);
+    } catch (err) {
+        console.error('ArcaMax error:', err.message);
+        return { success: false, imageUrl: null };
+    }
 }
 

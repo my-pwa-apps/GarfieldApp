@@ -1,4 +1,4 @@
-const VERSION = 'v1.5.6';
+const VERSION = 'v1.5.7';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const { destination } = event.request;
   
-  // Cache-first with LRU eviction for images (including cross-origin GoComics images)
+  // Cache-first with LRU eviction for images (including cross-origin comic images)
   if (destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
     event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
     return;
@@ -80,12 +80,6 @@ self.addEventListener('fetch', (event) => {
   // Cache-first for app shell
   if (['document', 'style', 'script'].includes(destination) || url.pathname.endsWith('.svg')) {
     event.respondWith(cacheFirstStrategy(event.request, CACHE_NAME));
-    return;
-  }
-  
-  // Cache-first with LRU eviction for images
-  if (destination === 'image') {
-    event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
     return;
   }
   
