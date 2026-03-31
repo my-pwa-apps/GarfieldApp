@@ -128,24 +128,7 @@ export async function getAuthenticatedComic(date, language = 'en') {
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
     
     try {
-        // Try direct fetch first
-        const directResponse = await fetch(url, {
-            signal: AbortSignal.timeout(10000),
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'default'
-        }).catch(() => null);
-        
-        if (directResponse?.ok) {
-            const html = await directResponse.text();
-            const imageUrl = extractImageFromHTML(html);
-            
-            if (imageUrl) {
-                return { success: true, imageUrl };
-            }
-        }
-        
-        // Fallback to proxy
+        // GoComics blocks browser-origin fetches via CORS, so use proxy routing only.
         const html = await fetchWithProxyFallback(url);
         
         // Check for 404

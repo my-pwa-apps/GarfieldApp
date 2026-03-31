@@ -1,4 +1,4 @@
-const VERSION = 'v1.5.5';
+const VERSION = 'v1.5.6';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -199,27 +199,13 @@ async function checkForNewComic() {
     // Fetch today's comic
     const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
     
-    // Try direct fetch first, fallback to proxy
-    const directResponse = await fetch(comicUrl, {
-      signal: AbortSignal.timeout(10000),
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'default'
+    // GoComics is not CORS-enabled for service-worker/browser origins.
+    const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
+    const proxyResponse = await fetch(proxyUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     }).catch(() => null);
     
-    let html = null;
-    if (directResponse?.ok) {
-      html = await directResponse.text();
-    } else {
-      const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
-      const proxyResponse = await fetch(proxyUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      }).catch(() => null);
-      
-      if (proxyResponse?.ok) {
-        html = await proxyResponse.text();
-      }
-    }
+    const html = proxyResponse?.ok ? await proxyResponse.text() : null;
     
     // Check if comic is available
     if (html) {
