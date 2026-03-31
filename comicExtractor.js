@@ -197,20 +197,24 @@ function extractArticleId(html, knownId) {
  * @returns {{ prevArticleId: string|null, nextArticleId: string|null }}
  */
 function extractNavIds(html) {
-    // Collect all relative href="/thefunnies/garfield/s-XXXXX" links in page order.
-    // Share/social links use URL-encoding so they won't appear here.
-    const ids = [...html.matchAll(/href="\/thefunnies\/garfield\/(s-\d+)"/g)].map(m => m[1]);
-    const unique = [...new Set(ids)];
+    const navLinks = [...html.matchAll(/<a\s+class="(prev|next)"\s+href="\/thefunnies\/garfield\/(s-\d+)"/g)];
+    let prevArticleId = null;
+    let nextArticleId = null;
 
-    if (unique.length >= 2) {
-        // First = prev nav link, second = next nav link
-        return { prevArticleId: unique[0], nextArticleId: unique[1] };
+    for (const match of navLinks) {
+        const direction = match[1];
+        const articleId = match[2];
+
+        if (direction === 'prev' && !prevArticleId) {
+            prevArticleId = articleId;
+        }
+
+        if (direction === 'next' && !nextArticleId) {
+            nextArticleId = articleId;
+        }
     }
-    if (unique.length === 1) {
-        // Only one nav link present → we are on the latest strip (no next)
-        return { prevArticleId: unique[0], nextArticleId: null };
-    }
-    return { prevArticleId: null, nextArticleId: null };
+
+    return { prevArticleId, nextArticleId };
 }
 
 /**
