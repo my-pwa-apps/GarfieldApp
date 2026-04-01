@@ -1,0 +1,6 @@
+name = "corsproxy"
+main = "index.js"
+compatibility_date = "2026-03-14"
+
+[vars]
+ALLOWED_HOSTS = "dirkjan.nl,www.dirkjan.nl,gocomics.com,*.gocomics.com,www.arcamax.com,resources.arcamax.com,garfield.fandom.com,static.wikia.nocookie.net"
