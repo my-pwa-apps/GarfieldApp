@@ -1453,18 +1453,36 @@ async function Share() {
     }
     
     try {
-        // Fetch the image through our CORS proxy so we get a proper Blob without
-        // canvas-taint issues (GoComics/Fandom CDNs don't send CORS headers).
-        // This also preserves the original format (GIF, PNG, JPEG).
+        // Fetch the image through our CORS proxy to get a Blob.
         const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
         const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+        const rawBlob = await response.blob();
 
-        const blob = await response.blob();
-        const ext = imageUrl.match(/\.(gif|png|jpe?g)/i)?.[1]?.toLowerCase() || 'jpg';
-        const mimeType = ext === 'gif' ? 'image/gif' : ext === 'png' ? 'image/png' : 'image/jpeg';
-        const file = new File([blob], `garfield.${ext}`, { type: mimeType, lastModified: Date.now() });
+        // Convert to JPEG via canvas so the Windows share dialog always shows a
+        // thumbnail. The blob URL is same-origin so there is no canvas taint, even
+        // though the original image came from a third-party CDN.
+        const blobUrl = URL.createObjectURL(rawBlob);
+        let shareBlob = rawBlob;
+        try {
+            const img = await new Promise((resolve, reject) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.onerror = reject;
+                i.src = blobUrl;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            shareBlob = await new Promise((resolve, reject) => {
+                canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
+            });
+        } finally {
+            URL.revokeObjectURL(blobUrl);
+        }
 
+        const file = new File([shareBlob], 'garfield.jpg', { type: 'image/jpeg', lastModified: Date.now() });
         await navigator.share({
             url: 'https://garfieldapp.pages.dev',
             text: 'Shared from GarfieldApp',
