@@ -34,6 +34,7 @@ const CONFIG = Object.freeze({
         SHOW_FAVS: 'showfavs',
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
+        SOURCE: 'comicSource',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
@@ -129,6 +130,15 @@ const UTILS = {
     },
 
     /**
+     * Get the preferred comic source setting
+     * @returns {'gocomics'|'fandom'} Preferred source
+     */
+    getPreferredSource() {
+        const src = document.getElementById('comicSource')?.value;
+        return (src === 'fandom') ? 'fandom' : 'gocomics';
+    },
+
+    /**
      * Check if navigation is allowed in a given direction
      * @param {string} direction - 'next' or 'previous'
      * @returns {boolean} True if navigation is allowed
@@ -150,9 +160,7 @@ const UTILS = {
                 return current.getTime() > firstFav.getTime();
             } else {
                 // Normal mode: check if we're at the first comic date
-                const startDate = this.isSpanishMode() 
-                    ? new Date(CONFIG.GARFIELD_START_ES) 
-                    : new Date(CONFIG.GARFIELD_START_EN);
+                const startDate = new Date(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
                 startDate.setHours(0, 0, 0, 0);
                 return current.getTime() > startDate.getTime();
             }
@@ -228,9 +236,8 @@ const UTILS = {
         if (!this.shouldPrefetch()) return;
 
         const language = this.isSpanishMode() ? 'es' : 'en';
-        const startDate = this.isSpanishMode() 
-            ? new Date(CONFIG.GARFIELD_START_ES) 
-            : new Date(CONFIG.GARFIELD_START_EN);
+        const source = this.getPreferredSource();
+        const startDate = new Date(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
         // Use Eastern Time since comics are released based on ET
         const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
@@ -239,7 +246,7 @@ const UTILS = {
         const prevDate = new Date(currentDate);
         prevDate.setDate(prevDate.getDate() - 1);
         if (prevDate >= startDate) {
-            getAuthenticatedComic(prevDate, language).then(result => {
+            getAuthenticatedComic(prevDate, language, source).then(result => {
                 if (result.success && result.imageUrl) {
                     const img = new Image();
                     img.src = result.imageUrl;
@@ -251,7 +258,7 @@ const UTILS = {
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
         if (nextDate <= today) {
-            getAuthenticatedComic(nextDate, language).then(result => {
+            getAuthenticatedComic(nextDate, language, source).then(result => {
                 if (result.success && result.imageUrl) {
                     const img = new Image();
                     img.src = result.imageUrl;
@@ -1274,6 +1281,7 @@ const translations = {
         swipeEnabled: 'Swipe enabled',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
+        comicSource: 'Comic source',
         spanish: 'Spanish / Español',
         loadingComic: 'Loading comic...',
         settings: 'Settings',
@@ -1304,6 +1312,7 @@ const translations = {
         swipeEnabled: 'Deslizar habilitado',
         showFavorites: 'Mostrar solo mis favoritos',
         rememberComic: 'Recordar último cómic al salir/actualizar',
+        comicSource: 'Fuente de cómics',
         spanish: 'Spanish / Español',
         loadingComic: 'Cargando cómic...',
         settings: 'Configuración',
@@ -1338,6 +1347,7 @@ function translateInterface(lang) {
         'swipe': t.swipeEnabled,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
+        'comicSource': t.comicSource,
         'spanish': t.spanish,
         'notifications': t.notifyNewComics
     };
@@ -2027,8 +2037,9 @@ async function loadComic(date, silentMode = false, direction = null) {
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
+        const source = UTILS.getPreferredSource();
         
-        const result = await getAuthenticatedComic(date, language);
+        const result = await getAuthenticatedComic(date, language, source);
         
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
@@ -2340,6 +2351,14 @@ function initApp() {
         document.getElementById("lastdate").checked = lastDateStatus === "true";
     }
 
+    // Initialize comic source preference
+    const savedSource = localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'gocomics';
+    const sourceEl = document.getElementById('comicSource');
+    if (sourceEl) {
+        sourceEl.value = savedSource;
+        _applySourceSetting(savedSource);
+    }
+
     // Initialize Spanish language preference
     const spanishStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH);
     const datePickerEl = document.getElementById('DatePicker');
@@ -2354,6 +2373,8 @@ function initApp() {
         useSpanish = spanishStatus === "true";
     }
 
+    // Spanish is only available when GoComics is the primary source
+    if (savedSource !== 'gocomics') useSpanish = false;
     document.getElementById("spanish").checked = useSpanish;
     translateInterface(useSpanish ? 'es' : 'en');
     if (datePickerEl) datePickerEl.min = useSpanish ? "1999-12-06" : "1978-06-19";
@@ -2999,6 +3020,44 @@ if (spanishCheckbox) {
             CompareDates();
             showComic();
         }
+    });
+}
+
+// ========================================
+// COMIC SOURCE SETTING
+// ========================================
+
+/**
+ * Show or hide the Spanish checkbox row and adjust the date-picker minimum
+ * based on the selected comic source.
+ * GoComics supports Spanish; Fandom Wiki and ArcaMax do not.
+ */
+function _applySourceSetting(source) {
+    const spanishRow = document.getElementById('spanish-setting-row');
+    const datePicker = document.getElementById('DatePicker');
+    const isGoComics = source === 'gocomics';
+
+    if (spanishRow) spanishRow.style.display = isGoComics ? '' : 'none';
+
+    if (!isGoComics) {
+        // Force English when not on GoComics
+        const spanishEl = document.getElementById('spanish');
+        if (spanishEl) spanishEl.checked = false;
+        translateInterface('en');
+        document.documentElement.lang = 'en';
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, 'false');
+        if (datePicker) datePicker.min = CONFIG.GARFIELD_START_EN;
+    }
+}
+
+const sourceSelect = document.getElementById('comicSource');
+if (sourceSelect) {
+    sourceSelect.addEventListener('change', function () {
+        const source = this.value;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SOURCE, source);
+        _applySourceSetting(source);
+        CompareDates();
+        showComic();
     });
 }
 

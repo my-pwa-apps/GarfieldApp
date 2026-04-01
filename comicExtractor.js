@@ -348,45 +348,46 @@ async function _getComicFromArcaMax(date) {
 /**
  * Fetches a Garfield comic for the given date.
  *
- * Fallback order:
- *   1. GoComics (primary, EN + ES)
- *   2. Garfield Fandom Wiki (EN only)
- *   3. ArcaMax (EN only, last ~30 days)
+ * Tries sources in order: preferredSource → the other non-ArcaMax source → ArcaMax.
+ * ArcaMax is always the last fallback regardless of preferredSource.
  *
  * @param {Date} date
- * @param {string} language - 'en' or 'es'
+ * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
+ * @param {string} preferredSource - 'gocomics' (default) | 'fandom'
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
-export async function getAuthenticatedComic(date, language = 'en') {
-    // 1. GoComics
-    try {
-        const result = await _getComicFromGoComics(date, language);
-        if (result.success) return result;
-        console.warn('GoComics unavailable, trying fallbacks');
-    } catch (err) {
-        console.warn('GoComics error:', err.message);
+export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'gocomics') {
+    // Build the ordered list of sources to try.
+    // ArcaMax is always appended last; the two EN-capable sources swap order
+    // based on user preference.
+    const order = preferredSource === 'fandom'
+        ? ['fandom', 'gocomics', 'arcamax']
+        : ['gocomics', 'fandom', 'arcamax'];
+
+    for (const source of order) {
+        // Spanish is only available on GoComics
+        if (language === 'es' && source !== 'gocomics') {
+            if (source === 'arcamax') break; // No point trying further
+            continue;
+        }
+
+        try {
+            let result;
+            if (source === 'gocomics') {
+                result = await _getComicFromGoComics(date, language);
+            } else if (source === 'fandom') {
+                result = await _getComicFromFandom(date);
+            } else {
+                result = await _getComicFromArcaMax(date);
+            }
+
+            if (result.success) return result;
+            console.warn(`${source}: unavailable, trying next fallback`);
+        } catch (err) {
+            console.warn(`${source} error:`, err.message);
+        }
     }
-    
-    // Spanish is only available on GoComics — no further fallback
-    if (language === 'es') {
-        return { success: false, imageUrl: null };
-    }
-    
-    // 2. Garfield Fandom Wiki
-    try {
-        const result = await _getComicFromFandom(date);
-        if (result.success) return result;
-        console.warn('Fandom wiki unavailable, trying ArcaMax');
-    } catch (err) {
-        console.warn('Fandom wiki error:', err.message);
-    }
-    
-    // 3. ArcaMax
-    try {
-        return await _getComicFromArcaMax(date);
-    } catch (err) {
-        console.error('ArcaMax error:', err.message);
-        return { success: false, imageUrl: null };
-    }
+
+    return { success: false, imageUrl: null };
 }
 

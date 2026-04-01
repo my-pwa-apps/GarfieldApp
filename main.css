@@ -970,6 +970,45 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 12px 0;
 }
 
+.setting-item-select {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.setting-item-select .labels {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    flex: none;
+}
+
+.source-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid rgba(240, 152, 25, 0.4);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    appearance: auto;
+    -webkit-appearance: auto;
+    accent-color: #F09819;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.source-select:focus {
+    outline: none;
+    border-color: #F09819;
+    box-shadow: 0 0 0 3px rgba(240, 152, 25, 0.2);
+}
+
+.source-select:hover {
+    border-color: #F09819;
+}
+
 .setting-backup {
     flex-direction: column;
     gap: 12px;
