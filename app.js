@@ -2352,7 +2352,7 @@ function initApp() {
     }
 
     // Initialize comic source preference
-    const savedSource = localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'gocomics';
+    const savedSource = localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'fandom';
     const sourceEl = document.getElementById('comicSource');
     if (sourceEl) {
         sourceEl.value = savedSource;

@@ -1,9 +1,9 @@
 /**
  * CORS proxy configuration and performance tracking
  *
- * Comic source fallback chain:
- *   1. GoComics (primary) — all dates from 1978, supports EN + ES
- *   2. Garfield Fandom Wiki (first fallback) — all dates from 1978, EN only
+ * Comic source fallback chain (default: Fandom first):
+ *   1. Garfield Fandom Wiki (primary) — all dates from 1978, EN only
+ *   2. GoComics (first fallback) — all dates from 1978, supports EN + ES
  *   3. ArcaMax (second fallback) — last ~30 days, EN only
  */
 const CORS_PROXIES = [
@@ -360,10 +360,10 @@ async function _getComicFromArcaMax(date) {
  *
  * @param {Date} date
  * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
- * @param {string} preferredSource - 'gocomics' (default) | 'fandom'
+ * @param {string} preferredSource - 'fandom' (default) | 'gocomics'
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
-export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'gocomics') {
+export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom') {
     // Build the ordered list of sources to try.
     // ArcaMax is always appended last; the two EN-capable sources swap order
     // based on user preference.
