@@ -182,41 +182,48 @@ async function _getComicFromGoComics(date, language) {
 
 // ============================================================
 // SOURCE 2: GARFIELD FANDOM WIKI (FIRST FALLBACK) — EN only
+// Uses the Fandom MediaWiki JSON API (CORS-enabled, no proxy needed).
 // ============================================================
 
-const _MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-];
-
 /**
- * Extracts the Garfield comic image URL for a specific date from Fandom wiki HTML.
- * Images are hosted at static.wikia.nocookie.net with the date as the filename.
- * @param {string} html
- * @param {string} dateStr - ISO date string YYYY-MM-DD
- * @returns {string|null}
+ * Fetches a Garfield comic from the Fandom wiki via their public JSON API.
+ * The API supports cross-origin requests with origin=* so no CORS proxy is needed.
+ *
+ * Strategy:
+ *   1. Request imageinfo for File:YYYY-MM-DD.gif
+ *   2. If not found, try File:YYYY-MM-DD.jpg
+ *   Both resolve to a static.wikia.nocookie.net CDN URL.
+ *
+ * @param {Date} date
+ * @returns {Promise<{success: boolean, imageUrl: string|null}>}
  */
-function _extractFandomImage(html, dateStr) {
-    const escaped = dateStr.replace(/-/g, '-'); // already safe
-    const pattern = new RegExp(
-        `https://static\\.wikia\\.nocookie\\.net/garfield/images/[^"'\\s]+/${escaped}\\.(gif|jpg|jpeg|png|webp)/revision/latest[^"'\\s]*`,
-        'i'
-    );
-    const match = html.match(pattern);
-    return match ? match[0] : null;
-}
-
 async function _getComicFromFandom(date) {
-    const month = _MONTH_NAMES[date.getMonth()];
-    const year = date.getFullYear();
     const dateStr = _dateToISO(date);
-    const url = `https://garfield.fandom.com/wiki/Garfield,_${month}_${year}_comic_strips`;
-    
-    const html = await fetchWithProxyFallback(url);
-    const imageUrl = _extractFandomImage(html, dateStr);
-    
-    if (imageUrl) return { success: true, imageUrl };
-    
+    const extensions = ['gif', 'jpg', 'jpeg', 'png'];
+
+    for (const ext of extensions) {
+        const filename = `${dateStr}.${ext}`;
+        const apiUrl = `https://garfield.fandom.com/api.php?action=query&titles=File:${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+
+        try {
+            const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+            if (!resp.ok) continue;
+
+            const data = await resp.json();
+            const pages = data?.query?.pages;
+            if (!pages) continue;
+
+            // Pages with a negative ID (e.g. -1) are "missing" — skip them
+            for (const page of Object.values(pages)) {
+                if (page.pageid > 0 && page.imageinfo?.[0]?.url) {
+                    return { success: true, imageUrl: page.imageinfo[0].url };
+                }
+            }
+        } catch (err) {
+            console.warn(`Fandom API (${filename}):`, err.message);
+        }
+    }
+
     console.warn(`Fandom wiki: no image found for ${dateStr}`);
     return { success: false, imageUrl: null };
 }
