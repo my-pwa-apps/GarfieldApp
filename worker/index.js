@@ -15,6 +15,14 @@ const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 const HOP_BY_HOP_HEADERS = new Set([
     'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
     'te', 'trailer', 'transfer-encoding', 'upgrade', 'content-length',
+    // Strip Link preload headers — upstream sites (e.g. GoComics/Next.js) send
+    // Link: </_next/static/media/font.woff2>; rel=preload; as=font
+    // The browser resolves these relative URLs against the proxy domain and
+    // then tries to load the fonts from the proxy, causing spurious 400 errors.
+    'link',
+    // Strip upstream CSP — it would conflict with the app's own policy.
+    'content-security-policy',
+    'content-security-policy-report-only',
 ]);
 
 const HTML_CACHE_TTL  = 600;
