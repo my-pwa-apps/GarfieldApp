@@ -1453,70 +1453,36 @@ async function Share() {
     }
     
     try {
-        // Try to create canvas from image for sharing
-        const tempImg = new Image();
-        tempImg.crossOrigin = "anonymous";
-        
-        // Load image with timeout and fallback
-        await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
-            
-            tempImg.onload = () => {
-                clearTimeout(timeout);
-                resolve();
-            };
-            
-            tempImg.onerror = () => {
-                clearTimeout(timeout);
-                reject(new Error("Load failed"));
-            };
-            
-            tempImg.src = imageUrl;
-        }).catch(async () => {
-            // Try with proxy on failure
-            const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(imageUrl)}`;
-            return new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error("Proxy timeout")), 5000);
-                tempImg.onload = () => { clearTimeout(timeout); resolve(); };
-                tempImg.onerror = () => { clearTimeout(timeout); reject(new Error("Proxy failed")); };
-                tempImg.src = proxyUrl;
-            });
-        });
-        
-        // Convert image to blob
-        const canvas = document.createElement('canvas');
-        canvas.width = tempImg.width;
-        canvas.height = tempImg.height;
-        canvas.getContext('2d').drawImage(tempImg, 0, 0);
-        
-        const blob = await new Promise((resolve, reject) => {
-            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Blob creation failed")), 'image/jpeg', 0.95);
-        });
-        
-        // Share with file
-        const file = new File([blob], "garfield.jpg", { type: "image/jpeg", lastModified: Date.now() });
+        // Fetch the image through our CORS proxy so we get a proper Blob without
+        // canvas-taint issues (GoComics/Fandom CDNs don't send CORS headers).
+        // This also preserves the original format (GIF, PNG, JPEG).
+        const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
+        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+
+        const blob = await response.blob();
+        const ext = imageUrl.match(/\.(gif|png|jpe?g)/i)?.[1]?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'gif' ? 'image/gif' : ext === 'png' ? 'image/png' : 'image/jpeg';
+        const file = new File([blob], `garfield.${ext}`, { type: mimeType, lastModified: Date.now() });
+
         await navigator.share({
             url: 'https://garfieldapp.pages.dev',
             text: 'Shared from GarfieldApp',
             files: [file]
         });
     } catch (error) {
-        // Fallback to text-only sharing on error
-        if (error.name === 'SecurityError' || error.message.includes("failed")) {
+        // Fallback to text-only sharing on any error (proxy failure, unsupported files, etc.)
+        if (error.name !== 'AbortError') {
             try {
                 await navigator.share({
                     url: 'https://garfieldapp.pages.dev',
                     text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                 });
-                return;
             } catch (fallbackError) {
-                // Silent fail if sharing canceled
+                if (fallbackError.name !== 'AbortError') {
+                    showNotification("Failed to share the comic. Please try again.", 3000);
+                }
             }
-        }
-        
-        // Show error only if not user-canceled
-        if (error.name !== 'AbortError') {
-            showNotification("Failed to share the comic. Please try again.", 3000);
         }
     }
 }
