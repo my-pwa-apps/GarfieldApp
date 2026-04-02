@@ -260,10 +260,19 @@ const UTILS = {
         if (nextDate <= today) {
             getAuthenticatedComic(nextDate, language, source).then(result => {
                 if (result.success && result.imageUrl) {
-                    const img = new Image();
-                    img.src = result.imageUrl;
-                    // Store next comic URL and check for timezone edge case
-                    nextComicUrl = result.imageUrl;
+                    // If GoComics redirected to a date that isn't newer than the
+                    // comic currently shown, the next strip isn't published yet.
+                    // This catches the case where Fandom served today's comic but
+                    // the URLs differ (Fandom proxy vs GoComics CDN), which would
+                    // otherwise prevent checkNextComicAvailability from firing.
+                    if (result.actualDate && result.actualDate <= currentDate) {
+                        nextComicUrl = currentComicUrl;
+                    } else {
+                        const img = new Image();
+                        img.src = result.imageUrl;
+                        // Store next comic URL and check for timezone edge case
+                        nextComicUrl = result.imageUrl;
+                    }
                     this.checkNextComicAvailability();
                 } else {
                     // Next comic not available, disable forward navigation
