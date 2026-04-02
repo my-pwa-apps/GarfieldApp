@@ -872,6 +872,26 @@ function initializeDraggableSettings() {
     makeDraggable(panel, header, CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
 }
 
+function refreshToolbarDefaultPosition() {
+    const toolbar = document.getElementById('mainToolbar');
+    if (!toolbar || isToolbarPersistenceSuspended) return;
+
+    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+    const hasSavedPosition = !!(savedPosRaw && savedPosRaw !== 'null');
+
+    if (!hasSavedPosition || isOptimalMode) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                positionToolbarCentered(toolbar, true);
+            });
+        });
+        return;
+    }
+
+    clampToolbarInView();
+}
+
 /**
  * Keeps main toolbar within viewport bounds on resize/orientation changes
  * Repositions if no saved position exists to keep it centered (DirkJan pattern)
@@ -2204,8 +2224,8 @@ async function loadComic(date, silentMode = false, direction = null) {
 
             const ensureOrientationCheck = () => {
                 checkImageOrientation();
-                // Ensure toolbar doesn't overlap with the new image
-                setTimeout(clampToolbarInView, 50);
+                // Recalculate default toolbar midpoint after the comic has real dimensions.
+                setTimeout(refreshToolbarDefaultPosition, 50);
             };
             if (comicImg.complete) {
                 ensureOrientationCheck();
