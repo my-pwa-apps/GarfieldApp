@@ -433,6 +433,9 @@ let isVerticalFullscreen = false;
 // DRAGGABLE ELEMENT FUNCTIONALITY
 // ========================================
 
+const TOOLBAR_MIN_VERTICAL_GAP = 20;
+const TOOLBAR_COMIC_CLEARANCE = 18;
+
 /**
  * Persist the main toolbar position together with relative metadata (DirkJan pattern)
  * @param {number} top - Toolbar top position in px
@@ -482,7 +485,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
         positionData.belowComic = belowComic;
         if (!offsetComicOverridden) {
             if (belowComic) {
-                positionData.offsetFromComic = Math.max(15, toolbarRect.top - comicRect.bottom);
+                positionData.offsetFromComic = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - comicRect.bottom);
             } else {
                 delete positionData.offsetFromComic;
             }
@@ -499,7 +502,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
         positionData.belowControls = belowControls;
         if (!offsetControlsOverridden) {
             if (belowControls) {
-                positionData.offsetFromControls = Math.max(15, toolbarRect.top - controlsRect.bottom);
+                positionData.offsetFromControls = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - controlsRect.bottom);
             } else {
                 delete positionData.offsetFromControls;
             }
@@ -516,7 +519,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
             positionData.belowSettings = belowSettings;
             if (!offsetSettingsOverridden) {
                 if (belowSettings) {
-                    positionData.offsetFromSettings = Math.max(15, toolbarRect.top - settingsRect.bottom);
+                    positionData.offsetFromSettings = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - settingsRect.bottom);
                 } else {
                     delete positionData.offsetFromSettings;
                 }
@@ -556,19 +559,19 @@ function calculateOptimalToolbarPosition(toolbar) {
     // Safety check: if available space is too small or negative, the layout hasn't stabilized yet
     if (availableSpace < toolbarHeight + 10) {
         // Not enough space - place toolbar just below logo with minimum gap
-        const safeTop = logoBottom + 15;
+        const safeTop = logoBottom + TOOLBAR_MIN_VERTICAL_GAP;
         const left = (viewportWidth - toolbarWidth) / 2;
         return { top: safeTop, left };
     }
     
     // Calculate centered position (DirkJan pattern)
-    const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
+    const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, (availableSpace - toolbarHeight) / 2);
     const left = (viewportWidth - toolbarWidth) / 2;
     
     // Final safety: ensure we're not overlapping comic
-    if (top + toolbarHeight > comicTop - 5) {
+    if (top + toolbarHeight > comicTop - TOOLBAR_COMIC_CLEARANCE) {
         // Clamp to just above comic
-        return { top: Math.max(logoBottom + 15, comicTop - toolbarHeight - 10), left };
+        return { top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_COMIC_CLEARANCE), left };
     }
     
     return { top, left };
@@ -815,7 +818,7 @@ function positionToolbarCentered(toolbar, savePosition = false) {
         const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
         const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         const left = (viewportWidth - toolbarWidth) / 2;
-        const top = logoRect.bottom + 15;
+        const top = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
         toolbar.style.left = left + 'px';
         toolbar.style.top = top + 'px';
         toolbar.style.transform = 'none';
@@ -900,12 +903,12 @@ function clampToolbarInView() {
                         
                         // Ensure not overlapping logo
                         if (safeTop < logoRect.bottom + 10) {
-                            safeTop = logoRect.bottom + 15;
+                            safeTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
                         }
                         
                         // Ensure not overlapping comic
-                        if (safeTop + toolbarHeight > comicRect.top - 5) {
-                            safeTop = Math.max(logoRect.bottom + 15, comicRect.top - toolbarHeight - 10);
+                        if (safeTop + toolbarHeight > comicRect.top - TOOLBAR_COMIC_CLEARANCE) {
+                            safeTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
                         }
                         
                         toolbar.style.top = safeTop + 'px';
@@ -958,19 +961,19 @@ function clampToolbarInView() {
             // 1. If below controls (action buttons), maintain that relationship
             if (savedPos.belowControls && controlsContainer) {
                 const controlsRect = controlsContainer.getBoundingClientRect();
-                const storedGap = savedPos.offsetFromControls || 15;
+                const storedGap = Math.max(savedPos.offsetFromControls || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 newTop = controlsRect.bottom + storedGap;
             }
             // 2. If below settings panel, maintain that relationship
             else if (savedPos.belowSettings && settingsPanel && settingsPanel.classList.contains('visible')) {
                 const settingsRect = settingsPanel.getBoundingClientRect();
-                const storedGap = savedPos.offsetFromSettings || 15;
+                const storedGap = Math.max(savedPos.offsetFromSettings || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 newTop = settingsRect.bottom + storedGap;
             }
             // 3. If below comic, maintain that relationship
             else if (savedPos.belowComic && comic) {
                 const comicRect = comic.getBoundingClientRect();
-                const storedGap = savedPos.offsetFromComic || 15;
+                const storedGap = Math.max(savedPos.offsetFromComic || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 newTop = comicRect.bottom + storedGap;
             }
             
@@ -983,16 +986,16 @@ function clampToolbarInView() {
             if (logo) {
                 const logoRect = logo.getBoundingClientRect();
                 if (newTop < logoRect.bottom + 10) {
-                    newTop = logoRect.bottom + 15;
+                    newTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
                 }
             }
             
             // Ensure we don't overlap comic (unless intentionally below it)
             if (comic && !savedPos.belowComic && !savedPos.belowControls) {
                 const comicRect = comic.getBoundingClientRect();
-                if (newTop + toolbarHeight > comicRect.top - 5 && newTop < comicRect.bottom) {
+                if (newTop + toolbarHeight > comicRect.top - TOOLBAR_COMIC_CLEARANCE && newTop < comicRect.bottom) {
                     // Toolbar would overlap comic - push it above
-                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + 15 : 0, comicRect.top - toolbarHeight - 10);
+                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + TOOLBAR_MIN_VERTICAL_GAP : 0, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
                 }
             }
             
@@ -1009,15 +1012,15 @@ function clampToolbarInView() {
                 const overrides = {};
                 if (savedPos.belowControls) {
                     overrides.belowControls = true;
-                    overrides.offsetFromControls = savedPos.offsetFromControls || 15;
+                    overrides.offsetFromControls = Math.max(savedPos.offsetFromControls || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 }
                 if (savedPos.belowComic) {
                     overrides.belowComic = true;
-                    overrides.offsetFromComic = savedPos.offsetFromComic || 15;
+                    overrides.offsetFromComic = Math.max(savedPos.offsetFromComic || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 }
                 if (savedPos.belowSettings) {
                     overrides.belowSettings = true;
-                    overrides.offsetFromSettings = savedPos.offsetFromSettings || 15;
+                    overrides.offsetFromSettings = Math.max(savedPos.offsetFromSettings || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 }
                 storeToolbarPosition(newTop, newLeft, toolbar, overrides);
             }
@@ -1076,7 +1079,7 @@ function initializeToolbar() {
         const logo = document.querySelector('.logo');
         if (logo) {
             const logoRect = logo.getBoundingClientRect();
-            mainToolbar.style.top = (logoRect.bottom + 15) + 'px';
+            mainToolbar.style.top = (logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP) + 'px';
             mainToolbar.style.left = '50%';
             mainToolbar.style.transform = 'translateX(-50%)';
         }
