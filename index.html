@@ -80,13 +80,14 @@
     
     <!-- Styles and scripts -->
     <link rel="stylesheet" href="./main.css">
-    <script src="./init.js"></script>
+    <script src="./init.js" defer></script>
     <script src="./app.js" type="module"></script>
 </head>
 
 <body id="app-body">
     <h1 class="visually-hidden">Daily Garfield Comics - Browse Comic Strips in English &amp; Spanish</h1>
     <div class="logo">
+        <link rel="preload" as="image" href="./garlogo.webp" fetchpriority="high">
         <img src="./garlogo.webp" alt="Daily Garfield Comics" fetchpriority="high" loading="eager">
     </div>
     

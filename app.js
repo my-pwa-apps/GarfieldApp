@@ -248,8 +248,12 @@ const UTILS = {
         if (prevDate >= startDate) {
             getAuthenticatedComic(prevDate, language, source).then(result => {
                 if (result.success && result.imageUrl) {
-                    const img = new Image();
-                    img.src = result.imageUrl;
+                    const link = document.createElement('link');
+                    link.rel = 'preload';
+                    link.as = 'image';
+                    link.href = result.imageUrl;
+                    link.fetchPriority = 'low';
+                    document.head.appendChild(link);
                 }
             }).catch(() => {}); // Silently ignore errors
         }
@@ -270,13 +274,21 @@ const UTILS = {
                         if (actualDay <= currentDay) {
                             nextComicUrl = currentComicUrl;
                         } else {
-                            const img = new Image();
-                            img.src = result.imageUrl;
+                            const link = document.createElement('link');
+                            link.rel = 'preload';
+                            link.as = 'image';
+                            link.href = result.imageUrl;
+                            link.fetchPriority = 'low';
+                            document.head.appendChild(link);
                             nextComicUrl = result.imageUrl;
                         }
                     } else {
-                        const img = new Image();
-                        img.src = result.imageUrl;
+                        const link = document.createElement('link');
+                        link.rel = 'preload';
+                        link.as = 'image';
+                        link.href = result.imageUrl;
+                        link.fetchPriority = 'low';
+                        document.head.appendChild(link);
                         // Store next comic URL and check for timezone edge case
                         nextComicUrl = result.imageUrl;
                     }
@@ -644,6 +656,9 @@ function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
     let offsetY = 0;
+    let cachedWidth = 0;
+    let cachedHeight = 0;
+    let isTicking = false;
     
     function onDown(e) {
         // For mouse events, only drag with the left button
@@ -659,6 +674,10 @@ function makeDraggable(element, dragHandle, storageKey) {
         element.style.cursor = dragHandle === element ? 'grabbing' : '';
         
         const event = e.touches ? e.touches[0] : e;
+        
+        // Cache dimensions to prevent layout thrashing during drag
+        cachedWidth = element.offsetWidth;
+        cachedHeight = element.offsetHeight;
         
         // Get actual rendered position
         const rect = element.getBoundingClientRect();
@@ -683,9 +702,9 @@ function makeDraggable(element, dragHandle, storageKey) {
         
         const event = e.touches ? e.touches[0] : e;
         
-        // Get element dimensions for boundary checking
-        const width = element.offsetWidth;
-        const height = element.offsetHeight;
+        // Use cached dimensions to prevent layout thrashing
+        const width = cachedWidth;
+        const height = cachedHeight;
         
         // Calculate new position
         let newLeft = event.clientX - offsetX + window.scrollX;
@@ -709,9 +728,17 @@ function makeDraggable(element, dragHandle, storageKey) {
         // Constrain vertical position within document bounds
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         
-        element.style.left = newLeft + 'px';
-        element.style.top = newTop + 'px';
-        element.style.transform = 'none';
+        if (!isTicking) {
+            window.requestAnimationFrame(() => {
+                if (isDragging) {
+                    element.style.left = newLeft + 'px';
+                    element.style.top = newTop + 'px';
+                    element.style.transform = 'none';
+                }
+                isTicking = false;
+            });
+            isTicking = true;
+        }
     }
     
     function onUp() {
