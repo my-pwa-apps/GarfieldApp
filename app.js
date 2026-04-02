@@ -718,20 +718,8 @@ function makeDraggable(element, dragHandle, storageKey) {
         let newTop = event.clientY - offsetY + window.scrollY;
         const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         
-        // Special handling for toolbar: always keep horizontally centered (DirkJan pattern)
-        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
-            // Toolbar is ALWAYS horizontally centered - only vertical drag allowed
-            newLeft = (viewportWidth - width) / 2;
-            
-            // Check for overlap with protected elements and adjust position
-            const { overlaps, suggestedTop } = checkToolbarOverlap(newTop, newLeft, width, height);
-            if (overlaps) {
-                newTop = suggestedTop;
-            }
-        } else {
-            // For other elements (like settings panel), allow horizontal movement
-            newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
-        }
+        // Clamp both toolbar and other elements to the viewport
+        newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
         
         // Constrain vertical position within document bounds
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
@@ -766,6 +754,8 @@ function makeDraggable(element, dragHandle, storageKey) {
         // Special handling for toolbar: DirkJan-style snap-to-optimal behavior
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             const optimal = calculateOptimalToolbarPosition(element);
+            const vw = document.documentElement.clientWidth || window.innerWidth;
+            const centerLeft = (vw - (element.offsetWidth || cachedWidth)) / 2;
             if (optimal && isInSnapZone(numericTop, element)) {
                 element.style.left = optimal.left + 'px';
                 element.style.top = optimal.top + 'px';
@@ -774,7 +764,8 @@ function makeDraggable(element, dragHandle, storageKey) {
                     belowComic: false,
                     offsetFromComic: null,
                     belowSettings: false,
-                    offsetFromSettings: null
+                    offsetFromSettings: null,
+                    leftOffsetFromCenter: 0
                 });
                 try {
                     localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
@@ -783,7 +774,9 @@ function makeDraggable(element, dragHandle, storageKey) {
                 try {
                     localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
                 } catch (_) {}
-                storeToolbarPosition(numericTop, numericLeft, element);
+                storeToolbarPosition(numericTop, numericLeft, element, {
+                    leftOffsetFromCenter: numericLeft - centerLeft
+                });
             }
         } else {
             // For other elements (like settings panel), save both positions
@@ -843,7 +836,8 @@ function positionToolbarCentered(toolbar, savePosition = false) {
             belowComic: false,
             offsetFromComic: null,
             belowSettings: false,
-            offsetFromSettings: null
+            offsetFromSettings: null,
+            leftOffsetFromCenter: 0
         });
         try {
             localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
@@ -976,7 +970,11 @@ function clampToolbarInView() {
             const logo = document.querySelector('.logo');
             
             let newTop = savedPos.top;
-            let newLeft = (viewportWidth - toolbarWidth) / 2; // Always center horizontally
+            const centerLeft = (viewportWidth - toolbarWidth) / 2;
+            let newLeft = Math.max(0, Math.min(
+                centerLeft + (savedPos.leftOffsetFromCenter || 0),
+                viewportWidth - toolbarWidth
+            ));
             
             // Restore relative position based on saved metadata (priority order)
             // 1. If below controls (action buttons), maintain that relationship
@@ -1087,11 +1085,16 @@ function initializeToolbar() {
                 }, 300);
             });
         } else {
-            // Apply saved custom position immediately
+            // Apply saved custom position immediately, honouring horizontal offset from center
             const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
             const toolbarWidth = mainToolbar.offsetWidth || mainToolbar.getBoundingClientRect().width;
+            const centerLeft = (viewportWidth - toolbarWidth) / 2;
+            const restoredLeft = Math.max(0, Math.min(
+                centerLeft + (savedPos.leftOffsetFromCenter || 0),
+                viewportWidth - toolbarWidth
+            ));
             mainToolbar.style.top = savedPos.top + 'px';
-            mainToolbar.style.left = ((viewportWidth - toolbarWidth) / 2) + 'px';
+            mainToolbar.style.left = restoredLeft + 'px';
             mainToolbar.style.transform = 'none';
         }
     } else {
