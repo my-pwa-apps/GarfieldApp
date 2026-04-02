@@ -2245,10 +2245,12 @@ async function loadComic(date, silentMode = false, direction = null) {
             const messageContainer = document.getElementById('comic-message');
             if (messageContainer) messageContainer.style.display = 'none';
             
-            // Preload adjacent comics for faster navigation
-            UTILS.preloadAdjacentComics(date);
+            // Preload adjacent comics for faster navigation.
+            // Use actualDate when GoComics detected a date redirect so that
+            // checkNextComicAvailability fires against the real strip date.
+            UTILS.preloadAdjacentComics(result.actualDate || date);
             
-            return { success: true, isSameComic: false };
+            return { success: true, isSameComic: false, actualDate: result.actualDate || null };
         }
         
         if (result.isPaywalled && !silentMode) {
@@ -2579,7 +2581,25 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     // Load the comic (silent mode off for first attempt when not auto-skipping)
     const result = await loadComic(currentselectedDate, skipOnFailure, direction);
     const success = result.success;
-    
+
+    // If GoComics detected a date redirect (today's comic not yet published, served
+    // the previous day's strip instead), correct the displayed date to the actual
+    // strip date. This keeps preloading, button states, and isSameComic detection
+    // all consistent with the comic that is actually on screen.
+    if (result.actualDate) {
+        currentselectedDate = result.actualDate;
+        formatDate(currentselectedDate);
+        formattedComicDate = year + "/" + month + "/" + day;
+        formattedDate = year + "-" + month + "-" + day;
+        document.getElementById("DatePicker").value = formattedDate;
+        updateDateDisplay();
+        CompareDates();
+        UTILS.updateHeartIcon();
+        if (document.getElementById("lastdate").checked) {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
+        }
+    }
+
     // Handle same comic detection (timezone edge case)
     if (result.isSameComic && direction) {
         if (direction === 'previous') {

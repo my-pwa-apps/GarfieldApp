@@ -174,7 +174,29 @@ async function _getComicFromGoComics(date, language) {
     }
     
     const imageUrl = _extractGoComicsImage(html);
-    if (imageUrl) return { success: true, imageUrl };
+    if (imageUrl) {
+        // Detect if GoComics redirected to a different date (comic not yet published).
+        // Extract the actual date from the canonical/og:url and return it so the caller
+        // can correct the displayed date instead of silently showing the wrong strip.
+        const requestedPath = `/${year}/${month}/${day}`;
+        const canonicalMatch =
+            html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i) ||
+            html.match(/property="og:url"[^>]*content="([^"]+)"/i) ||
+            html.match(/content="([^"]+)"[^>]*property="og:url"/i);
+        if (canonicalMatch && !canonicalMatch[1].includes(requestedPath)) {
+            const actualMatch = canonicalMatch[1].match(/\/(\d{4})\/(\d{2})\/(\d{2})/);
+            if (actualMatch) {
+                const actualDate = new Date(
+                    parseInt(actualMatch[1]),
+                    parseInt(actualMatch[2]) - 1,
+                    parseInt(actualMatch[3]),
+                    12, 0, 0
+                );
+                return { success: true, imageUrl, actualDate };
+            }
+        }
+        return { success: true, imageUrl };
+    }
     
     console.warn(`GoComics: no image extracted (HTML length: ${html.length})`);
     return { success: false, imageUrl: null };
