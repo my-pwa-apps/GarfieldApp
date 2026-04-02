@@ -869,10 +869,7 @@ function refreshToolbarDefaultPosition() {
                 positionToolbarCentered(toolbar, true);
             });
         });
-        return;
     }
-
-    clampToolbarInView();
 }
 
 /**
