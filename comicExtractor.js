@@ -224,10 +224,15 @@ async function _getComicFromGoComics(date, language) {
  */
 async function _getComicFromFandom(date) {
     const dateStr = _dateToISO(date);
+    // Fandom filenames use either regular hyphens (2026-04-01.gif) or
+    // en dashes (2026–04–02.gif, U+2013). Try both variants for each extension.
+    const enDashStr = dateStr.replace(/-/g, '\u2013');
     const extensions = ['gif', 'jpg', 'jpeg', 'png'];
+    const dateCandidates = dateStr === enDashStr ? [dateStr] : [dateStr, enDashStr];
 
     for (const ext of extensions) {
-        const filename = `${dateStr}.${ext}`;
+        for (const ds of dateCandidates) {
+        const filename = `${ds}.${ext}`;
         const apiUrl = `https://garfield.fandom.com/api.php?action=query&titles=File:${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
 
         try {
@@ -250,6 +255,7 @@ async function _getComicFromFandom(date) {
             }
         } catch (err) {
             console.warn(`Fandom API (${filename}):`, err.message);
+        }
         }
     }
 
