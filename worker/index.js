@@ -8,6 +8,13 @@
 const DEFAULT_ALLOWED_HOSTS = [
     'dirkjan.nl',
     'www.dirkjan.nl',
+    'gocomics.com',
+    '*.gocomics.com',
+    'assets.amuniversal.com',
+    'www.arcamax.com',
+    'resources.arcamax.com',
+    'garfield.fandom.com',
+    'static.wikia.nocookie.net'
 ];
 
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);

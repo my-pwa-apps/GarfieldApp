@@ -1517,7 +1517,11 @@ async function Share() {
             const canvas = document.createElement('canvas');
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
-            canvas.getContext('2d').drawImage(img, 0, 0);
+            const ctx = canvas.getContext('2d');
+            // Fill with white background to prevent transparent GIFs/PNGs from becoming black JPEGs
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
             shareBlob = await new Promise((resolve, reject) => {
                 canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
             });
@@ -1526,9 +1530,13 @@ async function Share() {
         }
 
         const file = new File([shareBlob], 'garfield.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+        
+        // When sharing a file, if you also provide text and a URL, many apps (WhatsApp, Messages)
+        // will drop the file to create a link preview. To ensure the file is sent as an image attachment,
+        // we omit the 'url' parameter and just append the link to the 'text'.
         await navigator.share({
-            url: 'https://garfieldapp.pages.dev',
-            text: 'Shared from GarfieldApp',
+            title: `Garfield ${formattedComicDate}`,
+            text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}\nhttps://garfieldapp.pages.dev`,
             files: [file]
         });
     } catch (error) {
