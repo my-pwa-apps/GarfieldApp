@@ -659,6 +659,8 @@ function makeDraggable(element, dragHandle, storageKey) {
     let cachedWidth = 0;
     let cachedHeight = 0;
     let isTicking = false;
+    let pendingLeft = 0;
+    let pendingTop = 0;
     
     function onDown(e) {
         // For mouse events, only drag with the left button
@@ -728,11 +730,15 @@ function makeDraggable(element, dragHandle, storageKey) {
         // Constrain vertical position within document bounds
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         
+        // Always store the latest coordinates so the RAF reads up-to-date values
+        pendingLeft = newLeft;
+        pendingTop = newTop;
+        
         if (!isTicking) {
             window.requestAnimationFrame(() => {
                 if (isDragging) {
-                    element.style.left = newLeft + 'px';
-                    element.style.top = newTop + 'px';
+                    element.style.left = pendingLeft + 'px';
+                    element.style.top = pendingTop + 'px';
                     element.style.transform = 'none';
                 }
                 isTicking = false;
