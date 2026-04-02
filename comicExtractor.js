@@ -264,9 +264,14 @@ async function _getComicFromFandom(date) {
                     const imageUrl = page.imageinfo[0].url;
                     const accessible = await _verifyImageUrl(imageUrl);
                     if (accessible) {
-                        return { success: true, imageUrl };
+                        // Route the image through the CORS proxy so the browser
+                        // loads it via Cloudflare rather than directly. This ensures
+                        // consistent delivery regardless of the client's VPN routing
+                        // or CDN edge assignment.
+                        const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+                        return { success: true, imageUrl: proxiedUrl };
                     }
-                    // CDN returned 404 or cert error — try next extension
+                    // CDN returned 404 — try next extension
                     console.warn(`Fandom CDN not accessible for ${filename}, trying next extension`);
                 }
             }
