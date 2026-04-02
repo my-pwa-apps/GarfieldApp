@@ -186,6 +186,22 @@ async function _getComicFromGoComics(date, language) {
 // ============================================================
 
 /**
+ * Verifies a CDN image URL is actually reachable by attempting to load it.
+ * Returns false on HTTP 404, certificate errors, or timeout.
+ * @param {string} url
+ * @returns {Promise<boolean>}
+ */
+function _verifyImageUrl(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        const timer = setTimeout(() => resolve(false), 8000);
+        img.onload = () => { clearTimeout(timer); resolve(true); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
+        img.src = url;
+    });
+}
+
+/**
  * Fetches a Garfield comic from the Fandom wiki via their public JSON API.
  * The API supports cross-origin requests with origin=* so no CORS proxy is needed.
  *
@@ -216,7 +232,13 @@ async function _getComicFromFandom(date) {
             // Pages with a negative ID (e.g. -1) are "missing" — skip them
             for (const page of Object.values(pages)) {
                 if (page.pageid > 0 && page.imageinfo?.[0]?.url) {
-                    return { success: true, imageUrl: page.imageinfo[0].url };
+                    const imageUrl = page.imageinfo[0].url;
+                    const accessible = await _verifyImageUrl(imageUrl);
+                    if (accessible) {
+                        return { success: true, imageUrl };
+                    }
+                    // CDN returned 404 or cert error — try next extension
+                    console.warn(`Fandom CDN not accessible for ${filename}, trying next extension`);
                 }
             }
         } catch (err) {
