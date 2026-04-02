@@ -262,11 +262,18 @@ const UTILS = {
                 if (result.success && result.imageUrl) {
                     // If GoComics redirected to a date that isn't newer than the
                     // comic currently shown, the next strip isn't published yet.
-                    // This catches the case where Fandom served today's comic but
-                    // the URLs differ (Fandom proxy vs GoComics CDN), which would
-                    // otherwise prevent checkNextComicAvailability from firing.
-                    if (result.actualDate && result.actualDate <= currentDate) {
-                        nextComicUrl = currentComicUrl;
+                    // Normalize both to midnight before comparing — actualDate is
+                    // constructed with time=noon while currentDate is at midnight.
+                    if (result.actualDate) {
+                        const actualDay = new Date(result.actualDate); actualDay.setHours(0,0,0,0);
+                        const currentDay = new Date(currentDate); currentDay.setHours(0,0,0,0);
+                        if (actualDay <= currentDay) {
+                            nextComicUrl = currentComicUrl;
+                        } else {
+                            const img = new Image();
+                            img.src = result.imageUrl;
+                            nextComicUrl = result.imageUrl;
+                        }
                     } else {
                         const img = new Image();
                         img.src = result.imageUrl;
