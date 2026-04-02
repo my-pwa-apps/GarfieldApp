@@ -1098,6 +1098,16 @@ function initializeToolbar() {
     // Use ResizeObserver to detect when toolbar dimensions change due to CSS
     if (typeof ResizeObserver !== 'undefined') {
         const toolbarResizeObserver = new ResizeObserver(() => {
+            const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+            const hasSavedPosition = !!(savedPosRaw && savedPosRaw !== 'null');
+            const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
+
+            // For a custom saved toolbar position, preserve the exact saved state during
+            // startup/layout settling. Only real window resize events should reposition it.
+            if (hasSavedPosition && !isOptimalMode) {
+                return;
+            }
+
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
                 clampToolbarInView();
