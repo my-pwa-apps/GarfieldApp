@@ -417,7 +417,24 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             }
 
             if (result.success) return result;
-            console.warn(`${source}: unavailable, trying next fallback`);
+
+            // Fandom: if today's comic isn't published yet, silently fall back to
+            // yesterday within the same source. This mirrors GoComics' redirect
+            // behaviour and reuses the existing actualDate correction path in the UI.
+            if (source === 'fandom') {
+                const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+                const etToday = new Date(etNow); etToday.setHours(0, 0, 0, 0);
+                const requestedDay = new Date(date); requestedDay.setHours(0, 0, 0, 0);
+                if (requestedDay.getTime() === etToday.getTime()) {
+                    const yesterday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12, 0, 0);
+                    const yesterdayResult = await _getComicFromFandom(yesterday);
+                    if (yesterdayResult.success) {
+                        return { ...yesterdayResult, actualDate: yesterday };
+                    }
+                }
+            }
+
+            console.warn(`${source}: unavailable, no comic found`);
         } catch (err) {
             console.warn(`${source} error:`, err.message);
         }
