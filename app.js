@@ -2594,6 +2594,11 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         document.getElementById("DatePicker").value = formattedDate;
         updateDateDisplay();
         CompareDates();
+        // CompareDates() re-enables Next/Last because actualDate (yesterday) < today.
+        // But we know today's comic isn't published yet (that's why the redirect happened),
+        // so disable forward navigation immediately — don't wait for the async preloader.
+        document.getElementById("Next").disabled = true;
+        document.getElementById("Last").disabled = true;
         UTILS.updateHeartIcon();
         if (document.getElementById("lastdate").checked) {
             localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
