@@ -852,6 +852,7 @@ input[type="date"]::-webkit-datetime-edit {
     z-index: 10000;
     width: 320px;
     max-width: 90vw;
+    max-height: calc(100vh - 24px);
     display: none;
     flex-direction: column;
     border: 2px solid rgba(240, 152, 25, 0.3);
@@ -886,6 +887,7 @@ input[type="date"]::-webkit-datetime-edit {
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
 }
 
 .settings-header h3 {
@@ -923,6 +925,9 @@ input[type="date"]::-webkit-datetime-edit {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .setting-item {
@@ -951,7 +956,7 @@ input[type="date"]::-webkit-datetime-edit {
     flex-shrink: 0;
     -webkit-appearance: checkbox;
     -moz-appearance: checkbox;
-    appearance: auto;
+    appearance: checkbox;
     position: static;
 }
 
@@ -1003,10 +1008,14 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    appearance: auto;
     -webkit-appearance: auto;
+    appearance: auto;
     accent-color: #F09819;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.settings-footer {
+    flex-shrink: 0;
 }
 
 .source-select:focus {
