@@ -2421,6 +2421,21 @@ function initApp() {
     document.getElementById('shareBtn').addEventListener('click', Share);
     document.getElementById('exportFavs').addEventListener('click', exportFavorites);
     document.getElementById('importFavs').addEventListener('click', importFavorites);
+    
+    // Load Service Worker Version into Settings
+    const swDisplay = document.getElementById('swVersionDisplay');
+    if (swDisplay) {
+        fetch('./serviceworker.js', { cache: 'no-store' })
+            .then(res => res.text())
+            .then(text => {
+                const match = text.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
+                swDisplay.textContent = match ? `Version: ${match[1]}` : 'Version: Unknown';
+            })
+            .catch(() => {
+                swDisplay.textContent = 'Version: Check failed';
+            });
+    }
+
     // Install button click is handled in showInstallButton()
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
         document.getElementById('DatePicker').showPicker?.();
