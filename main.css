@@ -46,6 +46,7 @@ body {
     padding: 0 0 calc(var(--footer-height) + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
     overflow-x: hidden;
+    overflow-y: hidden;
 }
 
 main {
@@ -542,7 +543,7 @@ input[type="date"]::-webkit-datetime-edit {
     justify-content: center;
     align-items: center;
     width: 100%;
-    margin: 100px auto 0;
+    margin: 20px auto 0;
     padding: 20px 0;
     box-sizing: border-box;
     position: relative;
