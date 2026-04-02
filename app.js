@@ -718,8 +718,13 @@ function makeDraggable(element, dragHandle, storageKey) {
         let newTop = event.clientY - offsetY + window.scrollY;
         const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         
-        // Clamp both toolbar and other elements to the viewport
-        newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
+        // Toolbar: vertical drag only — keep current horizontal position
+        // Other elements (e.g. settings panel): free 2D drag clamped to viewport
+        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
+            newLeft = parseFloat(element.style.left) || (viewportWidth - width) / 2;
+        } else {
+            newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
+        }
         
         // Constrain vertical position within document bounds
         newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
