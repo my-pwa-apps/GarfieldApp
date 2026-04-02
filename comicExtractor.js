@@ -208,19 +208,26 @@ async function _getComicFromGoComics(date, language) {
 // ============================================================
 
 /**
- * Verifies a CDN image URL is actually reachable by attempting to load it.
- * Returns false on HTTP 404, certificate errors, or timeout.
+ * Verifies a Fandom CDN image URL is actually reachable by issuing a HEAD
+ * request through the CORS proxy (server-side check). This avoids false
+ * negatives caused by VPN routing, SSL inspection, or CDN edge routing on
+ * the client, while still catching genuine HTTP 404s from the Fandom CDN.
  * @param {string} url
  * @returns {Promise<boolean>}
  */
-function _verifyImageUrl(url) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        const timer = setTimeout(() => resolve(false), 8000);
-        img.onload = () => { clearTimeout(timer); resolve(true); };
-        img.onerror = () => { clearTimeout(timer); resolve(false); };
-        img.src = url;
-    });
+async function _verifyImageUrl(url) {
+    try {
+        const proxyUrl = `${CORS_PROXIES[0]}${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(FETCH_TIMEOUT),
+            mode: 'cors',
+            credentials: 'omit',
+        });
+        return response.ok;
+    } catch {
+        return false;
+    }
 }
 
 /**
