@@ -859,11 +859,10 @@ function refreshToolbarDefaultPosition() {
     const toolbar = document.getElementById('mainToolbar');
     if (!toolbar || isToolbarPersistenceSuspended) return;
 
-    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const hasSavedPosition = !!(savedPosRaw && savedPosRaw !== 'null');
 
-    if (!hasSavedPosition || isOptimalMode) {
+    if (!hasSavedPosition) {
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 positionToolbarCentered(toolbar, true);
@@ -1042,46 +1041,11 @@ function initializeToolbar() {
     // Check for saved position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
     
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        if (isOptimalMode) {
-            // Toolbar was in optimal mode - recalculate optimal position on load
-            // This ensures it stays centered even if window size changed since last session
-            const tryOptimalPosition = () => {
-                const optimalPos = calculateOptimalToolbarPosition(mainToolbar);
-                if (optimalPos) {
-                    mainToolbar.style.top = optimalPos.top + 'px';
-                    mainToolbar.style.left = optimalPos.left + 'px';
-                    mainToolbar.style.transform = 'none';
-                }
-            };
-            
-            // Try immediately and after load
-            setTimeout(tryOptimalPosition, 0);
-            setTimeout(tryOptimalPosition, 50);
-            window.addEventListener('load', () => {
-                setTimeout(tryOptimalPosition, 100);
-                setTimeout(() => {
-                    tryOptimalPosition();
-                    // Save the recalculated position
-                    const pos = calculateOptimalToolbarPosition(mainToolbar);
-                    if (pos) storeToolbarPosition(pos.top, pos.left, mainToolbar);
-                }, 300);
-            });
-        } else {
-            // Apply saved custom position immediately, honouring horizontal offset from center
-            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-            const toolbarWidth = mainToolbar.offsetWidth || mainToolbar.getBoundingClientRect().width;
-            const centerLeft = (viewportWidth - toolbarWidth) / 2;
-            const restoredLeft = Math.max(0, Math.min(
-                centerLeft + (savedPos.leftOffsetFromCenter || 0),
-                viewportWidth - toolbarWidth
-            ));
-            mainToolbar.style.top = savedPos.top + 'px';
-            mainToolbar.style.left = restoredLeft + 'px';
-            mainToolbar.style.transform = 'none';
-        }
+        mainToolbar.style.top = savedPos.top + 'px';
+        mainToolbar.style.left = savedPos.left + 'px';
+        mainToolbar.style.transform = 'none';
     } else {
         // No saved position - calculate centered position
         // Set a safe default first to avoid showing over comic
