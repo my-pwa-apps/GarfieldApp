@@ -1,4 +1,4 @@
-const VERSION = 'v1.7.0';
+const VERSION = 'v1.7.2';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -26,9 +26,6 @@ const PRECACHE_ASSETS = [
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-  if (event.data?.type === 'CHECK_NEW_COMIC') {
-    checkForNewComic();
   }
 });
 
@@ -168,113 +165,3 @@ async function networkFirstStrategy(request, cacheName) {
   }
 }
 
-/**
- * Check for new comic availability
- */
-async function checkForNewComic() {
-  try {
-    // Get current time in US Eastern timezone (accounts for EDT/EST)
-    const nowET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    
-    const year = nowET.getFullYear();
-    const month = String(nowET.getMonth() + 1).padStart(2, '0');
-    const day = String(nowET.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    
-    // Check if already notified
-    const lastNotifiedDate = await getLastNotifiedDate();
-    if (lastNotifiedDate === todayStr) return;
-    
-    // Check if too early (before 12:05 AM ET)
-    const etHour = nowET.getHours();
-    const etMinute = nowET.getMinutes();
-    if (etHour === 0 && etMinute < 5) return;
-    
-    // Fetch today's comic to verify it's published.
-    // Note: this always uses GoComics regardless of the user's preferred source
-    // setting (which lives in localStorage, inaccessible from the service worker).
-    // GoComics is a reliable availability oracle and is used here only for the
-    // existence check — it does not affect which source the app uses in the UI.
-    const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
-    
-    // GoComics is not CORS-enabled for service-worker/browser origins.
-    const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(comicUrl)}`;
-    const proxyResponse = await fetch(proxyUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    }).catch(() => null);
-    
-    const html = proxyResponse?.ok ? await proxyResponse.text() : null;
-    
-    // Check if comic is available
-    if (html) {
-      const hasComic = html.includes('featureassets.gocomics.com') || 
-                      html.includes('assets.amuniversal.com') ||
-                      (html.includes('data-image') && html.includes('garfield'));
-      
-      const isValid = !html.includes('Comic for') && 
-                     !html.includes('will be available') &&
-                     !html.includes('not yet available');
-      
-      if (hasComic && isValid) {
-        await saveLastNotifiedDate(todayStr);
-        await showNotification(todayStr);
-      }
-    }
-  } catch (error) {
-    console.error('Error checking for new comic:', error);
-  }
-}
-
-async function getLastNotifiedDate() {
-  const cache = await caches.open(CACHE_NAME);
-  const response = await cache.match('last-notified-date');
-  if (response) {
-    return await response.text();
-  }
-  return null;
-}
-
-async function saveLastNotifiedDate(date) {
-  const cache = await caches.open(CACHE_NAME);
-  await cache.put('last-notified-date', new Response(date));
-}
-
-/**
- * Show new comic notification
- */
-async function showNotification(date) {
-  const options = {
-    body: `Today's Garfield comic is now available! (${date})`,
-    icon: './android/android-launchericon-192-192.png',
-    badge: './android/android-launchericon-96-96.png',
-    tag: 'new-comic',
-    requireInteraction: false,
-    data: { url: './', date },
-    actions: [
-      { action: 'view', title: 'View Comic' },
-      { action: 'close', title: 'Close' }
-    ]
-  };
-  
-  await self.registration.showNotification('New Garfield Comic!', options);
-}
-
-/**
- * Handle notification clicks
- */
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  
-  if (event.action === 'view' || !event.action) {
-    event.waitUntil(clients.openWindow(event.notification.data.url || './'));
-  }
-});
-
-/**
- * Periodic background sync
- */
-self.addEventListener('periodicsync', (event) => {
-  if (event.tag === 'check-new-comic') {
-    event.waitUntil(checkForNewComic());
-  }
-});

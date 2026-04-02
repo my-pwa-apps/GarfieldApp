@@ -129,6 +129,21 @@ function _dateToISO(date) {
     return `${y}-${m}-${d}`;
 }
 
+function _isRequestedDateTodayInET(date) {
+    const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const etToday = new Date(etNow);
+    etToday.setHours(0, 0, 0, 0);
+
+    const requestedDay = new Date(date);
+    requestedDay.setHours(0, 0, 0, 0);
+
+    return requestedDay.getTime() === etToday.getTime();
+}
+
+function _getPreviousDayAtNoon(date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12, 0, 0);
+}
+
 // ============================================================
 // SOURCE 1: GOCOMICS (PRIMARY) — EN + ES
 // ============================================================
@@ -399,11 +414,12 @@ async function _getComicFromArcaMax(date) {
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
 export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom') {
-    // When fandom is the preferred source, only try fandom — no fallback.
-    // GoComics and ArcaMax are only used when the user explicitly selects them.
+    // Build the ordered list of sources to try.
+    // ArcaMax is always appended last; the two EN-capable sources swap order
+    // based on user preference.
     const order = preferredSource === 'fandom'
-        ? ['fandom']
-        : ['gocomics', 'arcamax'];
+        ? ['fandom', 'gocomics', 'arcamax']
+        : ['gocomics', 'fandom', 'arcamax'];
 
     for (const source of order) {
         // Spanish is only available on GoComics
@@ -424,19 +440,17 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
 
             if (result.success) return result;
 
-            // Fandom: if today's comic isn't published yet, silently fall back to
-            // yesterday within the same source. This mirrors GoComics' redirect
-            // behaviour and reuses the existing actualDate correction path in the UI.
-            if (source === 'fandom') {
-                const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-                const etToday = new Date(etNow); etToday.setHours(0, 0, 0, 0);
-                const requestedDay = new Date(date); requestedDay.setHours(0, 0, 0, 0);
-                if (requestedDay.getTime() === etToday.getTime()) {
-                    const yesterday = new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12, 0, 0);
-                    const yesterdayResult = await _getComicFromFandom(yesterday);
-                    if (yesterdayResult.success) {
-                        return { ...yesterdayResult, actualDate: yesterday };
-                    }
+            // If today's strip is missing, first treat it as a source-local
+            // timezone/publication delay and retry yesterday within that same
+            // source before falling back across sources.
+            if (_isRequestedDateTodayInET(date) && source !== 'arcamax') {
+                const yesterday = _getPreviousDayAtNoon(date);
+                const yesterdayResult = source === 'gocomics'
+                    ? await _getComicFromGoComics(yesterday, language)
+                    : await _getComicFromFandom(yesterday);
+
+                if (yesterdayResult.success) {
+                    return { ...yesterdayResult, actualDate: yesterday };
                 }
             }
 
