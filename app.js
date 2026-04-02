@@ -545,6 +545,7 @@ function calculateOptimalToolbarPosition(toolbar) {
     const comicRect = comic.getBoundingClientRect();
     const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
     const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     
     if (!toolbarHeight || !toolbarWidth) return null;
     
@@ -556,13 +557,13 @@ function calculateOptimalToolbarPosition(toolbar) {
     if (availableSpace < toolbarHeight + 10) {
         // Not enough space - place toolbar just below logo with minimum gap
         const safeTop = logoBottom + 15;
-        const left = (window.innerWidth - toolbarWidth) / 2;
+        const left = (viewportWidth - toolbarWidth) / 2;
         return { top: safeTop, left };
     }
     
     // Calculate centered position (DirkJan pattern)
     const top = logoBottom + Math.max(15, (availableSpace - toolbarHeight) / 2);
-    const left = (window.innerWidth - toolbarWidth) / 2;
+    const left = (viewportWidth - toolbarWidth) / 2;
     
     // Final safety: ensure we're not overlapping comic
     if (top + toolbarHeight > comicTop - 5) {
@@ -711,11 +712,12 @@ function makeDraggable(element, dragHandle, storageKey) {
         // Calculate new position
         let newLeft = event.clientX - offsetX + window.scrollX;
         let newTop = event.clientY - offsetY + window.scrollY;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         
         // Special handling for toolbar: always keep horizontally centered (DirkJan pattern)
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             // Toolbar is ALWAYS horizontally centered - only vertical drag allowed
-            newLeft = (window.innerWidth - width) / 2;
+            newLeft = (viewportWidth - width) / 2;
             
             // Check for overlap with protected elements and adjust position
             const { overlaps, suggestedTop } = checkToolbarOverlap(newTop, newLeft, width, height);
@@ -724,7 +726,7 @@ function makeDraggable(element, dragHandle, storageKey) {
             }
         } else {
             // For other elements (like settings panel), allow horizontal movement
-            newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - width));
+            newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
         }
         
         // Constrain vertical position within document bounds
@@ -811,7 +813,8 @@ function positionToolbarCentered(toolbar, savePosition = false) {
         const logoRect = logo.getBoundingClientRect();
         const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
         const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-        const left = (window.innerWidth - toolbarWidth) / 2;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        const left = (viewportWidth - toolbarWidth) / 2;
         const top = logoRect.bottom + 15;
         toolbar.style.left = left + 'px';
         toolbar.style.top = top + 'px';
@@ -939,7 +942,7 @@ function clampToolbarInView() {
             const rect = toolbar.getBoundingClientRect();
             const toolbarHeight = rect.height;
             const toolbarWidth = toolbar.offsetWidth;
-            const viewportWidth = window.innerWidth;
+            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
             const viewportHeight = window.innerHeight;
             
             // Get element references
@@ -1061,8 +1064,10 @@ function initializeToolbar() {
             });
         } else {
             // Apply saved custom position immediately
+            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+            const toolbarWidth = mainToolbar.offsetWidth || mainToolbar.getBoundingClientRect().width;
             mainToolbar.style.top = savedPos.top + 'px';
-            mainToolbar.style.left = savedPos.left + 'px';
+            mainToolbar.style.left = ((viewportWidth - toolbarWidth) / 2) + 'px';
             mainToolbar.style.transform = 'none';
         }
     } else {
