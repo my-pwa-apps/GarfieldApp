@@ -435,6 +435,7 @@ let isVerticalFullscreen = false;
 
 const TOOLBAR_MIN_VERTICAL_GAP = 20;
 const TOOLBAR_COMIC_CLEARANCE = 18;
+const TOOLBAR_CENTER_BIAS = 6;
 
 /**
  * Persist the main toolbar position together with relative metadata (DirkJan pattern)
@@ -565,7 +566,7 @@ function calculateOptimalToolbarPosition(toolbar) {
     }
     
     // Calculate centered position (DirkJan pattern)
-    const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, (availableSpace - toolbarHeight) / 2);
+    const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, ((availableSpace - toolbarHeight) / 2) - TOOLBAR_CENTER_BIAS);
     const left = (viewportWidth - toolbarWidth) / 2;
     
     // Final safety: ensure we're not overlapping comic
