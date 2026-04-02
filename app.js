@@ -758,31 +758,14 @@ function makeDraggable(element, dragHandle, storageKey) {
         
         // Special handling for toolbar: DirkJan-style snap-to-optimal behavior
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
-            const optimal = calculateOptimalToolbarPosition(element);
             const vw = document.documentElement.clientWidth || window.innerWidth;
             const centerLeft = (vw - (element.offsetWidth || cachedWidth)) / 2;
-            if (optimal && isInSnapZone(numericTop, element)) {
-                element.style.left = optimal.left + 'px';
-                element.style.top = optimal.top + 'px';
-                element.style.transform = 'none';
-                storeToolbarPosition(optimal.top, optimal.left, element, {
-                    belowComic: false,
-                    offsetFromComic: null,
-                    belowSettings: false,
-                    offsetFromSettings: null,
-                    leftOffsetFromCenter: 0
-                });
-                try {
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-                } catch (_) {}
-            } else {
-                try {
-                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
-                } catch (_) {}
-                storeToolbarPosition(numericTop, numericLeft, element, {
-                    leftOffsetFromCenter: numericLeft - centerLeft
-                });
-            }
+            try {
+                localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
+            } catch (_) {}
+            storeToolbarPosition(numericTop, numericLeft, element, {
+                leftOffsetFromCenter: numericLeft - centerLeft
+            });
         } else {
             // For other elements (like settings panel), save both positions
             try {
