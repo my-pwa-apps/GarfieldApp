@@ -393,12 +393,11 @@ async function _getComicFromArcaMax(date) {
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
 export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom') {
-    // Build the ordered list of sources to try.
-    // ArcaMax is always appended last; the two EN-capable sources swap order
-    // based on user preference.
+    // When fandom is the preferred source, only try fandom — no fallback.
+    // GoComics and ArcaMax are only used when the user explicitly selects them.
     const order = preferredSource === 'fandom'
-        ? ['fandom', 'gocomics', 'arcamax']
-        : ['gocomics', 'fandom', 'arcamax'];
+        ? ['fandom']
+        : ['gocomics', 'arcamax'];
 
     for (const source of order) {
         // Spanish is only available on GoComics
