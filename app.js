@@ -1496,9 +1496,16 @@ async function Share() {
     }
     
     try {
-        // Fetch the image through our CORS proxy to get a Blob.
-        const proxyUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
-        const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+        // Fetch the image to get a Blob.
+        // If the URL already routes through our proxy (e.g. Fandom), safely use it directly.
+        // Otherwise, wrap it in our Cloudflare CORS worker to avoid canvas tainting
+        // and bypass opaque-response restrictions.
+        let fetchUrl = imageUrl;
+        if (!imageUrl.startsWith('https://corsproxy.garfieldapp.workers.dev/')) {
+            fetchUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
+        }
+        
+        const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
         const rawBlob = await response.blob();
 
