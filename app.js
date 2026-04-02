@@ -2901,7 +2901,7 @@ function RandomClick() {
         currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
     } else {
         const start = UTILS.isSpanishMode() ? new Date('1999-12-06') : new Date('1978-06-19');
-        const end = new Date();
+        const end = UTILS.getEasternDate();
         currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
     }
     CompareDates();
@@ -2941,7 +2941,9 @@ function CompareDates() {
     if (document.getElementById('showfavs').checked) {
         endDate = new Date(favs[favs.length - 1]);
     } else {
-        endDate = new Date();
+        // Use Eastern Time — comics are released based on ET midnight, not local time.
+        // Without this, users east of ET can navigate to "tomorrow" before the comic exists.
+        endDate = UTILS.getEasternDate();
     }
     endDate = endDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDate);

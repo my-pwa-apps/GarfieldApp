@@ -1,4 +1,4 @@
-const VERSION = 'v1.6.5';
+const VERSION = 'v1.6.7';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -190,7 +190,11 @@ async function checkForNewComic() {
     const etMinute = nowET.getMinutes();
     if (etHour === 0 && etMinute < 5) return;
     
-    // Fetch today's comic
+    // Fetch today's comic to verify it's published.
+    // Note: this always uses GoComics regardless of the user's preferred source
+    // setting (which lives in localStorage, inaccessible from the service worker).
+    // GoComics is a reliable availability oracle and is used here only for the
+    // existence check — it does not affect which source the app uses in the UI.
     const comicUrl = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
     
     // GoComics is not CORS-enabled for service-worker/browser origins.

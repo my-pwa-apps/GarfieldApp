@@ -205,30 +205,9 @@ async function _getComicFromGoComics(date, language) {
 // ============================================================
 // SOURCE 2: GARFIELD FANDOM WIKI (FIRST FALLBACK) — EN only
 // Uses the Fandom MediaWiki JSON API (CORS-enabled, no proxy needed).
+// Images are served via the CORS proxy so they load through Cloudflare
+// regardless of the client's VPN or CDN edge assignment.
 // ============================================================
-
-/**
- * Verifies a Fandom CDN image URL is actually reachable by issuing a HEAD
- * request through the CORS proxy (server-side check). This avoids false
- * negatives caused by VPN routing, SSL inspection, or CDN edge routing on
- * the client, while still catching genuine HTTP 404s from the Fandom CDN.
- * @param {string} url
- * @returns {Promise<boolean>}
- */
-async function _verifyImageUrl(url) {
-    try {
-        const proxyUrl = `${CORS_PROXIES[0]}${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, {
-            method: 'HEAD',
-            signal: AbortSignal.timeout(FETCH_TIMEOUT),
-            mode: 'cors',
-            credentials: 'omit',
-        });
-        return response.ok;
-    } catch {
-        return false;
-    }
-}
 
 /**
  * Fetches a Garfield comic from the Fandom wiki via their public JSON API.
@@ -236,8 +215,9 @@ async function _verifyImageUrl(url) {
  *
  * Strategy:
  *   1. Request imageinfo for File:YYYY-MM-DD.gif
- *   2. If not found, try File:YYYY-MM-DD.jpg
- *   Both resolve to a static.wikia.nocookie.net CDN URL.
+ *   2. If not found, try File:YYYY-MM-DD.jpg / .jpeg / .png
+ *   Both resolve to a static.wikia.nocookie.net CDN URL which is then
+ *   wrapped in the CORS proxy before being returned.
  *
  * @param {Date} date
  * @returns {Promise<{success: boolean, imageUrl: string|null}>}
@@ -262,17 +242,10 @@ async function _getComicFromFandom(date) {
             for (const page of Object.values(pages)) {
                 if (page.pageid > 0 && page.imageinfo?.[0]?.url) {
                     const imageUrl = page.imageinfo[0].url;
-                    const accessible = await _verifyImageUrl(imageUrl);
-                    if (accessible) {
-                        // Route the image through the CORS proxy so the browser
-                        // loads it via Cloudflare rather than directly. This ensures
-                        // consistent delivery regardless of the client's VPN routing
-                        // or CDN edge assignment.
-                        const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
-                        return { success: true, imageUrl: proxiedUrl };
-                    }
-                    // CDN returned 404 — try next extension
-                    console.warn(`Fandom CDN not accessible for ${filename}, trying next extension`);
+                    // Route through the CORS proxy so the browser loads via
+                    // Cloudflare — independent of client VPN routing or CDN edge.
+                    const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+                    return { success: true, imageUrl: proxiedUrl };
                 }
             }
         } catch (err) {
