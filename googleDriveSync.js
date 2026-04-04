@@ -47,13 +47,15 @@ function _initTokenClient() {
         callback: handleTokenResponse
     });
 
+    window.dispatchEvent(new CustomEvent('google-sync-ready'));
+
     // Check for existing token in session
     const stored = sessionStorage.getItem('gDriveToken');
     if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.expiry > Date.now()) {
             accessToken = parsed.token;
-            updateGoogleUI(true);
+            updateGoogleUI(true, 'restore');
             // Auto-pull favorites on session restore
             pullFavoritesFromDrive();
         }
@@ -77,7 +79,7 @@ function handleTokenResponse(response) {
         expiry: Date.now() + (response.expires_in * 1000)
     }));
 
-    updateGoogleUI(true);
+    updateGoogleUI(true, 'user');
     fetchGoogleUserInfo();
     // Auto-pull favorites from Drive on sign-in
     pullFavoritesFromDrive();
@@ -104,7 +106,7 @@ function googleSignOut() {
     accessToken = null;
     sessionStorage.removeItem('gDriveToken');
     sessionStorage.removeItem('gDriveUser');
-    updateGoogleUI(false);
+    updateGoogleUI(false, 'signout');
 }
 
 /**
@@ -264,7 +266,7 @@ async function pullFavoritesFromDrive() {
 /**
  * Update the UI to reflect signed-in / signed-out state.
  */
-function updateGoogleUI(signedIn) {
+function updateGoogleUI(signedIn, source = 'unknown') {
     const signInBtn = document.getElementById('googleSignInBtn');
     const signOutBtn = document.getElementById('googleSignOutBtn');
     const nameEl = document.getElementById('googleUserName');
@@ -278,6 +280,10 @@ function updateGoogleUI(signedIn) {
         const stored = sessionStorage.getItem('gDriveUser');
         if (stored) nameEl.textContent = stored;
     }
+
+    window.dispatchEvent(new CustomEvent('google-sync-auth-changed', {
+        detail: { signedIn, source }
+    }));
 }
 
 // Expose to global scope for app.js
@@ -285,3 +291,9 @@ window.initGoogleSync = initGoogleSync;
 window.googleSignIn = googleSignIn;
 window.googleSignOut = googleSignOut;
 window.syncFavoritesToDrive = syncFavoritesToDrive;
+window.isGoogleDriveSignedIn = function isGoogleDriveSignedIn() {
+    return Boolean(accessToken);
+};
+window.isGoogleDriveReady = function isGoogleDriveReady() {
+    return Boolean(tokenClient);
+};

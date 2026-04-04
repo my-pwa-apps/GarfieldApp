@@ -35,6 +35,7 @@ const CONFIG = Object.freeze({
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
         SOURCE: 'comicSource',
+        FIRST_RUN_COMPLETE: 'firstRunComplete',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
@@ -1279,6 +1280,57 @@ function initGoogleSyncUI() {
     });
 }
 
+function initFirstRunExperience() {
+    const backdrop = document.getElementById('firstRunBackdrop');
+    const modal = document.getElementById('firstRunModal');
+    const signInBtn = document.getElementById('firstRunGoogleBtn');
+    const skipBtn = document.getElementById('firstRunSkipBtn');
+
+    if (!backdrop || !modal || !signInBtn || !skipBtn) return;
+
+    const completeKey = CONFIG.STORAGE_KEYS.FIRST_RUN_COMPLETE;
+
+    function updateGoogleActionState() {
+        const isSignedIn = typeof window.isGoogleDriveSignedIn === 'function' && window.isGoogleDriveSignedIn();
+        const isReady = typeof window.isGoogleDriveReady === 'function' && window.isGoogleDriveReady();
+        signInBtn.disabled = !isSignedIn && !isReady;
+        signInBtn.setAttribute('aria-disabled', signInBtn.disabled ? 'true' : 'false');
+    }
+
+    function completeFirstRun() {
+        localStorage.setItem(completeKey, 'true');
+        backdrop.classList.remove('visible');
+        modal.classList.remove('visible');
+    }
+
+    signInBtn.addEventListener('click', () => {
+        if (typeof window.isGoogleDriveSignedIn === 'function' && window.isGoogleDriveSignedIn()) {
+            completeFirstRun();
+            return;
+        }
+
+        if (typeof googleSignIn === 'function') googleSignIn();
+    });
+
+    skipBtn.addEventListener('click', completeFirstRun);
+
+    window.addEventListener('google-sync-ready', updateGoogleActionState);
+
+    window.addEventListener('google-sync-auth-changed', (event) => {
+        updateGoogleActionState();
+        if (event.detail?.signedIn && event.detail?.source === 'user') {
+            completeFirstRun();
+        }
+    });
+
+    updateGoogleActionState();
+
+    if (localStorage.getItem(completeKey) !== 'true') {
+        backdrop.classList.add('visible');
+        modal.classList.add('visible');
+    }
+}
+
 /**
  * Initialize donation modal functionality
  */
@@ -1411,6 +1463,7 @@ if (document.readyState === 'loading') {
         initDonationModal();
         initGoogleSyncUI();
         if (typeof initGoogleSync === 'function') initGoogleSync();
+        initFirstRunExperience();
         // Add touch event listeners
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1423,6 +1476,7 @@ if (document.readyState === 'loading') {
     initDonationModal();
     initGoogleSyncUI();
     if (typeof initGoogleSync === 'function') initGoogleSync();
+    initFirstRunExperience();
     // Add touch event listeners
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1483,7 +1537,10 @@ const translations = {
         googleSignOut: 'Sign out',
         googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
-        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.'
+        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
+        firstRunTitle: 'Sync across your devices',
+        firstRunBody: 'Sign in with Google to sync your favorites and settings with Google Drive, or skip and continue using the app locally on this device.',
+        skipForNow: 'Skip for now'
     },
     es: {
         previous: 'Anterior',
@@ -1520,7 +1577,10 @@ const translations = {
         googleSignOut: 'Cerrar sesión',
         googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
-        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.'
+        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
+        firstRunTitle: 'Sincroniza entre tus dispositivos',
+        firstRunBody: 'Inicia sesión con Google para sincronizar tus favoritos y ajustes con Google Drive, o sáltalo y continúa usando la app localmente en este dispositivo.',
+        skipForNow: 'Omitir por ahora'
     }
 };
 
@@ -1544,13 +1604,18 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
     const swipeEl = document.getElementById('swipe');
     const datePicker = document.getElementById('DatePicker');
 
+    const before = window.getSyncPreferences();
+    let changed = false;
+
     if (preferences.comicSource && sourceEl) {
+        if (before.comicSource !== preferences.comicSource) changed = true;
         sourceEl.value = preferences.comicSource;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SOURCE, preferences.comicSource);
         _applySourceSetting(preferences.comicSource);
     }
 
     if (typeof preferences.swipeEnabled === 'boolean' && swipeEl) {
+        if (before.swipeEnabled !== preferences.swipeEnabled) changed = true;
         swipeEl.checked = preferences.swipeEnabled;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, preferences.swipeEnabled ? 'true' : 'false');
     }
@@ -1558,6 +1623,7 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
     if (typeof preferences.spanish === 'boolean' && spanishEl) {
         const isGoComics = (sourceEl?.value || 'gocomics') === 'gocomics';
         const useSpanish = isGoComics && preferences.spanish;
+        if (before.spanish !== useSpanish) changed = true;
         spanishEl.checked = useSpanish;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, useSpanish ? 'true' : 'false');
         translateInterface(useSpanish ? 'es' : 'en');
@@ -1565,8 +1631,10 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
         if (datePicker) datePicker.min = useSpanish ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN;
     }
 
-    CompareDates();
-    showComic();
+    if (changed) {
+        CompareDates();
+        showComic();
+    }
 };
 
 // Function to translate the interface
@@ -1663,6 +1731,15 @@ function translateInterface(lang) {
     if (gSignOutLabel) gSignOutLabel.textContent = `(${t.googleSignOut})`;
     const gSyncDesc = document.getElementById('googleSyncDesc');
     if (gSyncDesc) gSyncDesc.textContent = t.googleSyncDesc;
+
+    const firstRunTitle = document.getElementById('firstRunTitle');
+    if (firstRunTitle) firstRunTitle.textContent = t.firstRunTitle;
+    const firstRunBody = document.getElementById('firstRunBody');
+    if (firstRunBody) firstRunBody.textContent = t.firstRunBody;
+    const firstRunGoogleSpan = document.querySelector('#firstRunGoogleBtn span');
+    if (firstRunGoogleSpan) firstRunGoogleSpan.textContent = t.googleSignIn;
+    const firstRunSkipSpan = document.querySelector('#firstRunSkipBtn span');
+    if (firstRunSkipSpan) firstRunSkipSpan.textContent = t.skipForNow;
     
     // Translate donation modal
     const donationMsg = document.getElementById('donationMessage');
@@ -3098,12 +3175,11 @@ function importFavorites() {
         
         const reader = new FileReader();
         reader.onload = (event) => {
+            const isSpanish = UTILS.isSpanishMode();
+            const lang = isSpanish ? 'es' : 'en';
+            const t = translations[lang];
             try {
                 const data = JSON.parse(event.target.result);
-                
-                const isSpanish = UTILS.isSpanishMode();
-                const lang = isSpanish ? 'es' : 'en';
-                const t = translations[lang];
                 
                 if (!data.favorites || !Array.isArray(data.favorites)) {
                     showNotification(t.invalidFavoritesFile, 4000);
