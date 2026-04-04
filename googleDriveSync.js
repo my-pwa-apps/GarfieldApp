@@ -14,7 +14,6 @@ function _notify(msg) { if (typeof window.showNotification === 'function') windo
 function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem('favs') || '[]'); }
 function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
 function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
-function _getFavImagesKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAV_IMAGES : 'favImages'; }
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
 
 /**
@@ -53,6 +52,8 @@ function _initTokenClient() {
         if (parsed.expiry > Date.now()) {
             accessToken = parsed.token;
             updateGoogleUI(true);
+            // Auto-pull favorites on session restore
+            pullFavoritesFromDrive();
         }
     }
 }
@@ -76,6 +77,8 @@ function handleTokenResponse(response) {
 
     updateGoogleUI(true);
     fetchGoogleUserInfo();
+    // Auto-pull favorites from Drive on sign-in
+    pullFavoritesFromDrive();
 }
 
 /**
@@ -134,38 +137,19 @@ async function findFavoritesFile() {
 }
 
 /**
- * Upload favorites to Google Drive appData folder.
- * Creates or updates the file.
+ * Push current favorites to Google Drive (auto-sync, silent).
+ * Called automatically when favorites change.
  */
-async function uploadFavoritesToDrive() {
-    if (!accessToken) {
-        _notify(_t('googleSignInFirst') || 'Please sign in with Google first');
-        return;
-    }
+async function syncFavoritesToDrive() {
+    if (!accessToken) return;
 
     const favs = _getFavorites();
-    if (!favs.length) {
-        _notify(_t('noFavoritesToExport') || 'No favorites to export.');
-        return;
-    }
-
-    // Build enriched data: combine dates with their cached images
-    const images = JSON.parse(localStorage.getItem(_getFavImagesKey()) || '{}');
-    const enrichedFavs = favs.map(date => {
-        const entry = { date };
-        if (images[date]) entry.imageData = images[date];
-        return entry;
-    });
-
-    const uploadBtn = document.getElementById('googleUploadBtn');
-    if (uploadBtn) uploadBtn.disabled = true;
 
     try {
         const fileId = await findFavoritesFile();
-        const content = JSON.stringify(enrichedFavs);
+        const content = JSON.stringify(favs);
 
         if (fileId) {
-            // Update existing file
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
                 headers: {
@@ -175,12 +159,7 @@ async function uploadFavoritesToDrive() {
                 body: content
             });
         } else {
-            // Create new file with multipart upload
-            const metadata = {
-                name: FAVORITES_FILENAME,
-                parents: ['appDataFolder']
-            };
-
+            const metadata = { name: FAVORITES_FILENAME, parents: ['appDataFolder'] };
             const boundary = 'garfield_sync_boundary';
             const body =
                 `--${boundary}\r\n` +
@@ -200,98 +179,61 @@ async function uploadFavoritesToDrive() {
                 body
             });
         }
-
-        const lang = _isSpanish() ? 'es' : 'en';
-        _notify((_t('googleUploadSuccess') || 'Uploaded {count} favorites to Google Drive.').replace('{count}', favs.length));
     } catch (err) {
-        console.error('Upload failed:', err);
-        _notify('Upload failed. Please try again.');
-    } finally {
-        if (uploadBtn) uploadBtn.disabled = false;
+        console.error('Auto-sync to Drive failed:', err);
     }
 }
 
 /**
- * Download favorites from Google Drive and merge with local.
+ * Pull favorites from Google Drive and merge with local.
+ * Called on sign-in and session restore.
  */
-async function downloadFavoritesFromDrive() {
-    if (!accessToken) {
-        _notify(_t('googleSignInFirst') || 'Please sign in with Google first');
-        return;
-    }
-
-    const downloadBtn = document.getElementById('googleDownloadBtn');
-    if (downloadBtn) downloadBtn.disabled = true;
+async function pullFavoritesFromDrive() {
+    if (!accessToken) return;
 
     try {
         const fileId = await findFavoritesFile();
-        if (!fileId) {
-            _notify('No favorites found in Google Drive');
-            return;
-        }
+        if (!fileId) return;
 
         const res = await fetch(
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
             { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-        if (!res.ok) throw new Error('Failed to download');
+        if (!res.ok) return;
 
         const cloudData = await res.json();
 
-        // Handle both formats: enriched [{date, imageData}] and legacy ["date"]
+        // Handle both formats: plain ["date"] and legacy [{date}]
         let cloudDates = [];
-        let cloudImages = {};
-
         if (Array.isArray(cloudData)) {
             cloudData.forEach(item => {
                 if (typeof item === 'string') {
-                    // Legacy format: plain date string
                     cloudDates.push(item);
                 } else if (item && typeof item === 'object' && item.date) {
-                    // Enriched format: {date, imageData}
                     cloudDates.push(item.date);
-                    if (item.imageData) cloudImages[item.date] = item.imageData;
                 }
             });
         } else {
-            _notify(_t('invalidFavoritesFile') || 'Invalid favorites file format.');
             return;
         }
 
-        // Merge dates: union of local + cloud (no duplicates)
         const localFavs = _getFavorites();
-        const merged = [...new Set([...localFavs, ...cloudDates])];
+        const merged = [...new Set([...localFavs, ...cloudDates])].sort();
         const newCount = merged.length - localFavs.length;
 
-        localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
-
-        // Merge images: cloud images fill in any missing local ones
-        if (Object.keys(cloudImages).length > 0) {
-            const localImages = JSON.parse(localStorage.getItem(_getFavImagesKey()) || '{}');
-            let imagesUpdated = false;
-            for (const [date, data] of Object.entries(cloudImages)) {
-                if (!localImages[date]) {
-                    localImages[date] = data;
-                    imagesUpdated = true;
-                }
-            }
-            if (imagesUpdated) {
-                try {
-                    localStorage.setItem(_getFavImagesKey(), JSON.stringify(localImages));
-                } catch (_) { /* storage full — images are optional */ }
-            }
+        if (newCount > 0) {
+            localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
+            // Update heart icon if available
+            if (typeof window.UTILS !== 'undefined') window.UTILS.updateHeartIcon();
+            _notify((_t('googleDownloadSuccess') || 'Synced {count} new favorites from Google Drive.').replace('{count}', newCount).replace('{total}', merged.length));
         }
 
-        if (newCount > 0) {
-            _notify((_t('googleDownloadSuccess') || 'Downloaded {count} new favorites. Total: {total}').replace('{count}', newCount).replace('{total}', merged.length));
-        } else {
-            _notify(_t('allFavoritesExist') || 'All favorites already exist.');
+        // If local has items not in cloud, push back
+        if (merged.length > cloudDates.length) {
+            syncFavoritesToDrive();
         }
     } catch (err) {
-        console.error('Download failed:', err);
-        _notify('Download failed. Please try again.');
-    } finally {
-        if (downloadBtn) downloadBtn.disabled = false;
+        console.error('Pull from Drive failed:', err);
     }
 }
 
@@ -301,12 +243,12 @@ async function downloadFavoritesFromDrive() {
 function updateGoogleUI(signedIn) {
     const signInBtn = document.getElementById('googleSignInBtn');
     const signOutBtn = document.getElementById('googleSignOutBtn');
-    const syncSection = document.getElementById('googleSyncSection');
     const nameEl = document.getElementById('googleUserName');
+    const descEl = document.getElementById('googleSyncDesc');
 
     if (signInBtn) signInBtn.style.display = signedIn ? 'none' : 'flex';
     if (signOutBtn) signOutBtn.style.display = signedIn ? 'flex' : 'none';
-    if (syncSection) syncSection.style.display = signedIn ? 'flex' : 'none';
+    if (descEl) descEl.style.display = signedIn ? 'none' : '';
 
     if (signedIn && nameEl) {
         const stored = sessionStorage.getItem('gDriveUser');
@@ -318,5 +260,4 @@ function updateGoogleUI(signedIn) {
 window.initGoogleSync = initGoogleSync;
 window.googleSignIn = googleSignIn;
 window.googleSignOut = googleSignOut;
-window.uploadFavoritesToDrive = uploadFavoritesToDrive;
-window.downloadFavoritesFromDrive = downloadFavoritesFromDrive;
+window.syncFavoritesToDrive = syncFavoritesToDrive;

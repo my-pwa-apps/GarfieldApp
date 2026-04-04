@@ -29,7 +29,6 @@ const CONFIG = Object.freeze({
     // Storage keys
     STORAGE_KEYS: Object.freeze({
         FAVS: 'favs',
-        FAV_IMAGES: 'favImages',
         LAST_COMIC: 'lastcomic',
         SWIPE: 'stat',
         SHOW_FAVS: 'showfavs',
@@ -333,75 +332,6 @@ const UTILS = {
         }
     }
 };
-
-/**
- * Capture the currently displayed comic image as a WebP base64 data URL.
- * Uses the CORS proxy to fetch the image as a blob, then draws to canvas.
- * @returns {Promise<string|null>} WebP data URL or null on failure
- */
-async function captureComicAsWebP() {
-    const comicImg = document.getElementById('comic');
-    if (!comicImg || !comicImg.src || !comicImg.naturalWidth) return null;
-
-    try {
-        // Fetch image via CORS proxy to avoid canvas tainting
-        const proxyUrl = 'https://corsproxy.garfieldapp.workers.dev/?' + encodeURIComponent(comicImg.src);
-        const res = await fetch(proxyUrl);
-        if (!res.ok) return null;
-
-        const blob = await res.blob();
-        const blobUrl = URL.createObjectURL(blob);
-
-        return await new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth;
-                canvas.height = img.naturalHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(blobUrl);
-
-                const dataUrl = canvas.toDataURL('image/webp', 0.8);
-                resolve(dataUrl);
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(blobUrl);
-                resolve(null);
-            };
-            img.src = blobUrl;
-        });
-    } catch (_) {
-        return null;
-    }
-}
-
-/**
- * Save a favorite image to the favImages store.
- */
-function saveFavImage(date, dataUrl) {
-    if (!dataUrl) return;
-    const images = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAV_IMAGES), {});
-    images[date] = dataUrl;
-    try {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.FAV_IMAGES, JSON.stringify(images));
-    } catch (e) {
-        // localStorage quota exceeded — silently fail, images are optional
-        console.warn('Could not save favorite image (storage full):', e.message);
-    }
-}
-
-/**
- * Remove a favorite image from the favImages store.
- */
-function removeFavImage(date) {
-    const images = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAV_IMAGES), {});
-    if (images[date]) {
-        delete images[date];
-        localStorage.setItem(CONFIG.STORAGE_KEYS.FAV_IMAGES, JSON.stringify(images));
-    }
-}
 
 function getPrimaryComicElement() {
     return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
@@ -1288,20 +1218,12 @@ function initializeMobileButtonStates() {
 function initGoogleSyncUI() {
     const signInBtn = document.getElementById('googleSignInBtn');
     const signOutBtn = document.getElementById('googleSignOutBtn');
-    const uploadBtn = document.getElementById('googleUploadBtn');
-    const downloadBtn = document.getElementById('googleDownloadBtn');
 
     signInBtn?.addEventListener('click', () => {
         if (typeof googleSignIn === 'function') googleSignIn();
     });
     signOutBtn?.addEventListener('click', () => {
         if (typeof googleSignOut === 'function') googleSignOut();
-    });
-    uploadBtn?.addEventListener('click', () => {
-        if (typeof uploadFavoritesToDrive === 'function') uploadFavoritesToDrive();
-    });
-    downloadBtn?.addEventListener('click', () => {
-        if (typeof downloadFavoritesFromDrive === 'function') downloadFavoritesFromDrive();
     });
 }
 
@@ -1507,10 +1429,9 @@ const translations = {
         googleDriveSync: 'Google Drive Sync',
         googleSignIn: 'Sign in with Google',
         googleSignOut: 'Sign out',
-        googleUpload: 'Upload to Drive',
-        googleDownload: 'Download from Drive',
-        googleUploadSuccess: 'Uploaded {count} favorites to Google Drive.',
-        googleDownloadSuccess: 'Downloaded {count} new favorites. Total: {total}'
+        googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
+        googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
+        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.'
     },
     es: {
         previous: 'Anterior',
@@ -1545,10 +1466,9 @@ const translations = {
         googleDriveSync: 'Sincronización Google Drive',
         googleSignIn: 'Iniciar sesión con Google',
         googleSignOut: 'Cerrar sesión',
-        googleUpload: 'Subir a Drive',
-        googleDownload: 'Descargar de Drive',
-        googleUploadSuccess: '{count} favoritos subidos a Google Drive.',
-        googleDownloadSuccess: '{count} favoritos nuevos descargados. Total: {total}'
+        googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
+        googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
+        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.'
     }
 };
 
@@ -1650,10 +1570,12 @@ function translateInterface(lang) {
     if (gSignInSpan) gSignInSpan.textContent = t.googleSignIn;
     const gSignOutLabel = document.querySelector('.google-signout-label');
     if (gSignOutLabel) gSignOutLabel.textContent = `(${t.googleSignOut})`;
-    const gUploadSpan = document.querySelector('#googleUploadBtn span');
-    if (gUploadSpan) gUploadSpan.textContent = t.googleUpload;
-    const gDownloadSpan = document.querySelector('#googleDownloadBtn span');
-    if (gDownloadSpan) gDownloadSpan.textContent = t.googleDownload;
+    const gSyncDesc = document.getElementById('googleSyncDesc');
+    if (gSyncDesc) gSyncDesc.textContent = t.googleSyncDesc;
+    
+    // Translate donation modal
+    const donationMsg = document.getElementById('donationMessage');
+    if (donationMsg) donationMsg.textContent = t.donationMessage;
     
     // Translate comic alt text
     const comic = document.getElementById('comic');
@@ -1803,12 +1725,9 @@ function Addfav() {
         // Add to favorites
         favs.push(dateToFavorite);
         if (showFavsCheckbox) showFavsCheckbox.disabled = false;
-        // Capture comic image as WebP in background (non-blocking)
-        captureComicAsWebP().then(dataUrl => saveFavImage(dateToFavorite, dataUrl));
     } else {
         // Remove from favorites
         favs.splice(favIndex, 1);
-        removeFavImage(dateToFavorite);
         
         if (favs.length === 0 && showFavsCheckbox) {
             showFavsCheckbox.checked = false;
@@ -1818,6 +1737,8 @@ function Addfav() {
     
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
+    // Auto-sync to Google Drive if signed in
+    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
     UTILS.updateHeartIcon();
     updateExportButtonState();
     CompareDates();
