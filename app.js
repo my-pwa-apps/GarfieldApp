@@ -427,6 +427,8 @@ let isRotatedMode = false;
 let isToolbarPersistenceSuspended = false;
 let isVerticalComicActive = false;
 let isVerticalFullscreen = false;
+let toolbarStateBeforeRotate = null;
+let suppressToolbarClampUntil = 0;
 
 
 // ========================================
@@ -844,6 +846,56 @@ function positionToolbarCentered(toolbar, savePosition = false) {
     }
 }
 
+function snapshotToolbarStateBeforeRotate() {
+    const toolbar = document.getElementById('mainToolbar');
+    toolbarStateBeforeRotate = {
+        savedRaw: localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS),
+        optimalRaw: localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL),
+        top: toolbar?.style.top || '',
+        left: toolbar?.style.left || '',
+        transform: toolbar?.style.transform || ''
+    };
+}
+
+function restoreToolbarStateAfterRotate() {
+    const toolbar = document.getElementById('mainToolbar');
+    const snapshot = toolbarStateBeforeRotate;
+    toolbarStateBeforeRotate = null;
+
+    if (!toolbar || !snapshot) {
+        clampToolbarInView();
+        return;
+    }
+
+    suppressToolbarClampUntil = Date.now() + 400;
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            try {
+                if (snapshot.savedRaw && snapshot.savedRaw !== 'null') {
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, snapshot.savedRaw);
+                } else {
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+                }
+
+                if (snapshot.optimalRaw === 'true') {
+                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
+                } else {
+                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
+                }
+            } catch (_) {}
+
+            if (snapshot.top) {
+                toolbar.style.top = snapshot.top;
+            }
+            if (snapshot.left) {
+                toolbar.style.left = snapshot.left;
+            }
+            toolbar.style.transform = snapshot.transform || 'none';
+        });
+    });
+}
+
 /**
  * Initializes draggable settings panel
  */
@@ -888,7 +940,7 @@ function refreshToolbarDefaultPosition() {
  */
 function clampToolbarInView() {
     const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    if (!toolbar || isToolbarPersistenceSuspended || isRotatedMode) return;
+    if (!toolbar || isToolbarPersistenceSuspended || isRotatedMode || Date.now() < suppressToolbarClampUntil) return;
     
     // Check if toolbar is in optimal position mode
     const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
@@ -1957,12 +2009,13 @@ function Rotate(applyRotation = true, clickToExit = true) {
         
         isRotatedMode = false;
         
-        // Restore toolbar to its saved position
-        clampToolbarInView();
+        // Restore toolbar to its exact pre-rotate position
+        restoreToolbarStateAfterRotate();
         return;
     }
     
     if (element.className === "normal" || element.className.includes("normal")) {
+        snapshotToolbarStateBeforeRotate();
         isRotatedMode = true;
         
         // Create an overlay without any layout constraints
@@ -2034,8 +2087,8 @@ function Rotate(applyRotation = true, clickToExit = true) {
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
             
-            // Restore toolbar to its saved position
-            clampToolbarInView();
+            // Restore toolbar to its exact pre-rotate position
+            restoreToolbarStateAfterRotate();
         };
         
         // Escape key to exit fullscreen
