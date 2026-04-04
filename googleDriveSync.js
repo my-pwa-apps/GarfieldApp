@@ -14,15 +14,32 @@ function _notify(msg) { if (typeof window.showNotification === 'function') windo
 function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem('favs') || '[]'); }
 function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
 function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
+function _getFavImagesKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAV_IMAGES : 'favImages'; }
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
 
 /**
  * Initialize Google Identity Services token client.
- * Must be called after the GIS script has loaded.
+ * Retries if the GIS script hasn't loaded yet.
  */
 function initGoogleSync() {
-    if (typeof google === 'undefined' || !google.accounts) return;
+    if (typeof google !== 'undefined' && google.accounts) {
+        _initTokenClient();
+        return;
+    }
+    // GIS script not loaded yet — wait for it (up to 10s)
+    let attempts = 0;
+    const interval = setInterval(() => {
+        attempts++;
+        if (typeof google !== 'undefined' && google.accounts) {
+            clearInterval(interval);
+            _initTokenClient();
+        } else if (attempts >= 20) {
+            clearInterval(interval);
+        }
+    }, 500);
+}
 
+function _initTokenClient() {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: GOOGLE_SCOPES,
@@ -132,12 +149,20 @@ async function uploadFavoritesToDrive() {
         return;
     }
 
+    // Build enriched data: combine dates with their cached images
+    const images = JSON.parse(localStorage.getItem(_getFavImagesKey()) || '{}');
+    const enrichedFavs = favs.map(date => {
+        const entry = { date };
+        if (images[date]) entry.imageData = images[date];
+        return entry;
+    });
+
     const uploadBtn = document.getElementById('googleUploadBtn');
     if (uploadBtn) uploadBtn.disabled = true;
 
     try {
         const fileId = await findFavoritesFile();
-        const content = JSON.stringify(favs, null, 2);
+        const content = JSON.stringify(enrichedFavs);
 
         if (fileId) {
             // Update existing file
@@ -211,19 +236,51 @@ async function downloadFavoritesFromDrive() {
         );
         if (!res.ok) throw new Error('Failed to download');
 
-        const cloudFavs = await res.json();
+        const cloudData = await res.json();
 
-        if (!Array.isArray(cloudFavs)) {
+        // Handle both formats: enriched [{date, imageData}] and legacy ["date"]
+        let cloudDates = [];
+        let cloudImages = {};
+
+        if (Array.isArray(cloudData)) {
+            cloudData.forEach(item => {
+                if (typeof item === 'string') {
+                    // Legacy format: plain date string
+                    cloudDates.push(item);
+                } else if (item && typeof item === 'object' && item.date) {
+                    // Enriched format: {date, imageData}
+                    cloudDates.push(item.date);
+                    if (item.imageData) cloudImages[item.date] = item.imageData;
+                }
+            });
+        } else {
             _notify(_t('invalidFavoritesFile') || 'Invalid favorites file format.');
             return;
         }
 
-        // Merge: union of local + cloud (no duplicates)
+        // Merge dates: union of local + cloud (no duplicates)
         const localFavs = _getFavorites();
-        const merged = [...new Set([...localFavs, ...cloudFavs])];
+        const merged = [...new Set([...localFavs, ...cloudDates])];
         const newCount = merged.length - localFavs.length;
 
         localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
+
+        // Merge images: cloud images fill in any missing local ones
+        if (Object.keys(cloudImages).length > 0) {
+            const localImages = JSON.parse(localStorage.getItem(_getFavImagesKey()) || '{}');
+            let imagesUpdated = false;
+            for (const [date, data] of Object.entries(cloudImages)) {
+                if (!localImages[date]) {
+                    localImages[date] = data;
+                    imagesUpdated = true;
+                }
+            }
+            if (imagesUpdated) {
+                try {
+                    localStorage.setItem(_getFavImagesKey(), JSON.stringify(localImages));
+                } catch (_) { /* storage full — images are optional */ }
+            }
+        }
 
         if (newCount > 0) {
             _notify((_t('googleDownloadSuccess') || 'Downloaded {count} new favorites. Total: {total}').replace('{count}', newCount).replace('{total}', merged.length));

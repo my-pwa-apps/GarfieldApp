@@ -29,6 +29,7 @@ const CONFIG = Object.freeze({
     // Storage keys
     STORAGE_KEYS: Object.freeze({
         FAVS: 'favs',
+        FAV_IMAGES: 'favImages',
         LAST_COMIC: 'lastcomic',
         SWIPE: 'stat',
         SHOW_FAVS: 'showfavs',
@@ -333,6 +334,75 @@ const UTILS = {
     }
 };
 
+/**
+ * Capture the currently displayed comic image as a WebP base64 data URL.
+ * Uses the CORS proxy to fetch the image as a blob, then draws to canvas.
+ * @returns {Promise<string|null>} WebP data URL or null on failure
+ */
+async function captureComicAsWebP() {
+    const comicImg = document.getElementById('comic');
+    if (!comicImg || !comicImg.src || !comicImg.naturalWidth) return null;
+
+    try {
+        // Fetch image via CORS proxy to avoid canvas tainting
+        const proxyUrl = 'https://corsproxy.garfieldapp.workers.dev/?' + encodeURIComponent(comicImg.src);
+        const res = await fetch(proxyUrl);
+        if (!res.ok) return null;
+
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        return await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                URL.revokeObjectURL(blobUrl);
+
+                const dataUrl = canvas.toDataURL('image/webp', 0.8);
+                resolve(dataUrl);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(blobUrl);
+                resolve(null);
+            };
+            img.src = blobUrl;
+        });
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Save a favorite image to the favImages store.
+ */
+function saveFavImage(date, dataUrl) {
+    if (!dataUrl) return;
+    const images = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAV_IMAGES), {});
+    images[date] = dataUrl;
+    try {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.FAV_IMAGES, JSON.stringify(images));
+    } catch (e) {
+        // localStorage quota exceeded — silently fail, images are optional
+        console.warn('Could not save favorite image (storage full):', e.message);
+    }
+}
+
+/**
+ * Remove a favorite image from the favImages store.
+ */
+function removeFavImage(date) {
+    const images = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAV_IMAGES), {});
+    if (images[date]) {
+        delete images[date];
+        localStorage.setItem(CONFIG.STORAGE_KEYS.FAV_IMAGES, JSON.stringify(images));
+    }
+}
+
 function getPrimaryComicElement() {
     return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
 }
@@ -527,6 +597,17 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
             }
         } else if (!offsetSettingsOverridden && positionData.belowSettings === false) {
             delete positionData.offsetFromSettings;
+        }
+    }
+    
+    // Track position as ratio within logo-to-comic gap for resize stability
+    const logoEl = document.querySelector('.logo');
+    if (logoEl && comicElement && toolbarRect && !positionData.belowComic && !positionData.belowControls) {
+        const logoRect = logoEl.getBoundingClientRect();
+        const comicRect = comicElement.getBoundingClientRect();
+        const gapTotal = comicRect.top - logoRect.bottom;
+        if (gapTotal > 0) {
+            positionData.gapRatio = (toolbarRect.top - logoRect.bottom) / gapTotal;
         }
     }
     
@@ -978,6 +1059,18 @@ function clampToolbarInView() {
                 const comicRect = comic.getBoundingClientRect();
                 const storedGap = Math.max(savedPos.offsetFromComic || 0, TOOLBAR_MIN_VERTICAL_GAP);
                 newTop = comicRect.bottom + storedGap;
+            }
+            // 4. Between logo and comic: use saved ratio within the gap
+            else if (typeof savedPos.gapRatio === 'number' && logo && comic) {
+                const logoRect = logo.getBoundingClientRect();
+                const comicRect = comic.getBoundingClientRect();
+                const gapTotal = comicRect.top - logoRect.bottom;
+                if (gapTotal > toolbarHeight + TOOLBAR_COMIC_CLEARANCE) {
+                    newTop = logoRect.bottom + (gapTotal * savedPos.gapRatio);
+                    // Clamp within the gap
+                    newTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, newTop);
+                    newTop = Math.min(newTop, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
+                }
             }
             
             // Viewport boundary clamping
@@ -1710,9 +1803,12 @@ function Addfav() {
         // Add to favorites
         favs.push(dateToFavorite);
         if (showFavsCheckbox) showFavsCheckbox.disabled = false;
+        // Capture comic image as WebP in background (non-blocking)
+        captureComicAsWebP().then(dataUrl => saveFavImage(dateToFavorite, dataUrl));
     } else {
         // Remove from favorites
         favs.splice(favIndex, 1);
+        removeFavImage(dateToFavorite);
         
         if (favs.length === 0 && showFavsCheckbox) {
             showFavsCheckbox.checked = false;
