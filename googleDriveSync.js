@@ -9,6 +9,13 @@ const FAVORITES_FILENAME = 'garfield-favorites.json';
 let tokenClient = null;
 let accessToken = null;
 
+// Safe access to app.js globals (module-scoped, exposed via window.*)
+function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
+function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem('favs') || '[]'); }
+function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
+function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
+function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
+
 /**
  * Initialize Google Identity Services token client.
  * Must be called after the GIS script has loaded.
@@ -39,7 +46,7 @@ function initGoogleSync() {
 function handleTokenResponse(response) {
     if (response.error) {
         console.error('Google auth error:', response.error);
-        showNotification('Google sign-in failed');
+        _notify(_t('googleSignInFailed') || 'Google sign-in failed');
         return;
     }
 
@@ -59,7 +66,7 @@ function handleTokenResponse(response) {
  */
 function googleSignIn() {
     if (!tokenClient) {
-        showNotification('Google services not loaded');
+        _notify(_t('googleNotLoaded') || 'Google services not loaded');
         return;
     }
     tokenClient.requestAccessToken();
@@ -115,15 +122,13 @@ async function findFavoritesFile() {
  */
 async function uploadFavoritesToDrive() {
     if (!accessToken) {
-        showNotification('Please sign in with Google first');
+        _notify(_t('googleSignInFirst') || 'Please sign in with Google first');
         return;
     }
 
-    const favs = UTILS.getFavorites();
+    const favs = _getFavorites();
     if (!favs.length) {
-        const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-        const t = translations[lang] || translations.en;
-        showNotification(t.noFavoritesToExport);
+        _notify(_t('noFavoritesToExport') || 'No favorites to export.');
         return;
     }
 
@@ -171,12 +176,11 @@ async function uploadFavoritesToDrive() {
             });
         }
 
-        const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-        const t = translations[lang] || translations.en;
-        showNotification(t.googleUploadSuccess.replace('{count}', favs.length));
+        const lang = _isSpanish() ? 'es' : 'en';
+        _notify((_t('googleUploadSuccess') || 'Uploaded {count} favorites to Google Drive.').replace('{count}', favs.length));
     } catch (err) {
         console.error('Upload failed:', err);
-        showNotification('Upload failed. Please try again.');
+        _notify('Upload failed. Please try again.');
     } finally {
         if (uploadBtn) uploadBtn.disabled = false;
     }
@@ -187,7 +191,7 @@ async function uploadFavoritesToDrive() {
  */
 async function downloadFavoritesFromDrive() {
     if (!accessToken) {
-        showNotification('Please sign in with Google first');
+        _notify(_t('googleSignInFirst') || 'Please sign in with Google first');
         return;
     }
 
@@ -197,7 +201,7 @@ async function downloadFavoritesFromDrive() {
     try {
         const fileId = await findFavoritesFile();
         if (!fileId) {
-            showNotification('No favorites found in Google Drive');
+            _notify('No favorites found in Google Drive');
             return;
         }
 
@@ -210,29 +214,25 @@ async function downloadFavoritesFromDrive() {
         const cloudFavs = await res.json();
 
         if (!Array.isArray(cloudFavs)) {
-            const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-            const t = translations[lang] || translations.en;
-            showNotification(t.invalidFavoritesFile);
+            _notify(_t('invalidFavoritesFile') || 'Invalid favorites file format.');
             return;
         }
 
         // Merge: union of local + cloud (no duplicates)
-        const localFavs = UTILS.getFavorites();
+        const localFavs = _getFavorites();
         const merged = [...new Set([...localFavs, ...cloudFavs])];
         const newCount = merged.length - localFavs.length;
 
-        localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(merged));
+        localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
 
-        const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-        const t = translations[lang] || translations.en;
         if (newCount > 0) {
-            showNotification(t.googleDownloadSuccess.replace('{count}', newCount).replace('{total}', merged.length));
+            _notify((_t('googleDownloadSuccess') || 'Downloaded {count} new favorites. Total: {total}').replace('{count}', newCount).replace('{total}', merged.length));
         } else {
-            showNotification(t.allFavoritesExist);
+            _notify(_t('allFavoritesExist') || 'All favorites already exist.');
         }
     } catch (err) {
         console.error('Download failed:', err);
-        showNotification('Download failed. Please try again.');
+        _notify('Download failed. Please try again.');
     } finally {
         if (downloadBtn) downloadBtn.disabled = false;
     }

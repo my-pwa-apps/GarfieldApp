@@ -877,7 +877,7 @@ function refreshToolbarDefaultPosition() {
  */
 function clampToolbarInView() {
     const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    if (!toolbar || isToolbarPersistenceSuspended) return;
+    if (!toolbar || isToolbarPersistenceSuspended || isRotatedMode) return;
     
     // Check if toolbar is in optimal position mode
     const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
@@ -1458,6 +1458,12 @@ const translations = {
         googleDownloadSuccess: '{count} favoritos nuevos descargados. Total: {total}'
     }
 };
+
+// Expose globals needed by googleDriveSync.js (non-module script)
+window.showNotification = showNotification;
+window.UTILS = UTILS;
+window.CONFIG = CONFIG;
+window.translations = translations;
 
 // Function to translate the interface
 function translateInterface(lang) {
