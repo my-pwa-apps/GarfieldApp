@@ -1190,6 +1190,29 @@ function initializeMobileButtonStates() {
 }
 
 /**
+ * Wire up Google Drive sync buttons.
+ */
+function initGoogleSyncUI() {
+    const signInBtn = document.getElementById('googleSignInBtn');
+    const signOutBtn = document.getElementById('googleSignOutBtn');
+    const uploadBtn = document.getElementById('googleUploadBtn');
+    const downloadBtn = document.getElementById('googleDownloadBtn');
+
+    signInBtn?.addEventListener('click', () => {
+        if (typeof googleSignIn === 'function') googleSignIn();
+    });
+    signOutBtn?.addEventListener('click', () => {
+        if (typeof googleSignOut === 'function') googleSignOut();
+    });
+    uploadBtn?.addEventListener('click', () => {
+        if (typeof uploadFavoritesToDrive === 'function') uploadFavoritesToDrive();
+    });
+    downloadBtn?.addEventListener('click', () => {
+        if (typeof downloadFavoritesFromDrive === 'function') downloadFavoritesFromDrive();
+    });
+}
+
+/**
  * Initialize donation modal functionality
  */
 function initDonationModal() {
@@ -1319,6 +1342,8 @@ if (document.readyState === 'loading') {
         initializeDraggableSettings();
         initializeMobileButtonStates();
         initDonationModal();
+        initGoogleSyncUI();
+        if (typeof initGoogleSync === 'function') initGoogleSync();
         // Add touch event listeners
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1329,6 +1354,8 @@ if (document.readyState === 'loading') {
     initializeDraggableSettings();
     initializeMobileButtonStates();
     initDonationModal();
+    initGoogleSyncUI();
+    if (typeof initGoogleSync === 'function') initGoogleSync();
     // Add touch event listeners
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1383,7 +1410,14 @@ const translations = {
         importedFavorites: 'Imported {count} new favorite{plural}. Total: {total}',
         allFavoritesExist: 'All favorites already exist.',
         invalidFavoritesFile: 'Invalid favorites file format.',
-        errorReadingFile: 'Error reading favorites file.'
+        errorReadingFile: 'Error reading favorites file.',
+        googleDriveSync: 'Google Drive Sync',
+        googleSignIn: 'Sign in with Google',
+        googleSignOut: 'Sign out',
+        googleUpload: 'Upload to Drive',
+        googleDownload: 'Download from Drive',
+        googleUploadSuccess: 'Uploaded {count} favorites to Google Drive.',
+        googleDownloadSuccess: 'Downloaded {count} new favorites. Total: {total}'
     },
     es: {
         previous: 'Anterior',
@@ -1414,7 +1448,14 @@ const translations = {
         importedFavorites: '{count} favorito{plural} nuevo{plural} importado{plural}. Total: {total}',
         allFavoritesExist: 'Todos los favoritos ya existen.',
         invalidFavoritesFile: 'Formato de archivo de favoritos no válido.',
-        errorReadingFile: 'Error al leer el archivo de favoritos.'
+        errorReadingFile: 'Error al leer el archivo de favoritos.',
+        googleDriveSync: 'Sincronización Google Drive',
+        googleSignIn: 'Iniciar sesión con Google',
+        googleSignOut: 'Cerrar sesión',
+        googleUpload: 'Subir a Drive',
+        googleDownload: 'Descargar de Drive',
+        googleUploadSuccess: '{count} favoritos subidos a Google Drive.',
+        googleDownloadSuccess: '{count} favoritos nuevos descargados. Total: {total}'
     }
 };
 
@@ -1502,6 +1543,18 @@ function translateInterface(lang) {
     if (importBtn) {
         importBtn.textContent = t.importFavorites;
     }
+    
+    // Translate Google sync section
+    const gSyncHeader = document.querySelector('.google-sync-header span');
+    if (gSyncHeader) gSyncHeader.textContent = t.googleDriveSync;
+    const gSignInSpan = document.querySelector('#googleSignInBtn span');
+    if (gSignInSpan) gSignInSpan.textContent = t.googleSignIn;
+    const gSignOutLabel = document.querySelector('.google-signout-label');
+    if (gSignOutLabel) gSignOutLabel.textContent = `(${t.googleSignOut})`;
+    const gUploadSpan = document.querySelector('#googleUploadBtn span');
+    if (gUploadSpan) gUploadSpan.textContent = t.googleUpload;
+    const gDownloadSpan = document.querySelector('#googleDownloadBtn span');
+    if (gDownloadSpan) gDownloadSpan.textContent = t.googleDownload;
     
     // Translate comic alt text
     const comic = document.getElementById('comic');
