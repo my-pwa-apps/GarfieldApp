@@ -47,16 +47,39 @@ function _initTokenClient() {
         callback: handleTokenResponse
     });
 
-    // Check for existing token in session
-    const stored = sessionStorage.getItem('gDriveToken');
+    window.dispatchEvent(new CustomEvent('google-sync-ready'));
+
+    // Check for existing token in localStorage
+    const stored = localStorage.getItem('gDriveToken');
     if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.expiry > Date.now()) {
+            // Token still valid — restore session
             accessToken = parsed.token;
-            updateGoogleUI(true);
-            // Auto-pull favorites on session restore
+            updateGoogleUI(true, 'restore');
             pullFavoritesFromDrive();
+        } else {
+            // Token expired but user was previously signed in — try silent re-auth
+            _trySilentReauth();
         }
+    }
+}
+
+let _pendingAuthSource = 'user';
+
+/**
+ * Attempt silent token re-acquisition without a popup.
+ * Works when the user still has an active Google session in the browser
+ * and has previously granted consent to this app.
+ */
+function _trySilentReauth() {
+    if (!tokenClient) return;
+    try {
+        _pendingAuthSource = 'restore';
+        tokenClient.requestAccessToken({ prompt: '' });
+    } catch (_) {
+        _pendingAuthSource = 'user';
+        // Silent re-auth not possible — user will need to click sign-in
     }
 }
 
@@ -64,20 +87,26 @@ function _initTokenClient() {
  * Handle the OAuth token response from Google.
  */
 function handleTokenResponse(response) {
+    const source = _pendingAuthSource;
+    _pendingAuthSource = 'user';
+
     if (response.error) {
-        console.error('Google auth error:', response.error);
-        _notify(_t('googleSignInFailed') || 'Google sign-in failed');
+        // Silent re-auth failures are expected — don't notify the user
+        if (source !== 'restore') {
+            console.error('Google auth error:', response.error);
+            _notify(_t('googleSignInFailed') || 'Google sign-in failed');
+        }
         return;
     }
 
     accessToken = response.access_token;
-    // Store token with expiry (~1 hour)
-    sessionStorage.setItem('gDriveToken', JSON.stringify({
+    // Store token with expiry (~1 hour) in localStorage so it survives app restarts
+    localStorage.setItem('gDriveToken', JSON.stringify({
         token: accessToken,
         expiry: Date.now() + (response.expires_in * 1000)
     }));
 
-    updateGoogleUI(true);
+    updateGoogleUI(true, source);
     fetchGoogleUserInfo();
     // Auto-pull favorites from Drive on sign-in
     pullFavoritesFromDrive();
@@ -102,9 +131,9 @@ function googleSignOut() {
         google.accounts.oauth2.revoke(accessToken);
     }
     accessToken = null;
-    sessionStorage.removeItem('gDriveToken');
-    sessionStorage.removeItem('gDriveUser');
-    updateGoogleUI(false);
+    localStorage.removeItem('gDriveToken');
+    localStorage.removeItem('gDriveUser');
+    updateGoogleUI(false, 'signout');
 }
 
 /**
@@ -118,7 +147,7 @@ async function fetchGoogleUserInfo() {
         if (!res.ok) return;
         const data = await res.json();
         const display = data.name || data.email || 'Google User';
-        sessionStorage.setItem('gDriveUser', display);
+        localStorage.setItem('gDriveUser', display);
         const nameEl = document.getElementById('googleUserName');
         if (nameEl) nameEl.textContent = display;
     } catch (_) { /* non-critical */ }
@@ -275,7 +304,7 @@ function updateGoogleUI(signedIn) {
     if (descEl) descEl.style.display = signedIn ? 'none' : '';
 
     if (signedIn && nameEl) {
-        const stored = sessionStorage.getItem('gDriveUser');
+        const stored = localStorage.getItem('gDriveUser');
         if (stored) nameEl.textContent = stored;
     }
 }
