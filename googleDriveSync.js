@@ -15,6 +15,8 @@ function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.U
 function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
 function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
+function _getSyncPreferences() { return typeof window.getSyncPreferences === 'function' ? window.getSyncPreferences() : null; }
+function _applySyncedPreferences(preferences) { if (typeof window.applySyncedPreferences === 'function') window.applySyncedPreferences(preferences); }
 
 /**
  * Initialize Google Identity Services token client.
@@ -144,10 +146,15 @@ async function syncFavoritesToDrive() {
     if (!accessToken) return;
 
     const favs = _getFavorites();
+    const preferences = _getSyncPreferences();
 
     try {
         const fileId = await findFavoritesFile();
-        const content = JSON.stringify(favs);
+        const content = JSON.stringify({
+            version: 2,
+            favorites: favs,
+            preferences
+        });
 
         if (fileId) {
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
@@ -203,9 +210,11 @@ async function pullFavoritesFromDrive() {
 
         const cloudData = await res.json();
 
-        // Handle both formats: plain ["date"] and legacy [{date}]
         let cloudDates = [];
+        let cloudPreferences = null;
+
         if (Array.isArray(cloudData)) {
+            // Legacy formats: plain ["date"] and older [{date}]
             cloudData.forEach(item => {
                 if (typeof item === 'string') {
                     cloudDates.push(item);
@@ -213,6 +222,13 @@ async function pullFavoritesFromDrive() {
                     cloudDates.push(item.date);
                 }
             });
+        } else if (cloudData && typeof cloudData === 'object') {
+            if (Array.isArray(cloudData.favorites)) {
+                cloudDates = cloudData.favorites.filter(item => typeof item === 'string');
+            }
+            if (cloudData.preferences && typeof cloudData.preferences === 'object') {
+                cloudPreferences = cloudData.preferences;
+            }
         } else {
             return;
         }
@@ -221,6 +237,10 @@ async function pullFavoritesFromDrive() {
         const merged = [...new Set([...localFavs, ...cloudDates])].sort();
         const newCount = merged.length - localFavs.length;
 
+        if (cloudPreferences) {
+            _applySyncedPreferences(cloudPreferences);
+        }
+
         if (newCount > 0) {
             localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
             // Update heart icon if available
@@ -228,8 +248,12 @@ async function pullFavoritesFromDrive() {
             _notify((_t('googleDownloadSuccess') || 'Synced {count} new favorites from Google Drive.').replace('{count}', newCount).replace('{total}', merged.length));
         }
 
-        // If local has items not in cloud, push back
-        if (merged.length > cloudDates.length) {
+        const localPreferences = _getSyncPreferences();
+        const cloudPreferencesRaw = JSON.stringify(cloudPreferences || {});
+        const localPreferencesRaw = JSON.stringify(localPreferences || {});
+
+        // If local has items not in cloud, or the cloud file is legacy/missing preferences, push back
+        if (merged.length > cloudDates.length || cloudPreferencesRaw !== localPreferencesRaw) {
             syncFavoritesToDrive();
         }
     } catch (err) {

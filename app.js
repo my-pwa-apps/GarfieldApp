@@ -1530,6 +1530,45 @@ window.UTILS = UTILS;
 window.CONFIG = CONFIG;
 window.translations = translations;
 
+window.getSyncPreferences = function getSyncPreferences() {
+    return {
+        comicSource: localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'gocomics',
+        spanish: localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH) === 'true',
+        swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false'
+    };
+};
+
+window.applySyncedPreferences = function applySyncedPreferences(preferences = {}) {
+    const sourceEl = document.getElementById('comicSource');
+    const spanishEl = document.getElementById('spanish');
+    const swipeEl = document.getElementById('swipe');
+    const datePicker = document.getElementById('DatePicker');
+
+    if (preferences.comicSource && sourceEl) {
+        sourceEl.value = preferences.comicSource;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SOURCE, preferences.comicSource);
+        _applySourceSetting(preferences.comicSource);
+    }
+
+    if (typeof preferences.swipeEnabled === 'boolean' && swipeEl) {
+        swipeEl.checked = preferences.swipeEnabled;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, preferences.swipeEnabled ? 'true' : 'false');
+    }
+
+    if (typeof preferences.spanish === 'boolean' && spanishEl) {
+        const isGoComics = (sourceEl?.value || 'gocomics') === 'gocomics';
+        const useSpanish = isGoComics && preferences.spanish;
+        spanishEl.checked = useSpanish;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SPANISH, useSpanish ? 'true' : 'false');
+        translateInterface(useSpanish ? 'es' : 'en');
+        document.documentElement.lang = useSpanish ? 'es' : 'en';
+        if (datePicker) datePicker.min = useSpanish ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN;
+    }
+
+    CompareDates();
+    showComic();
+};
+
 // Function to translate the interface
 function translateInterface(lang) {
     const t = translations[lang] || translations.en;
@@ -3221,6 +3260,7 @@ document.getElementById('swipe').addEventListener('change', function() {
         CompareDates();
         showComic();
     }
+    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
 document.getElementById('lastdate').addEventListener('change', function() {
@@ -3280,6 +3320,8 @@ if (spanishCheckbox) {
             CompareDates();
             showComic();
         }
+
+        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
     });
 }
 
@@ -3318,6 +3360,7 @@ if (sourceSelect) {
         _applySourceSetting(source);
         CompareDates();
         showComic();
+        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
     });
 }
 
