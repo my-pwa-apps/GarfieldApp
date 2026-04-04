@@ -3,7 +3,7 @@
 // ========================================
 
 const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
-const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata';
+const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const FAVORITES_FILENAME = 'garfield-favorites.json';
 
 let tokenClient = null;
