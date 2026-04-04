@@ -1190,37 +1190,80 @@ function initializeMobileButtonStates() {
 }
 
 /**
- * Loads Ko-fi widget without document.write()
+ * Initialize donation modal functionality
  */
-function loadKofiWidget() {
-    const container = document.getElementById('support-container');
-    if (!container) return;
-    
-    // Create widget container
-    const widgetDiv = document.createElement('div');
-    widgetDiv.id = 'kofi-widget-container';
-    
-    // Load Ko-fi widget script
-    const script = document.createElement('script');
-    script.src = 'https://storage.ko-fi.com/cdn/widget/Widget_2.js';
-    script.onload = () => {
-        if (typeof kofiwidget2 !== 'undefined') {
-            kofiwidget2.init('Support this app', '#F09819', 'X8X811H46M');
-            // Insert widget HTML into container instead of using document.write()
-            widgetDiv.innerHTML = kofiwidget2.getHTML();
-            
-            // Apply custom styling
-            setTimeout(() => {
-                const kofiBtn = widgetDiv.querySelector('.kofi-button');
-                if (kofiBtn) {
-                    kofiBtn.classList.add('kofi-button-styled');
-                }
-            }, 100);
-        }
+function initDonationModal() {
+    const supportBtn = document.getElementById('supportBtn');
+    const modal = document.getElementById('donationModal');
+    const backdrop = document.getElementById('donationBackdrop');
+    const closeBtn = document.getElementById('donationCloseBtn');
+    const tabs = modal?.querySelectorAll('.donation-tab');
+    const iframe = document.getElementById('donationFrame');
+    const loading = document.getElementById('donationLoading');
+
+    if (!supportBtn || !modal) return;
+
+    const serviceUrls = {
+        kofi: 'https://ko-fi.com/X8X811H46M/?hidefeed=true&widget=true&embed=true',
+        bmc: 'https://buymeacoffee.com/widget/page/garfieldapp',
+        stripe: 'https://buy.stripe.com/9B63cubyG45ldITfim1VK00'
     };
-    
-    container.appendChild(widgetDiv);
-    document.head.appendChild(script);
+
+    const stripeOverlay = document.getElementById('donationStripeOverlay');
+
+    function openDonationModal() {
+        modal.classList.add('visible');
+        backdrop.classList.add('visible');
+        const activeTab = modal.querySelector('.donation-tab.active');
+        if (activeTab) {
+            loadService(activeTab.dataset.service);
+        }
+    }
+
+    function closeDonationModal() {
+        modal.classList.remove('visible');
+        backdrop.classList.remove('visible');
+        if (iframe) iframe.src = 'about:blank';
+        if (loading) loading.style.display = 'flex';
+        if (stripeOverlay) stripeOverlay.style.display = 'none';
+    }
+
+    function loadService(service) {
+        if (service === 'stripe') {
+            // Stripe blocks iframes — show a button overlay instead
+            if (iframe) iframe.style.display = 'none';
+            if (loading) loading.style.display = 'none';
+            if (stripeOverlay) stripeOverlay.style.display = 'flex';
+        } else {
+            if (stripeOverlay) stripeOverlay.style.display = 'none';
+            if (iframe) {
+                iframe.style.display = '';
+                if (loading) loading.style.display = 'flex';
+                iframe.src = serviceUrls[service] || '';
+                iframe.onload = () => {
+                    if (loading) loading.style.display = 'none';
+                };
+            }
+        }
+    }
+
+    supportBtn.addEventListener('click', openDonationModal);
+    closeBtn?.addEventListener('click', closeDonationModal);
+    backdrop?.addEventListener('click', closeDonationModal);
+
+    tabs?.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            loadService(tab.dataset.service);
+        });
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('visible')) {
+            closeDonationModal();
+        }
+    });
 }
 
 // Track active notification timer so re-invocations cancel the previous one
@@ -1275,7 +1318,7 @@ if (document.readyState === 'loading') {
         initializeToolbar();
         initializeDraggableSettings();
         initializeMobileButtonStates();
-        loadKofiWidget();
+        initDonationModal();
         // Add touch event listeners
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1285,7 +1328,7 @@ if (document.readyState === 'loading') {
     initializeToolbar();
     initializeDraggableSettings();
     initializeMobileButtonStates();
-    loadKofiWidget();
+    initDonationModal();
     // Add touch event listeners
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1424,6 +1467,7 @@ function translateInterface(lang) {
     
     // Translate icon buttons (Settings, Favorites, Share) by their known IDs
     const iconButtonMap = {
+        supportBtn: t.supportApp,
         settingsBtn: t.settings,
         favheart: t.favorites,
         shareBtn: t.share
@@ -1443,10 +1487,10 @@ function translateInterface(lang) {
         installBtn.setAttribute('aria-label', t.installApp);
     }
     
-    // Update Ko-fi button text
-    const kofiBtn = document.querySelector('.kofi-button');
-    if (kofiBtn) {
-        kofiBtn.textContent = t.supportApp;
+    // Update donation modal title
+    const donationTitle = document.getElementById('donationTitle');
+    if (donationTitle) {
+        donationTitle.textContent = t.supportApp;
     }
     
     // Translate export/import buttons
@@ -1836,6 +1880,9 @@ function Rotate(applyRotation = true, clickToExit = true) {
         window.removeEventListener('resize', handleRotatedViewResize);
         
         isRotatedMode = false;
+        
+        // Restore toolbar to its saved position
+        clampToolbarInView();
         return;
     }
     
@@ -1910,6 +1957,9 @@ function Rotate(applyRotation = true, clickToExit = true) {
             
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
+            
+            // Restore toolbar to its saved position
+            clampToolbarInView();
         };
         
         // Escape key to exit fullscreen

@@ -13,7 +13,7 @@
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
     
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://storage.ko-fi.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com https://storage.ko-fi.com https://cdn.ko-fi.com https://ko-fi.com data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.ko-fi.com; font-src 'self' https: data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com; frame-src https://ko-fi.com; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https: data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com; frame-src https://ko-fi.com https://buymeacoffee.com; manifest-src 'self';">
     
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
@@ -34,8 +34,7 @@
     <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
     <link rel="preconnect" href="https://static.wikia.nocookie.net" crossorigin>
     <link rel="preconnect" href="https://resources.arcamax.com" crossorigin>
-    <link rel="preconnect" href="https://storage.ko-fi.com" crossorigin>
-    <link rel="dns-prefetch" href="https://ko-fi.com">
+
     
     <!-- Icons and manifest -->
     <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
@@ -158,10 +157,16 @@
     </div>
     
     <div id="controls-container">
-        <div id="support-container">
-            <!-- Ko-fi widget loaded via modern DOM insertion -->
-        </div>
         <div class="settings-icons-container">
+            <button class="icon-button" id="supportBtn" aria-label="Support this App" title="Support this App">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+                    <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+                    <line x1="6" y1="1" x2="6" y2="4"></line>
+                    <line x1="10" y1="1" x2="10" y2="4"></line>
+                    <line x1="14" y1="1" x2="14" y2="4"></line>
+                </svg>
+            </button>
             <button class="icon-button" id="settingsBtn" aria-label="Settings" title="Settings">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
@@ -243,6 +248,29 @@
         </div>
     </div>
     
+    <!-- Donation Modal -->
+    <div id="donationBackdrop" class="donation-backdrop"></div>
+    <div id="donationModal" class="donation-modal" aria-label="Support this App" role="dialog" aria-modal="true">
+        <div class="donation-header">
+            <h3 id="donationTitle">Support this App</h3>
+            <button class="donation-close" id="donationCloseBtn" aria-label="Close">&times;</button>
+        </div>
+        <div class="donation-tabs">
+            <button class="donation-tab active" data-service="kofi">Ko-fi</button>
+            <button class="donation-tab" data-service="bmc">Buy Me a Coffee</button>
+            <button class="donation-tab" data-service="stripe">Stripe</button>
+        </div>
+        <div class="donation-content">
+            <div id="donationLoading" class="donation-loading">Loading...</div>
+            <div id="donationStripeOverlay" class="donation-stripe-overlay">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="48" height="48"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                <p>Secure payment via Stripe</p>
+                <a href="https://buy.stripe.com/9B63cubyG45ldITfim1VK00" target="_blank" rel="noopener noreferrer" class="donation-stripe-button">Donate with Stripe</a>
+            </div>
+            <iframe id="donationFrame" class="donation-iframe" title="Donation" loading="lazy" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+        </div>
+    </div>
+
     <!-- Copyright Footer -->
     <footer class="copyright-footer">
         GARFIELD &copy; Paws, Inc. &middot; Comics from <a href="https://www.gocomics.com/garfield" target="_blank" rel="noopener noreferrer">GoComics.com</a>, <a href="https://garfield.fandom.com" target="_blank" rel="noopener noreferrer">Garfield Wiki</a> &amp; <a href="https://www.arcamax.com/thefunnies/garfield/" target="_blank" rel="noopener noreferrer">ArcaMax.com</a>
