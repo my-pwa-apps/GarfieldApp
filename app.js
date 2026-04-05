@@ -20,7 +20,7 @@ const CONFIG = Object.freeze({
     GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
     
     // Favorites leaderboard API
-    FAVORITES_API_URL: 'http://localhost:8787',
+    FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
     
     // Windows Store review prompting
     REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
@@ -3950,7 +3950,13 @@ function showTop10Modal() {
                 if (result.success && result.imageUrl) {
                     const thumbWrap = document.getElementById(`top10Thumb${i}`);
                     if (thumbWrap) {
-                        thumbWrap.innerHTML = `<img class="top10-thumb" src="${result.imageUrl}" alt="Comic from ${entry.date}" loading="lazy">`;
+                        const img = document.createElement('img');
+                        img.className = 'top10-thumb';
+                        img.loading = 'lazy';
+                        img.setAttribute('src', result.imageUrl);
+                        img.setAttribute('alt', `Comic from ${entry.date}`);
+                        thumbWrap.innerHTML = '';
+                        thumbWrap.appendChild(img);
                     }
                 }
             }).catch(() => {});

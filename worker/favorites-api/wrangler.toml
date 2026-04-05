@@ -8,5 +8,5 @@ compatibility_date = "2026-03-14"
 
 [[kv_namespaces]]
 binding = "FAVORITES"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "601ac1f524694a76bfd5a50ccafa772d"
+preview_id = "601ac1f524694a76bfd5a50ccafa772d"
