@@ -1979,8 +1979,10 @@ function Addfav() {
     CompareDates();
     showComic();
 
-    // Report to global leaderboard (fire-and-forget)
-    reportFavoriteToggle(dateToFavorite, wasAdded ? 'add' : 'remove');
+    // Report to global leaderboard and keep the active Top 10 session visually in sync.
+    const favoriteAction = wasAdded ? 'add' : 'remove';
+    updateCurrentTop10EntryCount(dateToFavorite, favoriteAction);
+    reportFavoriteToggle(dateToFavorite, favoriteAction);
 
     if (isRotatedMode) {
         showFavoriteOverlay(wasAdded);
@@ -3862,7 +3864,16 @@ function reportFavoriteToggle(date, action) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ date, action })
-        }).catch(() => {}); // Silently ignore network errors
+        })
+        .then(async response => {
+            if (!response.ok) return;
+
+            const data = await response.json().catch(() => null);
+            if (data && typeof data.count === 'number') {
+                setTop10EntryCount(date, data.count);
+            }
+        })
+        .catch(() => {}); // Silently ignore network errors
     } catch { /* noop */ }
 }
 
@@ -3892,7 +3903,7 @@ function migrateExistingFavorites() {
 }
 
 async function fetchTop10() {
-    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`);
+    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch leaderboard');
     return response.json();
 }
@@ -3902,6 +3913,28 @@ let _top10Entries = [];
 let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
 let _top10PreviousDate = null;
+
+function setTop10EntryCount(date, count) {
+    const entry = _top10Entries.find(item => item && item.date === date);
+    if (!entry) return;
+
+    entry.count = Math.max(0, count);
+
+    if (_isTop10Mode && _top10Entries[_top10BrowseIndex]?.date === date) {
+        updateTop10Indicator();
+    }
+}
+
+function updateCurrentTop10EntryCount(date, action) {
+    if (!_isTop10Mode) return;
+
+    const entry = _top10Entries[_top10BrowseIndex];
+    if (!entry || entry.date !== date) return;
+
+    const delta = action === 'add' ? 1 : -1;
+    entry.count = Math.max(0, (entry.count || 0) + delta);
+    updateTop10Indicator();
+}
 
 function showTop10Modal() {
     const backdrop = document.getElementById('top10Backdrop');

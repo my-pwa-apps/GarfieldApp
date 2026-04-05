@@ -55,7 +55,7 @@ async function handleGetTop(env) {
     return new Response(JSON.stringify(cached || []), {
         headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=300'
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
         }
     });
 }
