@@ -2262,6 +2262,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         const clonedComic = element.cloneNode(true);
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
+        delete clonedComic.dataset.doubleTapInitialized;
         
         // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
