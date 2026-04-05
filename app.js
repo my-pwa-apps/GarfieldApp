@@ -591,6 +591,72 @@ function calculateOptimalToolbarPosition(toolbar) {
     return { top, left };
 }
 
+    function rectsOverlap(firstRect, secondRect) {
+        return firstRect.left < secondRect.right &&
+            firstRect.right > secondRect.left &&
+            firstRect.top < secondRect.bottom &&
+            firstRect.bottom > secondRect.top;
+    }
+
+    function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
+        if (!toolbar) return false;
+
+        const logo = document.querySelector('.logo');
+        const comic = getPrimaryComicElement();
+        if (!logo || !comic) return false;
+
+        const toolbarRect = toolbar.getBoundingClientRect();
+        const logoRect = logo.getBoundingClientRect();
+        const comicRect = comic.getBoundingClientRect();
+        const toolbarHeight = toolbar.offsetHeight || toolbarRect.height;
+        const toolbarWidth = toolbar.offsetWidth || toolbarRect.width;
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+
+        if (!toolbarHeight || !toolbarWidth) return false;
+
+        const overlapsLogo = rectsOverlap(toolbarRect, logoRect);
+        const overlapsComic = rectsOverlap(toolbarRect, comicRect);
+        if (!overlapsLogo && !overlapsComic) {
+            return false;
+        }
+
+        const minimumTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
+        const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE;
+        const centeredLeft = Math.max(0, (viewportWidth - toolbarWidth) / 2);
+        let nextLeft = parseFloat(toolbar.style.left);
+        if (Number.isNaN(nextLeft)) {
+            nextLeft = toolbarRect.left;
+        }
+        nextLeft = Math.max(0, Math.min(nextLeft, viewportWidth - toolbarWidth));
+
+        let nextTop;
+        if (maximumTop >= minimumTop) {
+            nextTop = overlapsLogo ? minimumTop : maximumTop;
+        } else {
+            const optimal = calculateOptimalToolbarPosition(toolbar);
+            nextTop = optimal ? optimal.top : minimumTop;
+            nextLeft = optimal ? optimal.left : centeredLeft;
+        }
+
+        toolbar.style.top = nextTop + 'px';
+        toolbar.style.left = nextLeft + 'px';
+        toolbar.style.transform = 'none';
+
+        if (savePosition) {
+            storeToolbarPosition(nextTop, nextLeft, toolbar, {
+                belowComic: false,
+                offsetFromComic: null,
+                belowControls: false,
+                offsetFromControls: null,
+                belowSettings: false,
+                offsetFromSettings: null,
+                leftOffsetFromCenter: nextLeft - centeredLeft
+            });
+        }
+
+        return true;
+    }
+
 /**
  * Check if toolbar is within snap zone of optimal position (DirkJan pattern)
  * @param {number} top - Current toolbar top position
@@ -978,11 +1044,13 @@ function clampToolbarInView() {
                         toolbar.style.transform = 'none';
                         // Update saved position to maintain optimal state
                         storeToolbarPosition(safeTop, optimalPos.left, toolbar);
+                        moveToolbarBetweenLogoAndComic(toolbar);
                     } else {
                         toolbar.style.top = optimalPos.top + 'px';
                         toolbar.style.left = optimalPos.left + 'px';
                         toolbar.style.transform = 'none';
                         storeToolbarPosition(optimalPos.top, optimalPos.left, toolbar);
+                        moveToolbarBetweenLogoAndComic(toolbar);
                     }
                 }
             });
@@ -1102,6 +1170,8 @@ function clampToolbarInView() {
                 }
                 storeToolbarPosition(newTop, newLeft, toolbar, overrides);
             }
+
+            moveToolbarBetweenLogoAndComic(toolbar);
         });
     });
 }
@@ -1121,6 +1191,16 @@ function initializeToolbar() {
         mainToolbar.style.top = savedPos.top + 'px';
         mainToolbar.style.left = savedPos.left + 'px';
         mainToolbar.style.transform = 'none';
+
+        const enforceSafeStartupPosition = () => {
+            moveToolbarBetweenLogoAndComic(mainToolbar);
+        };
+
+        setTimeout(enforceSafeStartupPosition, 0);
+        setTimeout(enforceSafeStartupPosition, 100);
+        window.addEventListener('load', () => {
+            setTimeout(enforceSafeStartupPosition, 250);
+        });
     } else {
         // No saved position - calculate centered position
         // Set a safe default first to avoid showing over comic
