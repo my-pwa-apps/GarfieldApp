@@ -599,10 +599,11 @@ function calculateOptimalToolbarPosition(toolbar) {
     return { top, left };
 }
 
-    function rectsOverlap(firstRect, secondRect) {
-        return firstRect.left < secondRect.right &&
-            firstRect.right > secondRect.left &&
-            firstRect.top < secondRect.bottom &&
+    function rectsOverlap(firstRect, secondRect, padding = 0) {
+        return firstRect.left < secondRect.right + padding &&
+            firstRect.right > secondRect.left - padding &&
+            firstRect.top < secondRect.bottom + padding &&
+            firstRect.bottom > secondRect.top - padding;
             firstRect.bottom > secondRect.top;
     }
 
@@ -622,8 +623,8 @@ function calculateOptimalToolbarPosition(toolbar) {
 
         if (!toolbarHeight || !toolbarWidth) return false;
 
-        const overlapsLogo = rectsOverlap(toolbarRect, logoRect);
-        const overlapsComic = rectsOverlap(toolbarRect, comicRect);
+        const overlapsLogo = rectsOverlap(toolbarRect, logoRect, TOOLBAR_MIN_VERTICAL_GAP);
+        const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_COMIC_CLEARANCE);
         if (!overlapsLogo && !overlapsComic) {
             return false;
         }
@@ -1006,6 +1007,11 @@ function refreshToolbarDefaultPosition() {
             });
         });
     }
+
+    // Always enforce overlap correction after comic dimensions settle
+    requestAnimationFrame(() => {
+        moveToolbarBetweenLogoAndComic(toolbar);
+    });
 }
 
 /**
