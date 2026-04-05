@@ -1951,13 +1951,12 @@ function queueComicSingleTap(singleTapAction) {
     }, COMIC_DOUBLE_TAP_DELAY);
 }
 
-function initializeComicTapGestures(singleTapAction = null) {
-    const comic = document.getElementById('comic');
-    if (!comic || comic.dataset.doubleTapInitialized === 'true') return;
+function bindComicTapGestures(target, singleTapAction = null) {
+    if (!target || target.dataset.doubleTapInitialized === 'true') return;
 
-    comic.dataset.doubleTapInitialized = 'true';
+    target.dataset.doubleTapInitialized = 'true';
 
-    comic.addEventListener('touchend', (e) => {
+    target.addEventListener('touchend', (e) => {
         if (isVerticalFullscreen) return;
         if (Date.now() - lastSwipeTime < 300) {
             resetComicTapTracking();
@@ -1996,13 +1995,17 @@ function initializeComicTapGestures(singleTapAction = null) {
         queueComicSingleTap(singleTapAction);
     }, { passive: false });
 
-    comic.addEventListener('dblclick', (e) => {
+    target.addEventListener('dblclick', (e) => {
         if (Date.now() - lastSwipeTime < 300) return;
         e.preventDefault();
         suppressComicClickUntil = Date.now() + 400;
         resetComicTapTracking();
         Addfav();
     });
+}
+
+function initializeComicTapGestures(singleTapAction = null) {
+    bindComicTapGestures(document.getElementById('comic'), singleTapAction);
 }
 
 
@@ -2265,6 +2268,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
         const exitFullscreen = function() {
             // Ignore clicks immediately after a swipe
             if (Date.now() - lastSwipeTime < 300) return;
+            if (Date.now() < suppressComicClickUntil) return;
             
             const overlay = document.getElementById('comic-overlay');
             if (overlay) document.body.removeChild(overlay);
@@ -2313,6 +2317,8 @@ function Rotate(applyRotation = true, clickToExit = true) {
             clonedComic.addEventListener('click', exitFullscreen);
             overlay.addEventListener('click', exitFullscreen);
         }
+
+        bindComicTapGestures(clonedComic, clickToExit ? exitFullscreen : null);
         
         // Add resize listener
         window.addEventListener('resize', handleRotatedViewResize);

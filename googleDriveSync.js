@@ -8,6 +8,8 @@ const FAVORITES_FILENAME = 'garfield-favorites.json';
 
 let tokenClient = null;
 let accessToken = null;
+let accessTokenExpiry = 0;
+let pendingTokenRequest = null;
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
@@ -17,6 +19,127 @@ function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
 function _getSyncPreferences() { return typeof window.getSyncPreferences === 'function' ? window.getSyncPreferences() : null; }
 function _applySyncedPreferences(preferences) { if (typeof window.applySyncedPreferences === 'function') window.applySyncedPreferences(preferences); }
+
+function _getStoredTokenData() {
+    const stored = localStorage.getItem('gDriveToken');
+    if (!stored) return null;
+
+    try {
+        const parsed = JSON.parse(stored);
+        if (!parsed || typeof parsed.token !== 'string' || typeof parsed.expiry !== 'number') {
+            localStorage.removeItem('gDriveToken');
+            return null;
+        }
+        return parsed;
+    } catch (_) {
+        localStorage.removeItem('gDriveToken');
+        return null;
+    }
+}
+
+function _hasUsableToken() {
+    return !!(accessToken && accessTokenExpiry > (Date.now() + 60000));
+}
+
+function _restoreStoredToken() {
+    const parsed = _getStoredTokenData();
+    if (!parsed) return false;
+
+    accessToken = parsed.token;
+    accessTokenExpiry = parsed.expiry;
+    return _hasUsableToken();
+}
+
+function _storeToken(token, expiresInSeconds) {
+    accessToken = token;
+    accessTokenExpiry = Date.now() + (Number(expiresInSeconds || 0) * 1000);
+    localStorage.setItem('gDriveToken', JSON.stringify({
+        token: accessToken,
+        expiry: accessTokenExpiry
+    }));
+}
+
+function _clearTokenState(clearUser = false) {
+    accessToken = null;
+    accessTokenExpiry = 0;
+    pendingTokenRequest = null;
+    localStorage.removeItem('gDriveToken');
+    if (clearUser) {
+        localStorage.removeItem('gDriveUser');
+    }
+}
+
+function _requestAccessToken(prompt = '') {
+    if (!tokenClient) {
+        return Promise.reject(new Error('Google services not loaded'));
+    }
+
+    if (pendingTokenRequest) {
+        return pendingTokenRequest;
+    }
+
+    pendingTokenRequest = new Promise((resolve, reject) => {
+        pendingTokenRequestResolve = resolve;
+        pendingTokenRequestReject = reject;
+
+        try {
+            tokenClient.requestAccessToken({ prompt });
+        } catch (error) {
+            pendingTokenRequest = null;
+            pendingTokenRequestResolve = null;
+            pendingTokenRequestReject = null;
+            reject(error);
+        }
+    });
+
+    return pendingTokenRequest;
+}
+
+let pendingTokenRequestResolve = null;
+let pendingTokenRequestReject = null;
+
+async function ensureValidAccessToken({ interactive = false } = {}) {
+    if (_hasUsableToken()) {
+        return accessToken;
+    }
+
+    if (_restoreStoredToken()) {
+        updateGoogleUI(true, 'restore');
+        return accessToken;
+    }
+
+    try {
+        _pendingAuthSource = 'restore';
+        await _requestAccessToken('');
+        return accessToken;
+    } catch (error) {
+        if (!interactive) {
+            throw error;
+        }
+    }
+
+    _pendingAuthSource = 'user';
+    await _requestAccessToken();
+    return accessToken;
+}
+
+async function googleApiFetch(url, options = {}, { interactive = false, retryOnAuthFailure = true } = {}) {
+    const token = await ensureValidAccessToken({ interactive });
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+
+    let response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401 && retryOnAuthFailure) {
+        _clearTokenState();
+        const refreshedToken = await ensureValidAccessToken({ interactive: false });
+        const retryHeaders = new Headers(options.headers || {});
+        retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
+        response = await fetch(url, { ...options, headers: retryHeaders });
+    }
+
+    return response;
+}
 
 /**
  * Initialize Google Identity Services token client.
@@ -49,19 +172,12 @@ function _initTokenClient() {
 
     window.dispatchEvent(new CustomEvent('google-sync-ready'));
 
-    // Check for existing token in localStorage
-    const stored = localStorage.getItem('gDriveToken');
-    if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.expiry > Date.now()) {
-            // Token still valid — restore session
-            accessToken = parsed.token;
-            updateGoogleUI(true, 'restore');
-            pullFavoritesFromDrive();
-        } else {
-            // Token expired but user was previously signed in — try silent re-auth
-            _trySilentReauth();
-        }
+    if (_restoreStoredToken()) {
+        updateGoogleUI(true, 'restore');
+        pullFavoritesFromDrive();
+    } else if (_getStoredTokenData()) {
+        // Token expired but user was previously signed in — try silent re-auth
+        _trySilentReauth();
     }
 }
 
@@ -74,13 +190,11 @@ let _pendingAuthSource = 'user';
  */
 function _trySilentReauth() {
     if (!tokenClient) return;
-    try {
-        _pendingAuthSource = 'restore';
-        tokenClient.requestAccessToken({ prompt: '' });
-    } catch (_) {
+    _pendingAuthSource = 'restore';
+    _requestAccessToken('').catch(() => {
         _pendingAuthSource = 'user';
         // Silent re-auth not possible — user will need to click sign-in
-    }
+    });
 }
 
 /**
@@ -91,6 +205,13 @@ function handleTokenResponse(response) {
     _pendingAuthSource = 'user';
 
     if (response.error) {
+        if (pendingTokenRequestReject) {
+            pendingTokenRequestReject(new Error(response.error));
+        }
+        pendingTokenRequest = null;
+        pendingTokenRequestResolve = null;
+        pendingTokenRequestReject = null;
+
         // Silent re-auth failures are expected — don't notify the user
         if (source !== 'restore') {
             console.error('Google auth error:', response.error);
@@ -99,12 +220,14 @@ function handleTokenResponse(response) {
         return;
     }
 
-    accessToken = response.access_token;
-    // Store token with expiry (~1 hour) in localStorage so it survives app restarts
-    localStorage.setItem('gDriveToken', JSON.stringify({
-        token: accessToken,
-        expiry: Date.now() + (response.expires_in * 1000)
-    }));
+    _storeToken(response.access_token, response.expires_in);
+
+    if (pendingTokenRequestResolve) {
+        pendingTokenRequestResolve(accessToken);
+    }
+    pendingTokenRequest = null;
+    pendingTokenRequestResolve = null;
+    pendingTokenRequestReject = null;
 
     updateGoogleUI(true, source);
     fetchGoogleUserInfo();
@@ -120,7 +243,9 @@ function googleSignIn() {
         _notify(_t('googleNotLoaded') || 'Google services not loaded');
         return;
     }
-    tokenClient.requestAccessToken();
+    ensureValidAccessToken({ interactive: true }).catch(() => {
+        _notify(_t('googleSignInFailed') || 'Google sign-in failed');
+    });
 }
 
 /**
@@ -130,9 +255,7 @@ function googleSignOut() {
     if (accessToken) {
         google.accounts.oauth2.revoke(accessToken);
     }
-    accessToken = null;
-    localStorage.removeItem('gDriveToken');
-    localStorage.removeItem('gDriveUser');
+    _clearTokenState(true);
     updateGoogleUI(false, 'signout');
 }
 
@@ -141,9 +264,7 @@ function googleSignOut() {
  */
 async function fetchGoogleUserInfo() {
     try {
-        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
+        const res = await googleApiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
         if (!res.ok) return;
         const data = await res.json();
         const display = data.name || data.email || 'Google User';
@@ -158,9 +279,10 @@ async function fetchGoogleUserInfo() {
  * Returns the file ID or null.
  */
 async function findFavoritesFile() {
-    const res = await fetch(
+    const res = await googleApiFetch(
         `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${FAVORITES_FILENAME}'&fields=files(id)`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        undefined,
+        { interactive: false }
     );
     if (!res.ok) throw new Error('Failed to search Drive');
     const data = await res.json();
@@ -172,7 +294,11 @@ async function findFavoritesFile() {
  * Called automatically when favorites change.
  */
 async function syncFavoritesToDrive() {
-    if (!accessToken) return;
+    try {
+        await ensureValidAccessToken({ interactive: false });
+    } catch (_) {
+        return;
+    }
 
     const favs = _getFavorites();
     const preferences = _getSyncPreferences();
@@ -186,10 +312,9 @@ async function syncFavoritesToDrive() {
         });
 
         if (fileId) {
-            await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+            await googleApiFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                 method: 'PATCH',
                 headers: {
-                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
                 },
                 body: content
@@ -206,10 +331,9 @@ async function syncFavoritesToDrive() {
                 `${content}\r\n` +
                 `--${boundary}--`;
 
-            await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            await googleApiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${accessToken}`,
                     'Content-Type': `multipart/related; boundary=${boundary}`
                 },
                 body
@@ -225,15 +349,20 @@ async function syncFavoritesToDrive() {
  * Called on sign-in and session restore.
  */
 async function pullFavoritesFromDrive() {
-    if (!accessToken) return;
+    try {
+        await ensureValidAccessToken({ interactive: false });
+    } catch (_) {
+        return;
+    }
 
     try {
         const fileId = await findFavoritesFile();
         if (!fileId) return;
 
-        const res = await fetch(
+        const res = await googleApiFetch(
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
+            undefined,
+            { interactive: false }
         );
         if (!res.ok) return;
 
