@@ -12,7 +12,7 @@ let accessTokenExpiry = 0;
 let pendingTokenRequest = null;
 let pendingTokenRequestResolve = null;
 let pendingTokenRequestReject = null;
-let startupRestoreAttempted = false;
+let lastSilentRefreshAttempt = 0;
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
@@ -122,6 +122,13 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         return accessToken;
     }
 
+    if (pendingTokenRequest) {
+        try {
+            const token = await pendingTokenRequest;
+            if (token) return token;
+        } catch (_) {}
+    }
+
     if (_restoreStoredToken()) {
         updateGoogleUI(true, 'restore');
         return accessToken;
@@ -129,11 +136,12 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
 
     if (!interactive) {
         const loginHint = _getStoredUserEmail();
-        const shouldAttemptSilentRestore = !startupRestoreAttempted &&
+        const now = Date.now();
+        const shouldAttemptSilentRestore = (now - lastSilentRefreshAttempt > 60000) &&
             (!!_getStoredTokenData() || !!loginHint);
 
         if (shouldAttemptSilentRestore) {
-            startupRestoreAttempted = true;
+            lastSilentRefreshAttempt = now;
             _pendingAuthSource = 'restore';
 
             try {
@@ -144,6 +152,7 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
                 return accessToken;
             } catch (_) {
                 _clearTokenState();
+                updateGoogleUI(false, 'expired');
             }
         }
     }
