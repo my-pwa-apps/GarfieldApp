@@ -1535,163 +1535,71 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 13px;
 }
 
-/* ── Top 10 Gallery Viewer ─────────────────────────────── */
+/* ── Top 10 Floating Indicator ──────────────────────────── */
 
-.top10-gallery {
+.top10-indicator {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.92);
-    z-index: 10002;
-    display: none;
-    flex-direction: column;
-}
-
-.top10-gallery.visible {
-    display: flex;
-    animation: fadeIn 0.15s ease-out;
-}
-
-.top10-gallery-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    flex-shrink: 0;
-}
-
-.top10-gallery-title {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(40, 40, 40, 0.85) 100%);
     color: #fff;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.top10-gallery-header .donation-close {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-}
-
-.top10-gallery-header .donation-close:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.top10-gallery-body {
-    flex: 1;
+    padding: 8px 16px;
+    border-radius: 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    position: relative;
-    min-height: 0;
-    touch-action: pan-y;
-}
-
-.top10-gallery-img-wrap {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 8px;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.top10-gallery-img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 4px;
-}
-
-.top10-gallery-loading {
-    color: #aaa;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.top10-gallery-nav {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: #fff;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin: 0 8px;
-    transition: background 0.15s ease;
-}
-
-.top10-gallery-nav:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.top10-gallery-nav:disabled {
-    opacity: 0.25;
-    cursor: default;
-}
-
-.top10-gallery-footer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
-    flex-shrink: 0;
-}
-
-.top10-gallery-counter {
-    color: #999;
+    gap: 12px;
+    z-index: 200;
     font-size: 13px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    animation: fadeIn 0.2s ease-out;
+    white-space: nowrap;
 }
 
-.top10-gallery-fav-count {
+.top10-indicator-rank {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.top10-indicator-label {
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.top10-indicator-count {
     display: flex;
     align-items: center;
     gap: 4px;
     color: #e74c3c;
-    font-size: 13px;
     font-weight: 600;
 }
 
-.top10-gallery-action {
-    background: rgba(255, 255, 255, 0.12);
+.top10-indicator-pos {
+    opacity: 0.6;
+    font-size: 12px;
+}
+
+.top10-indicator-exit {
+    background: rgba(255, 255, 255, 0.15);
     border: none;
     color: #fff;
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 14px;
     transition: background 0.15s ease;
+    flex-shrink: 0;
 }
 
-.top10-gallery-action:hover {
-    background: rgba(255, 255, 255, 0.25);
-}
-
-.top10-gallery-action:active {
-    background: rgba(255, 255, 255, 0.35);
-}
-
-/* Rotated / fullscreen gallery mode */
-.top10-gallery-rotated {
-    position: relative;
-}
-
-.top10-gallery-rotated .top10-gallery-img {
-    transform: rotate(90deg);
-    max-width: 100vh;
-    max-height: 100vw;
+.top10-indicator-exit:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 @media (max-width: 480px) {
@@ -1707,10 +1615,11 @@ input[type="date"]::-webkit-datetime-edit {
         width: 64px;
         height: 38px;
     }
-    .top10-gallery-nav {
-        width: 36px;
-        height: 36px;
-        margin: 0 4px;
+    .top10-indicator {
+        bottom: 12px;
+        padding: 6px 12px;
+        gap: 8px;
+        font-size: 12px;
     }
 }
 

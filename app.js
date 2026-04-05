@@ -1488,53 +1488,11 @@ function initTop10Modal() {
     if (closeBtn) closeBtn.addEventListener('click', closeTop10Modal);
     if (backdrop) backdrop.addEventListener('click', closeTop10Modal);
 
-    // Gallery controls
-    const galleryCloseBtn = document.getElementById('top10GalleryCloseBtn');
-    const galleryBackdrop = document.getElementById('top10GalleryBackdrop');
-    const galleryPrev = document.getElementById('top10GalleryPrev');
-    const galleryNext = document.getElementById('top10GalleryNext');
-    const galleryBody = document.getElementById('top10GalleryBody');
-    const galleryFavBtn = document.getElementById('top10GalleryFavBtn');
-    const galleryRotateBtn = document.getElementById('top10GalleryRotateBtn');
-
-    if (galleryCloseBtn) galleryCloseBtn.addEventListener('click', closeTop10Gallery);
-    if (galleryBackdrop) galleryBackdrop.addEventListener('click', closeTop10Gallery);
-    if (galleryFavBtn) galleryFavBtn.addEventListener('click', toggleTop10GalleryFavorite);
-    if (galleryRotateBtn) galleryRotateBtn.addEventListener('click', toggleTop10GalleryRotation);
-    if (galleryPrev) galleryPrev.addEventListener('click', () => {
-        if (_top10GalleryIndex > 0) { _top10GalleryIndex--; renderTop10GallerySlide(); }
-    });
-    if (galleryNext) galleryNext.addEventListener('click', () => {
-        if (_top10GalleryIndex < _top10Entries.length - 1) { _top10GalleryIndex++; renderTop10GallerySlide(); }
-    });
-
-    // Swipe support in gallery
-    if (galleryBody) {
-        galleryBody.addEventListener('touchstart', (e) => {
-            _top10GalleryTouchStartX = e.touches[0].clientX;
-        }, { passive: true });
-        galleryBody.addEventListener('touchend', (e) => {
-            const dx = e.changedTouches[0].clientX - _top10GalleryTouchStartX;
-            if (Math.abs(dx) > CONFIG.SWIPE_MIN_DISTANCE) {
-                if (dx < 0 && _top10GalleryIndex < _top10Entries.length - 1) {
-                    _top10GalleryIndex++; renderTop10GallerySlide();
-                } else if (dx > 0 && _top10GalleryIndex > 0) {
-                    _top10GalleryIndex--; renderTop10GallerySlide();
-                }
-            }
-        }, { passive: true });
-    }
-
     document.addEventListener('keydown', (e) => {
-        const modal = document.getElementById('top10Modal');
-        const gallery = document.getElementById('top10Gallery');
         if (e.key === 'Escape') {
-            if (gallery?.classList.contains('visible')) { closeTop10Gallery(); return; }
-            if (modal?.classList.contains('visible')) { closeTop10Modal(); }
-        }
-        if (gallery?.classList.contains('visible')) {
-            if (e.key === 'ArrowLeft' && _top10GalleryIndex > 0) { _top10GalleryIndex--; renderTop10GallerySlide(); }
-            if (e.key === 'ArrowRight' && _top10GalleryIndex < _top10Entries.length - 1) { _top10GalleryIndex++; renderTop10GallerySlide(); }
+            const modal = document.getElementById('top10Modal');
+            if (modal?.classList.contains('visible')) { closeTop10Modal(); return; }
+            if (_isTop10Mode) { exitTop10Mode(); }
         }
     });
 }
@@ -3273,6 +3231,10 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 }
 
 function PreviousClick() {
+    if (_isTop10Mode) {
+        if (_top10BrowseIndex > 0) { _top10BrowseIndex--; loadTop10Comic(); }
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         if (favs.indexOf(formattedComicDate) > 0) {
@@ -3286,6 +3248,10 @@ function PreviousClick() {
 }
 
 function NextClick() {
+    if (_isTop10Mode) {
+        if (_top10BrowseIndex < _top10Entries.length - 1) { _top10BrowseIndex++; loadTop10Comic(); }
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         if (favs.indexOf(formattedComicDate) < favs.length - 1) {
@@ -3299,6 +3265,10 @@ function NextClick() {
 }
 
 function FirstClick() {
+    if (_isTop10Mode) {
+        _top10BrowseIndex = 0; loadTop10Comic();
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[0]);
@@ -3312,6 +3282,10 @@ function FirstClick() {
 }
 
 function LastClick() {
+    if (_isTop10Mode) {
+        _top10BrowseIndex = _top10Entries.length - 1; loadTop10Comic();
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[favs.length - 1]);
@@ -3923,11 +3897,11 @@ async function fetchTop10() {
     return response.json();
 }
 
-// Top 10 gallery state
+// Top 10 browsing mode state
 let _top10Entries = [];
-let _top10ImageUrls = {};
-let _top10GalleryIndex = 0;
-let _top10GalleryTouchStartX = 0;
+let _top10BrowseIndex = -1;
+let _isTop10Mode = false;
+let _top10PreviousDate = null;
 
 function showTop10Modal() {
     const backdrop = document.getElementById('top10Backdrop');
@@ -3945,7 +3919,6 @@ function showTop10Modal() {
             return;
         }
         _top10Entries = entries;
-        _top10ImageUrls = {};
 
         list.innerHTML = entries.map((entry, i) => {
             const parts = entry.date.split('/');
@@ -3975,7 +3948,6 @@ function showTop10Modal() {
             const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
             getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
                 if (result.success && result.imageUrl) {
-                    _top10ImageUrls[entry.date] = result.imageUrl;
                     const thumbWrap = document.getElementById(`top10Thumb${i}`);
                     if (thumbWrap) {
                         thumbWrap.innerHTML = `<img class="top10-thumb" src="${result.imageUrl}" alt="Comic from ${entry.date}" loading="lazy">`;
@@ -3984,10 +3956,10 @@ function showTop10Modal() {
             }).catch(() => {});
         });
 
-        // Click handlers to open gallery
+        // Click handlers — enter Top 10 browsing mode
         list.querySelectorAll('.top10-entry').forEach(btn => {
             btn.addEventListener('click', () => {
-                openTop10Gallery(parseInt(btn.dataset.index));
+                enterTop10Mode(parseInt(btn.dataset.index));
             });
         });
     }).catch(() => {
@@ -3995,143 +3967,100 @@ function showTop10Modal() {
     });
 }
 
-function openTop10Gallery(index) {
-    _top10GalleryIndex = index;
-    const galleryBackdrop = document.getElementById('top10GalleryBackdrop');
-    const gallery = document.getElementById('top10Gallery');
-    if (!galleryBackdrop || !gallery) return;
+function enterTop10Mode(index) {
+    _top10BrowseIndex = index;
+    _isTop10Mode = true;
+    _top10PreviousDate = new Date(currentselectedDate);
 
-    galleryBackdrop.classList.add('visible');
-    gallery.classList.add('visible');
-    renderTop10GallerySlide();
+    // Close modals and settings
+    closeTop10Modal();
+    const settingsPanel = document.getElementById('settingsDIV');
+    if (settingsPanel?.classList.contains('visible')) {
+        settingsPanel.classList.remove('visible');
+    }
+
+    // Show the floating indicator
+    showTop10Indicator();
+
+    // Load the selected comic
+    loadTop10Comic();
 }
 
-function renderTop10GallerySlide() {
-    const entry = _top10Entries[_top10GalleryIndex];
+function loadTop10Comic() {
+    const entry = _top10Entries[_top10BrowseIndex];
     if (!entry) return;
-
-    const img = document.getElementById('top10GalleryImg');
-    const loading = document.getElementById('top10GalleryLoading');
-    const title = document.getElementById('top10GalleryTitle');
-    const counter = document.getElementById('top10GalleryCounter');
-    const favCount = document.getElementById('top10GalleryFavCount');
-    const prevBtn = document.getElementById('top10GalleryPrev');
-    const nextBtn = document.getElementById('top10GalleryNext');
-    const favBtn = document.getElementById('top10GalleryFavBtn');
 
     const parts = entry.date.split('/');
-    const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    const formatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    currentselectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
 
-    title.textContent = formatted;
-    counter.textContent = `${_top10GalleryIndex + 1} / ${_top10Entries.length}`;
-    favCount.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> ${entry.count}`;
+    // Update nav button states for top 10 mode
+    document.getElementById('Previous').disabled = _top10BrowseIndex === 0;
+    document.getElementById('First').disabled = _top10BrowseIndex === 0;
+    document.getElementById('Next').disabled = _top10BrowseIndex === _top10Entries.length - 1;
+    document.getElementById('Last').disabled = _top10BrowseIndex === _top10Entries.length - 1;
+    document.getElementById('Random').disabled = _top10Entries.length <= 1;
+    document.getElementById('DatePicker').disabled = true;
 
-    // Update heart icon state
-    updateTop10GalleryHeart();
+    // Update indicator
+    updateTop10Indicator();
 
-    prevBtn.disabled = _top10GalleryIndex === 0;
-    nextBtn.disabled = _top10GalleryIndex === _top10Entries.length - 1;
-
-    // Show loading, hide image
-    img.style.display = 'none';
-    loading.style.display = 'flex';
-
-    const cachedUrl = _top10ImageUrls[entry.date];
-    if (cachedUrl) {
-        img.onload = () => { loading.style.display = 'none'; img.style.display = 'block'; };
-        img.src = cachedUrl;
-    } else {
-        const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
-            if (result.success && result.imageUrl) {
-                _top10ImageUrls[entry.date] = result.imageUrl;
-                img.onload = () => { loading.style.display = 'none'; img.style.display = 'block'; };
-                img.src = result.imageUrl;
-            } else {
-                loading.textContent = 'Could not load comic';
-            }
-        }).catch(() => {
-            loading.textContent = 'Could not load comic';
-        });
-    }
+    showComic();
 }
 
-function updateTop10GalleryHeart() {
-    const favBtn = document.getElementById('top10GalleryFavBtn');
-    if (!favBtn) return;
-    const entry = _top10Entries[_top10GalleryIndex];
+function exitTop10Mode() {
+    _isTop10Mode = false;
+    _top10BrowseIndex = -1;
+
+    // Hide indicator
+    const indicator = document.getElementById('top10Indicator');
+    if (indicator) indicator.remove();
+
+    // Restore previous date
+    if (_top10PreviousDate) {
+        currentselectedDate = _top10PreviousDate;
+        _top10PreviousDate = null;
+    }
+
+    // Re-enable navigation
+    document.getElementById('DatePicker').disabled = false;
+    CompareDates();
+    showComic();
+}
+
+function showTop10Indicator() {
+    let indicator = document.getElementById('top10Indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'top10Indicator';
+        indicator.className = 'top10-indicator';
+        document.body.appendChild(indicator);
+    }
+    updateTop10Indicator();
+}
+
+function updateTop10Indicator() {
+    const indicator = document.getElementById('top10Indicator');
+    if (!indicator || !_isTop10Mode) return;
+
+    const entry = _top10Entries[_top10BrowseIndex];
     if (!entry) return;
-    const favs = UTILS.getFavorites();
-    const isFav = favs.includes(entry.date);
-    const svg = favBtn.querySelector('svg path');
-    if (svg) {
-        svg.setAttribute('fill', isFav ? '#e74c3c' : 'none');
-        svg.setAttribute('stroke', isFav ? '#e74c3c' : 'currentColor');
-    }
-}
 
-function toggleTop10GalleryFavorite() {
-    const entry = _top10Entries[_top10GalleryIndex];
-    if (!entry) return;
+    const medal = _top10BrowseIndex === 0 ? '🥇' : _top10BrowseIndex === 1 ? '🥈' : _top10BrowseIndex === 2 ? '🥉' : '';
+    const rank = medal || `#${_top10BrowseIndex + 1}`;
 
-    let favs = UTILS.getFavorites();
-    const idx = favs.indexOf(entry.date);
-    const wasAdded = idx === -1;
+    indicator.innerHTML = `
+        <span class="top10-indicator-rank">${rank}</span>
+        <span class="top10-indicator-label">Community Favorites</span>
+        <span class="top10-indicator-count">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            ${entry.count}
+        </span>
+        <span class="top10-indicator-pos">${_top10BrowseIndex + 1}/${_top10Entries.length}</span>
+        <button class="top10-indicator-exit" id="top10ExitBtn" aria-label="Exit community favorites">✕</button>
+    `;
 
-    if (wasAdded) {
-        favs.push(entry.date);
-    } else {
-        favs.splice(idx, 1);
-    }
-    favs.sort();
-    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
-
-    // Sync
-    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
-    reportFavoriteToggle(entry.date, wasAdded ? 'add' : 'remove');
-
-    // Update gallery heart
-    updateTop10GalleryHeart();
-    // Update main UI heart if the date matches
-    UTILS.updateHeartIcon();
-    updateExportButtonState();
-
-    // Visual feedback
-    showFavoriteOverlay(wasAdded);
-}
-
-function toggleTop10GalleryRotation() {
-    const img = document.getElementById('top10GalleryImg');
-    const body = document.getElementById('top10GalleryBody');
-    if (!img || !body) return;
-
-    const isRotated = body.classList.toggle('top10-gallery-rotated');
-    // On mobile, request fullscreen for the gallery
-    const gallery = document.getElementById('top10Gallery');
-    if (isRotated && gallery) {
-        const requestFS = gallery.requestFullscreen || gallery.webkitRequestFullscreen;
-        if (requestFS) {
-            try { requestFS.call(gallery); } catch { /* noop */ }
-        }
-    } else if (!isRotated) {
-        if (document.fullscreenElement || document.webkitFullscreenElement) {
-            try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch { /* noop */ }
-        }
-    }
-}
-
-function closeTop10Gallery() {
-    const galleryBackdrop = document.getElementById('top10GalleryBackdrop');
-    const gallery = document.getElementById('top10Gallery');
-    const body = document.getElementById('top10GalleryBody');
-    if (galleryBackdrop) galleryBackdrop.classList.remove('visible');
-    if (gallery) gallery.classList.remove('visible');
-    if (body) body.classList.remove('top10-gallery-rotated');
-    // Exit fullscreen if active
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch { /* noop */ }
-    }
+    const exitBtn = document.getElementById('top10ExitBtn');
+    if (exitBtn) exitBtn.addEventListener('click', exitTop10Mode);
 }
 
 function closeTop10Modal() {
@@ -4139,10 +4068,9 @@ function closeTop10Modal() {
     const modal = document.getElementById('top10Modal');
     if (backdrop) backdrop.classList.remove('visible');
     if (modal) modal.classList.remove('visible');
-    closeTop10Gallery();
 }
 
 window.showTop10Modal = showTop10Modal;
 window.closeTop10Modal = closeTop10Modal;
-window.closeTop10Gallery = closeTop10Gallery;
+window.exitTop10Mode = exitTop10Mode;
 
