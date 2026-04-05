@@ -449,6 +449,8 @@ const COMIC_TAP_MAX_MOVEMENT = 24;
 
 const TOOLBAR_MIN_VERTICAL_GAP = 20;
 const TOOLBAR_COMIC_CLEARANCE = 18;
+const TOOLBAR_VISUAL_SHADOW_CLEARANCE = 14;
+const TOOLBAR_EFFECTIVE_COMIC_CLEARANCE = TOOLBAR_COMIC_CLEARANCE + TOOLBAR_VISUAL_SHADOW_CLEARANCE;
 const TOOLBAR_CENTER_BIAS = 6;
 
 /**
@@ -496,7 +498,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const comicElement = getToolbarBoundaryComicElement();
     if (comicElement && toolbarRect && !belowComicOverridden) {
         const comicRect = comicElement.getBoundingClientRect();
-        const belowComic = toolbarRect.top >= comicRect.bottom;
+        const belowComic = toolbarRect.top >= comicRect.bottom + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
         positionData.belowComic = belowComic;
         if (!offsetComicOverridden) {
             if (belowComic) {
@@ -595,9 +597,9 @@ function calculateOptimalToolbarPosition(toolbar) {
     const left = (viewportWidth - toolbarWidth) / 2;
     
     // Final safety: ensure we're not overlapping comic
-    if (top + toolbarHeight > comicTop - TOOLBAR_COMIC_CLEARANCE) {
+    if (top + toolbarHeight > comicTop - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
         // Clamp to just above comic
-        return { top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_COMIC_CLEARANCE), left };
+        return { top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE), left };
     }
     
     return { top, left };
@@ -627,13 +629,13 @@ function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
     if (!toolbarHeight || !toolbarWidth) return false;
 
     const overlapsLogo = rectsOverlap(toolbarRect, logoRect, TOOLBAR_MIN_VERTICAL_GAP);
-    const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_COMIC_CLEARANCE);
+    const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
     if (!overlapsLogo && !overlapsComic) {
         return false;
     }
 
     const minimumTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-    const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE;
+    const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
     const centeredLeft = Math.max(0, (viewportWidth - toolbarWidth) / 2);
     let nextLeft = parseFloat(toolbar.style.left);
     if (Number.isNaN(nextLeft)) {
@@ -1052,8 +1054,8 @@ function clampToolbarInView() {
                         }
                         
                         // Ensure not overlapping comic
-                        if (safeTop + toolbarHeight > comicRect.top - TOOLBAR_COMIC_CLEARANCE) {
-                            safeTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
+                        if (safeTop + toolbarHeight > comicRect.top - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
+                            safeTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                         }
                         
                         toolbar.style.top = safeTop + 'px';
@@ -1132,11 +1134,11 @@ function clampToolbarInView() {
                 const logoRect = logo.getBoundingClientRect();
                 const comicRect = comic.getBoundingClientRect();
                 const gapTotal = comicRect.top - logoRect.bottom;
-                if (gapTotal > toolbarHeight + TOOLBAR_COMIC_CLEARANCE) {
+                if (gapTotal > toolbarHeight + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
                     newTop = logoRect.bottom + (gapTotal * savedPos.gapRatio);
                     // Clamp within the gap
                     newTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, newTop);
-                    newTop = Math.min(newTop, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
+                    newTop = Math.min(newTop, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                 }
             }
             
@@ -1156,9 +1158,9 @@ function clampToolbarInView() {
             // Ensure we don't overlap comic (unless intentionally below it)
             if (comic && !savedPos.belowComic && !savedPos.belowControls) {
                 const comicRect = comic.getBoundingClientRect();
-                if (newTop + toolbarHeight > comicRect.top - TOOLBAR_COMIC_CLEARANCE && newTop < comicRect.bottom) {
+                if (newTop + toolbarHeight > comicRect.top - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE && newTop < comicRect.bottom) {
                     // Toolbar would overlap comic - push it above
-                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + TOOLBAR_MIN_VERTICAL_GAP : 0, comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE);
+                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + TOOLBAR_MIN_VERTICAL_GAP : 0, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                 }
             }
             
