@@ -421,6 +421,11 @@ let touchEndX = 0;
 let touchEndY = 0;
 let touchStartTime = 0;
 let lastSwipeTime = 0;
+let lastComicTapTime = 0;
+let lastComicTapX = 0;
+let lastComicTapY = 0;
+let pendingComicSingleTapTimer = null;
+let suppressComicClickUntil = 0;
 
 // Rotation state tracking
 let isRotatedMode = false;
@@ -429,6 +434,9 @@ let isVerticalComicActive = false;
 let isVerticalFullscreen = false;
 let toolbarStateBeforeRotate = null;
 let suppressToolbarClampUntil = 0;
+
+const COMIC_DOUBLE_TAP_DELAY = 300;
+const COMIC_TAP_MAX_MOVEMENT = 24;
 
 
 // ========================================
@@ -1916,6 +1924,87 @@ function Addfav() {
     showComic();
 }
 
+function clearPendingComicSingleTap() {
+    if (pendingComicSingleTapTimer) {
+        clearTimeout(pendingComicSingleTapTimer);
+        pendingComicSingleTapTimer = null;
+    }
+}
+
+function resetComicTapTracking() {
+    clearPendingComicSingleTap();
+    lastComicTapTime = 0;
+    lastComicTapX = 0;
+    lastComicTapY = 0;
+}
+
+function queueComicSingleTap(singleTapAction) {
+    clearPendingComicSingleTap();
+    if (typeof singleTapAction !== 'function') {
+        return;
+    }
+
+    pendingComicSingleTapTimer = window.setTimeout(() => {
+        pendingComicSingleTapTimer = null;
+        lastComicTapTime = 0;
+        singleTapAction();
+    }, COMIC_DOUBLE_TAP_DELAY);
+}
+
+function initializeComicTapGestures(singleTapAction = null) {
+    const comic = document.getElementById('comic');
+    if (!comic || comic.dataset.doubleTapInitialized === 'true') return;
+
+    comic.dataset.doubleTapInitialized = 'true';
+
+    comic.addEventListener('touchend', (e) => {
+        if (isVerticalFullscreen) return;
+        if (Date.now() - lastSwipeTime < 300) {
+            resetComicTapTracking();
+            return;
+        }
+
+        const touch = e.changedTouches?.[0];
+        if (!touch) return;
+
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+        const deltaTime = Date.now() - touchStartTime;
+
+        if (deltaX > COMIC_TAP_MAX_MOVEMENT || deltaY > COMIC_TAP_MAX_MOVEMENT || deltaTime > CONFIG.SWIPE_MAX_TIME) {
+            resetComicTapTracking();
+            return;
+        }
+
+        const now = Date.now();
+        const isDoubleTap = lastComicTapTime > 0 &&
+            now - lastComicTapTime <= COMIC_DOUBLE_TAP_DELAY &&
+            Math.abs(touch.clientX - lastComicTapX) <= COMIC_TAP_MAX_MOVEMENT &&
+            Math.abs(touch.clientY - lastComicTapY) <= COMIC_TAP_MAX_MOVEMENT;
+
+        if (isDoubleTap) {
+            e.preventDefault();
+            suppressComicClickUntil = now + 400;
+            resetComicTapTracking();
+            Addfav();
+            return;
+        }
+
+        lastComicTapTime = now;
+        lastComicTapX = touch.clientX;
+        lastComicTapY = touch.clientY;
+        queueComicSingleTap(singleTapAction);
+    }, { passive: false });
+
+    comic.addEventListener('dblclick', (e) => {
+        if (Date.now() - lastSwipeTime < 300) return;
+        e.preventDefault();
+        suppressComicClickUntil = Date.now() + 400;
+        resetComicTapTracking();
+        Addfav();
+    });
+}
+
 
 function HideSettings(e) {
     // Prevent event from bubbling if called from event handler
@@ -2760,6 +2849,8 @@ function initApp() {
     const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
                   window.matchMedia('(display-mode: window-controls-overlay)').matches ||
                   window.navigator.standalone === true;
+
+    let comicSingleTapAction = null;
     
     if (isMobilePhone && !isTablet) {
         if (isPWA) {
@@ -2793,17 +2884,15 @@ function initApp() {
             // Also listen to resize as a fallback for orientation detection
             window.matchMedia("(orientation: landscape)").addEventListener('change', handleOrientationChange);
         } else {
-            // Mobile browser (not PWA): use click to rotate
-            const comic = document.getElementById('comic');
-            if (comic) {
-                comic.addEventListener('click', (e) => {
-                    // Ignore clicks immediately after a swipe
-                    if (Date.now() - lastSwipeTime < 300) return;
-                    Rotate(true); // Apply CSS rotation on click
-                });
-            }
+            // Mobile browser (not PWA): use single tap to rotate unless it becomes a double tap.
+            comicSingleTapAction = () => {
+                if (Date.now() - lastSwipeTime < 300 || Date.now() < suppressComicClickUntil) return;
+                Rotate(true);
+            };
         }
     }
+
+    initializeComicTapGestures(comicSingleTapAction);
     // Tablet and Desktop: no rotation feature - they're already landscape-capable
 
     const favs = UTILS.getFavorites();
