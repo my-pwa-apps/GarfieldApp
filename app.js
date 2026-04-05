@@ -337,6 +337,10 @@ function getPrimaryComicElement() {
     return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
 }
 
+function getToolbarBoundaryComicElement() {
+    return document.getElementById('comic-wrapper') || document.getElementById('comic-container') || document.getElementById('comic');
+}
+
 // ========================================
 // WINDOWS STORE REVIEW
 // ========================================
@@ -489,7 +493,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const belowControlsOverridden = applyOverride('belowControls');
     const offsetControlsOverridden = applyOverride('offsetFromControls');
     
-    const comicElement = getPrimaryComicElement();
+    const comicElement = getToolbarBoundaryComicElement();
     if (comicElement && toolbarRect && !belowComicOverridden) {
         const comicRect = comicElement.getBoundingClientRect();
         const belowComic = toolbarRect.top >= comicRect.bottom;
@@ -563,7 +567,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
  */
 function calculateOptimalToolbarPosition(toolbar) {
     const logo = document.querySelector('.logo');
-    const comic = getPrimaryComicElement();
+    const comic = getToolbarBoundaryComicElement();
     if (!logo || !comic) return null;
     
     const logoRect = logo.getBoundingClientRect();
@@ -599,72 +603,71 @@ function calculateOptimalToolbarPosition(toolbar) {
     return { top, left };
 }
 
-    function rectsOverlap(firstRect, secondRect, padding = 0) {
-        return firstRect.left < secondRect.right + padding &&
-            firstRect.right > secondRect.left - padding &&
-            firstRect.top < secondRect.bottom + padding &&
-            firstRect.bottom > secondRect.top - padding;
-            firstRect.bottom > secondRect.top;
+function rectsOverlap(firstRect, secondRect, padding = 0) {
+    return firstRect.left < secondRect.right + padding &&
+        firstRect.right > secondRect.left - padding &&
+        firstRect.top < secondRect.bottom + padding &&
+        firstRect.bottom > secondRect.top - padding;
+}
+
+function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
+    if (!toolbar) return false;
+
+    const logo = document.querySelector('.logo');
+    const comic = getToolbarBoundaryComicElement();
+    if (!logo || !comic) return false;
+
+    const toolbarRect = toolbar.getBoundingClientRect();
+    const logoRect = logo.getBoundingClientRect();
+    const comicRect = comic.getBoundingClientRect();
+    const toolbarHeight = toolbar.offsetHeight || toolbarRect.height;
+    const toolbarWidth = toolbar.offsetWidth || toolbarRect.width;
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+
+    if (!toolbarHeight || !toolbarWidth) return false;
+
+    const overlapsLogo = rectsOverlap(toolbarRect, logoRect, TOOLBAR_MIN_VERTICAL_GAP);
+    const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_COMIC_CLEARANCE);
+    if (!overlapsLogo && !overlapsComic) {
+        return false;
     }
 
-    function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
-        if (!toolbar) return false;
-
-        const logo = document.querySelector('.logo');
-        const comic = getPrimaryComicElement();
-        if (!logo || !comic) return false;
-
-        const toolbarRect = toolbar.getBoundingClientRect();
-        const logoRect = logo.getBoundingClientRect();
-        const comicRect = comic.getBoundingClientRect();
-        const toolbarHeight = toolbar.offsetHeight || toolbarRect.height;
-        const toolbarWidth = toolbar.offsetWidth || toolbarRect.width;
-        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-
-        if (!toolbarHeight || !toolbarWidth) return false;
-
-        const overlapsLogo = rectsOverlap(toolbarRect, logoRect, TOOLBAR_MIN_VERTICAL_GAP);
-        const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_COMIC_CLEARANCE);
-        if (!overlapsLogo && !overlapsComic) {
-            return false;
-        }
-
-        const minimumTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-        const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE;
-        const centeredLeft = Math.max(0, (viewportWidth - toolbarWidth) / 2);
-        let nextLeft = parseFloat(toolbar.style.left);
-        if (Number.isNaN(nextLeft)) {
-            nextLeft = toolbarRect.left;
-        }
-        nextLeft = Math.max(0, Math.min(nextLeft, viewportWidth - toolbarWidth));
-
-        let nextTop;
-        if (maximumTop >= minimumTop) {
-            nextTop = overlapsLogo ? minimumTop : maximumTop;
-        } else {
-            const optimal = calculateOptimalToolbarPosition(toolbar);
-            nextTop = optimal ? optimal.top : minimumTop;
-            nextLeft = optimal ? optimal.left : centeredLeft;
-        }
-
-        toolbar.style.top = nextTop + 'px';
-        toolbar.style.left = nextLeft + 'px';
-        toolbar.style.transform = 'none';
-
-        if (savePosition) {
-            storeToolbarPosition(nextTop, nextLeft, toolbar, {
-                belowComic: false,
-                offsetFromComic: null,
-                belowControls: false,
-                offsetFromControls: null,
-                belowSettings: false,
-                offsetFromSettings: null,
-                leftOffsetFromCenter: nextLeft - centeredLeft
-            });
-        }
-
-        return true;
+    const minimumTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
+    const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_COMIC_CLEARANCE;
+    const centeredLeft = Math.max(0, (viewportWidth - toolbarWidth) / 2);
+    let nextLeft = parseFloat(toolbar.style.left);
+    if (Number.isNaN(nextLeft)) {
+        nextLeft = toolbarRect.left;
     }
+    nextLeft = Math.max(0, Math.min(nextLeft, viewportWidth - toolbarWidth));
+
+    let nextTop;
+    if (maximumTop >= minimumTop) {
+        nextTop = overlapsLogo ? minimumTop : maximumTop;
+    } else {
+        const optimal = calculateOptimalToolbarPosition(toolbar);
+        nextTop = optimal ? optimal.top : minimumTop;
+        nextLeft = optimal ? optimal.left : centeredLeft;
+    }
+
+    toolbar.style.top = nextTop + 'px';
+    toolbar.style.left = nextLeft + 'px';
+    toolbar.style.transform = 'none';
+
+    if (savePosition) {
+        storeToolbarPosition(nextTop, nextLeft, toolbar, {
+            belowComic: false,
+            offsetFromComic: null,
+            belowControls: false,
+            offsetFromControls: null,
+            belowSettings: false,
+            offsetFromSettings: null,
+            leftOffsetFromCenter: nextLeft - centeredLeft
+        });
+    }
+
+    return true;
+}
 
 /**
  * Check if toolbar is within snap zone of optimal position (DirkJan pattern)
@@ -1034,7 +1037,7 @@ function clampToolbarInView() {
                 if (optimalPos) {
                     // Additional safety: ensure we're not placing toolbar over logo or comic
                     const logo = document.querySelector('.logo');
-                    const comic = getPrimaryComicElement();
+                    const comic = getToolbarBoundaryComicElement();
                     
                     if (logo && comic) {
                         const logoRect = logo.getBoundingClientRect();
@@ -1093,7 +1096,7 @@ function clampToolbarInView() {
             const viewportHeight = window.innerHeight;
             
             // Get element references
-            const comic = getPrimaryComicElement();
+            const comic = getToolbarBoundaryComicElement();
             const controlsContainer = document.getElementById('controls-container');
             const settingsPanel = document.getElementById('settingsDIV');
             const logo = document.querySelector('.logo');
