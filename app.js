@@ -584,12 +584,18 @@ function calculateOptimalToolbarPosition(toolbar) {
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
     
-    // Safety check: if available space is too small or negative, the layout hasn't stabilized yet
-    if (availableSpace < toolbarHeight + 10) {
-        // Not enough space - place toolbar just below logo with minimum gap
-        const safeTop = logoBottom + TOOLBAR_MIN_VERTICAL_GAP;
-        const left = (viewportWidth - toolbarWidth) / 2;
-        return { top: safeTop, left };
+    // Adaptive spacing: If default CSS spacing is insufficient to fit the toolbar with its required clearances,
+    // dynamically push the comic container down to create enough room.
+    const requiredSpace = toolbarHeight + TOOLBAR_MIN_VERTICAL_GAP + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
+    if (availableSpace < requiredSpace) {
+        const comicContainer = document.getElementById('comic-container');
+        if (comicContainer) {
+            const currentMargin = parseInt(window.getComputedStyle(comicContainer).marginTop, 10) || 80;
+            const deficit = requiredSpace - availableSpace;
+            comicContainer.style.marginTop = `${currentMargin + deficit}px`;
+            // The next RAF will place the toolbar cleanly since layout reflowed
+            return { top: logoBottom + TOOLBAR_MIN_VERTICAL_GAP, left: (viewportWidth - toolbarWidth) / 2 };
+        }
     }
     
     // Calculate centered position (DirkJan pattern)
