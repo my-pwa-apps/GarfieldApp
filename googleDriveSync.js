@@ -122,6 +122,8 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         return accessToken;
     }
 
+    // If another caller already triggered a token request, wait for it.
+    // On failure, fall through to try other restoration paths.
     if (pendingTokenRequest) {
         try {
             const token = await pendingTokenRequest;
@@ -175,6 +177,7 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
 
     if (response.status === 401 && retryOnAuthFailure) {
         _clearTokenState();
+        lastSilentRefreshAttempt = 0; // Allow immediate silent re-auth on 401 retry
         const refreshedToken = await ensureValidAccessToken({ interactive: false });
         const retryHeaders = new Headers(options.headers || {});
         retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
