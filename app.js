@@ -1626,7 +1626,15 @@ const translations = {
         googleSignOut: 'Sign out',
         googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
-        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.'
+        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
+        top10Title: 'Top 10 Most Favorited',
+        top10Loading: 'Loading…',
+        top10Empty: 'No favorites yet. Be the first!',
+        top10Error: 'Could not load leaderboard. Try again later.',
+        top10CommunityFavorites: 'Community Favorites',
+        top10ExitLabel: 'Exit community favorites',
+        top10ViewComic: 'View comic from {date}',
+        top10ComicAlt: 'Comic from {date}'
     },
     es: {
         previous: 'Anterior',
@@ -1663,7 +1671,15 @@ const translations = {
         googleSignOut: 'Cerrar sesión',
         googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
-        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.'
+        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
+        top10Title: 'Top 10 Más Favoritos',
+        top10Loading: 'Cargando…',
+        top10Empty: '¡Aún no hay favoritos. Sé el primero!',
+        top10Error: 'No se pudo cargar la tabla de clasificación. Intenta de nuevo más tarde.',
+        top10CommunityFavorites: 'Favoritos de la Comunidad',
+        top10ExitLabel: 'Salir de favoritos de la comunidad',
+        top10ViewComic: 'Ver cómic del {date}',
+        top10ComicAlt: 'Cómic del {date}'
     }
 };
 
@@ -1811,6 +1827,21 @@ function translateInterface(lang) {
     const donationMsg = document.getElementById('donationMessage');
     if (donationMsg) donationMsg.textContent = t.donationMessage;
     
+    // Translate Top 10 button and modal header
+    const top10BtnSpan = document.querySelector('#top10Btn span');
+    if (top10BtnSpan) top10BtnSpan.textContent = t.top10Title;
+    const top10Header = document.querySelector('#top10Modal .top10-header h3');
+    if (top10Header) {
+        const svgEl = top10Header.querySelector('svg');
+        top10Header.textContent = '';
+        if (svgEl) top10Header.appendChild(svgEl);
+        top10Header.append(' ' + t.top10Title);
+    }
+    const top10Btn = document.getElementById('top10Btn');
+    if (top10Btn) top10Btn.setAttribute('aria-label', t.top10Title);
+    const top10ModalEl = document.getElementById('top10Modal');
+    if (top10ModalEl) top10ModalEl.setAttribute('aria-label', t.top10Title);
+
     // Translate comic alt text
     const comic = document.getElementById('comic');
     if (comic && comic.alt === 'Loading comic...') {
@@ -3942,13 +3973,17 @@ function showTop10Modal() {
     const list = document.getElementById('top10List');
     if (!backdrop || !modal || !list) return;
 
-    list.innerHTML = '<div class="top10-loading">Loading…</div>';
+    const lang = UTILS.isSpanishMode() ? 'es' : 'en';
+    const t = translations[lang] || translations.en;
+    const dateFmtLocale = lang === 'es' ? 'es-ES' : 'en-US';
+
+    list.innerHTML = `<div class="top10-loading">${t.top10Loading}</div>`;
     backdrop.classList.add('visible');
     modal.classList.add('visible');
 
     fetchTop10().then(entries => {
         if (!entries || entries.length === 0) {
-            list.innerHTML = '<div class="top10-empty">No favorites yet. Be the first!</div>';
+            list.innerHTML = `<div class="top10-empty">${t.top10Empty}</div>`;
             return;
         }
         _top10Entries = entries;
@@ -3956,9 +3991,10 @@ function showTop10Modal() {
         list.innerHTML = entries.map((entry, i) => {
             const parts = entry.date.split('/');
             const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            const formatted = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            const formatted = dateObj.toLocaleDateString(dateFmtLocale, { year: 'numeric', month: 'short', day: 'numeric' });
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-            return `<button class="top10-entry" data-index="${i}" data-date="${entry.date}" aria-label="View comic from ${formatted}">
+            const ariaLabel = t.top10ViewComic.replace('{date}', formatted);
+            return `<button class="top10-entry" data-index="${i}" data-date="${entry.date}" aria-label="${ariaLabel}">
                 <span class="top10-rank">${medal || (i + 1)}</span>
                 <div class="top10-thumb-wrap" id="top10Thumb${i}">
                     <div class="top10-thumb-placeholder">
@@ -3987,7 +4023,7 @@ function showTop10Modal() {
                         img.className = 'top10-thumb';
                         img.loading = 'lazy';
                         img.setAttribute('src', result.imageUrl);
-                        img.setAttribute('alt', `Comic from ${entry.date}`);
+                        img.setAttribute('alt', t.top10ComicAlt.replace('{date}', entry.date));
                         thumbWrap.innerHTML = '';
                         thumbWrap.appendChild(img);
                     }
@@ -4002,7 +4038,7 @@ function showTop10Modal() {
             });
         });
     }).catch(() => {
-        list.innerHTML = '<div class="top10-empty">Could not load leaderboard. Try again later.</div>';
+        list.innerHTML = `<div class="top10-empty">${t.top10Error}</div>`;
     });
 }
 
@@ -4084,18 +4120,20 @@ function updateTop10Indicator() {
     const entry = _top10Entries[_top10BrowseIndex];
     if (!entry) return;
 
+    const lang = UTILS.isSpanishMode() ? 'es' : 'en';
+    const t = translations[lang] || translations.en;
     const medal = _top10BrowseIndex === 0 ? '🥇' : _top10BrowseIndex === 1 ? '🥈' : _top10BrowseIndex === 2 ? '🥉' : '';
     const rank = medal || `#${_top10BrowseIndex + 1}`;
 
     indicator.innerHTML = `
         <span class="top10-indicator-rank">${rank}</span>
-        <span class="top10-indicator-label">Community Favorites</span>
+        <span class="top10-indicator-label">${t.top10CommunityFavorites}</span>
         <span class="top10-indicator-count">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             ${entry.count}
         </span>
         <span class="top10-indicator-pos">${_top10BrowseIndex + 1}/${_top10Entries.length}</span>
-        <button class="top10-indicator-exit" id="top10ExitBtn" aria-label="Exit community favorites">✕</button>
+        <button class="top10-indicator-exit" id="top10ExitBtn" aria-label="${t.top10ExitLabel}">✕</button>
     `;
 
     const exitBtn = document.getElementById('top10ExitBtn');
