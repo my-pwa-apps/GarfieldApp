@@ -1283,6 +1283,20 @@ function initializeToolbar() {
             }, 50);
         });
         toolbarResizeObserver.observe(mainToolbar);
+
+        // Watch comic container for size changes (e.g. image reflow after window resize)
+        const comicContainer = document.getElementById('comic-container');
+        if (comicContainer) {
+            let comicResizeTimeout;
+            const comicResizeObserver = new ResizeObserver(() => {
+                if (isToolbarPersistenceSuspended || isRotatedMode) return;
+                clearTimeout(comicResizeTimeout);
+                comicResizeTimeout = setTimeout(() => {
+                    moveToolbarBetweenLogoAndComic(mainToolbar);
+                }, 80);
+            });
+            comicResizeObserver.observe(comicContainer);
+        }
     }
 }
 
