@@ -1384,6 +1384,30 @@ input[type="date"]::-webkit-datetime-edit {
     to { opacity: 1; }
 }
 
+@keyframes favHeartPop {
+    0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+    25%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+    50%  { transform: translate(-50%, -50%) scale(0.95); opacity: 1; }
+    70%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+.fav-heart-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10003;
+    pointer-events: none;
+    animation: favHeartPop 0.8s ease-out forwards;
+}
+
+.fav-heart-overlay svg {
+    width: 96px;
+    height: 96px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+}
+
 .donation-modal {
     position: fixed;
     top: 50%;

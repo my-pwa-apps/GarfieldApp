@@ -1918,10 +1918,28 @@ function Addfav() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
     // Auto-sync to Google Drive if signed in
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+    const wasAdded = favIndex === -1;
     UTILS.updateHeartIcon();
     updateExportButtonState();
     CompareDates();
     showComic();
+
+    if (isRotatedMode) {
+        showFavoriteOverlay(wasAdded);
+    }
+}
+
+function showFavoriteOverlay(added) {
+    const existing = document.getElementById('fav-heart-overlay');
+    if (existing) existing.remove();
+
+    const container = document.createElement('div');
+    container.id = 'fav-heart-overlay';
+    container.className = 'fav-heart-overlay';
+    container.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${added ? '#e74c3c' : 'none'}" stroke="${added ? '#e74c3c' : '#fff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+    document.body.appendChild(container);
+
+    container.addEventListener('animationend', () => container.remove());
 }
 
 function clearPendingComicSingleTap() {
