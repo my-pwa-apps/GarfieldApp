@@ -10,6 +10,8 @@ let tokenClient = null;
 let accessToken = null;
 let accessTokenExpiry = 0;
 let pendingTokenRequest = null;
+let pendingTokenRequestResolve = null;
+let pendingTokenRequestReject = null;
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
@@ -63,10 +65,25 @@ function _clearTokenState(clearUser = false) {
     accessToken = null;
     accessTokenExpiry = 0;
     pendingTokenRequest = null;
+    pendingTokenRequestResolve = null;
+    pendingTokenRequestReject = null;
     localStorage.removeItem('gDriveToken');
     if (clearUser) {
         localStorage.removeItem('gDriveUser');
     }
+}
+
+function _resetPendingTokenRequest() {
+    pendingTokenRequest = null;
+    pendingTokenRequestResolve = null;
+    pendingTokenRequestReject = null;
+}
+
+function _rejectPendingTokenRequest(error) {
+    if (pendingTokenRequestReject) {
+        pendingTokenRequestReject(error);
+    }
+    _resetPendingTokenRequest();
 }
 
 function _requestAccessToken(prompt = '') {
@@ -85,18 +102,13 @@ function _requestAccessToken(prompt = '') {
         try {
             tokenClient.requestAccessToken({ prompt });
         } catch (error) {
-            pendingTokenRequest = null;
-            pendingTokenRequestResolve = null;
-            pendingTokenRequestReject = null;
+            _resetPendingTokenRequest();
             reject(error);
         }
     });
 
     return pendingTokenRequest;
 }
-
-let pendingTokenRequestResolve = null;
-let pendingTokenRequestReject = null;
 
 async function ensureValidAccessToken({ interactive = false } = {}) {
     if (_hasUsableToken()) {
@@ -108,14 +120,8 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         return accessToken;
     }
 
-    try {
-        _pendingAuthSource = 'restore';
-        await _requestAccessToken('');
-        return accessToken;
-    } catch (error) {
-        if (!interactive) {
-            throw error;
-        }
+    if (!interactive) {
+        throw new Error('Interactive sign-in required');
     }
 
     _pendingAuthSource = 'user';
@@ -167,7 +173,8 @@ function _initTokenClient() {
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: GOOGLE_SCOPES,
-        callback: handleTokenResponse
+        callback: handleTokenResponse,
+        error_callback: handleTokenClientError
     });
 
     window.dispatchEvent(new CustomEvent('google-sync-ready'));
@@ -175,26 +182,28 @@ function _initTokenClient() {
     if (_restoreStoredToken()) {
         updateGoogleUI(true, 'restore');
         pullFavoritesFromDrive();
-    } else if (_getStoredTokenData()) {
-        // Token expired but user was previously signed in — try silent re-auth
-        _trySilentReauth();
+    } else {
+        // Startup must stay non-interactive. If the stored token is expired,
+        // wait for an explicit user click rather than risking a blocked popup.
+        updateGoogleUI(false, 'expired');
     }
 }
 
 let _pendingAuthSource = 'user';
 
-/**
- * Attempt silent token re-acquisition without a popup.
- * Works when the user still has an active Google session in the browser
- * and has previously granted consent to this app.
- */
-function _trySilentReauth() {
-    if (!tokenClient) return;
-    _pendingAuthSource = 'restore';
-    _requestAccessToken('').catch(() => {
-        _pendingAuthSource = 'user';
-        // Silent re-auth not possible — user will need to click sign-in
-    });
+function handleTokenClientError(error) {
+    const source = _pendingAuthSource;
+    _pendingAuthSource = 'user';
+
+    _rejectPendingTokenRequest(new Error(error?.type || 'token_request_failed'));
+
+    if (source === 'restore') {
+        return;
+    }
+
+    if (error?.type !== 'popup_closed' && error?.type !== 'popup_failed_to_open') {
+        console.error('Google auth error:', error?.type || error);
+    }
 }
 
 /**
@@ -205,12 +214,7 @@ function handleTokenResponse(response) {
     _pendingAuthSource = 'user';
 
     if (response.error) {
-        if (pendingTokenRequestReject) {
-            pendingTokenRequestReject(new Error(response.error));
-        }
-        pendingTokenRequest = null;
-        pendingTokenRequestResolve = null;
-        pendingTokenRequestReject = null;
+        _rejectPendingTokenRequest(new Error(response.error));
 
         // Silent re-auth failures are expected — don't notify the user
         if (source !== 'restore') {
@@ -225,9 +229,7 @@ function handleTokenResponse(response) {
     if (pendingTokenRequestResolve) {
         pendingTokenRequestResolve(accessToken);
     }
-    pendingTokenRequest = null;
-    pendingTokenRequestResolve = null;
-    pendingTokenRequestReject = null;
+    _resetPendingTokenRequest();
 
     updateGoogleUI(true, source);
     fetchGoogleUserInfo();
