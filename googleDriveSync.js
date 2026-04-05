@@ -12,6 +12,7 @@ let accessTokenExpiry = 0;
 let pendingTokenRequest = null;
 let pendingTokenRequestResolve = null;
 let pendingTokenRequestReject = null;
+let startupRestoreAttempted = false;
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
@@ -37,6 +38,11 @@ function _getStoredTokenData() {
         localStorage.removeItem('gDriveToken');
         return null;
     }
+}
+
+function _getStoredUserEmail() {
+    const stored = localStorage.getItem('gDriveUserEmail');
+    return typeof stored === 'string' && stored.trim() ? stored.trim() : '';
 }
 
 function _hasUsableToken() {
@@ -70,6 +76,7 @@ function _clearTokenState(clearUser = false) {
     localStorage.removeItem('gDriveToken');
     if (clearUser) {
         localStorage.removeItem('gDriveUser');
+        localStorage.removeItem('gDriveUserEmail');
     }
 }
 
@@ -86,7 +93,7 @@ function _rejectPendingTokenRequest(error) {
     _resetPendingTokenRequest();
 }
 
-function _requestAccessToken(prompt = '') {
+function _requestAccessToken(options = {}) {
     if (!tokenClient) {
         return Promise.reject(new Error('Google services not loaded'));
     }
@@ -100,7 +107,7 @@ function _requestAccessToken(prompt = '') {
         pendingTokenRequestReject = reject;
 
         try {
-            tokenClient.requestAccessToken({ prompt });
+            tokenClient.requestAccessToken(options);
         } catch (error) {
             _resetPendingTokenRequest();
             reject(error);
@@ -121,11 +128,32 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
     }
 
     if (!interactive) {
+        const loginHint = _getStoredUserEmail();
+        const shouldAttemptSilentRestore = !startupRestoreAttempted &&
+            (!!_getStoredTokenData() || !!loginHint);
+
+        if (shouldAttemptSilentRestore) {
+            startupRestoreAttempted = true;
+            _pendingAuthSource = 'restore';
+
+            try {
+                await _requestAccessToken({
+                    prompt: 'none',
+                    ...(loginHint ? { login_hint: loginHint } : {})
+                });
+                return accessToken;
+            } catch (_) {
+                _clearTokenState();
+            }
+        }
+    }
+
+    if (!interactive) {
         throw new Error('Interactive sign-in required');
     }
 
     _pendingAuthSource = 'user';
-    await _requestAccessToken();
+    await _requestAccessToken({ prompt: '' });
     return accessToken;
 }
 
@@ -183,9 +211,16 @@ function _initTokenClient() {
         updateGoogleUI(true, 'restore');
         pullFavoritesFromDrive();
     } else {
-        // Startup must stay non-interactive. If the stored token is expired,
-        // wait for an explicit user click rather than risking a blocked popup.
-        updateGoogleUI(false, 'expired');
+        // Startup stays non-interactive. If Google still has a valid session,
+        // ensureValidAccessToken() can restore it silently with prompt=none.
+        ensureValidAccessToken({ interactive: false })
+            .then(() => {
+                updateGoogleUI(true, 'restore');
+                pullFavoritesFromDrive();
+            })
+            .catch(() => {
+                updateGoogleUI(false, 'expired');
+            });
     }
 }
 
@@ -271,6 +306,9 @@ async function fetchGoogleUserInfo() {
         const data = await res.json();
         const display = data.name || data.email || 'Google User';
         localStorage.setItem('gDriveUser', display);
+        if (typeof data.email === 'string' && data.email) {
+            localStorage.setItem('gDriveUserEmail', data.email);
+        }
         const nameEl = document.getElementById('googleUserName');
         if (nameEl) nameEl.textContent = display;
     } catch (_) { /* non-critical */ }
