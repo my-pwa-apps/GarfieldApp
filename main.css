@@ -1228,7 +1228,7 @@ input[type="date"]::-webkit-datetime-edit {
     .toolbar {
         width: min(95%, 900px);
         max-width: min(95%, 900px);
-        padding: 12px 10px;
+        padding: 8px 8px;
         gap: 6px;
         border-radius: 16px;
         left: 10px;
@@ -1314,7 +1314,7 @@ input[type="date"]::-webkit-datetime-edit {
     .toolbar {
         width: min(95%, 900px);
         max-width: min(95%, 900px);
-        padding: 10px 8px;
+        padding: 6px 6px;
         gap: 4px;
         left: 8px;
     }
