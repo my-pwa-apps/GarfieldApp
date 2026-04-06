@@ -1827,15 +1827,12 @@ function translateInterface(lang) {
     const donationMsg = document.getElementById('donationMessage');
     if (donationMsg) donationMsg.textContent = t.donationMessage;
     
-    // Translate Top 10 button and modal header
+    // Translate Top Favorites button and modal header
     const top10BtnSpan = document.querySelector('#top10Btn span');
     if (top10BtnSpan) top10BtnSpan.textContent = t.top10Title;
     const top10Header = document.querySelector('#top10Modal .top10-header h3');
     if (top10Header) {
-        const svgEl = top10Header.querySelector('svg');
-        top10Header.textContent = '';
-        if (svgEl) top10Header.appendChild(svgEl);
-        top10Header.append(' ' + t.top10Title);
+        top10Header.textContent = t.top10Title;
     }
     const top10Btn = document.getElementById('top10Btn');
     if (top10Btn) top10Btn.setAttribute('aria-label', t.top10Title);
