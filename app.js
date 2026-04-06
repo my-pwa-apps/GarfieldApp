@@ -3934,12 +3934,12 @@ function migrateExistingFavorites() {
 }
 
 async function fetchTop10() {
-    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`, { cache: 'no-store' });
+    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`);
     if (!response.ok) throw new Error('Failed to fetch leaderboard');
     return response.json();
 }
 
-// Top 10 browsing mode state
+// Top Favorites browsing mode state
 let _top10Entries = [];
 let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
@@ -4011,25 +4011,34 @@ function showTop10Modal() {
             </button>`;
         }).join('');
 
-        // Load thumbnails lazily
-        entries.forEach((entry, i) => {
-            const parts = entry.date.split('/');
-            const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
-                if (result.success && result.imageUrl) {
-                    const thumbWrap = document.getElementById(`top10Thumb${i}`);
-                    if (thumbWrap) {
-                        const img = document.createElement('img');
-                        img.className = 'top10-thumb';
-                        img.loading = 'lazy';
-                        img.setAttribute('src', result.imageUrl);
-                        img.setAttribute('alt', t.top10ComicAlt.replace('{date}', entry.date));
-                        thumbWrap.innerHTML = '';
-                        thumbWrap.appendChild(img);
+        // Load thumbnails in batches to avoid flooding the network
+        const BATCH_SIZE = 5;
+        async function loadThumbBatch(startIndex) {
+            const batch = entries.slice(startIndex, startIndex + BATCH_SIZE);
+            await Promise.all(batch.map((entry, offset) => {
+                const i = startIndex + offset;
+                const parts = entry.date.split('/');
+                const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                return getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
+                    if (result.success && result.imageUrl) {
+                        const thumbWrap = document.getElementById(`top10Thumb${i}`);
+                        if (thumbWrap) {
+                            const img = document.createElement('img');
+                            img.className = 'top10-thumb';
+                            img.loading = 'lazy';
+                            img.setAttribute('src', result.imageUrl);
+                            img.setAttribute('alt', t.top10ComicAlt.replace('{date}', entry.date));
+                            thumbWrap.innerHTML = '';
+                            thumbWrap.appendChild(img);
+                        }
                     }
-                }
-            }).catch(() => {});
-        });
+                }).catch(() => {});
+            }));
+            if (startIndex + BATCH_SIZE < entries.length) {
+                loadThumbBatch(startIndex + BATCH_SIZE);
+            }
+        }
+        loadThumbBatch(0);
 
         // Click handlers — enter Top 10 browsing mode
         list.querySelectorAll('.top10-entry').forEach(btn => {

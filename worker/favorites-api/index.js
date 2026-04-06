@@ -51,15 +51,8 @@ export default {
 // ── Handlers ────────────────────────────────────────────────────────────────
 
 async function handleGetTop(env) {
-    // Build the list from the authoritative counts so TOP_N changes take effect immediately
-    const counts = (await env.FAVORITES.get('counts', 'json')) || {};
-    const sorted = Object.entries(counts)
-        .map(([d, c]) => ({ date: d, count: c }))
-        .filter(e => e.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, TOP_N);
-
-    return new Response(JSON.stringify(sorted), {
+    const cached = await env.FAVORITES.get('top10', 'json');
+    return new Response(JSON.stringify(cached || []), {
         headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'public, max-age=30'
@@ -111,6 +104,7 @@ async function handlePostFavorite(request, env) {
     // Rebuild top-N cache
     const sorted = Object.entries(counts)
         .map(([d, c]) => ({ date: d, count: c }))
+        .filter(e => e.count > 0)
         .sort((a, b) => b.count - a.count)
         .slice(0, TOP_N);
 
