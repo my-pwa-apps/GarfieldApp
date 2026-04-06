@@ -4044,7 +4044,11 @@ function showTop10Modal() {
                 }
                 const parts = entry.date.split('/');
                 const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                return getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
+                return getAuthenticatedComic(date, 'en', 'fandom', {
+                    silent: true,
+                    maxSources: 1,
+                    disableTodayFallback: true
+                }).then(result => {
                     if (result.success && result.imageUrl) {
                         _thumbCache.set(entry.date, result.imageUrl);
                         applyThumb(i, result.imageUrl, entry.date);

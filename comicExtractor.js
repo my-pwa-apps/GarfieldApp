@@ -175,7 +175,7 @@ function _extractGoComicsImage(html) {
     return null;
 }
 
-async function _getComicFromGoComics(date, language) {
+async function _getComicFromGoComics(date, language, options = {}) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -213,7 +213,9 @@ async function _getComicFromGoComics(date, language) {
         return { success: true, imageUrl };
     }
     
-    console.warn(`GoComics: no image extracted (HTML length: ${html.length})`);
+    if (!options.silent) {
+        console.warn(`GoComics: no image extracted (HTML length: ${html.length})`);
+    }
     return { success: false, imageUrl: null };
 }
 
@@ -237,7 +239,7 @@ async function _getComicFromGoComics(date, language) {
  * @param {Date} date
  * @returns {Promise<{success: boolean, imageUrl: string|null}>}
  */
-async function _getComicFromFandom(date) {
+async function _getComicFromFandom(date, options = {}) {
     const dateStr = _dateToISO(date);
     // Fandom filenames use either regular hyphens (2026-04-01.gif) or
     // en dashes (2026–04–02.gif, U+2013). Try both variants for each extension.
@@ -269,12 +271,16 @@ async function _getComicFromFandom(date) {
                 }
             }
         } catch (err) {
-            console.warn(`Fandom API (${filename}):`, err.message);
+            if (!options.silent) {
+                console.warn(`Fandom API (${filename}):`, err.message);
+            }
         }
         }
     }
 
-    console.warn(`Fandom wiki: no image found for ${dateStr}`);
+    if (!options.silent) {
+        console.warn(`Fandom wiki: no image found for ${dateStr}`);
+    }
     return { success: false, imageUrl: null };
 }
 
@@ -413,15 +419,19 @@ async function _getComicFromArcaMax(date) {
  * @param {string} preferredSource - 'fandom' (default) | 'gocomics'
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
-export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom') {
+export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom', options = {}) {
     // Build the ordered list of sources to try.
     // ArcaMax is always appended last; the two EN-capable sources swap order
     // based on user preference.
     const order = preferredSource === 'fandom'
         ? ['fandom', 'gocomics', 'arcamax']
         : ['gocomics', 'fandom', 'arcamax'];
+    const maxSources = Number.isInteger(options.maxSources) && options.maxSources > 0
+        ? options.maxSources
+        : null;
+    const sourceOrder = maxSources ? order.slice(0, maxSources) : order;
 
-    for (const source of order) {
+    for (const source of sourceOrder) {
         // Spanish is only available on GoComics
         if (language === 'es' && source !== 'gocomics') {
             if (source === 'arcamax') break; // No point trying further
@@ -431,9 +441,9 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
         try {
             let result;
             if (source === 'gocomics') {
-                result = await _getComicFromGoComics(date, language);
+                result = await _getComicFromGoComics(date, language, options);
             } else if (source === 'fandom') {
-                result = await _getComicFromFandom(date);
+                result = await _getComicFromFandom(date, options);
             } else {
                 result = await _getComicFromArcaMax(date);
             }
@@ -443,20 +453,24 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             // If today's strip is missing, first treat it as a source-local
             // timezone/publication delay and retry yesterday within that same
             // source before falling back across sources.
-            if (_isRequestedDateTodayInET(date) && source !== 'arcamax') {
+            if (!options.disableTodayFallback && _isRequestedDateTodayInET(date) && source !== 'arcamax') {
                 const yesterday = _getPreviousDayAtNoon(date);
                 const yesterdayResult = source === 'gocomics'
-                    ? await _getComicFromGoComics(yesterday, language)
-                    : await _getComicFromFandom(yesterday);
+                    ? await _getComicFromGoComics(yesterday, language, options)
+                    : await _getComicFromFandom(yesterday, options);
 
                 if (yesterdayResult.success) {
                     return { ...yesterdayResult, actualDate: yesterday };
                 }
             }
 
-            console.warn(`${source}: unavailable, no comic found`);
+            if (!options.silent) {
+                console.warn(`${source}: unavailable, no comic found`);
+            }
         } catch (err) {
-            console.warn(`${source} error:`, err.message);
+            if (!options.silent) {
+                console.warn(`${source} error:`, err.message);
+            }
         }
     }
 
