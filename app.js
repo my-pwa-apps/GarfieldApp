@@ -238,26 +238,34 @@ const UTILS = {
      */
     preloadAdjacentComics(currentDate) {
         if (!this.shouldPrefetch()) return;
+        if (_isTop10Mode) return;
 
         const language = this.isSpanishMode() ? 'es' : 'en';
         const source = this.getPreferredSource();
+        if (language === 'es') return;
         const startDate = new Date(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
         // Use Eastern Time since comics are released based on ET
         const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
+
+        const warmImageCache = (imageUrl) => {
+            const image = new Image();
+            image.decoding = 'async';
+            image.loading = 'eager';
+            image.src = imageUrl;
+        };
         
         // Preload previous comic (if not before start date)
         const prevDate = new Date(currentDate);
         prevDate.setDate(prevDate.getDate() - 1);
         if (prevDate >= startDate) {
-            getAuthenticatedComic(prevDate, language, source).then(result => {
+            getAuthenticatedComic(prevDate, language, source, {
+                silent: true,
+                maxSources: 1,
+                disableTodayFallback: true
+            }).then(result => {
                 if (result.success && result.imageUrl) {
-                    const link = document.createElement('link');
-                    link.rel = 'preload';
-                    link.as = 'image';
-                    link.href = result.imageUrl;
-                    link.fetchPriority = 'low';
-                    document.head.appendChild(link);
+                    warmImageCache(result.imageUrl);
                 }
             }).catch(() => {}); // Silently ignore errors
         }
@@ -266,7 +274,11 @@ const UTILS = {
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
         if (nextDate <= today) {
-            getAuthenticatedComic(nextDate, language, source).then(result => {
+            getAuthenticatedComic(nextDate, language, source, {
+                silent: true,
+                maxSources: 1,
+                disableTodayFallback: true
+            }).then(result => {
                 if (result.success && result.imageUrl) {
                     // If GoComics redirected to a date that isn't newer than the
                     // comic currently shown, the next strip isn't published yet.
@@ -278,21 +290,11 @@ const UTILS = {
                         if (actualDay <= currentDay) {
                             nextComicUrl = currentComicUrl;
                         } else {
-                            const link = document.createElement('link');
-                            link.rel = 'preload';
-                            link.as = 'image';
-                            link.href = result.imageUrl;
-                            link.fetchPriority = 'low';
-                            document.head.appendChild(link);
+                            warmImageCache(result.imageUrl);
                             nextComicUrl = result.imageUrl;
                         }
                     } else {
-                        const link = document.createElement('link');
-                        link.rel = 'preload';
-                        link.as = 'image';
-                        link.href = result.imageUrl;
-                        link.fetchPriority = 'low';
-                        document.head.appendChild(link);
+                        warmImageCache(result.imageUrl);
                         // Store next comic URL and check for timezone edge case
                         nextComicUrl = result.imageUrl;
                     }
