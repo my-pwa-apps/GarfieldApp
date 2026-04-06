@@ -762,6 +762,17 @@ function checkToolbarOverlap(top, left, width, height) {
     return { overlaps, suggestedTop };
 }
 
+function clampSettingsPanelPosition(left, top, width, height) {
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const minVisibleWidth = 64;
+    const minVisibleHeaderHeight = 48;
+
+    return {
+        left: Math.max(minVisibleWidth - width, Math.min(left, viewportWidth - minVisibleWidth)),
+        top: Math.max(0, Math.min(top, window.innerHeight - minVisibleHeaderHeight))
+    };
+}
+
 function makeDraggable(element, dragHandle, storageKey) {
     let isDragging = false;
     let offsetX = 0;
@@ -824,15 +835,19 @@ function makeDraggable(element, dragHandle, storageKey) {
         const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
         
         // Toolbar: vertical drag only — keep current horizontal position
-        // Other elements (e.g. settings panel): free 2D drag clamped to viewport
+        // Settings: allow partial off-screen parking while keeping the header reachable
+        // Other elements: free 2D drag clamped to viewport
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             newLeft = parseFloat(element.style.left) || (viewportWidth - width) / 2;
+            newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
+        } else if (storageKey === CONFIG.STORAGE_KEYS.SETTINGS + '_pos') {
+            const clamped = clampSettingsPanelPosition(newLeft, newTop, width, height);
+            newLeft = clamped.left;
+            newTop = clamped.top;
         } else {
             newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
+            newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         }
-        
-        // Constrain vertical position within document bounds
-        newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         
         // Always store the latest coordinates so the RAF reads up-to-date values
         pendingLeft = newLeft;
@@ -994,20 +1009,48 @@ function restoreToolbarStateAfterRotate() {
 function initializeDraggableSettings() {
     const panel = document.getElementById("settingsDIV");
     const header = document.getElementById("settingsHeader");
+    const settingsStorageKey = CONFIG.STORAGE_KEYS.SETTINGS + '_pos';
     
     if (!panel || !header) return;
+
+    function keepPanelReachable() {
+        const width = panel.offsetWidth;
+        const height = panel.offsetHeight;
+        const top = parseFloat(panel.style.top);
+        const left = parseFloat(panel.style.left);
+
+        if (!width || !height || Number.isNaN(top) || Number.isNaN(left) || panel.style.transform !== 'none') {
+            return;
+        }
+
+        const clamped = clampSettingsPanelPosition(left, top, width, height);
+        if (clamped.top === top && clamped.left === left) return;
+
+        panel.style.top = clamped.top + 'px';
+        panel.style.left = clamped.left + 'px';
+
+        try {
+            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
+        } catch (_) {}
+    }
     
     // Load and apply saved position immediately without animation
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+    const savedPosRaw = localStorage.getItem(settingsStorageKey);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        panel.style.top = savedPos.top + 'px';
-        panel.style.left = savedPos.left + 'px';
+        const clamped = clampSettingsPanelPosition(savedPos.left, savedPos.top, panel.offsetWidth || 320, panel.offsetHeight || 0);
+        panel.style.top = clamped.top + 'px';
+        panel.style.left = clamped.left + 'px';
         panel.style.transform = 'none';
+
+        try {
+            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
+        } catch (_) {}
     }
     
     // Make draggable
-    makeDraggable(panel, header, CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
+    makeDraggable(panel, header, settingsStorageKey);
+    window.addEventListener('resize', keepPanelReachable);
 }
 
 function refreshToolbarDefaultPosition() {
