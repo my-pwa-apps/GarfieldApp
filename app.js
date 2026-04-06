@@ -4011,6 +4011,7 @@ function showTop10Modal() {
 
         // Load thumbnails in batches, using cached URLs when available
         const BATCH_SIZE = 5;
+        const THUMB_FAILED = Symbol('failed');
 
         function applyThumb(i, imageUrl, dateStr) {
             const thumbWrap = document.getElementById(`top10Thumb${i}`);
@@ -4026,10 +4027,12 @@ function showTop10Modal() {
         }
 
         async function loadThumbBatch(startIndex) {
+            if (!modal.classList.contains('visible')) return; // Stop if modal closed
             const batch = entries.slice(startIndex, startIndex + BATCH_SIZE);
             await Promise.all(batch.map((entry, offset) => {
                 const i = startIndex + offset;
                 const cached = _thumbCache.get(entry.date);
+                if (cached === THUMB_FAILED) return Promise.resolve();
                 if (cached) {
                     applyThumb(i, cached, entry.date);
                     return Promise.resolve();
@@ -4040,8 +4043,12 @@ function showTop10Modal() {
                     if (result.success && result.imageUrl) {
                         _thumbCache.set(entry.date, result.imageUrl);
                         applyThumb(i, result.imageUrl, entry.date);
+                    } else {
+                        _thumbCache.set(entry.date, THUMB_FAILED);
                     }
-                }).catch(() => {});
+                }).catch(() => {
+                    _thumbCache.set(entry.date, THUMB_FAILED);
+                });
             }));
             if (startIndex + BATCH_SIZE < entries.length) {
                 loadThumbBatch(startIndex + BATCH_SIZE);
