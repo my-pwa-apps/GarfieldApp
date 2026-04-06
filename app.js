@@ -3942,6 +3942,7 @@ let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
 let _top10PreviousDate = null;
 const _thumbCache = new Map(); // date string → image URL
+const _THUMB_FAILED = Symbol('failed');
 
 function setTop10EntryCount(date, count) {
     const entry = _top10Entries.find(item => item && item.date === date);
@@ -4009,9 +4010,11 @@ function showTop10Modal() {
             </button>`;
         }).join('');
 
-        // Load thumbnails in batches, using cached URLs when available
+        // Load thumbnails in batches, using cached URLs when available.
+        // Abort after too many consecutive failures (proxy may be down/rate-limited).
         const BATCH_SIZE = 5;
-        const THUMB_FAILED = Symbol('failed');
+        const MAX_CONSECUTIVE_FAILURES = 3;
+        let _consecutiveThumbFails = 0;
 
         function applyThumb(i, imageUrl, dateStr) {
             const thumbWrap = document.getElementById(`top10Thumb${i}`);
@@ -4027,14 +4030,16 @@ function showTop10Modal() {
         }
 
         async function loadThumbBatch(startIndex) {
-            if (!modal.classList.contains('visible')) return; // Stop if modal closed
+            if (!modal.classList.contains('visible')) return;
+            if (_consecutiveThumbFails >= MAX_CONSECUTIVE_FAILURES) return;
             const batch = entries.slice(startIndex, startIndex + BATCH_SIZE);
             await Promise.all(batch.map((entry, offset) => {
                 const i = startIndex + offset;
                 const cached = _thumbCache.get(entry.date);
-                if (cached === THUMB_FAILED) return Promise.resolve();
+                if (cached === _THUMB_FAILED) return Promise.resolve();
                 if (cached) {
                     applyThumb(i, cached, entry.date);
+                    _consecutiveThumbFails = 0;
                     return Promise.resolve();
                 }
                 const parts = entry.date.split('/');
@@ -4043,14 +4048,17 @@ function showTop10Modal() {
                     if (result.success && result.imageUrl) {
                         _thumbCache.set(entry.date, result.imageUrl);
                         applyThumb(i, result.imageUrl, entry.date);
+                        _consecutiveThumbFails = 0;
                     } else {
-                        _thumbCache.set(entry.date, THUMB_FAILED);
+                        _thumbCache.set(entry.date, _THUMB_FAILED);
+                        _consecutiveThumbFails++;
                     }
                 }).catch(() => {
-                    _thumbCache.set(entry.date, THUMB_FAILED);
+                    _thumbCache.set(entry.date, _THUMB_FAILED);
+                    _consecutiveThumbFails++;
                 });
             }));
-            if (startIndex + BATCH_SIZE < entries.length) {
+            if (startIndex + BATCH_SIZE < entries.length && _consecutiveThumbFails < MAX_CONSECUTIVE_FAILURES) {
                 loadThumbBatch(startIndex + BATCH_SIZE);
             }
         }
