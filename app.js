@@ -1627,7 +1627,7 @@ const translations = {
         googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
         donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
-        top10Title: 'Top 10 Most Favorited',
+        top10Title: 'Top Favorites',
         top10Loading: 'Loading…',
         top10Empty: 'No favorites yet. Be the first!',
         top10Error: 'Could not load leaderboard. Try again later.',
@@ -1672,7 +1672,7 @@ const translations = {
         googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
         donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
-        top10Title: 'Top 10 Más Favoritos',
+        top10Title: 'Favoritos Destacados',
         top10Loading: 'Cargando…',
         top10Empty: '¡Aún no hay favoritos. Sé el primero!',
         top10Error: 'No se pudo cargar la tabla de clasificación. Intenta de nuevo más tarde.',
@@ -2010,7 +2010,7 @@ function Addfav() {
     CompareDates();
     showComic();
 
-    // Report to global leaderboard and keep the active Top 10 session visually in sync.
+    // Report to global leaderboard and keep the active Top Favorites session visually in sync.
     const favoriteAction = wasAdded ? 'add' : 'remove';
     updateCurrentTop10EntryCount(dateToFavorite, favoriteAction);
     reportFavoriteToggle(dateToFavorite, favoriteAction);

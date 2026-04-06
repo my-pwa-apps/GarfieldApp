@@ -19,7 +19,7 @@ const ALLOWED_ORIGINS = [
 const DATE_PATTERN = /^\d{4}\/\d{2}\/\d{2}$/;
 const RATE_LIMIT_MAX = 30;   // max toggles per IP per minute
 const MIGRATE_MAX = 500;     // max dates per migration request
-const TOP_N = 10;
+const TOP_N = 50;
 
 export default {
     async fetch(request, env) {
