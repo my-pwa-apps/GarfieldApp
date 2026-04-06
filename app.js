@@ -3941,6 +3941,7 @@ let _top10Entries = [];
 let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
 let _top10PreviousDate = null;
+const _thumbCache = new Map(); // date string → image URL
 
 function setTop10EntryCount(date, count) {
     const entry = _top10Entries.find(item => item && item.date === date);
@@ -4008,26 +4009,37 @@ function showTop10Modal() {
             </button>`;
         }).join('');
 
-        // Load thumbnails in batches to avoid flooding the network
+        // Load thumbnails in batches, using cached URLs when available
         const BATCH_SIZE = 5;
+
+        function applyThumb(i, imageUrl, dateStr) {
+            const thumbWrap = document.getElementById(`top10Thumb${i}`);
+            if (thumbWrap) {
+                const img = document.createElement('img');
+                img.className = 'top10-thumb';
+                img.loading = 'lazy';
+                img.setAttribute('src', imageUrl);
+                img.setAttribute('alt', t.top10ComicAlt.replace('{date}', dateStr));
+                thumbWrap.innerHTML = '';
+                thumbWrap.appendChild(img);
+            }
+        }
+
         async function loadThumbBatch(startIndex) {
             const batch = entries.slice(startIndex, startIndex + BATCH_SIZE);
             await Promise.all(batch.map((entry, offset) => {
                 const i = startIndex + offset;
+                const cached = _thumbCache.get(entry.date);
+                if (cached) {
+                    applyThumb(i, cached, entry.date);
+                    return Promise.resolve();
+                }
                 const parts = entry.date.split('/');
                 const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
                 return getAuthenticatedComic(date, 'en', UTILS.getPreferredSource()).then(result => {
                     if (result.success && result.imageUrl) {
-                        const thumbWrap = document.getElementById(`top10Thumb${i}`);
-                        if (thumbWrap) {
-                            const img = document.createElement('img');
-                            img.className = 'top10-thumb';
-                            img.loading = 'lazy';
-                            img.setAttribute('src', result.imageUrl);
-                            img.setAttribute('alt', t.top10ComicAlt.replace('{date}', entry.date));
-                            thumbWrap.innerHTML = '';
-                            thumbWrap.appendChild(img);
-                        }
+                        _thumbCache.set(entry.date, result.imageUrl);
+                        applyThumb(i, result.imageUrl, entry.date);
                     }
                 }).catch(() => {});
             }));
