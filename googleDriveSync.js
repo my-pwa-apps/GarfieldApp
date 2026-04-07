@@ -496,3 +496,10 @@ window.initGoogleSync = initGoogleSync;
 window.googleSignIn = googleSignIn;
 window.googleSignOut = googleSignOut;
 window.syncFavoritesToDrive = syncFavoritesToDrive;
+window.getFavoritesApiAccessToken = async function getFavoritesApiAccessToken() {
+    try {
+        return await ensureValidAccessToken({ interactive: false });
+    } catch (_) {
+        return null;
+    }
+};

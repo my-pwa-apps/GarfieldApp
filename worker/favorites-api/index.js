@@ -1,13 +1,12 @@
 /**
  * GarfieldApp Favorites Leaderboard API
  *
- * Cloudflare Worker + KV for tracking global favorite counts.
- * KV namespace binding: FAVORITES
+ * Uses a Durable Object as the source of truth so leaderboard writes are
+ * serialized and counts remain consistent under concurrent traffic.
  *
- * Endpoints:
- *   GET  /top      → Top 10 most favorited comic dates
- *   POST /favorite → Report a favorite toggle { date, action: "add"|"remove" }
- *   POST /migrate  → Bulk-import existing favorites { dates: ["YYYY/MM/DD", ...] }
+ * Identity model:
+ * - Preferred: verified Google bearer token (stable across devices/profiles)
+ * - Fallback: local anonymous client id sent by the app
  */
 
 const ALLOWED_ORIGINS = [
@@ -17,9 +16,15 @@ const ALLOWED_ORIGINS = [
 ];
 
 const DATE_PATTERN = /^\d{4}\/\d{2}\/\d{2}$/;
-const RATE_LIMIT_MAX = 30;   // max toggles per IP per minute
-const MIGRATE_MAX = 500;     // max dates per migration request
+const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MIGRATE_MAX = 500;
 const TOP_N = 50;
+const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const LEADERBOARD_OBJECT_NAME = 'global';
+const COUNTS_KEY = 'counts';
+const TOP_KEY = 'top';
 
 export default {
     async fetch(request, env) {
@@ -28,144 +33,261 @@ export default {
         }
 
         const url = new URL(request.url);
-        let response;
-
-        try {
-            if (url.pathname === '/top' && request.method === 'GET') {
-                response = await handleGetTop(env);
-            } else if (url.pathname === '/favorite' && request.method === 'POST') {
-                response = await handlePostFavorite(request, env);
-            } else if (url.pathname === '/migrate' && request.method === 'POST') {
-                response = await handleMigrate(request, env);
-            } else {
-                response = jsonResponse({ error: 'Not found' }, 404);
-            }
-        } catch {
-            response = jsonResponse({ error: 'Internal error' }, 500);
+        if (!isSupportedRoute(url.pathname, request.method)) {
+            return withCors(request, jsonResponse({ error: 'Not found' }, 404));
         }
 
-        return withCors(request, response);
+        try {
+            const stub = getLeaderboardStub(env);
+            const response = await stub.fetch(request);
+            return withCors(request, response);
+        } catch (error) {
+            console.error('favorites-api worker error', error);
+            return withCors(request, jsonResponse({ error: 'Internal error' }, 500));
+        }
     }
 };
 
-// ── Handlers ────────────────────────────────────────────────────────────────
+export class FavoritesLeaderboard {
+    constructor(state, env) {
+        this.state = state;
+        this.env = env;
+        this.googleIdentityCache = new Map();
+    }
 
-async function handleGetTop(env) {
-    const cached = await env.FAVORITES.get('top10', 'json');
-    return new Response(JSON.stringify(cached || []), {
-        headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=30'
+    async fetch(request) {
+        const url = new URL(request.url);
+
+        try {
+            if (url.pathname === '/top' && request.method === 'GET') {
+                return this.handleGetTop();
+            }
+            if (url.pathname === '/favorite' && request.method === 'POST') {
+                return this.handlePostFavorite(request);
+            }
+            if (url.pathname === '/migrate' && request.method === 'POST') {
+                return this.handleMigrate(request);
+            }
+            return jsonResponse({ error: 'Not found' }, 404);
+        } catch (error) {
+            console.error('favorites-api durable object error', error);
+            return jsonResponse({ error: 'Internal error' }, 500);
         }
-    });
+    }
+
+    async handleGetTop() {
+        const top = (await this.state.storage.get(TOP_KEY)) || [];
+        return new Response(JSON.stringify(top), {
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'public, max-age=30'
+            }
+        });
+    }
+
+    async handlePostFavorite(request) {
+        const identity = await this.resolveIdentity(request);
+        if (identity.errorResponse) return identity.errorResponse;
+
+        const rateLimited = await this.enforceRateLimit(identity.key);
+        if (rateLimited) return rateLimited;
+
+        const body = await parseJson(request);
+        if (!body.ok) return body.response;
+
+        const { date, action } = body.value;
+        if (!date || !DATE_PATTERN.test(date)) {
+            return jsonResponse({ error: 'Invalid date format (expected YYYY/MM/DD)' }, 400);
+        }
+        if (action !== 'add' && action !== 'remove') {
+            return jsonResponse({ error: 'Invalid action (expected "add" or "remove")' }, 400);
+        }
+
+        const userStorageKey = getUserStorageKey(identity.key);
+        const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
+        const counts = (await this.state.storage.get(COUNTS_KEY)) || {};
+        const currentCount = counts[date] || 0;
+
+        if (action === 'add') {
+            if (favorites.has(date)) {
+                return jsonResponse({ ok: true, count: currentCount, unchanged: true });
+            }
+            favorites.add(date);
+            counts[date] = currentCount + 1;
+        } else {
+            if (!favorites.has(date)) {
+                return jsonResponse({ ok: true, count: currentCount, unchanged: true });
+            }
+            favorites.delete(date);
+            const nextCount = Math.max(0, currentCount - 1);
+            if (nextCount === 0) {
+                delete counts[date];
+            } else {
+                counts[date] = nextCount;
+            }
+        }
+
+        await this.persistState(userStorageKey, favorites, counts);
+        return jsonResponse({ ok: true, count: counts[date] || 0 });
+    }
+
+    async handleMigrate(request) {
+        const identity = await this.resolveIdentity(request);
+        if (identity.errorResponse) return identity.errorResponse;
+
+        const rateLimited = await this.enforceRateLimit(identity.key);
+        if (rateLimited) return rateLimited;
+
+        const body = await parseJson(request);
+        if (!body.ok) return body.response;
+
+        const { dates } = body.value;
+        if (!Array.isArray(dates) || dates.length === 0) {
+            return jsonResponse({ error: 'Expected non-empty dates array' }, 400);
+        }
+        if (dates.length > MIGRATE_MAX) {
+            return jsonResponse({ error: `Max ${MIGRATE_MAX} dates per migration` }, 400);
+        }
+
+        const validDates = [...new Set(dates.filter(date => typeof date === 'string' && DATE_PATTERN.test(date)))].sort();
+        if (!validDates.length) {
+            return jsonResponse({ error: 'No valid dates found' }, 400);
+        }
+
+        const userStorageKey = getUserStorageKey(identity.key);
+        const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
+        const counts = (await this.state.storage.get(COUNTS_KEY)) || {};
+        let migrated = 0;
+
+        for (const date of validDates) {
+            if (favorites.has(date)) continue;
+            favorites.add(date);
+            counts[date] = (counts[date] || 0) + 1;
+            migrated++;
+        }
+
+        if (migrated === 0) {
+            return jsonResponse({ ok: true, migrated: 0, unchanged: true });
+        }
+
+        await this.persistState(userStorageKey, favorites, counts);
+        return jsonResponse({ ok: true, migrated });
+    }
+
+    async persistState(userStorageKey, favorites, counts) {
+        const top = buildTopEntries(counts);
+        const operations = [
+            this.state.storage.put(COUNTS_KEY, counts),
+            this.state.storage.put(TOP_KEY, top)
+        ];
+
+        if (favorites.size > 0) {
+            operations.push(this.state.storage.put(userStorageKey, [...favorites].sort()));
+        } else {
+            operations.push(this.state.storage.delete(userStorageKey));
+        }
+
+        await Promise.all(operations);
+    }
+
+    async enforceRateLimit(identityKey) {
+        const rateKey = `rate:${identityKey}`;
+        const now = Date.now();
+        const current = (await this.state.storage.get(rateKey)) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+        const activeWindow = current.resetAt > now
+            ? current
+            : { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+
+        if (activeWindow.count >= RATE_LIMIT_MAX) {
+            return jsonResponse({ error: 'Rate limited' }, 429);
+        }
+
+        activeWindow.count += 1;
+        await this.state.storage.put(rateKey, activeWindow);
+        return null;
+    }
+
+    async resolveIdentity(request) {
+        const authHeader = request.headers.get('Authorization') || '';
+        if (authHeader.startsWith('Bearer ')) {
+            const token = authHeader.slice('Bearer '.length).trim();
+            const googleIdentity = await this.verifyGoogleIdentity(token);
+            if (!googleIdentity) {
+                return { errorResponse: jsonResponse({ error: 'Invalid Google token' }, 401) };
+            }
+
+            return {
+                key: `google:${googleIdentity.sub}`,
+                kind: 'google'
+            };
+        }
+
+        const clientId = (request.headers.get('X-Client-Id') || '').trim();
+        if (!CLIENT_ID_PATTERN.test(clientId)) {
+            return { errorResponse: jsonResponse({ error: 'Missing or invalid client id' }, 401) };
+        }
+
+        return {
+            key: `anon:${clientId}`,
+            kind: 'anonymous'
+        };
+    }
+
+    async verifyGoogleIdentity(token) {
+        if (!token) return null;
+        if (this.googleIdentityCache.has(token)) {
+            return this.googleIdentityCache.get(token);
+        }
+
+        const response = await fetch(GOOGLE_USERINFO_URL, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).catch(() => null);
+
+        if (!response?.ok) {
+            this.googleIdentityCache.set(token, null);
+            return null;
+        }
+
+        const data = await response.json().catch(() => null);
+        const identity = data?.sub ? { sub: data.sub, email: data.email || '' } : null;
+        this.googleIdentityCache.set(token, identity);
+        return identity;
+    }
 }
 
-async function handlePostFavorite(request, env) {
-    // Rate limiting
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const rateLimitKey = `ratelimit:${ip}`;
-    const rateCount = parseInt(await env.FAVORITES.get(rateLimitKey) || '0', 10);
+function getLeaderboardStub(env) {
+    const id = env.LEADERBOARD.idFromName(LEADERBOARD_OBJECT_NAME);
+    return env.LEADERBOARD.get(id);
+}
 
-    if (rateCount >= RATE_LIMIT_MAX) {
-        return jsonResponse({ error: 'Rate limited' }, 429);
-    }
-    await env.FAVORITES.put(rateLimitKey, String(rateCount + 1), { expirationTtl: 60 });
-
-    // Parse & validate
-    let body;
-    try {
-        body = await request.json();
-    } catch {
-        return jsonResponse({ error: 'Invalid JSON' }, 400);
-    }
-
-    const { date, action } = body;
-
-    if (!date || !DATE_PATTERN.test(date)) {
-        return jsonResponse({ error: 'Invalid date format (expected YYYY/MM/DD)' }, 400);
-    }
-    if (action !== 'add' && action !== 'remove') {
-        return jsonResponse({ error: 'Invalid action (expected "add" or "remove")' }, 400);
-    }
-
-    // Update counts
-    const counts = (await env.FAVORITES.get('counts', 'json')) || {};
-    const current = counts[date] || 0;
-
-    if (action === 'add') {
-        counts[date] = current + 1;
-    } else {
-        counts[date] = Math.max(0, current - 1);
-        if (counts[date] === 0) delete counts[date];
-    }
-
-    await env.FAVORITES.put('counts', JSON.stringify(counts));
-
-    // Rebuild top-N cache
-    const sorted = Object.entries(counts)
-        .map(([d, c]) => ({ date: d, count: c }))
-        .filter(e => e.count > 0)
-        .sort((a, b) => b.count - a.count)
+function buildTopEntries(counts) {
+    return Object.entries(counts)
+        .map(([date, count]) => ({ date, count }))
+        .filter(entry => entry.count > 0)
+        .sort((a, b) => b.count - a.count || a.date.localeCompare(b.date))
         .slice(0, TOP_N);
-
-    await env.FAVORITES.put('top10', JSON.stringify(sorted));
-
-    return jsonResponse({ ok: true, count: counts[date] || 0 });
 }
 
-async function handleMigrate(request, env) {
-    // Rate limiting — one migration per IP ever (keyed separately)
-    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const migrateKey = `migrated:${ip}`;
-    const alreadyMigrated = await env.FAVORITES.get(migrateKey);
+function getUserStorageKey(identityKey) {
+    return `user:${identityKey}`;
+}
 
-    if (alreadyMigrated) {
-        return jsonResponse({ ok: true, skipped: true, message: 'Already migrated' });
-    }
+function isSupportedRoute(pathname, method) {
+    if (pathname === '/top' && method === 'GET') return true;
+    if (pathname === '/favorite' && method === 'POST') return true;
+    if (pathname === '/migrate' && method === 'POST') return true;
+    return false;
+}
 
-    let body;
+async function parseJson(request) {
     try {
-        body = await request.json();
+        return { ok: true, value: await request.json() };
     } catch {
-        return jsonResponse({ error: 'Invalid JSON' }, 400);
+        return { ok: false, response: jsonResponse({ error: 'Invalid JSON' }, 400) };
     }
-
-    const { dates } = body;
-    if (!Array.isArray(dates) || dates.length === 0) {
-        return jsonResponse({ error: 'Expected non-empty dates array' }, 400);
-    }
-    if (dates.length > MIGRATE_MAX) {
-        return jsonResponse({ error: `Max ${MIGRATE_MAX} dates per migration` }, 400);
-    }
-
-    // Validate all dates
-    const validDates = dates.filter(d => typeof d === 'string' && DATE_PATTERN.test(d));
-    if (validDates.length === 0) {
-        return jsonResponse({ error: 'No valid dates found' }, 400);
-    }
-
-    // Bulk-increment counts
-    const counts = (await env.FAVORITES.get('counts', 'json')) || {};
-    for (const d of validDates) {
-        counts[d] = (counts[d] || 0) + 1;
-    }
-
-    await env.FAVORITES.put('counts', JSON.stringify(counts));
-
-    // Rebuild top-N cache
-    const sorted = Object.entries(counts)
-        .map(([d, c]) => ({ date: d, count: c }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, TOP_N);
-    await env.FAVORITES.put('top10', JSON.stringify(sorted));
-
-    // Mark this IP as migrated (never expires)
-    await env.FAVORITES.put(migrateKey, '1');
-
-    return jsonResponse({ ok: true, migrated: validDates.length });
 }
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function resolveOrigin(request) {
     const origin = request.headers.get('Origin') || '';
@@ -179,7 +301,7 @@ function corsHeaders(request) {
     return new Headers({
         'Access-Control-Allow-Origin': resolveOrigin(request),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Id',
         'Access-Control-Max-Age': '86400'
     });
 }

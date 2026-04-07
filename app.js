@@ -43,7 +43,8 @@ const CONFIG = Object.freeze({
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
         REVIEW: 'reviewData',
         FAVS_MIGRATED: 'favsMigrated',
-        FAVS_MIGRATED_DATES: 'favsMigratedDates'
+        FAVS_MIGRATED_DATES: 'favsMigratedDates',
+        FAVORITES_CLIENT_ID: 'favoritesClientId'
     })
 });
 
@@ -3922,13 +3923,48 @@ function showInstallButton() {
 // GLOBAL FAVORITES LEADERBOARD
 // ========================================
 
+function getFavoritesApiClientId() {
+    let clientId = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVORITES_CLIENT_ID);
+    if (clientId) return clientId;
+
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        clientId = crypto.randomUUID();
+    } else {
+        clientId = `anon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVORITES_CLIENT_ID, clientId);
+    return clientId;
+}
+
+async function favoritesApiFetch(path, init = {}, { includeAuth = true } = {}) {
+    const headers = new Headers(init.headers || {});
+
+    headers.set('X-Client-Id', getFavoritesApiClientId());
+
+    if (init.body && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+
+    if (includeAuth && typeof getFavoritesApiAccessToken === 'function') {
+        const accessToken = await getFavoritesApiAccessToken();
+        if (accessToken) {
+            headers.set('Authorization', `Bearer ${accessToken}`);
+        }
+    }
+
+    return fetch(`${CONFIG.FAVORITES_API_URL}${path}`, {
+        ...init,
+        headers
+    });
+}
+
 function reportFavoriteToggle(date, action) {
     try {
         if (!/^\d{4}\/\d{2}\/\d{2}$/.test(date)) return;
 
-        fetch(`${CONFIG.FAVORITES_API_URL}/favorite`, {
+        favoritesApiFetch('/favorite', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ date, action })
         })
         .then(async response => {
@@ -4009,9 +4045,8 @@ function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
                 const pendingDates = validFavorites.filter(date => !migratedDates.has(date));
                 if (!pendingDates.length) return;
 
-                const response = await fetch(`${CONFIG.FAVORITES_API_URL}/migrate`, {
+                const response = await favoritesApiFetch('/migrate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
                     body: JSON.stringify({ dates: pendingDates })
                 });
@@ -4028,7 +4063,7 @@ function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
 }
 
 async function fetchTop10() {
-    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`, { cache: 'no-store' });
+    const response = await favoritesApiFetch('/top', { cache: 'no-store' }, { includeAuth: false });
     if (!response.ok) throw new Error('Failed to fetch leaderboard');
     return response.json();
 }

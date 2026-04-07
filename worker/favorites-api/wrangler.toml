@@ -2,11 +2,10 @@ name = "favorites-api"
 main = "index.js"
 compatibility_date = "2026-03-14"
 
-# Create the KV namespace first:
-#   npx wrangler kv:namespace create "FAVORITES"
-# Then paste the returned id below.
+[[durable_objects.bindings]]
+name = "LEADERBOARD"
+class_name = "FavoritesLeaderboard"
 
-[[kv_namespaces]]
-binding = "FAVORITES"
-id = "601ac1f524694a76bfd5a50ccafa772d"
-preview_id = "601ac1f524694a76bfd5a50ccafa772d"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["FavoritesLeaderboard"]
