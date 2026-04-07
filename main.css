@@ -1455,6 +1455,16 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 14px;
 }
 
+.top10-empty p {
+    margin: 0 0 12px;
+}
+
+.top10-retry-button {
+    width: auto;
+    min-width: 120px;
+    justify-content: center;
+}
+
 .top10-entry {
     display: flex;
     align-items: center;
@@ -1478,6 +1488,14 @@ input[type="date"]::-webkit-datetime-edit {
 
 .top10-entry:active {
     background: rgba(240, 152, 25, 0.2);
+}
+
+.top10-entry:focus-visible,
+.donation-close:focus-visible,
+.top10-indicator-exit:focus-visible,
+.top10-retry-button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
 }
 
 .top10-rank {

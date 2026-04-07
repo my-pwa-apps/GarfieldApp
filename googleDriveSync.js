@@ -453,8 +453,9 @@ async function pullFavoritesFromDrive() {
 
         if (newCount > 0) {
             localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
-            // Update heart icon if available
-            if (typeof window.UTILS !== 'undefined') window.UTILS.updateHeartIcon();
+            window.dispatchEvent(new CustomEvent('favorites-changed', {
+                detail: { favorites: merged, source: 'google-drive' }
+            }));
             _notify((_t('googleDownloadSuccess') || 'Synced {count} new favorites from Google Drive.').replace('{count}', newCount).replace('{total}', merged.length));
         }
 

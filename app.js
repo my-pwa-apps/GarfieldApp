@@ -42,7 +42,8 @@ const CONFIG = Object.freeze({
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
         REVIEW: 'reviewData',
-        FAVS_MIGRATED: 'favsMigrated'
+        FAVS_MIGRATED: 'favsMigrated',
+        FAVS_MIGRATED_DATES: 'favsMigratedDates'
     })
 });
 
@@ -1534,8 +1535,13 @@ function initTop10Modal() {
     if (backdrop) backdrop.addEventListener('click', closeTop10Modal);
 
     document.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('top10Modal');
+        if (e.key === 'Tab' && modal?.classList.contains('visible')) {
+            trapTop10ModalFocus(e);
+            return;
+        }
+
         if (e.key === 'Escape') {
-            const modal = document.getElementById('top10Modal');
             if (modal?.classList.contains('visible')) { closeTop10Modal(); return; }
             if (_isTop10Mode) { exitTop10Mode(); }
         }
@@ -1672,6 +1678,7 @@ const translations = {
         googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
         donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
+        retry: 'Retry',
         top10Title: 'Top Favorites',
         top10Loading: 'Loading…',
         top10Empty: 'No favorites yet. Be the first!',
@@ -1717,6 +1724,7 @@ const translations = {
         googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
         donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
+        retry: 'Reintentar',
         top10Title: 'Favoritos Destacados',
         top10Loading: 'Cargando…',
         top10Empty: '¡Aún no hay favoritos. Sé el primero!',
@@ -1733,6 +1741,14 @@ window.showNotification = showNotification;
 window.UTILS = UTILS;
 window.CONFIG = CONFIG;
 window.translations = translations;
+
+window.addEventListener('favorites-changed', (event) => {
+    const favorites = getValidFavoriteDates(event.detail?.favorites || UTILS.getFavorites());
+    refreshFavoritesDependentUI(favorites);
+    if (event.detail?.migrate !== false) {
+        migrateExistingFavorites(favorites);
+    }
+});
 
 window.getSyncPreferences = function getSyncPreferences() {
     return {
@@ -1816,23 +1832,7 @@ function translateInterface(lang) {
     // Translate date picker
     const datePicker = document.getElementById('DatePicker');
     if (datePicker) {
-        datePicker.title = t.selectDate;
         datePicker.setAttribute('aria-label', t.selectDate);
-    }
-    
-    // Translate icon buttons (Settings, Favorites, Share) by their known IDs
-    const iconButtonMap = {
-        supportBtn: t.supportApp,
-        settingsBtn: t.settings,
-        favheart: t.favorites,
-        shareBtn: t.share
-    };
-    for (const [id, tooltip] of Object.entries(iconButtonMap)) {
-        const btn = document.getElementById(id);
-        if (btn) {
-            btn.title = tooltip;
-            btn.setAttribute('aria-label', tooltip);
-        }
     }
     
     // Translate install and support buttons
@@ -3481,22 +3481,13 @@ function importFavorites() {
                         .replace(/{plural}/g, plural)
                         .replace('{total}', mergedFavs.length);
                     showNotification(message, 4000);
-                    
-                    // Enable show favorites checkbox if it was disabled
-                    const showFavsCheckbox = document.getElementById('showfavs');
-                    if (showFavsCheckbox) {
-                        showFavsCheckbox.disabled = false;
-                    }
-                    
-                    // Update export button state
-                    updateExportButtonState();
-                    
-                    // Update heart icon if current comic is now a favorite
-                    CompareDates();
-                    const heartBtn = document.getElementById('favheart');
-                    const heartSvg = heartBtn?.querySelector('svg path');
-                    if (mergedFavs.includes(formattedComicDate) && heartSvg) {
-                        heartSvg.setAttribute('fill', 'currentColor');
+
+                    window.dispatchEvent(new CustomEvent('favorites-changed', {
+                        detail: { favorites: mergedFavs, source: 'import' }
+                    }));
+
+                    if (typeof syncFavoritesToDrive === 'function') {
+                        syncFavoritesToDrive();
                     }
                 } else {
                     showNotification(t.allFavoritesExist, 3000);
@@ -3933,6 +3924,8 @@ function showInstallButton() {
 
 function reportFavoriteToggle(date, action) {
     try {
+        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(date)) return;
+
         fetch(`${CONFIG.FAVORITES_API_URL}/favorite`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3950,33 +3943,92 @@ function reportFavoriteToggle(date, action) {
     } catch { /* noop */ }
 }
 
-function migrateExistingFavorites() {
-    try {
-        if (localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED)) return;
+let _favoritesMigrationQueue = Promise.resolve();
+let _top10LastFocusedElement = null;
 
-        const favs = UTILS.getFavorites();
-        if (!favs.length) {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED, '1');
-            return;
+function getValidFavoriteDates(favorites) {
+    if (!Array.isArray(favorites)) return [];
+
+    return [...new Set(favorites.filter(date => typeof date === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(date)))].sort();
+}
+
+function getMigratedFavoriteDates(favorites = UTILS.getFavorites()) {
+    const migratedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES);
+    const migratedDates = getValidFavoriteDates(UTILS.safeJSONParse(migratedRaw, []));
+    if (migratedDates.length > 0) {
+        return migratedDates;
+    }
+
+    if (localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED)) {
+        const legacyDates = getValidFavoriteDates(favorites);
+        if (legacyDates.length > 0) {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES, JSON.stringify(legacyDates));
         }
+        return legacyDates;
+    }
 
-        fetch(`${CONFIG.FAVORITES_API_URL}/migrate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dates: favs })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED, '1');
-            }
-        })
-        .catch(() => {}); // Will retry on next visit
-    } catch { /* noop */ }
+    return [];
+}
+
+function markFavoritesAsMigrated(dates) {
+    const merged = [...new Set([...getMigratedFavoriteDates(), ...getValidFavoriteDates(dates)])].sort();
+    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES, JSON.stringify(merged));
+    if (merged.length > 0) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED, '1');
+    }
+}
+
+function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
+    const validFavorites = getValidFavoriteDates(favorites);
+    const showFavsCheckbox = document.getElementById('showfavs');
+
+    if (showFavsCheckbox) {
+        showFavsCheckbox.disabled = validFavorites.length === 0;
+        if (validFavorites.length === 0) {
+            showFavsCheckbox.checked = false;
+        }
+    }
+
+    updateExportButtonState();
+
+    if (typeof currentselectedDate !== 'undefined' && currentselectedDate) {
+        CompareDates();
+    }
+
+    UTILS.updateHeartIcon();
+}
+
+function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
+    const validFavorites = getValidFavoriteDates(favorites);
+
+    _favoritesMigrationQueue = _favoritesMigrationQueue
+        .catch(() => {})
+        .then(async () => {
+            try {
+                const migratedDates = new Set(getMigratedFavoriteDates(validFavorites));
+                const pendingDates = validFavorites.filter(date => !migratedDates.has(date));
+                if (!pendingDates.length) return;
+
+                const response = await fetch(`${CONFIG.FAVORITES_API_URL}/migrate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify({ dates: pendingDates })
+                });
+                if (!response.ok) return;
+
+                const data = await response.json().catch(() => null);
+                if (data?.ok) {
+                    markFavoritesAsMigrated(pendingDates);
+                }
+            } catch { /* noop */ }
+        });
+
+    return _favoritesMigrationQueue;
 }
 
 async function fetchTop10() {
-    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`);
+    const response = await fetch(`${CONFIG.FAVORITES_API_URL}/top`, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch leaderboard');
     return response.json();
 }
@@ -3987,7 +4039,43 @@ let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
 let _top10PreviousDate = null;
 const _thumbCache = new Map(); // date string → image URL
-const _THUMB_FAILED = Symbol('failed');
+
+function getTop10FocusableElements() {
+    const modal = document.getElementById('top10Modal');
+    if (!modal) return [];
+
+    return [...modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter(element => !element.disabled && element.getAttribute('aria-hidden') !== 'true' && element.offsetParent !== null);
+}
+
+function focusTop10Modal() {
+    const modal = document.getElementById('top10Modal');
+    if (!modal) return;
+
+    const focusTarget = document.getElementById('top10CloseBtn') || getTop10FocusableElements()[0] || modal;
+    focusTarget.focus();
+}
+
+function trapTop10ModalFocus(event) {
+    const focusable = getTop10FocusableElements();
+    if (!focusable.length) {
+        event.preventDefault();
+        document.getElementById('top10Modal')?.focus();
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const activeElement = document.activeElement;
+
+    if (event.shiftKey && activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
 
 function setTop10EntryCount(date, count) {
     const entry = _top10Entries.find(item => item && item.date === date);
@@ -4021,11 +4109,17 @@ function showTop10Modal() {
     const t = translations[lang] || translations.en;
     const dateFmtLocale = lang === 'es' ? 'es-ES' : 'en-US';
 
+    if (!(document.activeElement instanceof HTMLElement) || !modal.contains(document.activeElement)) {
+        _top10LastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+    modal.setAttribute('aria-busy', 'true');
     list.innerHTML = `<div class="top10-loading">${t.top10Loading}</div>`;
     backdrop.classList.add('visible');
     modal.classList.add('visible');
+    focusTop10Modal();
 
     fetchTop10().then(entries => {
+        modal.removeAttribute('aria-busy');
         if (!entries || entries.length === 0) {
             list.innerHTML = `<div class="top10-empty">${t.top10Empty}</div>`;
             return;
@@ -4081,7 +4175,6 @@ function showTop10Modal() {
             await Promise.all(batch.map((entry, offset) => {
                 const i = startIndex + offset;
                 const cached = _thumbCache.get(entry.date);
-                if (cached === _THUMB_FAILED) return Promise.resolve();
                 if (cached) {
                     applyThumb(i, cached, entry.date);
                     _consecutiveThumbFails = 0;
@@ -4099,11 +4192,9 @@ function showTop10Modal() {
                         applyThumb(i, result.imageUrl, entry.date);
                         _consecutiveThumbFails = 0;
                     } else {
-                        _thumbCache.set(entry.date, _THUMB_FAILED);
                         _consecutiveThumbFails++;
                     }
                 }).catch(() => {
-                    _thumbCache.set(entry.date, _THUMB_FAILED);
                     _consecutiveThumbFails++;
                 });
             }));
@@ -4120,7 +4211,9 @@ function showTop10Modal() {
             });
         });
     }).catch(() => {
-        list.innerHTML = `<div class="top10-empty">${t.top10Error}</div>`;
+        modal.removeAttribute('aria-busy');
+        list.innerHTML = `<div class="top10-empty"><p>${t.top10Error}</p><button type="button" class="backup-button top10-retry-button" id="top10RetryBtn">${t.retry}</button></div>`;
+        document.getElementById('top10RetryBtn')?.addEventListener('click', showTop10Modal);
     });
 }
 
@@ -4226,7 +4319,14 @@ function closeTop10Modal() {
     const backdrop = document.getElementById('top10Backdrop');
     const modal = document.getElementById('top10Modal');
     if (backdrop) backdrop.classList.remove('visible');
-    if (modal) modal.classList.remove('visible');
+    if (modal) {
+        modal.classList.remove('visible');
+        modal.removeAttribute('aria-busy');
+    }
+    if (_top10LastFocusedElement) {
+        _top10LastFocusedElement.focus();
+        _top10LastFocusedElement = null;
+    }
 }
 
 window.showTop10Modal = showTop10Modal;
