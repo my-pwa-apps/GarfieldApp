@@ -137,29 +137,6 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
     }
 
     if (!interactive) {
-        const loginHint = _getStoredUserEmail();
-        const now = Date.now();
-        const shouldAttemptSilentRestore = (now - lastSilentRefreshAttempt > 60000) &&
-            (!!_getStoredTokenData() || !!loginHint);
-
-        if (shouldAttemptSilentRestore) {
-            lastSilentRefreshAttempt = now;
-            _pendingAuthSource = 'restore';
-
-            try {
-                await _requestAccessToken({
-                    prompt: 'none',
-                    ...(loginHint ? { login_hint: loginHint } : {})
-                });
-                return accessToken;
-            } catch (_) {
-                _clearTokenState();
-                updateGoogleUI(false, 'expired');
-            }
-        }
-    }
-
-    if (!interactive) {
         throw new Error('Interactive sign-in required');
     }
 
@@ -223,16 +200,7 @@ function _initTokenClient() {
         updateGoogleUI(true, 'restore');
         pullFavoritesFromDrive();
     } else {
-        // Startup stays non-interactive. If Google still has a valid session,
-        // ensureValidAccessToken() can restore it silently with prompt=none.
-        ensureValidAccessToken({ interactive: false })
-            .then(() => {
-                updateGoogleUI(true, 'restore');
-                pullFavoritesFromDrive();
-            })
-            .catch(() => {
-                updateGoogleUI(false, 'expired');
-            });
+        updateGoogleUI(false, 'expired');
     }
 }
 
@@ -498,7 +466,16 @@ window.googleSignOut = googleSignOut;
 window.syncFavoritesToDrive = syncFavoritesToDrive;
 window.getFavoritesApiAccessToken = async function getFavoritesApiAccessToken() {
     try {
-        return await ensureValidAccessToken({ interactive: false });
+        if (_hasUsableToken()) {
+            return accessToken;
+        }
+
+        if (_restoreStoredToken()) {
+            updateGoogleUI(true, 'restore');
+            return accessToken;
+        }
+
+        return null;
     } catch (_) {
         return null;
     }

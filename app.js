@@ -1896,6 +1896,8 @@ function translateInterface(lang) {
 let previousUrl = "";
 let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
 let nextComicUrl = ""; // Track preloaded next comic URL to detect timezone edge cases
+let _favoritesMigrationQueue = Promise.resolve();
+let _top10LastFocusedElement = null;
 let currentselectedDate;
 let day, month, year;
 let pictureUrl;
@@ -3978,9 +3980,6 @@ function reportFavoriteToggle(date, action) {
         .catch(() => {}); // Silently ignore network errors
     } catch { /* noop */ }
 }
-
-let _favoritesMigrationQueue = Promise.resolve();
-let _top10LastFocusedElement = null;
 
 function getValidFavoriteDates(favorites) {
     if (!Array.isArray(favorites)) return [];
