@@ -21,6 +21,7 @@ const CONFIG = Object.freeze({
     
     // Favorites leaderboard API
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
+    FAVORITES_MIGRATION_VERSION: 'do-reseed-2026-04-07',
     
     // Windows Store review prompting
     REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
@@ -44,6 +45,7 @@ const CONFIG = Object.freeze({
         REVIEW: 'reviewData',
         FAVS_MIGRATED: 'favsMigrated',
         FAVS_MIGRATED_DATES: 'favsMigratedDates',
+        FAVS_MIGRATION_VERSION: 'favsMigrationVersion',
         FAVORITES_CLIENT_ID: 'favoritesClientId'
     })
 });
@@ -3987,7 +3989,18 @@ function getValidFavoriteDates(favorites) {
     return [...new Set(favorites.filter(date => typeof date === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(date)))].sort();
 }
 
+function ensureFavoritesMigrationVersion() {
+    const storedVersion = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATION_VERSION);
+    if (storedVersion === CONFIG.FAVORITES_MIGRATION_VERSION) return;
+
+    localStorage.removeItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED);
+    localStorage.removeItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES);
+    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATION_VERSION, CONFIG.FAVORITES_MIGRATION_VERSION);
+}
+
 function getMigratedFavoriteDates(favorites = UTILS.getFavorites()) {
+    ensureFavoritesMigrationVersion();
+
     const migratedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES);
     const migratedDates = getValidFavoriteDates(UTILS.safeJSONParse(migratedRaw, []));
     if (migratedDates.length > 0) {
@@ -4006,6 +4019,8 @@ function getMigratedFavoriteDates(favorites = UTILS.getFavorites()) {
 }
 
 function markFavoritesAsMigrated(dates) {
+    ensureFavoritesMigrationVersion();
+
     const merged = [...new Set([...getMigratedFavoriteDates(), ...getValidFavoriteDates(dates)])].sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES, JSON.stringify(merged));
     if (merged.length > 0) {
