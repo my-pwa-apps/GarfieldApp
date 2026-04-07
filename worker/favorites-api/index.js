@@ -224,7 +224,15 @@ export class FavoritesLeaderboard {
 
         const clientId = (request.headers.get('X-Client-Id') || '').trim();
         if (!CLIENT_ID_PATTERN.test(clientId)) {
-            return { errorResponse: jsonResponse({ error: 'Missing or invalid client id' }, 401) };
+            const legacyIdentity = getLegacyIdentity(request);
+            if (!legacyIdentity) {
+                return { errorResponse: jsonResponse({ error: 'Missing or invalid client id' }, 401) };
+            }
+
+            return {
+                key: legacyIdentity,
+                kind: 'legacy'
+            };
         }
 
         return {
@@ -272,6 +280,18 @@ function buildTopEntries(counts) {
 
 function getUserStorageKey(identityKey) {
     return `user:${identityKey}`;
+}
+
+function getLegacyIdentity(request) {
+    const ip = (request.headers.get('CF-Connecting-IP') || '').trim();
+    if (!ip) return null;
+
+    const userAgent = (request.headers.get('User-Agent') || 'unknown')
+        .trim()
+        .slice(0, 120)
+        .replace(/[^A-Za-z0-9 ._:-]/g, '_');
+
+    return `legacy:${ip}:${userAgent}`;
 }
 
 function isSupportedRoute(pathname, method) {
