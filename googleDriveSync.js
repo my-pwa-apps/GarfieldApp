@@ -5,6 +5,7 @@
 const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const FAVORITES_FILENAME = 'garfield-favorites.json';
+const SILENT_REFRESH_COOLDOWN_MS = 30000;
 
 let tokenClient = null;
 let accessToken = null;
@@ -43,6 +44,25 @@ function _getStoredTokenData() {
 function _getStoredUserEmail() {
     const stored = localStorage.getItem('gDriveUserEmail');
     return typeof stored === 'string' && stored.trim() ? stored.trim() : '';
+}
+
+function _hasStoredUserContext() {
+    return !!(_getStoredUserEmail() || localStorage.getItem('gDriveUser'));
+}
+
+function _buildTokenRequestOptions({ interactive = false } = {}) {
+    const options = {};
+    const email = _getStoredUserEmail();
+
+    if (!interactive) {
+        options.prompt = '';
+    }
+
+    if (email) {
+        options.login_hint = email;
+    }
+
+    return options;
 }
 
 function _hasUsableToken() {
@@ -117,6 +137,32 @@ function _requestAccessToken(options = {}) {
     return pendingTokenRequest;
 }
 
+async function _attemptSilentTokenRefresh({ force = false } = {}) {
+    if (_hasUsableToken()) {
+        return accessToken;
+    }
+
+    if (!tokenClient) {
+        throw new Error('Google services not loaded');
+    }
+
+    const now = Date.now();
+    if (!force && lastSilentRefreshAttempt && (now - lastSilentRefreshAttempt) < SILENT_REFRESH_COOLDOWN_MS) {
+        throw new Error('Silent sign-in cooldown active');
+    }
+
+    lastSilentRefreshAttempt = now;
+    _pendingAuthSource = 'restore';
+
+    try {
+        await _requestAccessToken(_buildTokenRequestOptions({ interactive: false }));
+        return accessToken;
+    } catch (error) {
+        _clearTokenState(false);
+        throw error;
+    }
+}
+
 async function ensureValidAccessToken({ interactive = false } = {}) {
     if (_hasUsableToken()) {
         return accessToken;
@@ -137,11 +183,11 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
     }
 
     if (!interactive) {
-        throw new Error('Interactive sign-in required');
+        return _attemptSilentTokenRefresh();
     }
 
     _pendingAuthSource = 'user';
-    await _requestAccessToken({ prompt: '' });
+    await _requestAccessToken(_buildTokenRequestOptions({ interactive: true }));
     return accessToken;
 }
 
@@ -199,6 +245,11 @@ function _initTokenClient() {
     if (_restoreStoredToken()) {
         updateGoogleUI(true, 'restore');
         pullFavoritesFromDrive();
+    } else if (_hasStoredUserContext()) {
+        _attemptSilentTokenRefresh()
+            .catch(() => {
+                updateGoogleUI(false, 'expired');
+            });
     } else {
         updateGoogleUI(false, 'expired');
     }
@@ -466,16 +517,7 @@ window.googleSignOut = googleSignOut;
 window.syncFavoritesToDrive = syncFavoritesToDrive;
 window.getFavoritesApiAccessToken = async function getFavoritesApiAccessToken() {
     try {
-        if (_hasUsableToken()) {
-            return accessToken;
-        }
-
-        if (_restoreStoredToken()) {
-            updateGoogleUI(true, 'restore');
-            return accessToken;
-        }
-
-        return null;
+        return await ensureValidAccessToken({ interactive: false });
     } catch (_) {
         return null;
     }
