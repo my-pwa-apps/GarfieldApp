@@ -55,7 +55,7 @@ function _buildTokenRequestOptions({ interactive = false } = {}) {
     const email = _getStoredUserEmail();
 
     if (!interactive) {
-        options.prompt = '';
+        options.prompt = 'none';
     }
 
     if (email) {

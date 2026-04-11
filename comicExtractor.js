@@ -214,7 +214,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
     }
     
     if (!options.silent) {
-        console.warn(`GoComics: no image extracted (HTML length: ${html.length})`);
+        console.warn(`GoComics: no image extracted (HTML length: ${html.length}). First 200 chars: ${html.slice(0, 200).replace(/\s+/g, ' ')}`);
     }
     return { success: false, imageUrl: null };
 }

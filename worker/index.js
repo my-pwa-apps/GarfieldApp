@@ -32,9 +32,12 @@ const HOP_BY_HOP_HEADERS = new Set([
     'content-security-policy-report-only',
 ]);
 
-const HTML_CACHE_TTL  = 600;
-const IMAGE_CACHE_TTL = 86400;
-const DEFAULT_CACHE_TTL = 3600;
+const HTML_CACHE_TTL         = 600;
+const GOCOMICS_HTML_CACHE_TTL = 300;
+const IMAGE_CACHE_TTL        = 86400;
+const DEFAULT_CACHE_TTL      = 3600;
+// Don't cache upstream HTML that is suspiciously short — likely a bot-challenge page.
+const MIN_HTML_CACHE_BYTES   = 10000;
 
 export default {
     async fetch(request, env, ctx) {
@@ -75,7 +78,10 @@ export default {
         const cacheKey = new Request(upstreamUrl.toString(), { method: request.method });
         const cache = caches.default;
 
-        if (request.method === 'GET') {
+        const clientCacheControl = request.headers.get('cache-control') || '';
+        const bypassCache = clientCacheControl.includes('no-cache') || clientCacheControl.includes('no-store');
+
+        if (request.method === 'GET' && !bypassCache) {
             const cached = await cache.match(cacheKey);
             if (cached) return withCors(request, cached, true);
         }
@@ -100,8 +106,14 @@ export default {
 
         const response = sanitizeUpstreamResponse(upstreamResponse);
 
-        if (request.method === 'GET' && upstreamResponse.ok) {
-            ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        if (request.method === 'GET' && upstreamResponse.ok && !bypassCache) {
+            // Skip caching suspiciously short HTML responses (bot-challenge / error pages).
+            const contentType   = upstreamResponse.headers.get('content-type') || '';
+            const contentLength = parseInt(upstreamResponse.headers.get('content-length') || '0', 10);
+            const isHtml        = contentType.includes('text/html');
+            if (!isHtml || contentLength === 0 || contentLength >= MIN_HTML_CACHE_BYTES) {
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+            }
         }
 
         return withCors(request, response, false);
@@ -164,8 +176,11 @@ function sanitizeUpstreamResponse(upstreamResponse) {
 
 function getCacheTtl(targetUrl) {
     const pathname = targetUrl.pathname.toLowerCase();
-    if (pathname.includes('/cartoon/'))          return HTML_CACHE_TTL;
-    if (pathname.includes('/wp-content/uploads/')) return IMAGE_CACHE_TTL;
+    const hostname = targetUrl.hostname.toLowerCase();
+    if (pathname.includes('/cartoon/'))                       return HTML_CACHE_TTL;
+    if (pathname.includes('/wp-content/uploads/'))            return IMAGE_CACHE_TTL;
+    if (hostname.includes('gocomics.com') && !pathname.match(/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i))
+        return GOCOMICS_HTML_CACHE_TTL;
     return DEFAULT_CACHE_TTL;
 }
 

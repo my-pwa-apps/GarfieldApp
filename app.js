@@ -303,15 +303,16 @@ const UTILS = {
                         nextComicUrl = result.imageUrl;
                     }
                     this.checkNextComicAvailability();
-                } else {
-                    // Next comic not available, disable forward navigation
+                } else if (result.notFound) {
+                    // Next comic definitively doesn't exist — disable forward navigation
                     nextComicUrl = currentComicUrl; // Force same-comic detection
                     this.checkNextComicAvailability();
                 }
+                // else: transient proxy/network failure — leave buttons as-is;
+                // CompareDates() is authoritative for navigation boundaries.
             }).catch(() => {
-                // On error, assume next comic not available
-                nextComicUrl = currentComicUrl;
-                this.checkNextComicAvailability();
+                // On network/proxy error, leave navigation buttons as-is;
+                // don't penalise the user for a transient failure.
             });
         } else {
             // Already at or past today, clear next comic URL
