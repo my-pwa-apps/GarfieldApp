@@ -187,6 +187,15 @@ async function _getComicFromGoComics(date, language, options = {}) {
     if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
         return { success: false, imageUrl: null, notFound: true };
     }
+
+    // Cloudflare bot-protection challenge — GoComics is blocking the proxy request.
+    // This is a known transient issue; fall through to the next source.
+    if (html.includes('Establishing a secure connection') || html.includes('checking your browser')) {
+        if (!options.silent) {
+            console.warn('GoComics: Cloudflare challenge received — proxy request blocked. Falling back to next source.');
+        }
+        return { success: false, imageUrl: null, blocked: true };
+    }
     
     const imageUrl = _extractGoComicsImage(html);
     if (imageUrl) {
@@ -214,7 +223,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
     }
     
     if (!options.silent) {
-        console.warn(`GoComics: no image extracted (HTML length: ${html.length}). First 200 chars: ${html.slice(0, 200).replace(/\s+/g, ' ')}`);
+        console.warn(`GoComics: no image found in response (HTML length: ${html.length}). First 200 chars: ${html.slice(0, 200).replace(/\s+/g, ' ')}`);
     }
     return { success: false, imageUrl: null };
 }
@@ -465,7 +474,11 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             }
 
             if (!options.silent) {
-                console.warn(`${source}: unavailable, no comic found`);
+                if (result.blocked) {
+                    console.warn(`${source}: proxy blocked by bot-protection, trying next source`);
+                } else {
+                    console.warn(`${source}: unavailable, no comic found`);
+                }
             }
         } catch (err) {
             if (!options.silent) {
