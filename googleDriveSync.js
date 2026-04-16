@@ -13,6 +13,7 @@ let accessTokenExpiry = 0;
 let pendingTokenRequest = null;
 let pendingTokenRequestResolve = null;
 let pendingTokenRequestReject = null;
+let pendingTokenInteractive = false;
 let lastSilentRefreshAttempt = 0;
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
@@ -104,6 +105,7 @@ function _resetPendingTokenRequest() {
     pendingTokenRequest = null;
     pendingTokenRequestResolve = null;
     pendingTokenRequestReject = null;
+    pendingTokenInteractive = false;
 }
 
 function _rejectPendingTokenRequest(error) {
@@ -113,15 +115,28 @@ function _rejectPendingTokenRequest(error) {
     _resetPendingTokenRequest();
 }
 
-function _requestAccessToken(options = {}) {
+function _requestAccessToken(options = {}, { interactive = false } = {}) {
     if (!tokenClient) {
         return Promise.reject(new Error('Google services not loaded'));
     }
 
+    // Coalesce only when the pending request can satisfy the new caller.
+    // A pending interactive request always satisfies a silent caller.
+    // A pending silent request does NOT satisfy an interactive caller —
+    // in that case, wait for the silent one to settle and then dispatch
+    // a fresh interactive request.
     if (pendingTokenRequest) {
-        return pendingTokenRequest;
+        if (!interactive || pendingTokenInteractive) {
+            return pendingTokenRequest;
+        }
+        const waitFor = pendingTokenRequest.catch(() => {});
+        return waitFor.then(() => {
+            if (_hasUsableToken()) return accessToken;
+            return _requestAccessToken(options, { interactive });
+        });
     }
 
+    pendingTokenInteractive = !!interactive;
     pendingTokenRequest = new Promise((resolve, reject) => {
         pendingTokenRequestResolve = resolve;
         pendingTokenRequestReject = reject;
@@ -155,7 +170,7 @@ async function _attemptSilentTokenRefresh({ force = false } = {}) {
     _pendingAuthSource = 'restore';
 
     try {
-        await _requestAccessToken(_buildTokenRequestOptions({ interactive: false }));
+        await _requestAccessToken(_buildTokenRequestOptions({ interactive: false }), { interactive: false });
         return accessToken;
     } catch (error) {
         _clearTokenState(false);
@@ -168,9 +183,9 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         return accessToken;
     }
 
-    // If another caller already triggered a token request, wait for it.
+    // If another caller already triggered a compatible token request, wait for it.
     // On failure, fall through to try other restoration paths.
-    if (pendingTokenRequest) {
+    if (pendingTokenRequest && (!interactive || pendingTokenInteractive)) {
         try {
             const token = await pendingTokenRequest;
             if (token) return token;
@@ -187,7 +202,7 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
     }
 
     _pendingAuthSource = 'user';
-    await _requestAccessToken(_buildTokenRequestOptions({ interactive: true }));
+    await _requestAccessToken(_buildTokenRequestOptions({ interactive: true }), { interactive: true });
     return accessToken;
 }
 

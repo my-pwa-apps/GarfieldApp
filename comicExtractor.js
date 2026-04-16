@@ -80,7 +80,6 @@ async function tryProxy(url, proxyIndex, startTime) {
         });
         
         if (!response.ok) {
-            updateProxyStats(proxyIndex, false, 0);
             throw new Error(`HTTP ${response.status}`);
         }
         

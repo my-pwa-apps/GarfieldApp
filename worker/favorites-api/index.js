@@ -22,6 +22,11 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const MIGRATE_MAX = 500;
 const TOP_N = 50;
 const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+const GOOGLE_TOKENINFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
+// Must match the OAuth client_id used by googleDriveSync.js on the frontend.
+const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
+const IDENTITY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const IDENTITY_CACHE_MAX = 500;
 const LEADERBOARD_OBJECT_NAME = 'global';
 const COUNTS_KEY = 'counts';
 const TOP_KEY = 'top';
@@ -243,10 +248,44 @@ export class FavoritesLeaderboard {
 
     async verifyGoogleIdentity(token) {
         if (!token) return null;
-        if (this.googleIdentityCache.has(token)) {
-            return this.googleIdentityCache.get(token);
+
+        const cached = this.googleIdentityCache.get(token);
+        if (cached && cached.expiresAt > Date.now()) {
+            // Refresh LRU position
+            this.googleIdentityCache.delete(token);
+            this.googleIdentityCache.set(token, cached);
+            return cached.identity;
+        }
+        if (cached) {
+            this.googleIdentityCache.delete(token);
         }
 
+        // Step 1: validate audience via tokeninfo. This ensures the token was
+        // minted for THIS application — userinfo alone accepts any valid
+        // Google OAuth access token with profile scope, which would allow
+        // a malicious site's tokens to be used here.
+        const tokenInfoResp = await fetch(
+            `${GOOGLE_TOKENINFO_URL}?access_token=${encodeURIComponent(token)}`
+        ).catch(() => null);
+
+        if (!tokenInfoResp?.ok) {
+            this.cacheIdentity(token, null);
+            return null;
+        }
+
+        const tokenInfo = await tokenInfoResp.json().catch(() => null);
+        if (!tokenInfo || tokenInfo.aud !== GOOGLE_CLIENT_ID) {
+            this.cacheIdentity(token, null);
+            return null;
+        }
+
+        const expiresInSec = parseInt(tokenInfo.expires_in || '0', 10);
+        if (!(expiresInSec > 0)) {
+            this.cacheIdentity(token, null);
+            return null;
+        }
+
+        // Step 2: fetch user info for sub + email.
         const response = await fetch(GOOGLE_USERINFO_URL, {
             headers: {
                 Authorization: `Bearer ${token}`
@@ -254,14 +293,31 @@ export class FavoritesLeaderboard {
         }).catch(() => null);
 
         if (!response?.ok) {
-            this.googleIdentityCache.set(token, null);
+            this.cacheIdentity(token, null);
             return null;
         }
 
         const data = await response.json().catch(() => null);
         const identity = data?.sub ? { sub: data.sub, email: data.email || '' } : null;
-        this.googleIdentityCache.set(token, identity);
+
+        // Cache for the shorter of IDENTITY_CACHE_TTL_MS and the token's remaining lifetime.
+        const ttlMs = Math.min(IDENTITY_CACHE_TTL_MS, expiresInSec * 1000);
+        this.cacheIdentity(token, identity, ttlMs);
         return identity;
+    }
+
+    cacheIdentity(token, identity, ttlMs = IDENTITY_CACHE_TTL_MS) {
+        // Bounded LRU: evict oldest entry when full.
+        if (this.googleIdentityCache.size >= IDENTITY_CACHE_MAX) {
+            const oldestKey = this.googleIdentityCache.keys().next().value;
+            if (oldestKey !== undefined) {
+                this.googleIdentityCache.delete(oldestKey);
+            }
+        }
+        this.googleIdentityCache.set(token, {
+            identity,
+            expiresAt: Date.now() + ttlMs
+        });
     }
 }
 
