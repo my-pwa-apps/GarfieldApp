@@ -753,6 +753,7 @@ input[type="date"]::-webkit-datetime-edit {
 .toolbar-button[aria-pressed="true"] svg *,
 .icon-button[aria-pressed="true"] svg * {
     stroke: #f09819;
+    fill: none;
 }
 
 .toolbar-button:active {
