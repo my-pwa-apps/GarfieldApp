@@ -3584,41 +3584,34 @@ function RandomClick() {
 }
 
 /**
- * Pick a random comic strictly newer than the current one.
- * Used by shuffle mode in place of NextClick.
- * Falls back silently when there is no newer comic available.
+ * Shuffle navigation. In shuffle mode, direction is irrelevant — both
+ * swipes/clicks just jump to a random comic from anywhere in the archive.
+ * This keeps the user from quickly drifting toward the start or end of the
+ * range. We still keep two pre-warmed candidates so the swipe is instant.
  */
 function RandomNewerClick() {
-    // Prefer the pre-picked candidate (its image is already warm in cache)
-    if (_shuffleNextDate) {
-        currentselectedDate = new Date(_shuffleNextDate);
-        _shuffleNextDate = null;
-        _shuffleNextUrl = null;
-        CompareDates();
-        showComic();
-        return;
-    }
-    const picked = _pickRandomNewerDate();
-    if (!picked) return;
-    currentselectedDate = picked;
-    CompareDates();
-    showComic();
+    _consumeShuffleCandidate('next');
 }
 
-/**
- * Pick a random comic strictly older than the current one.
- * Used by shuffle mode in place of PreviousClick.
- */
 function RandomOlderClick() {
-    if (_shufflePrevDate) {
-        currentselectedDate = new Date(_shufflePrevDate);
+    _consumeShuffleCandidate('prev');
+}
+
+function _consumeShuffleCandidate(slot) {
+    const primary = slot === 'next' ? _shuffleNextDate : _shufflePrevDate;
+    const secondary = slot === 'next' ? _shufflePrevDate : _shuffleNextDate;
+    let target = primary || secondary;
+    if (target) {
+        currentselectedDate = new Date(target);
+        _shuffleNextDate = null;
+        _shuffleNextUrl = null;
         _shufflePrevDate = null;
         _shufflePrevUrl = null;
         CompareDates();
         showComic();
         return;
     }
-    const picked = _pickRandomOlderDate();
+    const picked = _pickRandomAnyDate();
     if (!picked) return;
     currentselectedDate = picked;
     CompareDates();
@@ -3646,42 +3639,35 @@ function clearShuffleCandidates() {
     _shufflePrevUrl = null;
 }
 
-function _pickRandomNewerDate() {
+/**
+ * Pick a random comic from anywhere in the valid range.
+ * In favorites mode: any favorite other than the current one.
+ * Otherwise: any day from the language-specific start through today.
+ */
+function _pickRandomAnyDate() {
     const showFavs = document.getElementById('showfavs')?.checked;
     if (showFavs) {
         const favs = UTILS.getFavorites();
-        const idx = favs.indexOf(formattedComicDate);
-        const newer = idx >= 0 ? favs.slice(idx + 1) : favs;
-        if (newer.length === 0) return null;
-        return new Date(newer[Math.floor(Math.random() * newer.length)]);
+        const pool = favs.filter(d => d !== formattedComicDate);
+        if (pool.length === 0) return null;
+        return new Date(pool[Math.floor(Math.random() * pool.length)]);
     }
-    const current = new Date(currentselectedDate);
-    current.setHours(0, 0, 0, 0);
-    const minDay = current.getTime() + 86400000;
-    const end = UTILS.getEasternDate();
-    end.setHours(0, 0, 0, 0);
-    if (minDay > end.getTime()) return null;
-    return new Date(minDay + Math.random() * (end.getTime() - minDay));
-}
-
-function _pickRandomOlderDate() {
-    const showFavs = document.getElementById('showfavs')?.checked;
-    if (showFavs) {
-        const favs = UTILS.getFavorites();
-        const idx = favs.indexOf(formattedComicDate);
-        const older = idx > 0 ? favs.slice(0, idx) : (idx === -1 ? favs : []);
-        if (older.length === 0) return null;
-        return new Date(older[Math.floor(Math.random() * older.length)]);
-    }
-    const current = new Date(currentselectedDate);
-    current.setHours(0, 0, 0, 0);
     const start = UTILS.isSpanishMode()
         ? new Date(CONFIG.GARFIELD_START_ES)
         : new Date(CONFIG.GARFIELD_START_EN);
     start.setHours(0, 0, 0, 0);
-    const maxDay = current.getTime() - 86400000;
-    if (maxDay < start.getTime()) return null;
-    return new Date(start.getTime() + Math.random() * (maxDay - start.getTime()));
+    const end = UTILS.getEasternDate();
+    end.setHours(0, 0, 0, 0);
+    const span = end.getTime() - start.getTime();
+    if (span <= 0) return null;
+    const currentTs = new Date(currentselectedDate).setHours(0, 0, 0, 0);
+    // Try a few times to avoid landing on the same day
+    for (let i = 0; i < 5; i++) {
+        const pick = new Date(start.getTime() + Math.random() * span);
+        pick.setHours(12, 0, 0, 0);
+        if (pick.getTime() !== new Date(currentTs).setHours(12, 0, 0, 0)) return pick;
+    }
+    return new Date(start.getTime() + Math.random() * span);
 }
 
 /**
@@ -3721,11 +3707,13 @@ function pickShuffleCandidates() {
         }).catch(() => {});
     };
 
-    const newer = _pickRandomNewerDate();
-    if (newer) fetchAndCache(newer, 'next');
-
-    const older = _pickRandomOlderDate();
-    if (older) fetchAndCache(older, 'prev');
+    // Both candidates are picked from anywhere in the archive — direction
+    // is meaningless in shuffle mode, but we keep two slots so whichever way
+    // the user swipes first, an image is already warm in cache.
+    const a = _pickRandomAnyDate();
+    if (a) fetchAndCache(a, 'next');
+    const b = _pickRandomAnyDate();
+    if (b) fetchAndCache(b, 'prev');
 }
 
 function CompareDates() {
