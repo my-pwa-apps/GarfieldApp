@@ -35,7 +35,7 @@ const CONFIG = Object.freeze({
         FAVS: 'favs',
         LAST_COMIC: 'lastcomic',
         SWIPE: 'stat',
-        RANDOM_SWIPE: 'randomSwipe',
+        SHUFFLE: 'shuffle',
         SHOW_FAVS: 'showfavs',
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
@@ -246,6 +246,13 @@ const UTILS = {
     preloadAdjacentComics(currentDate) {
         if (!this.shouldPrefetch()) return;
         if (_isTop10Mode) return;
+
+        // Shuffle mode: pre-pick + warm-cache one random-newer and one
+        // random-older candidate instead of the strict ±1 day adjacents.
+        if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+            pickShuffleCandidates();
+            return;
+        }
 
         const language = this.isSpanishMode() ? 'es' : 'en';
         const source = this.getPreferredSource();
@@ -1656,8 +1663,8 @@ const translations = {
         first: 'First',
         today: 'Today',
         last: 'Last',
+        shuffle: 'Shuffle',
         swipeEnabled: 'Swipe enabled',
-        randomSwipe: 'Random swipe',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
         comicSource: 'Comic source',
@@ -1703,8 +1710,8 @@ const translations = {
         first: 'Primero',
         today: 'Hoy',
         last: 'Último',
+        shuffle: 'Aleatorio',
         swipeEnabled: 'Deslizar habilitado',
-        randomSwipe: 'Deslizar aleatorio',
         showFavorites: 'Mostrar solo mis favoritos',
         rememberComic: 'Recordar último cómic al salir/actualizar',
         comicSource: 'Fuente de cómics',
@@ -1764,7 +1771,7 @@ window.getSyncPreferences = function getSyncPreferences() {
         comicSource: localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'gocomics',
         spanish: localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH) === 'true',
         swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false',
-        randomSwipe: localStorage.getItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE) === 'true'
+        shuffle: localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === 'true'
     };
 };
 
@@ -1785,10 +1792,11 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
         localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, preferences.swipeEnabled ? 'true' : 'false');
     }
 
-    if (typeof preferences.randomSwipe === 'boolean') {
-        const randomEl = document.getElementById('randomSwipe');
-        if (randomEl) randomEl.checked = preferences.randomSwipe;
-        localStorage.setItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE, preferences.randomSwipe ? 'true' : 'false');
+    if (typeof preferences.shuffle === 'boolean') {
+        const shuffleBtn = document.getElementById('Shuffle');
+        if (shuffleBtn) shuffleBtn.setAttribute('aria-pressed', preferences.shuffle ? 'true' : 'false');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, preferences.shuffle ? 'true' : 'false');
+        if (!preferences.shuffle) clearShuffleCandidates();
     }
 
     if (typeof preferences.spanish === 'boolean' && spanishEl) {
@@ -1815,7 +1823,6 @@ function translateInterface(lang) {
     // Translate labels
     const labels = {
         'swipe': t.swipeEnabled,
-        'randomSwipe': t.randomSwipe,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
         'comicSource': t.comicSource,
@@ -1835,7 +1842,8 @@ function translateInterface(lang) {
         'Random': t.random,
         'DatePickerBtn': t.selectDate,
         'Next': t.next,
-        'Last': t.last
+        'Last': t.last,
+        'Shuffle': t.shuffle
     };
     
     for (const [id, tooltip] of Object.entries(toolbarButtons)) {
@@ -2288,7 +2296,7 @@ function handleTouchEnd(e) {
     const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
 
     // Random swipe mode: route Next/Previous to random-newer/random-older
-    const randomSwipe = document.getElementById('randomSwipe')?.checked;
+    const randomSwipe = isShuffleEnabled();
     const goNext = randomSwipe ? RandomNewerClick : NextClick;
     const goPrev = randomSwipe ? RandomOlderClick : PreviousClick;
 
@@ -2950,11 +2958,16 @@ function initApp() {
         document.getElementById("swipe").checked = swipeStatus === "true";
     }
 
-    const randomSwipeStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE);
-    const randomSwipeEl = document.getElementById('randomSwipe');
-    if (randomSwipeEl) {
-        randomSwipeEl.checked = randomSwipeStatus === 'true';
+    // One-time migration: previously stored 'randomSwipe' key (settings checkbox)
+    // is now exposed as the toolbar Shuffle toggle under STORAGE_KEYS.SHUFFLE.
+    const legacyRandomSwipe = localStorage.getItem('randomSwipe');
+    if (legacyRandomSwipe !== null && localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === null) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, legacyRandomSwipe);
+        localStorage.removeItem('randomSwipe');
     }
+    const shuffleStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === 'true';
+    const shuffleBtn = document.getElementById('Shuffle');
+    if (shuffleBtn) shuffleBtn.setAttribute('aria-pressed', shuffleStatus ? 'true' : 'false');
 
     const showFavsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SHOW_FAVS);
     document.getElementById("showfavs").checked = showFavsStatus === "true";
@@ -3001,6 +3014,19 @@ function initApp() {
     document.getElementById('Random').addEventListener('click', RandomClick);
     document.getElementById('Next').addEventListener('click', NextClick);
     document.getElementById('Last').addEventListener('click', LastClick);
+    document.getElementById('Shuffle')?.addEventListener('click', function () {
+        const enabled = this.getAttribute('aria-pressed') === 'true';
+        const next = !enabled;
+        this.setAttribute('aria-pressed', next ? 'true' : 'false');
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, next ? 'true' : 'false');
+        if (next) {
+            // Picking happens immediately so the next swipe is instant
+            pickShuffleCandidates();
+        } else {
+            clearShuffleCandidates();
+        }
+        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+    });
     document.getElementById('DatePicker').addEventListener('input', DateChange);
     document.getElementById('settingsBtn').addEventListener('click', HideSettings);
     document.getElementById('settingsCloseBtn').addEventListener('click', HideSettings);
@@ -3549,55 +3575,147 @@ function RandomClick() {
 
 /**
  * Pick a random comic strictly newer than the current one.
- * Used by random-swipe mode in place of NextClick.
+ * Used by shuffle mode in place of NextClick.
  * Falls back silently when there is no newer comic available.
  */
 function RandomNewerClick() {
-    const showFavs = document.getElementById('showfavs')?.checked;
-    if (showFavs) {
-        const favs = UTILS.getFavorites();
-        const idx = favs.indexOf(formattedComicDate);
-        const newer = idx >= 0 ? favs.slice(idx + 1) : favs;
-        if (newer.length === 0) return;
-        currentselectedDate = new Date(newer[Math.floor(Math.random() * newer.length)]);
-    } else {
-        const current = new Date(currentselectedDate);
-        current.setHours(0, 0, 0, 0);
-        const minDay = current.getTime() + 86400000;
-        const end = UTILS.getEasternDate();
-        end.setHours(0, 0, 0, 0);
-        if (minDay > end.getTime()) return;
-        currentselectedDate = new Date(minDay + Math.random() * (end.getTime() - minDay));
+    // Prefer the pre-picked candidate (its image is already warm in cache)
+    if (_shuffleNextDate) {
+        currentselectedDate = new Date(_shuffleNextDate);
+        _shuffleNextDate = null;
+        _shuffleNextUrl = null;
+        CompareDates();
+        showComic();
+        return;
     }
+    const picked = _pickRandomNewerDate();
+    if (!picked) return;
+    currentselectedDate = picked;
     CompareDates();
     showComic();
 }
 
 /**
  * Pick a random comic strictly older than the current one.
- * Used by random-swipe mode in place of PreviousClick.
+ * Used by shuffle mode in place of PreviousClick.
  */
 function RandomOlderClick() {
+    if (_shufflePrevDate) {
+        currentselectedDate = new Date(_shufflePrevDate);
+        _shufflePrevDate = null;
+        _shufflePrevUrl = null;
+        CompareDates();
+        showComic();
+        return;
+    }
+    const picked = _pickRandomOlderDate();
+    if (!picked) return;
+    currentselectedDate = picked;
+    CompareDates();
+    showComic();
+}
+
+// ============================================================
+// SHUFFLE MODE — pre-picked random candidates
+// ============================================================
+
+let _shuffleNextDate = null;
+let _shuffleNextUrl = null;
+let _shufflePrevDate = null;
+let _shufflePrevUrl = null;
+
+function isShuffleEnabled() {
+    const btn = document.getElementById('Shuffle');
+    return btn?.getAttribute('aria-pressed') === 'true';
+}
+
+function clearShuffleCandidates() {
+    _shuffleNextDate = null;
+    _shuffleNextUrl = null;
+    _shufflePrevDate = null;
+    _shufflePrevUrl = null;
+}
+
+function _pickRandomNewerDate() {
+    const showFavs = document.getElementById('showfavs')?.checked;
+    if (showFavs) {
+        const favs = UTILS.getFavorites();
+        const idx = favs.indexOf(formattedComicDate);
+        const newer = idx >= 0 ? favs.slice(idx + 1) : favs;
+        if (newer.length === 0) return null;
+        return new Date(newer[Math.floor(Math.random() * newer.length)]);
+    }
+    const current = new Date(currentselectedDate);
+    current.setHours(0, 0, 0, 0);
+    const minDay = current.getTime() + 86400000;
+    const end = UTILS.getEasternDate();
+    end.setHours(0, 0, 0, 0);
+    if (minDay > end.getTime()) return null;
+    return new Date(minDay + Math.random() * (end.getTime() - minDay));
+}
+
+function _pickRandomOlderDate() {
     const showFavs = document.getElementById('showfavs')?.checked;
     if (showFavs) {
         const favs = UTILS.getFavorites();
         const idx = favs.indexOf(formattedComicDate);
         const older = idx > 0 ? favs.slice(0, idx) : (idx === -1 ? favs : []);
-        if (older.length === 0) return;
-        currentselectedDate = new Date(older[Math.floor(Math.random() * older.length)]);
-    } else {
-        const current = new Date(currentselectedDate);
-        current.setHours(0, 0, 0, 0);
-        const start = UTILS.isSpanishMode()
-            ? new Date(CONFIG.GARFIELD_START_ES)
-            : new Date(CONFIG.GARFIELD_START_EN);
-        start.setHours(0, 0, 0, 0);
-        const maxDay = current.getTime() - 86400000;
-        if (maxDay < start.getTime()) return;
-        currentselectedDate = new Date(start.getTime() + Math.random() * (maxDay - start.getTime()));
+        if (older.length === 0) return null;
+        return new Date(older[Math.floor(Math.random() * older.length)]);
     }
-    CompareDates();
-    showComic();
+    const current = new Date(currentselectedDate);
+    current.setHours(0, 0, 0, 0);
+    const start = UTILS.isSpanishMode()
+        ? new Date(CONFIG.GARFIELD_START_ES)
+        : new Date(CONFIG.GARFIELD_START_EN);
+    start.setHours(0, 0, 0, 0);
+    const maxDay = current.getTime() - 86400000;
+    if (maxDay < start.getTime()) return null;
+    return new Date(start.getTime() + Math.random() * (maxDay - start.getTime()));
+}
+
+/**
+ * Pick one random-newer and one random-older candidate and warm-cache both.
+ * Called by preloadAdjacentComics when shuffle is enabled.
+ */
+function pickShuffleCandidates() {
+    if (_isTop10Mode) return;
+    if (!UTILS.shouldPrefetch()) return;
+
+    const language = UTILS.isSpanishMode() ? 'es' : 'en';
+    const source = UTILS.getPreferredSource();
+
+    const warmImageCache = (imageUrl) => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.loading = 'eager';
+        img.src = imageUrl;
+    };
+
+    const fetchAndCache = (date, assignTarget) => {
+        getAuthenticatedComic(date, language, source, {
+            silent: true,
+            maxSources: 1,
+            disableTodayFallback: true
+        }).then(result => {
+            if (result.success && result.imageUrl) {
+                warmImageCache(result.imageUrl);
+                if (assignTarget === 'next') {
+                    _shuffleNextDate = date;
+                    _shuffleNextUrl = result.imageUrl;
+                } else {
+                    _shufflePrevDate = date;
+                    _shufflePrevUrl = result.imageUrl;
+                }
+            }
+        }).catch(() => {});
+    };
+
+    const newer = _pickRandomNewerDate();
+    if (newer) fetchAndCache(newer, 'next');
+
+    const older = _pickRandomOlderDate();
+    if (older) fetchAndCache(older, 'prev');
 }
 
 function CompareDates() {
@@ -3683,16 +3801,12 @@ document.getElementById('swipe').addEventListener('change', function() {
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
-document.getElementById('randomSwipe')?.addEventListener('change', function() {
-    localStorage.setItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE, this.checked ? 'true' : 'false');
-    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
-});
-
 document.getElementById('lastdate').addEventListener('change', function() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, this.checked ? 'true' : 'false');
 });
 
 document.getElementById('showfavs').addEventListener('change', function() {
+    clearShuffleCandidates();
     const favs = UTILS.getFavorites();
     if (this.checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
@@ -3709,6 +3823,7 @@ document.getElementById('showfavs').addEventListener('change', function() {
 const spanishCheckbox = document.getElementById('spanish');
 if (spanishCheckbox) {
     spanishCheckbox.addEventListener('change', async function() {
+        clearShuffleCandidates();
         const isSpanish = this.checked;
         const datePicker = document.getElementById('DatePicker');
         const t = translations[isSpanish ? 'es' : 'en'];
@@ -3782,6 +3897,7 @@ if (sourceSelect) {
     sourceSelect.addEventListener('change', function () {
         const source = this.value;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SOURCE, source);
+        clearShuffleCandidates();
         _applySourceSetting(source);
         CompareDates();
         showComic();
