@@ -35,6 +35,7 @@ const CONFIG = Object.freeze({
         FAVS: 'favs',
         LAST_COMIC: 'lastcomic',
         SWIPE: 'stat',
+        RANDOM_SWIPE: 'randomSwipe',
         SHOW_FAVS: 'showfavs',
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
@@ -139,11 +140,13 @@ const UTILS = {
 
     /**
      * Get the preferred comic source setting
-     * @returns {'gocomics'|'fandom'} Preferred source
+     * @returns {'gocomics'|'fandom'|'uclick'} Preferred source
      */
     getPreferredSource() {
         const src = document.getElementById('comicSource')?.value;
-        return (src === 'fandom') ? 'fandom' : 'gocomics';
+        if (src === 'fandom') return 'fandom';
+        if (src === 'uclick') return 'uclick';
+        return 'gocomics';
     },
 
     /**
@@ -1654,6 +1657,7 @@ const translations = {
         today: 'Today',
         last: 'Last',
         swipeEnabled: 'Swipe enabled',
+        randomSwipe: 'Random swipe',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
         comicSource: 'Comic source',
@@ -1700,6 +1704,7 @@ const translations = {
         today: 'Hoy',
         last: 'Último',
         swipeEnabled: 'Deslizar habilitado',
+        randomSwipe: 'Deslizar aleatorio',
         showFavorites: 'Mostrar solo mis favoritos',
         rememberComic: 'Recordar último cómic al salir/actualizar',
         comicSource: 'Fuente de cómics',
@@ -1758,7 +1763,8 @@ window.getSyncPreferences = function getSyncPreferences() {
     return {
         comicSource: localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE) || 'gocomics',
         spanish: localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH) === 'true',
-        swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false'
+        swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false',
+        randomSwipe: localStorage.getItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE) === 'true'
     };
 };
 
@@ -1777,6 +1783,12 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
     if (typeof preferences.swipeEnabled === 'boolean' && swipeEl) {
         swipeEl.checked = preferences.swipeEnabled;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, preferences.swipeEnabled ? 'true' : 'false');
+    }
+
+    if (typeof preferences.randomSwipe === 'boolean') {
+        const randomEl = document.getElementById('randomSwipe');
+        if (randomEl) randomEl.checked = preferences.randomSwipe;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE, preferences.randomSwipe ? 'true' : 'false');
     }
 
     if (typeof preferences.spanish === 'boolean' && spanishEl) {
@@ -1803,6 +1815,7 @@ function translateInterface(lang) {
     // Translate labels
     const labels = {
         'swipe': t.swipeEnabled,
+        'randomSwipe': t.randomSwipe,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
         'comicSource': t.comicSource,
@@ -2273,7 +2286,12 @@ function handleTouchEnd(e) {
     // Check if we're in rotated fullscreen mode (reuse rotatedComic from above)
     const isInRotatedMode = rotatedComic && rotatedComic.className.includes('rotate');
     const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
-    
+
+    // Random swipe mode: route Next/Previous to random-newer/random-older
+    const randomSwipe = document.getElementById('randomSwipe')?.checked;
+    const goNext = randomSwipe ? RandomNewerClick : NextClick;
+    const goPrev = randomSwipe ? RandomOlderClick : PreviousClick;
+
     // Determine swipe direction based on mode
     if (isInRotatedMode) {
         // Rotated mode (90° clockwise): Only support logical left/right navigation
@@ -2284,9 +2302,9 @@ function handleTouchEnd(e) {
                 swipeDetected = true;
                 lastSwipeTime = Date.now();
                 if (deltaY < 0) {
-                    NextClick();
+                    goNext();
                 } else {
-                    PreviousClick();
+                    goPrev();
                 }
             }
         }
@@ -2301,10 +2319,10 @@ function handleTouchEnd(e) {
                 lastSwipeTime = Date.now();
                 if (deltaX < 0) {
                     // Swipe Left -> Next
-                    NextClick();
+                    goNext();
                 } else {
                     // Swipe Right -> Previous
-                    PreviousClick();
+                    goPrev();
                 }
             }
         }
@@ -2319,10 +2337,10 @@ function handleTouchEnd(e) {
                 lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
                 if (deltaX > 0) {
                     // Swipe right -> Previous
-                    PreviousClick();
+                    goPrev();
                 } else {
                     // Swipe left -> Next
-                    NextClick();
+                    goNext();
                 }
             }
         }
@@ -2932,6 +2950,12 @@ function initApp() {
         document.getElementById("swipe").checked = swipeStatus === "true";
     }
 
+    const randomSwipeStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE);
+    const randomSwipeEl = document.getElementById('randomSwipe');
+    if (randomSwipeEl) {
+        randomSwipeEl.checked = randomSwipeStatus === 'true';
+    }
+
     const showFavsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SHOW_FAVS);
     document.getElementById("showfavs").checked = showFavsStatus === "true";
 
@@ -3523,6 +3547,59 @@ function RandomClick() {
     showComic();
 }
 
+/**
+ * Pick a random comic strictly newer than the current one.
+ * Used by random-swipe mode in place of NextClick.
+ * Falls back silently when there is no newer comic available.
+ */
+function RandomNewerClick() {
+    const showFavs = document.getElementById('showfavs')?.checked;
+    if (showFavs) {
+        const favs = UTILS.getFavorites();
+        const idx = favs.indexOf(formattedComicDate);
+        const newer = idx >= 0 ? favs.slice(idx + 1) : favs;
+        if (newer.length === 0) return;
+        currentselectedDate = new Date(newer[Math.floor(Math.random() * newer.length)]);
+    } else {
+        const current = new Date(currentselectedDate);
+        current.setHours(0, 0, 0, 0);
+        const minDay = current.getTime() + 86400000;
+        const end = UTILS.getEasternDate();
+        end.setHours(0, 0, 0, 0);
+        if (minDay > end.getTime()) return;
+        currentselectedDate = new Date(minDay + Math.random() * (end.getTime() - minDay));
+    }
+    CompareDates();
+    showComic();
+}
+
+/**
+ * Pick a random comic strictly older than the current one.
+ * Used by random-swipe mode in place of PreviousClick.
+ */
+function RandomOlderClick() {
+    const showFavs = document.getElementById('showfavs')?.checked;
+    if (showFavs) {
+        const favs = UTILS.getFavorites();
+        const idx = favs.indexOf(formattedComicDate);
+        const older = idx > 0 ? favs.slice(0, idx) : (idx === -1 ? favs : []);
+        if (older.length === 0) return;
+        currentselectedDate = new Date(older[Math.floor(Math.random() * older.length)]);
+    } else {
+        const current = new Date(currentselectedDate);
+        current.setHours(0, 0, 0, 0);
+        const start = UTILS.isSpanishMode()
+            ? new Date(CONFIG.GARFIELD_START_ES)
+            : new Date(CONFIG.GARFIELD_START_EN);
+        start.setHours(0, 0, 0, 0);
+        const maxDay = current.getTime() - 86400000;
+        if (maxDay < start.getTime()) return;
+        currentselectedDate = new Date(start.getTime() + Math.random() * (maxDay - start.getTime()));
+    }
+    CompareDates();
+    showComic();
+}
+
 function CompareDates() {
     const favs = UTILS.getFavorites();
     let startDate;
@@ -3606,6 +3683,11 @@ document.getElementById('swipe').addEventListener('change', function() {
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
+document.getElementById('randomSwipe')?.addEventListener('change', function() {
+    localStorage.setItem(CONFIG.STORAGE_KEYS.RANDOM_SWIPE, this.checked ? 'true' : 'false');
+    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+});
+
 document.getElementById('lastdate').addEventListener('change', function() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, this.checked ? 'true' : 'false');
 });
@@ -3675,7 +3757,7 @@ if (spanishCheckbox) {
 /**
  * Show or hide the Spanish checkbox row and adjust the date-picker minimum
  * based on the selected comic source.
- * GoComics supports Spanish; Fandom Wiki and ArcaMax do not.
+ * GoComics supports Spanish; Fandom Wiki, uClick and ArcaMax do not.
  */
 function _applySourceSetting(source) {
     const spanishRow = document.getElementById('spanish-setting-row');

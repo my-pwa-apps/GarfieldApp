@@ -4,7 +4,8 @@
  * Comic source fallback chain (default: Fandom first):
  *   1. Garfield Fandom Wiki (primary) — all dates from 1978, EN only
  *   2. GoComics (first fallback) — all dates from 1978, supports EN + ES
- *   3. ArcaMax (second fallback) — last ~30 days, EN only
+ *   3. uClick / picayune (second fallback) — all dates from 1978, EN only
+ *   4. ArcaMax (last fallback) — last ~30 days, EN only
  */
 const CORS_PROXIES = [
     'https://corsproxy.garfieldapp.workers.dev/?',
@@ -293,7 +294,46 @@ async function _getComicFromFandom(date, options = {}) {
 }
 
 // ============================================================
-// SOURCE 3: ARCAMAX (SECOND FALLBACK) — EN only, last ~30 days
+// SOURCE 3: UCLICK / PICAYUNE — EN only, full archive from 1978
+// Direct image URLs of the form:
+//   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.gif
+// We verify existence with a HEAD request through the user's CORS proxy
+// (only the first proxy is used because picayune does not send CORS headers
+// and the other proxies don't reliably forward HEAD). The returned image
+// URL is wrapped in the same proxy so the <img> tag loads via Cloudflare —
+// independent of the client's VPN routing.
+// ============================================================
+
+async function _getComicFromUClick(date, options = {}) {
+    const yyyy = date.getFullYear();
+    const yy = String(yyyy).slice(-2);
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const imageUrl = `https://picayune.uclick.com/comics/ga/${yyyy}/ga${yy}${mm}${dd}.gif`;
+    const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+
+    try {
+        const resp = await fetch(proxiedUrl, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(FETCH_TIMEOUT),
+            mode: 'cors',
+            credentials: 'omit',
+            cache: 'no-cache'
+        });
+        if (resp.ok) {
+            return { success: true, imageUrl: proxiedUrl };
+        }
+    } catch (err) {
+        if (!options.silent) {
+            console.warn(`uClick (${imageUrl}):`, err.message);
+        }
+    }
+
+    return { success: false, imageUrl: null };
+}
+
+// ============================================================
+// SOURCE 4: ARCAMAX (LAST FALLBACK) — EN only, last ~30 days
 // ============================================================
 
 // In-session date→articleId cache built up during traversal
@@ -419,21 +459,25 @@ async function _getComicFromArcaMax(date) {
 /**
  * Fetches a Garfield comic for the given date.
  *
- * Tries sources in order: preferredSource → the other non-ArcaMax source → ArcaMax.
- * ArcaMax is always the last fallback regardless of preferredSource.
+ * Tries sources in order. ArcaMax is always last; the EN-capable sources
+ * (fandom / gocomics / uclick) are reordered so that the user's preferred
+ * source is tried first, followed by the others in a fixed fallback order.
  *
  * @param {Date} date
  * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
- * @param {string} preferredSource - 'fandom' (default) | 'gocomics'
+ * @param {string} preferredSource - 'fandom' (default) | 'gocomics' | 'uclick'
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
 export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom', options = {}) {
     // Build the ordered list of sources to try.
-    // ArcaMax is always appended last; the two EN-capable sources swap order
-    // based on user preference.
-    const order = preferredSource === 'fandom'
-        ? ['fandom', 'gocomics', 'arcamax']
-        : ['gocomics', 'fandom', 'arcamax'];
+    // ArcaMax is always appended last; the three EN-capable sources rotate
+    // so the user's preferred source is first.
+    const FALLBACK_ORDER = {
+        fandom:   ['fandom', 'gocomics', 'uclick', 'arcamax'],
+        gocomics: ['gocomics', 'fandom', 'uclick', 'arcamax'],
+        uclick:   ['uclick', 'fandom', 'gocomics', 'arcamax']
+    };
+    const order = FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.fandom;
     const maxSources = Number.isInteger(options.maxSources) && options.maxSources > 0
         ? options.maxSources
         : null;
@@ -452,6 +496,8 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 result = await _getComicFromGoComics(date, language, options);
             } else if (source === 'fandom') {
                 result = await _getComicFromFandom(date, options);
+            } else if (source === 'uclick') {
+                result = await _getComicFromUClick(date, options);
             } else {
                 result = await _getComicFromArcaMax(date);
             }
@@ -463,11 +509,16 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             // source before falling back across sources.
             if (!options.disableTodayFallback && _isRequestedDateTodayInET(date) && source !== 'arcamax') {
                 const yesterday = _getPreviousDayAtNoon(date);
-                const yesterdayResult = source === 'gocomics'
-                    ? await _getComicFromGoComics(yesterday, language, options)
-                    : await _getComicFromFandom(yesterday, options);
+                let yesterdayResult;
+                if (source === 'gocomics') {
+                    yesterdayResult = await _getComicFromGoComics(yesterday, language, options);
+                } else if (source === 'fandom') {
+                    yesterdayResult = await _getComicFromFandom(yesterday, options);
+                } else if (source === 'uclick') {
+                    yesterdayResult = await _getComicFromUClick(yesterday, options);
+                }
 
-                if (yesterdayResult.success) {
+                if (yesterdayResult && yesterdayResult.success) {
                     return { ...yesterdayResult, actualDate: yesterday };
                 }
             }
