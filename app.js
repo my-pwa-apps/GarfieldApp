@@ -3366,6 +3366,11 @@ function PreviousClick() {
         if (_top10BrowseIndex > 0) { _top10BrowseIndex--; loadTop10Comic(); }
         return;
     }
+    // Shuffle mode: redirect Previous to a random older comic
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+        RandomOlderClick();
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         if (favs.indexOf(formattedComicDate) > 0) {
@@ -3381,6 +3386,11 @@ function PreviousClick() {
 function NextClick() {
     if (_isTop10Mode) {
         if (_top10BrowseIndex < _top10Entries.length - 1) { _top10BrowseIndex++; loadTop10Comic(); }
+        return;
+    }
+    // Shuffle mode: redirect Next to a random newer comic
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+        RandomNewerClick();
         return;
     }
     if (document.getElementById('showfavs').checked) {
