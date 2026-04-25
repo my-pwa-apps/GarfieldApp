@@ -70,6 +70,10 @@ function _hasUsableToken() {
     return !!(accessToken && accessTokenExpiry > (Date.now() + 60000));
 }
 
+function _canAutoSync() {
+    return _hasUsableToken() || _restoreStoredToken();
+}
+
 function _restoreStoredToken() {
     const parsed = _getStoredTokenData();
     if (!parsed) return false;
@@ -380,6 +384,8 @@ async function findFavoritesFile() {
  * Called automatically when favorites change.
  */
 async function syncFavoritesToDrive() {
+    if (!_canAutoSync()) return;
+
     try {
         await ensureValidAccessToken({ interactive: false });
     } catch (_) {
