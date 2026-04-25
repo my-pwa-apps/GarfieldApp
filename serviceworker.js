@@ -1,4 +1,4 @@
-const VERSION = 'v1.12.22';
+const VERSION = 'v1.12.23';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -62,25 +62,25 @@ self.addEventListener('activate', (event) => {
  */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
+
   const url = new URL(event.request.url);
   const { destination } = event.request;
-  
+
   // Cache-first with LRU eviction for images (including cross-origin comic images)
   if (destination === 'image' || url.pathname.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
     event.respondWith(cacheFirstWithLimit(event.request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE));
     return;
   }
-  
+
   // Only handle same-origin for other assets
   if (url.origin !== location.origin) return;
-  
+
   // Cache-first for app shell
   if (['document', 'style', 'script'].includes(destination) || url.pathname.endsWith('.svg')) {
     event.respondWith(cacheFirstStrategy(event.request, CACHE_NAME));
     return;
   }
-  
+
   // Network-first for other resources
   event.respondWith(networkFirstStrategy(event.request, RUNTIME_CACHE));
 });
@@ -96,7 +96,7 @@ async function cacheFirstStrategy(request, cacheName) {
     // For navigation requests, ensure redirects are followed properly
     const fetchOptions = request.mode === 'navigate' ? { redirect: 'follow' } : {};
     const networkResponse = await fetch(request, fetchOptions);
-    
+
     // Only cache successful, non-redirected responses
     if (networkResponse?.status === 200 && !networkResponse.redirected) {
       const cache = await caches.open(cacheName);
@@ -123,18 +123,18 @@ async function cacheFirstWithLimit(request, cacheName, maxSize) {
     const networkResponse = await fetch(request);
     if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
       const cache = await caches.open(cacheName);
-      
+
       // LRU eviction
       const keys = await cache.keys();
       while (keys.length >= maxSize) {
         await cache.delete(keys.shift());
       }
-      
+
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
-    return new Response('Image not available offline', { 
+    return new Response('Image not available offline', {
       status: 503,
       statusText: 'Service Unavailable'
     });
@@ -149,13 +149,13 @@ async function networkFirstStrategy(request, cacheName) {
     const networkResponse = await fetch(request);
     if (networkResponse?.status === 200) {
       const cache = await caches.open(cacheName);
-      
+
       // Limit cache size
       const keys = await cache.keys();
       while (keys.length >= MAX_RUNTIME_CACHE_SIZE) {
         await cache.delete(keys.shift());
       }
-      
+
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;

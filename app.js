@@ -14,15 +14,15 @@ const CONFIG = Object.freeze({
     SWIPE_MAX_TIME: 500,                  // Maximum swipe time in ms
     TAP_MAX_MOVEMENT: 10,                 // Maximum movement for tap detection in px
     TAP_MAX_TIME: 300,                    // Maximum time for tap detection in ms
-    
+
     // Comic dates
     GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
     GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
-    
+
     // Favorites leaderboard API
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
     FAVORITES_MIGRATION_VERSION: 'do-reseed-2026-04-07',
-    
+
     // Windows Store review prompting
     REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
     REVIEW_MIN_DAYS: 3,                   // Days since first use before prompting
@@ -100,7 +100,7 @@ const UTILS = {
             return fallback;
         }
     },
-    
+
     /**
      * Checks if device is mobile or touch-enabled
      * @returns {boolean} True if mobile/touch device
@@ -150,6 +150,26 @@ const UTILS = {
     },
 
     /**
+     * Check if shuffle can jump to a different comic from the current pool
+     * @returns {boolean} True if at least one alternate comic is available
+     */
+    canShuffleNavigate() {
+        if (_isTop10Mode) return false;
+
+        const showFavs = document.getElementById('showfavs')?.checked || false;
+        if (showFavs) {
+            const favs = this.getFavorites();
+            return favs.some(date => date !== formattedComicDate);
+        }
+
+        const start = new Date(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
+        start.setHours(0, 0, 0, 0);
+        const end = this.getEasternDate();
+        end.setHours(0, 0, 0, 0);
+        return end.getTime() > start.getTime();
+    },
+
+    /**
      * Check if navigation is allowed in a given direction
      * @param {string} direction - 'next' or 'previous'
      * @returns {boolean} True if navigation is allowed
@@ -157,11 +177,11 @@ const UTILS = {
     canNavigate(direction) {
         const favs = this.getFavorites();
         const showFavs = document.getElementById('showfavs')?.checked || false;
-        
+
         // Get current date for comparison
         const current = new Date(currentselectedDate);
         current.setHours(0, 0, 0, 0);
-        
+
         if (direction === 'previous') {
             if (showFavs) {
                 // In favorites mode, check if we're at the first favorite
@@ -201,16 +221,16 @@ const UTILS = {
     getOrCreateMessageContainer(className) {
         const comicContainer = document.getElementById('comic-container');
         const comic = document.getElementById('comic');
-        
+
         comic.style.display = 'none';
-        
+
         let messageContainer = document.getElementById('comic-message');
         if (!messageContainer) {
             messageContainer = document.createElement('div');
             messageContainer.id = 'comic-message';
             comicContainer.appendChild(messageContainer);
         }
-        
+
         messageContainer.className = className;
         messageContainer.style.display = 'flex';
         return messageContainer;
@@ -247,8 +267,8 @@ const UTILS = {
         if (!this.shouldPrefetch()) return;
         if (_isTop10Mode) return;
 
-        // Shuffle mode: pre-pick + warm-cache one random-newer and one
-        // random-older candidate instead of the strict ±1 day adjacents.
+        // Shuffle mode: pre-pick and warm-cache random candidates instead of
+        // strict ±1 day adjacents.
         if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
             pickShuffleCandidates();
             return;
@@ -268,7 +288,7 @@ const UTILS = {
             image.loading = 'eager';
             image.src = imageUrl;
         };
-        
+
         // Preload previous comic (if not before start date)
         const prevDate = new Date(currentDate);
         prevDate.setDate(prevDate.getDate() - 1);
@@ -283,7 +303,7 @@ const UTILS = {
                 }
             }).catch(() => {}); // Silently ignore errors
         }
-        
+
         // Preload next comic (if not after today)
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
@@ -488,7 +508,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
     const hasGeometry = toolbarRect && toolbarRect.height > 0 && !Number.isNaN(toolbarRect.top);
     const metadataLocked = isToolbarPersistenceSuspended || !hasGeometry;
-    
+
     const positionData = { ...saved, top, left };
     const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
     const applyOverride = (key) => {
@@ -501,21 +521,21 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
         }
         return true;
     };
-    
+
     if (metadataLocked) {
         try {
             localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
         } catch (_) {}
         return;
     }
-    
+
     const belowComicOverridden = applyOverride('belowComic');
     const offsetComicOverridden = applyOverride('offsetFromComic');
     const belowSettingsOverridden = applyOverride('belowSettings');
     const offsetSettingsOverridden = applyOverride('offsetFromSettings');
     const belowControlsOverridden = applyOverride('belowControls');
     const offsetControlsOverridden = applyOverride('offsetFromControls');
-    
+
     const comicElement = getToolbarBoundaryComicElement();
     if (comicElement && toolbarRect && !belowComicOverridden) {
         const comicRect = comicElement.getBoundingClientRect();
@@ -531,7 +551,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     } else if (belowComicOverridden && !offsetComicOverridden && positionData.belowComic === false) {
         delete positionData.offsetFromComic;
     }
-    
+
     // Track position relative to controls container (action buttons)
     const controlsContainer = document.getElementById('controls-container');
     if (controlsContainer && toolbarRect && !belowControlsOverridden) {
@@ -548,7 +568,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     } else if (belowControlsOverridden && !offsetControlsOverridden && positionData.belowControls === false) {
         delete positionData.offsetFromControls;
     }
-    
+
     const settingsPanel = document.getElementById('settingsDIV');
     if (settingsPanel && settingsPanel.classList.contains('visible') && toolbarRect) {
         const settingsRect = settingsPanel.getBoundingClientRect();
@@ -566,7 +586,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
             delete positionData.offsetFromSettings;
         }
     }
-    
+
     // Track position as ratio within logo-to-comic gap for resize stability
     const logoEl = document.querySelector('.logo');
     if (logoEl && comicElement && toolbarRect && !positionData.belowComic && !positionData.belowControls) {
@@ -577,7 +597,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
             positionData.gapRatio = (toolbarRect.top - logoRect.bottom) / gapTotal;
         }
     }
-    
+
     try {
         localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
     } catch (_) {}
@@ -592,19 +612,19 @@ function calculateOptimalToolbarPosition(toolbar) {
     const logo = document.querySelector('.logo');
     const comic = getToolbarBoundaryComicElement();
     if (!logo || !comic) return null;
-    
+
     const logoRect = logo.getBoundingClientRect();
     const comicRect = comic.getBoundingClientRect();
     const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
     const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
     const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-    
+
     if (!toolbarHeight || !toolbarWidth) return null;
-    
+
     const logoBottom = logoRect.bottom;
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
-    
+
     // Adaptive spacing: If default CSS spacing is insufficient to fit the toolbar with its required clearances,
     // dynamically push the comic container down to create enough room.
     const requiredSpace = toolbarHeight + TOOLBAR_MIN_VERTICAL_GAP + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
@@ -618,17 +638,17 @@ function calculateOptimalToolbarPosition(toolbar) {
             return { top: logoBottom + TOOLBAR_MIN_VERTICAL_GAP, left: (viewportWidth - toolbarWidth) / 2 };
         }
     }
-    
+
     // Calculate centered position (DirkJan pattern)
     const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, ((availableSpace - toolbarHeight) / 2) - TOOLBAR_CENTER_BIAS);
     const left = (viewportWidth - toolbarWidth) / 2;
-    
+
     // Final safety: ensure we're not overlapping comic
     if (top + toolbarHeight > comicTop - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
         // Clamp to just above comic
         return { top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE), left };
     }
-    
+
     return { top, left };
 }
 
@@ -718,7 +738,7 @@ function isInSnapZone(top, toolbar) {
 function getProtectedElementRects() {
     const selectors = ['.logo', '#comic-container', '#controls-container', '.settings-panel', '.copyright-footer', '#installBtn'];
     const rects = [];
-    
+
     for (const selector of selectors) {
         const el = document.querySelector(selector);
         if (el && el.offsetParent !== null) { // Check if visible
@@ -735,7 +755,7 @@ function getProtectedElementRects() {
 /**
  * Check if a rectangle overlaps with any protected elements
  * @param {number} top - Top position
- * @param {number} left - Left position  
+ * @param {number} left - Left position
  * @param {number} width - Element width
  * @param {number} height - Element height
  * @returns {{overlaps: boolean, suggestedTop: number}} Overlap status and suggested position
@@ -747,22 +767,22 @@ function checkToolbarOverlap(top, left, width, height) {
         left: left,
         right: left + width
     };
-    
+
     const protectedRects = getProtectedElementRects();
     let suggestedTop = top;
     let overlaps = false;
-    
+
     for (const rect of protectedRects) {
         // Check for overlap (both must overlap horizontally AND vertically)
         const horizontalOverlap = toolbarRect.left < rect.right && toolbarRect.right > rect.left;
         const verticalOverlap = toolbarRect.top < rect.bottom && toolbarRect.bottom > rect.top;
-        
+
         if (horizontalOverlap && verticalOverlap) {
             overlaps = true;
             // Find the nearest non-overlapping position (prefer moving down below the element)
             const moveDown = rect.bottom + 10; // 10px gap
             const moveUp = rect.top - height - 10;
-            
+
             // Choose the direction that requires less movement
             if (Math.abs(moveDown - top) < Math.abs(moveUp - top) && moveDown + height < window.innerHeight) {
                 suggestedTop = Math.max(suggestedTop, moveDown);
@@ -773,7 +793,7 @@ function checkToolbarOverlap(top, left, width, height) {
             }
         }
     }
-    
+
     return { overlaps, suggestedTop };
 }
 
@@ -797,58 +817,58 @@ function makeDraggable(element, dragHandle, storageKey) {
     let isTicking = false;
     let pendingLeft = 0;
     let pendingTop = 0;
-    
+
     function onDown(e) {
         // For mouse events, only drag with the left button
         if (e.type === 'mousedown' && e.button !== 0) return;
-        
+
         // Prevent dragging when interacting with buttons or inputs
         if (e.target.closest('button, input')) return;
-        
+
         // Check if target is the handle or within it
         if (!(e.target === dragHandle || dragHandle.contains(e.target))) return;
-        
+
         isDragging = true;
         element.style.cursor = dragHandle === element ? 'grabbing' : '';
-        
+
         const event = e.touches ? e.touches[0] : e;
-        
+
         // Cache dimensions to prevent layout thrashing during drag
         cachedWidth = element.offsetWidth;
         cachedHeight = element.offsetHeight;
-        
+
         // Get actual rendered position
         const rect = element.getBoundingClientRect();
         const elementStartX = rect.left + window.scrollX;
         const elementStartY = rect.top + window.scrollY;
-        
+
         // Calculate offset from touch/click point to element's rendered top-left
         offsetX = event.clientX + window.scrollX - elementStartX;
         offsetY = event.clientY + window.scrollY - elementStartY;
-        
+
         document.addEventListener('mousemove', onMove, { passive: false });
         document.addEventListener('touchmove', onMove, { passive: false });
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchend', onUp);
-        
+
         e.preventDefault();
     }
-    
+
     function onMove(e) {
         if (!isDragging) return;
         e.preventDefault();
-        
+
         const event = e.touches ? e.touches[0] : e;
-        
+
         // Use cached dimensions to prevent layout thrashing
         const width = cachedWidth;
         const height = cachedHeight;
-        
+
         // Calculate new position
         let newLeft = event.clientX - offsetX + window.scrollX;
         let newTop = event.clientY - offsetY + window.scrollY;
         const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-        
+
         // Toolbar: vertical drag only — keep current horizontal position
         // Settings: allow partial off-screen parking while keeping the header reachable
         // Other elements: free 2D drag clamped to viewport
@@ -863,11 +883,11 @@ function makeDraggable(element, dragHandle, storageKey) {
             newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
             newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
         }
-        
+
         // Always store the latest coordinates so the RAF reads up-to-date values
         pendingLeft = newLeft;
         pendingTop = newTop;
-        
+
         if (!isTicking) {
             window.requestAnimationFrame(() => {
                 if (isDragging) {
@@ -880,17 +900,17 @@ function makeDraggable(element, dragHandle, storageKey) {
             isTicking = true;
         }
     }
-    
+
     function onUp() {
         if (!isDragging) return;
-        
+
         isDragging = false;
         element.style.cursor = dragHandle === element ? 'grab' : '';
-        
+
         // Save position
         const numericTop = parseFloat(element.style.top) || 0;
         const numericLeft = parseFloat(element.style.left) || 0;
-        
+
         // Special handling for toolbar: DirkJan-style snap-to-optimal behavior
         if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
             const vw = document.documentElement.clientWidth || window.innerWidth;
@@ -907,13 +927,13 @@ function makeDraggable(element, dragHandle, storageKey) {
                 localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
             } catch (_) {}
         }
-        
+
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('touchmove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.removeEventListener('touchend', onUp);
     }
-    
+
     dragHandle.addEventListener('mousedown', onDown);
     dragHandle.addEventListener('touchstart', onDown, { passive: false });
 }
@@ -924,7 +944,7 @@ function makeDraggable(element, dragHandle, storageKey) {
  */
 function positionToolbarCentered(toolbar, savePosition = false) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
-    
+
     const optimal = calculateOptimalToolbarPosition(toolbar);
     if (!optimal) {
         // Fallback: place below logo if we can't compute optimal
@@ -949,11 +969,11 @@ function positionToolbarCentered(toolbar, savePosition = false) {
         }
         return;
     }
-    
+
     toolbar.style.left = optimal.left + 'px';
     toolbar.style.top = optimal.top + 'px';
     toolbar.style.transform = 'none';
-    
+
     if (savePosition) {
         storeToolbarPosition(optimal.top, optimal.left, toolbar, {
             belowComic: false,
@@ -1025,7 +1045,7 @@ function initializeDraggableSettings() {
     const panel = document.getElementById("settingsDIV");
     const header = document.getElementById("settingsHeader");
     const settingsStorageKey = CONFIG.STORAGE_KEYS.SETTINGS + '_pos';
-    
+
     if (!panel || !header) return;
 
     function keepPanelReachable() {
@@ -1048,7 +1068,7 @@ function initializeDraggableSettings() {
             localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
         } catch (_) {}
     }
-    
+
     // Load and apply saved position immediately without animation
     const savedPosRaw = localStorage.getItem(settingsStorageKey);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
@@ -1062,7 +1082,7 @@ function initializeDraggableSettings() {
             localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
         } catch (_) {}
     }
-    
+
     // Make draggable
     makeDraggable(panel, header, settingsStorageKey);
     window.addEventListener('resize', keepPanelReachable);
@@ -1096,10 +1116,10 @@ function refreshToolbarDefaultPosition() {
 function clampToolbarInView() {
     const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
     if (!toolbar || isToolbarPersistenceSuspended || isRotatedMode || Date.now() < suppressToolbarClampUntil) return;
-    
+
     // Check if toolbar is in optimal position mode
     const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
-    
+
     if (isOptimalMode) {
         // Use double RAF to ensure layout is stable before calculating position
         requestAnimationFrame(() => {
@@ -1110,24 +1130,24 @@ function clampToolbarInView() {
                     // Additional safety: ensure we're not placing toolbar over logo or comic
                     const logo = document.querySelector('.logo');
                     const comic = getToolbarBoundaryComicElement();
-                    
+
                     if (logo && comic) {
                         const logoRect = logo.getBoundingClientRect();
                         const comicRect = comic.getBoundingClientRect();
                         const toolbarHeight = toolbar.offsetHeight;
-                        
+
                         let safeTop = optimalPos.top;
-                        
+
                         // Ensure not overlapping logo
                         if (safeTop < logoRect.bottom + 10) {
                             safeTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
                         }
-                        
+
                         // Ensure not overlapping comic
                         if (safeTop + toolbarHeight > comicRect.top - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
                             safeTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                         }
-                        
+
                         toolbar.style.top = safeTop + 'px';
                         toolbar.style.left = optimalPos.left + 'px';
                         toolbar.style.transform = 'none';
@@ -1146,18 +1166,18 @@ function clampToolbarInView() {
         });
         return;
     }
-    
+
     // Check if user has saved a custom position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
     const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null' && savedPos;
-    
+
     if (!hasSavedPosition) {
         // No saved position - recenter between logo and comic on resize
         positionToolbarCentered(toolbar);
         return;
     }
-    
+
     // User has saved custom position - use relative positioning metadata
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -1166,20 +1186,20 @@ function clampToolbarInView() {
             const toolbarWidth = toolbar.offsetWidth;
             const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
             const viewportHeight = window.innerHeight;
-            
+
             // Get element references
             const comic = getToolbarBoundaryComicElement();
             const controlsContainer = document.getElementById('controls-container');
             const settingsPanel = document.getElementById('settingsDIV');
             const logo = document.querySelector('.logo');
-            
+
             let newTop = savedPos.top;
             const centerLeft = (viewportWidth - toolbarWidth) / 2;
             let newLeft = Math.max(0, Math.min(
                 centerLeft + (savedPos.leftOffsetFromCenter || 0),
                 viewportWidth - toolbarWidth
             ));
-            
+
             // Restore relative position based on saved metadata (priority order)
             // 1. If below controls (action buttons), maintain that relationship
             if (savedPos.belowControls && controlsContainer) {
@@ -1211,12 +1231,12 @@ function clampToolbarInView() {
                     newTop = Math.min(newTop, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                 }
             }
-            
+
             // Viewport boundary clamping
             const maxTop = viewportHeight - toolbarHeight - 10;
             if (newTop < 0) newTop = 0;
             if (newTop > maxTop) newTop = maxTop;
-            
+
             // Ensure we don't overlap logo
             if (logo) {
                 const logoRect = logo.getBoundingClientRect();
@@ -1224,7 +1244,7 @@ function clampToolbarInView() {
                     newTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
                 }
             }
-            
+
             // Ensure we don't overlap comic (unless intentionally below it)
             if (comic && !savedPos.belowComic && !savedPos.belowControls) {
                 const comicRect = comic.getBoundingClientRect();
@@ -1233,16 +1253,16 @@ function clampToolbarInView() {
                     newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + TOOLBAR_MIN_VERTICAL_GAP : 0, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
                 }
             }
-            
+
             // Apply position if changed
             const currentTop = parseFloat(toolbar.style.top) || 0;
             const currentLeft = parseFloat(toolbar.style.left) || 0;
-            
+
             if (Math.abs(currentTop - newTop) > 1 || Math.abs(currentLeft - newLeft) > 1) {
                 toolbar.style.top = newTop + 'px';
                 toolbar.style.left = newLeft + 'px';
                 toolbar.style.transform = 'none';
-                
+
                 // Preserve the relative positioning metadata when updating position
                 const overrides = {};
                 if (savedPos.belowControls) {
@@ -1271,11 +1291,11 @@ function clampToolbarInView() {
 function initializeToolbar() {
     const mainToolbar = document.getElementById('mainToolbar');
     if (!mainToolbar) return;
-    
+
     // Check for saved position
     const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    
+
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
         mainToolbar.style.top = savedPos.top + 'px';
         mainToolbar.style.left = savedPos.left + 'px';
@@ -1300,13 +1320,13 @@ function initializeToolbar() {
             mainToolbar.style.left = '50%';
             mainToolbar.style.transform = 'translateX(-50%)';
         }
-        
+
         // Then position correctly after elements load and save the position
         const tryPosition = () => {
             mainToolbar.style.transform = 'none'; // Clear transform before positioning
             positionToolbarCentered(mainToolbar, false); // Don't save yet during intermediate attempts
         };
-        
+
         const finalPosition = () => {
             mainToolbar.style.transform = 'none';
             positionToolbarCentered(mainToolbar, true); // Save position on final attempt
@@ -1315,7 +1335,7 @@ function initializeToolbar() {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
             } catch (_) {}
         };
-        
+
         // Try positioning multiple times as elements load
         setTimeout(tryPosition, 0);
         setTimeout(tryPosition, 50);
@@ -1325,10 +1345,10 @@ function initializeToolbar() {
             setTimeout(finalPosition, 300); // Save position after final positioning
         });
     }
-    
+
     // Make toolbar draggable (vertical only)
     makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    
+
     // Only clamp on resize, not on orientation change to prevent toolbar movement
     // Debounce resize handler to avoid excessive calculations
     let resizeTimeout;
@@ -1338,7 +1358,7 @@ function initializeToolbar() {
             clampToolbarInView();
         }, 100);
     });
-    
+
     // Use ResizeObserver to detect when toolbar dimensions change due to CSS
     if (typeof ResizeObserver !== 'undefined') {
         const toolbarResizeObserver = new ResizeObserver(() => {
@@ -1386,39 +1406,39 @@ function initializeToolbar() {
 function initializeMobileButtonStates() {
     // Only run on mobile/touch devices
     if (!UTILS.isMobileOrTouch()) return;
-    
+
     const toolbarButtons = document.querySelectorAll('.toolbar-button, .toolbar-datepicker-btn, .icon-button');
-    
+
     toolbarButtons.forEach(button => {
         let touchTimeout = null;
-        
+
         // Touch start - add active class
         button.addEventListener('touchstart', (e) => {
             // Clear any pending timeout
             if (touchTimeout) clearTimeout(touchTimeout);
-            
+
             // Add temporary active class for visual feedback
             button.classList.add('touch-active');
         }, { passive: true });
-        
+
         // Touch end - remove active state and ensure bounce back
         button.addEventListener('touchend', (e) => {
             // Immediate blur to prevent :focus state
             button.blur();
-            
+
             // Immediately remove touch-active class to prevent stuck state
             button.classList.remove('touch-active');
-            
+
             // Reset transform and transition after a brief moment for visual feedback
             touchTimeout = setTimeout(() => {
                 button.style.transform = '';
                 button.style.transition = '';
-                
+
                 // Force reflow to ensure CSS updates
                 void button.offsetHeight;
             }, 50);
         }, { passive: true });
-        
+
         // Touch cancel - immediate reset
         button.addEventListener('touchcancel', () => {
             if (touchTimeout) clearTimeout(touchTimeout);
@@ -1427,7 +1447,7 @@ function initializeMobileButtonStates() {
             button.style.transition = '';
             button.blur();
         }, { passive: true });
-        
+
         // Click handler - ensure cleanup
         button.addEventListener('click', () => {
             button.blur();
@@ -1435,7 +1455,7 @@ function initializeMobileButtonStates() {
             button.style.transform = '';
         });
     });
-    
+
     // Global safeguard - reset any stuck buttons
     document.addEventListener('touchend', () => {
         // Immediate reset to prevent stuck states
@@ -1572,24 +1592,24 @@ function showNotification(message, duration = 5000) {
     const toast = document.getElementById('notificationToast');
     const content = document.getElementById('notificationContent');
     const closeBtn = document.getElementById('notificationClose');
-    
+
     if (!toast || !content) return;
-    
+
     // Clear any pending auto-hide from a previous notification
     if (_notificationTimeout) {
         clearTimeout(_notificationTimeout);
         _notificationTimeout = null;
     }
-    
+
     content.textContent = message;
     toast.classList.add('show');
-    
+
     // Auto-hide after duration
     _notificationTimeout = setTimeout(() => {
         hideNotification();
         _notificationTimeout = null;
     }, duration);
-    
+
     // Close button handler
     closeBtn.onclick = () => {
         clearTimeout(_notificationTimeout);
@@ -1644,7 +1664,7 @@ document.addEventListener('keydown', function(e) {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
     // Don't handle if rotated/fullscreen mode (has its own handlers)
     if (document.getElementById('comic-overlay')) return;
-    
+
     if (e.key === 'ArrowLeft') {
         e.preventDefault();
         PreviousClick();
@@ -1816,10 +1836,10 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
 // Function to translate the interface
 function translateInterface(lang) {
     const t = translations[lang] || translations.en;
-    
+
     // NOTE: Buttons now use SVG icons only, no text labels
     // Previous button labels were removed to show icons instead
-    
+
     // Translate labels
     const labels = {
         'swipe': t.swipeEnabled,
@@ -1829,12 +1849,12 @@ function translateInterface(lang) {
         'spanish': t.spanish,
         'notifications': t.notifyNewComics
     };
-    
+
     for (const [id, text] of Object.entries(labels)) {
         const label = document.querySelector(`label[for="${id}"]`);
         if (label) label.textContent = text;
     }
-    
+
     // Translate toolbar button tooltips
     const toolbarButtons = {
         'First': t.first,
@@ -1845,7 +1865,7 @@ function translateInterface(lang) {
         'Last': t.last,
         'Shuffle': t.shuffle
     };
-    
+
     for (const [id, tooltip] of Object.entries(toolbarButtons)) {
         const btn = document.getElementById(id);
         if (btn) {
@@ -1853,26 +1873,26 @@ function translateInterface(lang) {
             btn.setAttribute('aria-label', tooltip);
         }
     }
-    
+
     // Translate date picker
     const datePicker = document.getElementById('DatePicker');
     if (datePicker) {
         datePicker.setAttribute('aria-label', t.selectDate);
     }
-    
+
     // Translate install and support buttons
     const installBtn = document.getElementById('installBtn');
     if (installBtn) {
         installBtn.textContent = t.installApp;
         installBtn.setAttribute('aria-label', t.installApp);
     }
-    
+
     // Update donation modal title
     const donationTitle = document.getElementById('donationTitle');
     if (donationTitle) {
         donationTitle.textContent = t.supportApp;
     }
-    
+
     // Translate export/import buttons
     const exportBtn = document.querySelector('#exportFavs span');
     if (exportBtn) {
@@ -1882,7 +1902,7 @@ function translateInterface(lang) {
     if (importBtn) {
         importBtn.textContent = t.importFavorites;
     }
-    
+
     // Translate Google sync section
     const gSyncHeader = document.querySelector('.google-sync-header span');
     if (gSyncHeader) gSyncHeader.textContent = t.googleDriveSync;
@@ -1892,11 +1912,11 @@ function translateInterface(lang) {
     if (gSignOutLabel) gSignOutLabel.textContent = `(${t.googleSignOut})`;
     const gSyncDesc = document.getElementById('googleSyncDesc');
     if (gSyncDesc) gSyncDesc.textContent = t.googleSyncDesc;
-    
+
     // Translate donation modal
     const donationMsg = document.getElementById('donationMessage');
     if (donationMsg) donationMsg.textContent = t.donationMessage;
-    
+
     // Translate Top Favorites button and modal header
     const top10BtnSpan = document.querySelector('#top10Btn span');
     if (top10BtnSpan) top10BtnSpan.textContent = t.top10Title;
@@ -1933,17 +1953,17 @@ let formattedDate;
  */
 async function Share() {
     const imageUrl = window.pictureUrl || previousUrl;
-    
+
     if (!imageUrl) {
         showNotification("No comic to share. Please load a comic first.", 3000);
         return;
     }
-    
+
     if (!navigator.share) {
         showNotification("Sharing is not supported on this device.", 3000);
         return;
     }
-    
+
     try {
         // Fetch the image to get a Blob.
         // If the URL already routes through our proxy (e.g. Fandom), safely use it directly.
@@ -1953,7 +1973,7 @@ async function Share() {
         if (!imageUrl.startsWith('https://corsproxy.garfieldapp.workers.dev/')) {
             fetchUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
         }
-        
+
         const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
         const rawBlob = await response.blob();
@@ -1986,7 +2006,7 @@ async function Share() {
         }
 
         const file = new File([shareBlob], 'garfield.jpg', { type: 'image/jpeg', lastModified: Date.now() });
-        
+
         // When sharing a file, if you also provide text and a URL, many apps (WhatsApp, Messages)
         // will drop the file to create a link preview. To ensure the file is sent as an image attachment,
         // we omit the 'url' parameter and just append the link to the 'text'.
@@ -2021,18 +2041,18 @@ function Addfav() {
         console.error('formattedComicDate is not set');
         return;
     }
-    
+
     // Determine the actual date to use for favorites
     // In timezone edge case (Europe ahead of US), the displayed date may not have a comic yet
     // The current comic is actually from the previous day, so use that date instead
     let dateToFavorite = formattedComicDate;
-    
+
     // Detect timezone edge case:
     // Next comic URL is same as current (detected by prefetch same-comic detection).
     // This happens when the user's local time is ahead of Eastern Time and today's
     // comic hasn't been released yet — the "next" comic is actually the same image.
     const isTimezoneEdgeCase = currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl;
-    
+
     if (isTimezoneEdgeCase) {
         // Timezone edge case: we're showing yesterday's comic on today's date
         // Calculate the previous day's date
@@ -2043,18 +2063,18 @@ function Addfav() {
         const prevDay = String(currentDate.getDate()).padStart(2, '0');
         dateToFavorite = `${prevYear}/${prevMonth}/${prevDay}`;
     }
-    
+
     let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-    
+
     // Ensure favs is always an array
     if (!Array.isArray(favs)) {
         favs = [];
     }
-    
+
     const showFavsCheckbox = document.getElementById("showfavs");
-    
+
     const favIndex = favs.indexOf(dateToFavorite);
-    
+
     if (favIndex === -1) {
         // Add to favorites
         favs.push(dateToFavorite);
@@ -2062,13 +2082,13 @@ function Addfav() {
     } else {
         // Remove from favorites
         favs.splice(favIndex, 1);
-        
+
         if (favs.length === 0 && showFavsCheckbox) {
             showFavsCheckbox.checked = false;
             showFavsCheckbox.disabled = true;
         }
     }
-    
+
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
     // Auto-sync to Google Drive if signed in
@@ -2193,14 +2213,14 @@ function HideSettings(e) {
         e.preventDefault();
         e.stopPropagation();
     }
-    
+
     const panel = document.getElementById("settingsDIV");
-    
+
     if (!panel) {
         console.warn('Settings panel not found');
         return;
     }
-    
+
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
         panel.classList.remove('visible');
@@ -2232,7 +2252,7 @@ function handleTouchStart(e) {
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
-    
+
     // Early return for swipe gesture handling, but keep tracking for tap detection
     if (!document.getElementById("swipe").checked) return;
 }
@@ -2246,12 +2266,12 @@ function handleTouchMove(e) {
     // Always allow swipes in rotated mode
     const rotatedComic = document.getElementById('rotated-comic');
     if (!rotatedComic && !document.getElementById("swipe").checked) return;
-    
+
     // Prevent default scrolling behavior during swipe
     const touch = e.touches[0];
     const deltaX = Math.abs(touch.clientX - touchStartX);
     const deltaY = Math.abs(touch.clientY - touchStartY);
-    
+
     // If horizontal swipe is more significant than vertical, prevent vertical scrolling
     if (deltaX > deltaY && deltaX > 20 && e.cancelable) {
         e.preventDefault();
@@ -2269,36 +2289,39 @@ function handleTouchEnd(e) {
     if (isVerticalFullscreen) {
         return;
     }
-    
+
     const touch = e.changedTouches[0];
     touchEndX = touch.clientX;
     touchEndY = touch.clientY;
-    
+
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
     const deltaTime = Date.now() - touchStartTime;
-    
+
     // Check swipe distance
     const absX = Math.abs(deltaX);
     const absY = Math.abs(deltaY);
-    
+
     // For swipe navigation - always enabled in rotated mode
     const rotatedComic = document.getElementById('rotated-comic');
     if (!rotatedComic && !document.getElementById("swipe").checked) return;
-    
+
     // Check if the swipe is valid (meets distance and time requirements)
     if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
-    
+
     let swipeDetected = false;
-    
+
     // Check if we're in rotated fullscreen mode (reuse rotatedComic from above)
     const isInRotatedMode = rotatedComic && rotatedComic.className.includes('rotate');
     const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
 
-    // Random swipe mode: route Next/Previous to random-newer/random-older
+    // Shuffle mode routes either direction to a random comic from the active pool.
     const randomSwipe = isShuffleEnabled();
     const goNext = randomSwipe ? RandomNewerClick : NextClick;
     const goPrev = randomSwipe ? RandomOlderClick : PreviousClick;
+    const canSwipeNavigate = (direction) => randomSwipe
+        ? UTILS.canShuffleNavigate()
+        : UTILS.canNavigate(direction);
 
     // Determine swipe direction based on mode
     if (isInRotatedMode) {
@@ -2306,7 +2329,7 @@ function handleTouchEnd(e) {
         if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
             const direction = deltaY < 0 ? 'next' : 'previous';
             // Only trigger swipe if navigation is possible in that direction
-            if (UTILS.canNavigate(direction)) {
+            if (canSwipeNavigate(direction)) {
                 swipeDetected = true;
                 lastSwipeTime = Date.now();
                 if (deltaY < 0) {
@@ -2321,7 +2344,7 @@ function handleTouchEnd(e) {
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             const direction = deltaX < 0 ? 'next' : 'previous';
             // Only trigger swipe if navigation is possible in that direction
-            if (UTILS.canNavigate(direction)) {
+            if (canSwipeNavigate(direction)) {
                 // Horizontal swipe
                 swipeDetected = true;
                 lastSwipeTime = Date.now();
@@ -2339,7 +2362,7 @@ function handleTouchEnd(e) {
         if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
             const direction = deltaX > 0 ? 'previous' : 'next';
             // Only trigger swipe if navigation is possible in that direction
-            if (UTILS.canNavigate(direction)) {
+            if (canSwipeNavigate(direction)) {
                 // Horizontal swipe
                 swipeDetected = true;
                 lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
@@ -2368,19 +2391,19 @@ function handleTouchEnd(e) {
 function Rotate(applyRotation = true, clickToExit = true) {
     const element = document.getElementById('comic');
     if (!element) return;
-    
+
     // Check if we're already in fullscreen mode
     const existingOverlay = document.getElementById('comic-overlay');
     if (existingOverlay) {
         // We're in fullscreen mode, exit it immediately
         document.body.removeChild(existingOverlay);
-        
+
         // Remove rotated image if it exists
         const rotatedComic = document.getElementById('rotated-comic');
         if (rotatedComic) {
             document.body.removeChild(rotatedComic);
         }
-        
+
         // Restore all elements with data-was-hidden attribute
         const hiddenElements = document.querySelectorAll('[data-was-hidden]');
         hiddenElements.forEach(el => {
@@ -2394,24 +2417,24 @@ function Rotate(applyRotation = true, clickToExit = true) {
             delete el.dataset.originalDisplay;
             delete el.dataset.originalDisplayInline;
         });
-        
+
         // Make sure original comic is in normal state
         element.className = "normal";
-        
+
         // Remove resize listener
         window.removeEventListener('resize', handleRotatedViewResize);
-        
+
         isRotatedMode = false;
-        
+
         // Restore toolbar to its exact pre-rotate position
         restoreToolbarStateAfterRotate();
         return;
     }
-    
+
     if (element.className === "normal" || element.className.includes("normal")) {
         snapshotToolbarStateBeforeRotate();
         isRotatedMode = true;
-        
+
         // Create an overlay without any layout constraints
         const overlay = document.createElement('div');
         overlay.id = 'comic-overlay';
@@ -2422,23 +2445,23 @@ function Rotate(applyRotation = true, clickToExit = true) {
         overlay.style.height = '100vh';
         overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
         overlay.style.zIndex = '10000';
-        
+
         // Clone the comic image
         const clonedComic = element.cloneNode(true);
         clonedComic.id = 'rotated-comic';
         clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
         delete clonedComic.dataset.doubleTapInitialized;
-        
+
         // Immediately add to body (not to overlay)
         document.body.appendChild(overlay);
         document.body.appendChild(clonedComic);
 
         // Prevent background scrolling while overlay is active
         document.body.style.overflow = 'hidden';
-        
+
         // Apply sizing when image is loaded
         scheduleRotatedComicResize(clonedComic);
-        
+
         // Hide all other elements
         const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
         elementsToHide.forEach(el => {
@@ -2447,19 +2470,19 @@ function Rotate(applyRotation = true, clickToExit = true) {
             el.dataset.wasHidden = "true";
             el.style.setProperty('display', 'none', 'important');
         });
-        
+
         // Handler function to exit fullscreen
         const exitFullscreen = function() {
             // Ignore clicks immediately after a swipe
             if (Date.now() - lastSwipeTime < 300) return;
             if (Date.now() < suppressComicClickUntil) return;
-            
+
             const overlay = document.getElementById('comic-overlay');
             if (overlay) document.body.removeChild(overlay);
-            
+
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) document.body.removeChild(rotatedComic);
-            
+
             // Restore visibility of hidden elements
             const hiddenElements = document.querySelectorAll('[data-was-hidden]');
             hiddenElements.forEach(el => {
@@ -2473,20 +2496,20 @@ function Rotate(applyRotation = true, clickToExit = true) {
                 delete el.dataset.originalDisplay;
                 delete el.dataset.originalDisplayInline;
             });
-            
+
             // Ensure original comic is back to normal
             if (element) element.className = "normal";
 
             // Restore scrolling
             document.body.style.overflow = '';
-            
+
             window.removeEventListener('resize', handleRotatedViewResize);
             isRotatedMode = false;
-            
+
             // Restore toolbar to its exact pre-rotate position
             restoreToolbarStateAfterRotate();
         };
-        
+
         // Escape key to exit fullscreen
         const handleEscapeKey = function(e) {
             if (e.key === 'Escape') {
@@ -2495,7 +2518,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
             }
         };
         document.addEventListener('keydown', handleEscapeKey);
-        
+
         // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
         if (clickToExit) {
             clonedComic.addEventListener('click', exitFullscreen);
@@ -2503,10 +2526,10 @@ function Rotate(applyRotation = true, clickToExit = true) {
         }
 
         bindComicTapGestures(clonedComic, clickToExit ? exitFullscreen : null);
-        
+
         // Add resize listener
         window.addEventListener('resize', handleRotatedViewResize);
-        
+
         // Add swipe support in rotated view
         overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
         overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -2514,7 +2537,7 @@ function Rotate(applyRotation = true, clickToExit = true) {
             handleTouchEnd(e);
             e.stopPropagation();
         }, { passive: true });
-        
+
         clonedComic.addEventListener('touchstart', handleTouchStart, { passive: false });
         clonedComic.addEventListener('touchmove', handleTouchMove, { passive: false });
         clonedComic.addEventListener('touchend', function(e) {
@@ -2609,7 +2632,7 @@ function handleRotatedViewResize() {
 function updateDateDisplay() {
     const dateInput = document.getElementById('DatePicker');
     const wrapper = document.querySelector('.date-center-wrapper');
-    
+
     if (dateInput && wrapper) {
         // Parse the date value from the input
         const dateValue = dateInput.value; // Format: YYYY-MM-DD
@@ -2619,17 +2642,17 @@ function updateDateDisplay() {
                 const year = parseInt(dateParts[0]);
                 const month = parseInt(dateParts[1]) - 1; // JS months are 0-based
                 const day = parseInt(dateParts[2]);
-                
+
                 // Create a date object
                 const date = new Date(year, month, day);
-                
+
                 // Format the date according to user's locale
                 const localizedDate = date.toLocaleDateString(undefined, {
                     year: 'numeric',
                     month: 'numeric',
                     day: 'numeric'
                 });
-                
+
                 // Set the localized date as the display value
                 wrapper.setAttribute('data-display-date', localizedDate);
             } else {
@@ -2647,66 +2670,66 @@ function updateDateDisplay() {
  * @param {Date} date - Date to load comic for
  * @param {boolean} silentMode - If true, suppress error messages
  * @param {string|null} direction - Navigation direction: 'next', 'previous', or null
- * @returns {Promise<boolean>} True if comic loaded successfully
+ * @returns {Promise<{success: boolean, isSameComic: boolean, actualDate?: Date|null}>} Load result
  */
 async function loadComic(date, silentMode = false, direction = null) {
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
         const source = UTILS.getPreferredSource();
-        
+
         const result = await getAuthenticatedComic(date, language, source);
-        
+
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
             if (currentComicUrl === result.imageUrl) {
                 // Same comic - return special value to indicate duplicate
                 return { success: true, isSameComic: true };
             }
-            
+
             const comicImg = document.getElementById('comic');
             const wrapper = document.getElementById('comic-wrapper');
             const resizeRotatedComicWhenReady = (imgElement) => {
                 scheduleRotatedComicResize(imgElement);
             };
-            
+
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
                 return new Promise((resolve) => {
                     // Only animate if there's an existing image
                     if (comicImg.src && comicImg.src !== window.location.href) {
-                        
+
                         if (direction === 'next' || direction === 'previous') {
                             // FILMSTRIP SLIDE animation - both comics visible during transition
                             const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
                             const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
-                            
+
                             // Create a clone of current comic to slide out
                             const outgoingClone = comicImg.cloneNode(true);
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('comic-outgoing');
                             outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve', 'no-transition');
                             wrapper.appendChild(outgoingClone);
-                            
+
                             // Set new image source on original (it will slide in)
                             comicImg.classList.add('no-transition');
                             comicImg.src = result.imageUrl;
                             comicImg.classList.add(slideInClass);
-                            
+
                             // Force reflow
                             comicImg.offsetHeight;
                             outgoingClone.offsetHeight;
-                            
+
                             // Re-enable transitions and animate both
                             comicImg.classList.remove('no-transition');
-                            
+
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
                                     // Slide outgoing clone away
                                     outgoingClone.classList.add(slideOutClass);
                                     // Slide incoming comic to center
                                     comicImg.classList.remove(slideInClass);
-                                    
+
                                     // Cleanup after animation
                                     setTimeout(() => {
                                         outgoingClone.remove();
@@ -2721,23 +2744,23 @@ async function loadComic(date, silentMode = false, direction = null) {
                             outgoingClone.removeAttribute('id');
                             outgoingClone.classList.add('comic-pixelate-outgoing');
                             wrapper.appendChild(outgoingClone);
-                            
+
                             // Load new image underneath (hidden by clone until loaded)
                             comicImg.src = result.imageUrl;
-                            
+
                             // Wait for new image to load, THEN blur out clone
                             const startMorph = () => {
                                 requestAnimationFrame(() => {
                                     outgoingClone.classList.add('morph-out');
                                 });
-                                
+
                                 // Cleanup after animation
                                 setTimeout(() => {
                                     outgoingClone.remove();
                                     resolve();
                                 }, 600);
                             };
-                            
+
                             // Use requestAnimationFrame to ensure browser has processed the src change
                             // This fixes the race condition where complete is still true from old image
                             requestAnimationFrame(() => {
@@ -2755,10 +2778,10 @@ async function loadComic(date, silentMode = false, direction = null) {
                     }
                 });
             };
-            
+
             await animateTransition();
             comicImg.style.display = 'block';
-            
+
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;
 
@@ -2772,7 +2795,7 @@ async function loadComic(date, silentMode = false, direction = null) {
             } else {
                 comicImg.addEventListener('load', ensureOrientationCheck, { once: true });
             }
-            
+
             // Also update the rotated comic if it exists (with animation)
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) {
@@ -2783,7 +2806,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                             // FILMSTRIP SLIDE animation for rotated comic
                             const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
                             const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
-                            
+
                             // Create a clone of current rotated comic to slide out
                             const outgoingClone = rotatedComic.cloneNode(true);
                             outgoingClone.removeAttribute('id');
@@ -2793,28 +2816,28 @@ async function loadComic(date, silentMode = false, direction = null) {
                             outgoingClone.style.cssText = rotatedComic.style.cssText;
                             outgoingClone.style.transition = 'transform 0.5s ease-out';
                             document.body.appendChild(outgoingClone);
-                            
+
                             // Set new image source on original (it will slide in)
                             rotatedComic.style.transition = 'none';
                             rotatedComic.src = result.imageUrl;
                             rotatedComic.classList.add(slideInClass);
-                            
+
                             // Force reflow
                             rotatedComic.offsetHeight;
                             outgoingClone.offsetHeight;
-                            
+
                             // Re-enable transitions and animate both
                             rotatedComic.style.transition = '';
-                            
+
                             requestAnimationFrame(() => {
                                 requestAnimationFrame(() => {
                                     // Slide outgoing clone away
                                     outgoingClone.classList.add(slideOutClass);
                                     // Slide incoming comic to center
                                     rotatedComic.classList.remove(slideInClass);
-                                    
+
                                     resizeRotatedComicWhenReady(rotatedComic);
-                                    
+
                                     // Cleanup after animation
                                     setTimeout(() => {
                                         outgoingClone.remove();
@@ -2832,26 +2855,26 @@ async function loadComic(date, silentMode = false, direction = null) {
                             outgoingClone.style.cssText = rotatedComic.style.cssText;
                             outgoingClone.style.transition = 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
                             document.body.appendChild(outgoingClone);
-                            
+
                             // Load new image underneath - fully visible
                             rotatedComic.src = result.imageUrl;
-                            
+
                             // When loaded, resize and blur out the clone
                             const startMorph = () => {
                                 resizeRotatedComicWhenReady(rotatedComic);
-                                
+
                                 // Blur out the old image (clone)
                                 requestAnimationFrame(() => {
                                     outgoingClone.classList.add('morph-out');
                                 });
-                                
+
                                 // Cleanup after animation
                                 setTimeout(() => {
                                     outgoingClone.remove();
                                     resolve();
                                 }, 600);
                             };
-                            
+
                             // Use requestAnimationFrame to ensure browser has processed the src change
                             // This fixes the race condition where complete is still true from old image
                             requestAnimationFrame(() => {
@@ -2864,32 +2887,32 @@ async function loadComic(date, silentMode = false, direction = null) {
                         }
                     });
                 };
-                
+
                 // Run animation (don't await - let it run in parallel with main comic)
                 animateRotatedComic();
             }
-            
+
             // Store for sharing
             window.pictureUrl = result.imageUrl;
             previousUrl = result.imageUrl;
-            
+
             // Hide error messages
             const messageContainer = document.getElementById('comic-message');
             if (messageContainer) messageContainer.style.display = 'none';
-            
+
             // Preload adjacent comics for faster navigation.
             // Use actualDate when GoComics detected a date redirect so that
             // checkNextComicAvailability fires against the real strip date.
             UTILS.preloadAdjacentComics(result.actualDate || date);
-            
+
             return { success: true, isSameComic: false, actualDate: result.actualDate || null };
         }
-        
+
         if (result.isPaywalled && !silentMode) {
             showPaywallMessage();
             return { success: false, isSameComic: false };
         }
-        
+
         throw new Error('Comic not available');
     } catch (error) {
         if (!silentMode) {
@@ -2906,12 +2929,12 @@ function showPaywallMessage() {
     const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
     messageContainer.textContent = '';
-    
+
     const title = document.createElement('p');
     const strong = document.createElement('strong');
     const body = document.createElement('p');
     const hint = document.createElement('p');
-    
+
     if (daysDiff > 30) {
         strong.textContent = 'Unable to load this archive comic';
         body.textContent = `This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.`;
@@ -2921,7 +2944,7 @@ function showPaywallMessage() {
         body.textContent = 'This recent comic should normally be free, but we\'re having trouble loading it.';
         hint.textContent = 'Please try again later or try a different date.';
     }
-    
+
     title.appendChild(strong);
     messageContainer.append(title, body, hint);
 }
@@ -2933,18 +2956,18 @@ function showPaywallMessage() {
 function showErrorMessage(message) {
     const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
     messageContainer.textContent = '';
-    
+
     const title = document.createElement('p');
     const strong = document.createElement('strong');
     strong.textContent = 'Unable to Load Comic';
     title.appendChild(strong);
-    
+
     const body = document.createElement('p');
     body.textContent = message;
-    
+
     const hint = document.createElement('p');
     hint.textContent = 'Please try again later or select a different date.';
-    
+
     messageContainer.append(title, body, hint);
 }
 
@@ -3034,7 +3057,7 @@ function initApp() {
     document.getElementById('shareBtn').addEventListener('click', Share);
     document.getElementById('exportFavs').addEventListener('click', exportFavorites);
     document.getElementById('importFavs').addEventListener('click', importFavorites);
-    
+
     // Load Service Worker Version into Settings
     const swDisplay = document.getElementById('swVersionDisplay');
     if (swDisplay) {
@@ -3060,12 +3083,12 @@ function initApp() {
     // - Tablet/Desktop: no rotation needed (already landscape-capable)
     const isMobilePhone = /iPhone|Android/.test(navigator.userAgent) && !/iPad|Tablet/.test(navigator.userAgent);
     const isTablet = /iPad|Tablet|Android(?=.*\bTablet\b)/i.test(navigator.userAgent);
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
                   window.matchMedia('(display-mode: window-controls-overlay)').matches ||
                   window.navigator.standalone === true;
 
     let comicSingleTapAction = null;
-    
+
     if (isMobilePhone && !isTablet) {
         if (isPWA) {
             // Mobile PWA: use physical rotation for fullscreen
@@ -3074,10 +3097,10 @@ function initApp() {
                 if (isVerticalComicActive || isVerticalFullscreen) {
                     return;
                 }
-                
+
                 const isLandscape = window.matchMedia("(orientation: landscape)").matches;
                 const existingOverlay = document.getElementById('comic-overlay');
-                
+
                 if (isLandscape && !existingOverlay) {
                     // Device rotated to landscape - enter fullscreen WITHOUT rotation, NO click-to-exit
                     Rotate(false, false);
@@ -3088,7 +3111,7 @@ function initApp() {
                     Rotate(false, false);
                 }
             }
-            
+
             // Use screen.orientation API if available, fallback to matchMedia
             if (screen.orientation) {
                 screen.orientation.addEventListener('change', handleOrientationChange);
@@ -3117,7 +3140,7 @@ function initApp() {
     // Prevent clearing the date picker
     const datePicker = document.getElementById("DatePicker");
     datePicker.setAttribute("required", "required");
-    
+
     // Add event listener to prevent emptying the date
     datePicker.addEventListener('change', function(e) {
         if (!this.value) {
@@ -3154,11 +3177,11 @@ function initApp() {
         document.getElementById("Next").disabled = true;
         document.getElementById("Last").disabled = true;
     }
-    
+
     // Use Eastern Time for date picker max since comics release based on ET
     const etToday = UTILS.getEasternTodayString();
     document.getElementById("DatePicker").setAttribute("max", etToday);
-    
+
     // Also format today's date for other uses
     formatDate(UTILS.getEasternDate());
 
@@ -3199,20 +3222,20 @@ async function _dateChangeImpl() {
     currentselectedDate = new Date(currentselectedDate.value);
     updateDateDisplay();
     CompareDates();
-    
+
     // Check if user selected a Sunday in Spanish mode
     const isSpanish = UTILS.isSpanishMode();
     const isSunday = currentselectedDate.getDay() === 0;
-    
+
     if (isSpanish && isSunday) {
         // Try to load the comic
         formatDate(currentselectedDate);
         formattedComicDate = year + "/" + month + "/" + day;
         formattedDate = year + "-" + month + "-" + day;
         document.getElementById("DatePicker").value = formattedDate;
-        
+
         const result = await loadComic(currentselectedDate, true);
-        
+
         if (!result.success) {
             // Comic doesn't exist, show notification and revert to previous date
             const currentLang = isSpanish ? 'es' : 'en';
@@ -3227,7 +3250,7 @@ async function _dateChangeImpl() {
             return;
         }
     }
-    
+
     await showComic();
 }
 
@@ -3240,18 +3263,18 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     formatDate(currentselectedDate);
     formattedComicDate = year + "/" + month + "/" + day;
     formattedDate = year + "-" + month + "-" + day;
-    
+
     document.getElementById("DatePicker").value = formattedDate;
     updateDateDisplay();
-    
+
     // Check if date is in favorites
     UTILS.updateHeartIcon();
-    
+
     // Save last viewed comic
     if (document.getElementById("lastdate").checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
     }
-    
+
     // Load the comic (silent mode off for first attempt when not auto-skipping)
     const result = await loadComic(currentselectedDate, skipOnFailure, direction);
     const success = result.success;
@@ -3270,8 +3293,9 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         CompareDates();
         // CompareDates() re-enables Next/Last because actualDate (yesterday) < today.
         // But we know today's comic isn't published yet (that's why the redirect happened),
-        // so disable forward navigation immediately — don't wait for the async preloader.
-        document.getElementById("Next").disabled = true;
+        // so disable linear forward navigation immediately. Shuffle keeps Next usable
+        // when there is another comic in the active pool.
+        document.getElementById("Next").disabled = !(isShuffleEnabled() && UTILS.canShuffleNavigate());
         document.getElementById("Last").disabled = true;
         UTILS.updateHeartIcon();
         if (document.getElementById("lastdate").checked) {
@@ -3285,7 +3309,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             // Going backwards and hit same comic - continue to previous day
             currentselectedDate.setDate(currentselectedDate.getDate() - 1);
             CompareDates();
-            
+
             // Check if we've reached the start boundary (depth-limited via the while loop below)
             if (!document.getElementById("Previous")?.disabled) {
                 formatDate(currentselectedDate);
@@ -3311,16 +3335,16 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             return;
         }
     }
-    
+
     // If comic failed to load and we should skip, try the next one
     if (!success && skipOnFailure && direction) {
         // Prevent infinite loops by limiting attempts
         const maxAttempts = 10;
         let attempts = 0;
-        
+
         while (!success && attempts < maxAttempts) {
             attempts++;
-            
+
             if (direction === 'next') {
                 currentselectedDate.setDate(currentselectedDate.getDate() + 1);
             } else if (direction === 'previous') {
@@ -3328,9 +3352,9 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             } else {
                 break; // Unknown direction, stop trying
             }
-            
+
             CompareDates();
-            
+
             // Check if we've reached the boundaries
             if (document.getElementById("Next")?.disabled && direction === 'next') {
                 showErrorMessage('No more comics available in this direction.');
@@ -3340,21 +3364,21 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
                 showErrorMessage('No more comics available in this direction.');
                 break;
             }
-            
+
             // Try loading this comic in silent mode (no error messages)
             formatDate(currentselectedDate);
             formattedComicDate = year + "/" + month + "/" + day;
             formattedDate = year + "-" + month + "-" + day;
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
-            
+
             const retryResult = await loadComic(currentselectedDate, true, direction);
             if (retryResult.success && !retryResult.isSameComic) {
                 UTILS.updateHeartIcon();
                 return;
             }
         }
-        
+
         if (attempts >= maxAttempts) {
             showErrorMessage('Unable to find an available comic after multiple attempts.');
         }
@@ -3366,8 +3390,9 @@ function PreviousClick() {
         if (_top10BrowseIndex > 0) { _top10BrowseIndex--; loadTop10Comic(); }
         return;
     }
-    // Shuffle mode: redirect Previous to a random older comic
+    // Shuffle mode: redirect Previous to a random comic from the active pool.
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+        if (!UTILS.canShuffleNavigate()) return;
         RandomOlderClick();
         return;
     }
@@ -3388,8 +3413,9 @@ function NextClick() {
         if (_top10BrowseIndex < _top10Entries.length - 1) { _top10BrowseIndex++; loadTop10Comic(); }
         return;
     }
-    // Shuffle mode: redirect Next to a random newer comic
+    // Shuffle mode: redirect Next to a random comic from the active pool.
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+        if (!UTILS.canShuffleNavigate()) return;
         RandomNewerClick();
         return;
     }
@@ -3453,27 +3479,27 @@ function updateExportButtonState() {
  */
 function exportFavorites() {
     const exportBtn = document.getElementById('exportFavs');
-    
+
     // Early exit if button is disabled (shouldn't happen but be defensive)
     if (exportBtn?.disabled) return;
-    
+
     const favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
     const isSpanish = UTILS.isSpanishMode();
     const lang = isSpanish ? 'es' : 'en';
     const t = translations[lang];
-    
+
     if (!favs || favs.length === 0) {
         // Update button state in case it wasn't properly disabled
         updateExportButtonState();
         return;
     }
-    
+
     const data = {
         favorites: favs,
         exportDate: new Date().toISOString(),
         version: 1
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -3483,7 +3509,7 @@ function exportFavorites() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     const plural = favs.length !== 1 ? 's' : '';
     const message = t.exportedFavorites.replace('{count}', favs.length).replace('{plural}', plural);
     showNotification(message, 3000);
@@ -3495,11 +3521,11 @@ function exportFavorites() {
 function importFavorites() {
     const fileInput = document.getElementById('importFileInput');
     if (!fileInput) return;
-    
+
     fileInput.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         // Cap file size to prevent localStorage quota exhaustion (1MB max)
         if (file.size > 1024 * 1024) {
             const isSpanish = UTILS.isSpanishMode();
@@ -3507,38 +3533,38 @@ function importFavorites() {
             showNotification(t.invalidFavoritesFile, 4000);
             return;
         }
-        
+
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const data = JSON.parse(event.target.result);
-                
+
                 const isSpanish = UTILS.isSpanishMode();
                 const lang = isSpanish ? 'es' : 'en';
                 const t = translations[lang];
-                
+
                 if (!data.favorites || !Array.isArray(data.favorites)) {
                     showNotification(t.invalidFavoritesFile, 4000);
                     return;
                 }
-                
+
                 const currentFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
                 // Validate that every entry is a valid date string (YYYY/MM/DD)
                 const datePattern = /^\d{4}\/\d{2}\/\d{2}$/;
                 const importedFavs = data.favorites.filter(entry =>
                     typeof entry === 'string' && datePattern.test(entry) && !isNaN(new Date(entry).getTime())
                 );
-                
+
                 if (importedFavs.length === 0) {
                     showNotification(t.invalidFavoritesFile, 4000);
                     return;
                 }
-                
+
                 // Merge and deduplicate
                 const mergedFavs = [...new Set([...currentFavs, ...importedFavs])].sort();
-                
+
                 localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(mergedFavs));
-                
+
                 const newCount = mergedFavs.length - currentFavs.length;
                 if (newCount > 0) {
                     const plural = newCount !== 1 ? 's' : '';
@@ -3562,11 +3588,11 @@ function importFavorites() {
                 showNotification(t.errorReadingFile, 4000);
             }
         };
-        
+
         reader.readAsText(file);
         fileInput.value = ''; // Reset input
     };
-    
+
     fileInput.click();
 }
 
@@ -3603,10 +3629,7 @@ function _consumeShuffleCandidate(slot) {
     let target = primary || secondary;
     if (target) {
         currentselectedDate = new Date(target);
-        _shuffleNextDate = null;
-        _shuffleNextUrl = null;
-        _shufflePrevDate = null;
-        _shufflePrevUrl = null;
+        clearShuffleCandidates();
         CompareDates();
         showComic();
         return;
@@ -3623,9 +3646,8 @@ function _consumeShuffleCandidate(slot) {
 // ============================================================
 
 let _shuffleNextDate = null;
-let _shuffleNextUrl = null;
 let _shufflePrevDate = null;
-let _shufflePrevUrl = null;
+let _shuffleCandidateGeneration = 0;
 
 function isShuffleEnabled() {
     const btn = document.getElementById('Shuffle');
@@ -3633,10 +3655,9 @@ function isShuffleEnabled() {
 }
 
 function clearShuffleCandidates() {
+    _shuffleCandidateGeneration++;
     _shuffleNextDate = null;
-    _shuffleNextUrl = null;
     _shufflePrevDate = null;
-    _shufflePrevUrl = null;
 }
 
 /**
@@ -3671,15 +3692,20 @@ function _pickRandomAnyDate() {
 }
 
 /**
- * Pick one random-newer and one random-older candidate and warm-cache both.
+ * Pick two random candidates from the active pool and warm-cache both.
  * Called by preloadAdjacentComics when shuffle is enabled.
  */
 function pickShuffleCandidates() {
     if (_isTop10Mode) return;
     if (!UTILS.shouldPrefetch()) return;
 
+    const generation = ++_shuffleCandidateGeneration;
+    _shuffleNextDate = null;
+    _shufflePrevDate = null;
+
     const language = UTILS.isSpanishMode() ? 'es' : 'en';
     const source = UTILS.getPreferredSource();
+    const showFavs = document.getElementById('showfavs')?.checked || false;
 
     const warmImageCache = (imageUrl) => {
         const img = new Image();
@@ -3694,14 +3720,20 @@ function pickShuffleCandidates() {
             maxSources: 1,
             disableTodayFallback: true
         }).then(result => {
+            const stateStillMatches = generation === _shuffleCandidateGeneration &&
+                isShuffleEnabled() &&
+                (UTILS.isSpanishMode() ? 'es' : 'en') === language &&
+                UTILS.getPreferredSource() === source &&
+                (document.getElementById('showfavs')?.checked || false) === showFavs;
+
+            if (!stateStillMatches) return;
+
             if (result.success && result.imageUrl) {
                 warmImageCache(result.imageUrl);
                 if (assignTarget === 'next') {
                     _shuffleNextDate = date;
-                    _shuffleNextUrl = result.imageUrl;
                 } else {
                     _shufflePrevDate = date;
-                    _shufflePrevUrl = result.imageUrl;
                 }
             }
         }).catch(() => {});
@@ -3773,6 +3805,12 @@ function CompareDates() {
         }
     } else {
         document.getElementById('Random').disabled = false;
+    }
+
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        const canShuffle = UTILS.canShuffleNavigate();
+        document.getElementById('Previous').disabled = !canShuffle;
+        document.getElementById('Next').disabled = !canShuffle;
     }
 }
 
@@ -3907,7 +3945,7 @@ if (sourceSelect) {
 function checkImageOrientation() {
     const comic = document.getElementById('comic');
     const comicWrapper = document.getElementById('comic-wrapper');
-    
+
     if (!comic || !comicWrapper) {
         return;
     }
@@ -3916,17 +3954,17 @@ function checkImageOrientation() {
     }
     isVerticalComicActive = false;
     document.body.classList.remove('vertical-thumbnail-mode');
-    
+
     // Reset any previous thumbnail setup
     comic.classList.remove('vertical', 'fullscreen-vertical');
     comic.classList.add('normal');
-    
+
     // Remove any existing thumbnail container
     const existingThumbnail = document.querySelector('.thumbnail-container');
     if (existingThumbnail) {
         existingThumbnail.parentNode.replaceChild(comic, existingThumbnail);
     }
-    
+
     // Check if image is fully loaded and vertical (height > width)
     if (comic.complete && comic.naturalHeight > 0 && comic.naturalHeight > comic.naturalWidth * 1.5) {
         // It's a vertical comic, create thumbnail view
@@ -3934,21 +3972,21 @@ function checkImageOrientation() {
         comic.classList.add('vertical');
         isVerticalComicActive = true;
         document.body.classList.add('vertical-thumbnail-mode');
-        
+
         // Create thumbnail container
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'thumbnail-container';
-        
+
         // Create notice
         const notice = document.createElement('div');
         notice.className = 'thumbnail-notice';
         notice.textContent = 'Click to view full size';
-        
+
         // Set up the thumbnail display
         comicWrapper.replaceChild(thumbnailContainer, comic);
         thumbnailContainer.appendChild(comic);
         thumbnailContainer.appendChild(notice);
-        
+
         // Add click handler to the thumbnail container
         thumbnailContainer.onclick = showFullsizeVertical;
     }
@@ -3965,31 +4003,31 @@ function showFullsizeVertical(event) {
         return;
     }
     isVerticalFullscreen = true;
-    
+
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
     const controlsDiv = document.querySelector('#controls-container');
-    
+
     // Switch to fullscreen view
     comic.classList.remove('vertical');
     comic.classList.add('fullscreen-vertical');
     container.classList.add('fullscreen');
     document.body.classList.add('rotated-state');
-    
+
     // Clear container background so comic stands alone
     container.style.background = 'none';
     container.style.backgroundSize = '';
-    
+
     // Hide install button if present
     const installBtn = document.getElementById('installBtn');
     if (installBtn) installBtn.style.display = 'none';
-    
+
     // Hide other UI elements
     elementsToHide.forEach(el => {
         el.classList.add('hidden-during-fullscreen');
     });
-    
+
     if (controlsDiv) {
         controlsDiv.classList.add('hidden-during-fullscreen');
     }
@@ -3997,11 +4035,11 @@ function showFullsizeVertical(event) {
     if (thumbnailNotice) {
         thumbnailNotice.style.display = 'none';
     }
-    
+
     // Add click handler to exit fullscreen
     comic.addEventListener('click', exitFullsizeVertical);
     container.addEventListener('click', exitFullsizeVertical);
-    
+
     // Escape key to exit vertical fullscreen
     document.addEventListener('keydown', _verticalEscapeHandler);
 }
@@ -4021,32 +4059,32 @@ function exitFullsizeVertical(event) {
         event.stopPropagation();
     }
     isVerticalFullscreen = false;
-    
+
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
     const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
     const controlsDiv = document.querySelector('#controls-container');
-    
+
     // Reset container background
     container.style.background = '';
     container.style.backgroundSize = '';
     document.body.classList.remove('rotated-state');
-    
+
     // Show install button again if present
     const installBtnRestore = document.getElementById('installBtn');
     if (installBtnRestore) installBtnRestore.style.display = '';
-    
+
     // Switch back to thumbnail view
     comic.classList.remove('fullscreen-vertical');
     comic.classList.add('vertical');
     container.classList.remove('fullscreen');
     comic.style.zIndex = '';
-    
+
     // Show UI elements again
     elementsToHide.forEach(el => {
         el.classList.remove('hidden-during-fullscreen');
     });
-    
+
     if (controlsDiv) {
         controlsDiv.classList.remove('hidden-during-fullscreen');
     }
@@ -4054,7 +4092,7 @@ function exitFullsizeVertical(event) {
     if (thumbnailNotice) {
         thumbnailNotice.style.display = '';
     }
-    
+
     // Remove this click handler
     comic.removeEventListener('click', exitFullsizeVertical);
     container.removeEventListener('click', exitFullsizeVertical);
@@ -4079,7 +4117,7 @@ if (panel) {
 let deferredPrompt;
 
 // Check if app is already installed (standalone or window controls overlay)
-const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
                    window.matchMedia('(display-mode: window-controls-overlay)').matches ||
                    window.navigator.standalone === true;
 
@@ -4088,7 +4126,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   // Stash the event so it can be triggered later.
   deferredPrompt = e;
-  
+
   // Only show install button if not already installed
   if (!isInstalled) {
     showInstallButton();
@@ -4099,22 +4137,22 @@ function showInstallButton() {
   const installBtn = document.getElementById('installBtn');
   if (installBtn) {
     installBtn.style.display = 'block';
-    
+
     installBtn.addEventListener('click', async function() {
       if (!deferredPrompt) {
         return;
       }
-      
+
       // Show the install prompt
       deferredPrompt.prompt();
-      
+
       // Wait for the user to respond
       const choiceResult = await deferredPrompt.userChoice;
-      
+
       if (choiceResult.outcome === 'accepted') {
         installBtn.style.display = 'none';
       }
-      
+
       deferredPrompt = null;
     });
   }

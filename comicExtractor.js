@@ -27,18 +27,18 @@ const proxyResponseTimes = new Array(CORS_PROXIES.length).fill(0);
 function getBestProxyIndex() {
     let bestIndex = workingProxyIndex;
     let bestScore = -Infinity;
-    
+
     for (let i = 0; i < CORS_PROXIES.length; i++) {
         const failurePenalty = proxyFailureCount[i] * 2000;
         const avgTime = proxyResponseTimes[i] || 1500;
         const score = 10000 / (avgTime + failurePenalty + 1);
-        
+
         if (score > bestScore) {
             bestScore = score;
             bestIndex = i;
         }
     }
-    
+
     return bestIndex;
 }
 
@@ -70,7 +70,7 @@ function updateProxyStats(proxyIndex, success, responseTime) {
  */
 async function tryProxy(url, proxyIndex, startTime) {
     const proxyUrl = CORS_PROXIES[proxyIndex];
-    
+
     try {
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
         const response = await fetch(fullUrl, {
@@ -79,14 +79,14 @@ async function tryProxy(url, proxyIndex, startTime) {
             credentials: 'omit',
             cache: 'no-cache'
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
-        
+
         const responseTime = Date.now() - startTime;
         updateProxyStats(proxyIndex, true, responseTime);
-        
+
         return await response.text();
     } catch (error) {
         updateProxyStats(proxyIndex, false, 0);
@@ -102,14 +102,14 @@ async function tryProxy(url, proxyIndex, startTime) {
 async function fetchWithProxyFallback(url) {
     const startTime = Date.now();
     const bestProxy = getBestProxyIndex();
-    
+
     try {
         return await tryProxy(url, bestProxy, startTime);
     } catch (firstError) {
         // Race all other proxies in parallel
         const otherProxies = CORS_PROXIES.map((_, i) => i).filter(i => i !== bestProxy);
         const promises = otherProxies.map(i => tryProxy(url, i, Date.now()));
-        
+
         try {
             return await Promise.any(promises);
         } catch (allError) {
@@ -157,21 +157,21 @@ function _extractGoComicsImage(html) {
     // featureassets CDN (current)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
     if (match) return match[0];
-    
+
     // amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (match) return match[0];
-    
+
     // og:image meta tag
     match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
     if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
         return match[1];
     }
-    
+
     // picture tag fallback
     match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
     if (match && match[1]) return match[1];
-    
+
     return null;
 }
 
@@ -181,9 +181,9 @@ async function _getComicFromGoComics(date, language, options = {}) {
     const day = String(date.getDate()).padStart(2, '0');
     const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
-    
+
     const html = await fetchWithProxyFallback(url);
-    
+
     if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
         return { success: false, imageUrl: null, notFound: true };
     }
@@ -196,7 +196,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
         }
         return { success: false, imageUrl: null, blocked: true };
     }
-    
+
     const imageUrl = _extractGoComicsImage(html);
     if (imageUrl) {
         // Detect if GoComics redirected to a different date (comic not yet published).
@@ -221,7 +221,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
         }
         return { success: true, imageUrl };
     }
-    
+
     if (!options.silent) {
         console.warn(`GoComics: no image found in response (HTML length: ${html.length}). First 200 chars: ${html.slice(0, 200).replace(/\s+/g, ' ')}`);
     }
@@ -297,11 +297,10 @@ async function _getComicFromFandom(date, options = {}) {
 // SOURCE 3: UCLICK / PICAYUNE — EN only, full archive from 1978
 // Direct image URLs of the form:
 //   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.gif
-// We verify existence with a HEAD request through the user's CORS proxy
-// (only the first proxy is used because picayune does not send CORS headers
-// and the other proxies don't reliably forward HEAD). The returned image
-// URL is wrapped in the same proxy so the <img> tag loads via Cloudflare —
-// independent of the client's VPN routing.
+// We verify existence with a GET request through the user's CORS proxy
+// (only the first proxy is used because picayune does not send CORS headers).
+// The returned image URL is wrapped in the same proxy so the <img> tag loads
+// via Cloudflare — independent of the client's VPN routing.
 // ============================================================
 
 async function _getComicFromUClick(date, options = {}) {
@@ -314,7 +313,7 @@ async function _getComicFromUClick(date, options = {}) {
 
     try {
         const resp = await fetch(proxiedUrl, {
-            method: 'HEAD',
+            method: 'GET',
             signal: AbortSignal.timeout(FETCH_TIMEOUT),
             mode: 'cors',
             credentials: 'omit',
@@ -398,9 +397,9 @@ async function _getComicFromArcaMax(date) {
     // ArcaMax only holds ~30 days; skip immediately for older requests
     const daysAgo = Math.floor((Date.now() - date.getTime()) / 86400000);
     if (daysAgo > 31) return { success: false, imageUrl: null };
-    
+
     const targetDateStr = _dateToISO(date);
-    
+
     // If we already know the articleId for this date, go straight to it
     if (_arcamaxDateCache.has(targetDateStr)) {
         const cachedId = _arcamaxDateCache.get(targetDateStr);
@@ -410,12 +409,12 @@ async function _getComicFromArcaMax(date) {
             if (imageUrl) return { success: true, imageUrl };
         } catch { /* fall through to traversal */ }
     }
-    
+
     // Traverse from "latest" backwards up to 32 steps to find the target date.
     // Each successful page is cached so subsequent lookups are O(1).
     let url = 'https://www.arcamax.com/thefunnies/garfield/';
     const MAX_STEPS = 32;
-    
+
     for (let step = 0; step < MAX_STEPS; step++) {
         let html;
         try {
@@ -423,32 +422,32 @@ async function _getComicFromArcaMax(date) {
         } catch {
             break;
         }
-        
+
         if (!_isValidArcaMaxPage(html)) break;
-        
+
         const imageUrl = _extractArcaMaxImage(html);
         const isLanding = step === 0 && url.endsWith('/garfield/');
         const urlId = !isLanding ? url.split('/').pop() : null;
         const articleId = _extractArcaMaxArticleId(html, urlId);
         const stripDate = _extractArcaMaxStripDate(html);
         const { prevArticleId } = _extractArcaMaxNavIds(html);
-        
+
         if (articleId && stripDate) {
             const dateStr = _dateToISO(stripDate);
             _arcamaxDateCache.set(dateStr, articleId);
-            
+
             if (dateStr === targetDateStr && imageUrl) {
                 return { success: true, imageUrl };
             }
-            
+
             // Gone past the target date — stop
             if (stripDate.getTime() < date.getTime()) break;
         }
-        
+
         if (!prevArticleId) break;
         url = `https://www.arcamax.com/thefunnies/garfield/${prevArticleId}`;
     }
-    
+
     return { success: false, imageUrl: null };
 }
 

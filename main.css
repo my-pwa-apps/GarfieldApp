@@ -506,11 +506,11 @@ input[type="date"]::-webkit-datetime-edit {
     input[type="date"] {
         opacity: 0;
     }
-    
+
     .date-center-wrapper {
         position: relative;
     }
-    
+
     .date-center-wrapper::before {
         content: attr(data-display-date);
         position: absolute;
@@ -1218,7 +1218,7 @@ input[type="date"]::-webkit-datetime-edit {
     .icon-button:active {
         transform: none;
     }
-    
+
     /* Explicit touch active state that we control via JS */
     .icon-button.touch-active {
         transform: translateY(-1px) scale(1.03);
@@ -1252,7 +1252,7 @@ input[type="date"]::-webkit-datetime-edit {
     #comic-container {
         margin-top: 80px;
     }
-    
+
     .toolbar {
         width: min(95%, 900px);
         max-width: min(95%, 900px);
@@ -1262,7 +1262,7 @@ input[type="date"]::-webkit-datetime-edit {
         left: 10px;
         transform: none;
     }
-    
+
     .toolbar-button {
         width: 50px;
         height: 50px;
@@ -1275,36 +1275,36 @@ input[type="date"]::-webkit-datetime-edit {
         outline: none;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    
+
     .toolbar-button:active {
         transform: translateY(-1px) scale(1.02);
         background-position: right center;
         box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.1);
         transition: transform 0.1s ease;
     }
-    
+
     .toolbar-button:focus-visible {
         outline: none;
         transform: translateY(-3px) scale(1.05);
     }
-    
+
     .toolbar-svg {
         width: 26px;
         height: 26px;
     }
-    
+
     /* Touch device specific - reset hover on pure touch */
     @media (hover: none) and (pointer: coarse) {
         .toolbar-button:hover {
             transform: none;
             background-position: left center;
         }
-        
+
         /* Disable sticky :active state */
         .toolbar-button:active {
             transform: none;
         }
-        
+
         /* Explicit touch active state controlled via JS */
         .toolbar-button.touch-active {
             transform: translateY(-1px) scale(1.02);
@@ -1313,20 +1313,20 @@ input[type="date"]::-webkit-datetime-edit {
             transition: transform 0.1s ease;
         }
     }
-    
+
     .settings-panel {
         width: 280px;
     }
-    
+
     .settings-icons-container {
         gap: 12px;
     }
-    
+
     .icon-button {
         width: 44px;
         height: 44px;
     }
-    
+
     .icon-button svg {
         width: 22px;
         height: 22px;
@@ -1338,7 +1338,7 @@ input[type="date"]::-webkit-datetime-edit {
     #comic-container {
         margin-top: 70px;
     }
-    
+
     .toolbar {
         width: min(95%, 900px);
         max-width: min(95%, 900px);
@@ -1346,28 +1346,28 @@ input[type="date"]::-webkit-datetime-edit {
         gap: 4px;
         left: 8px;
     }
-    
+
     .toolbar-button {
         width: 46px;
         height: 46px;
         min-width: 46px;
         border-radius: 12px;
     }
-    
+
     .toolbar-svg {
         width: 24px;
         height: 24px;
     }
-    
+
     .settings-panel {
         width: 260px;
     }
-    
+
     .icon-button {
         width: 40px;
         height: 40px;
     }
-    
+
     .icon-button svg {
         width: 20px;
         height: 20px;
@@ -1379,14 +1379,14 @@ input[type="date"]::-webkit-datetime-edit {
         gap: 3px;
         padding: 6px 8px;
     }
-    
+
     .toolbar-button,
     .toolbar-datepicker-btn {
         width: 42px;
         height: 42px;
         min-width: 42px;
     }
-    
+
     .toolbar-svg {
         width: 22px;
         height: 22px;
@@ -1961,7 +1961,7 @@ input[type="date"]::-webkit-datetime-edit {
         min-width: 240px;
         padding: 12px 16px;
     }
-    
+
     .notification-content {
         font-size: 13px;
     }
