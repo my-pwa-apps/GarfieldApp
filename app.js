@@ -262,6 +262,7 @@ const UTILS = {
         // Preload previous comic (if not before start date)
         const prevDate = new Date(currentDate);
         prevDate.setDate(prevDate.getDate() - 1);
+        prevDate.setHours(0, 0, 0, 0);
         if (prevDate >= startDate) {
             getAuthenticatedComic(prevDate, language, source, {
                 silent: true,
@@ -277,11 +278,17 @@ const UTILS = {
         // Preload next comic (if not after today)
         const nextDate = new Date(currentDate);
         nextDate.setDate(nextDate.getDate() + 1);
+        nextDate.setHours(0, 0, 0, 0);
         if (nextDate <= today) {
-            getAuthenticatedComic(nextDate, language, source, {
+            const isNextDateToday = nextDate.getTime() === today.getTime();
+            const nextOptions = {
                 silent: true,
-                maxSources: 1,
                 disableTodayFallback: true
+            };
+            if (!isNextDateToday) nextOptions.maxSources = 1;
+
+            getAuthenticatedComic(nextDate, language, source, {
+                ...nextOptions
             }).then(result => {
                 if (result.success && result.imageUrl) {
                     // If GoComics redirected to a date that isn't newer than the
@@ -306,6 +313,11 @@ const UTILS = {
                 } else if (result.notFound) {
                     // Next comic definitively doesn't exist — disable forward navigation
                     nextComicUrl = currentComicUrl; // Force same-comic detection
+                    this.checkNextComicAvailability();
+                } else if (isNextDateToday) {
+                    // Today is within the date picker range, but no source has a
+                    // newer strip yet. Treat it as the latest-available boundary.
+                    nextComicUrl = currentComicUrl;
                     this.checkNextComicAvailability();
                 }
                 // else: transient proxy/network failure — leave buttons as-is;
