@@ -151,12 +151,20 @@ const UTILS = {
 
     /**
      * Check if shuffle can navigate in the requested direction
-     * @param {'next'|'previous'} direction - Shuffle direction
+        * @param {'next'|'previous'|'first'|'last'} direction - Shuffle direction
      * @returns {boolean} True if shuffle navigation is available
      */
     canShuffleNavigate(direction = 'next') {
         if (direction === 'previous') {
             return _shuffleBackStack.length > 0;
+        }
+
+        if (direction === 'first') {
+            return _shuffleBackStack.length > 0;
+        }
+
+        if (direction === 'last') {
+            return _shuffleForwardStack.length > 0;
         }
 
         if (_shuffleForwardStack.length > 0) return true;
@@ -1689,6 +1697,12 @@ const translations = {
         today: 'Today',
         last: 'Last',
         shuffle: 'Shuffle',
+        shuffleFirst: 'First in shuffle history',
+        shufflePrevious: 'Previous shuffle comic',
+        shuffleNextRandom: 'Next random shuffle comic',
+        shuffleNextHistory: 'Next shuffle comic',
+        shuffleLast: 'Last in shuffle history',
+        randomDisabledInShuffle: 'Random is handled by Shuffle mode',
         swipeEnabled: 'Swipe enabled',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
@@ -1736,6 +1750,12 @@ const translations = {
         today: 'Hoy',
         last: 'Último',
         shuffle: 'Aleatorio',
+        shuffleFirst: 'Primero del historial aleatorio',
+        shufflePrevious: 'Cómic aleatorio anterior',
+        shuffleNextRandom: 'Siguiente cómic aleatorio',
+        shuffleNextHistory: 'Siguiente cómic del historial aleatorio',
+        shuffleLast: 'Último del historial aleatorio',
+        randomDisabledInShuffle: 'El modo aleatorio controla la navegación',
         swipeEnabled: 'Deslizar habilitado',
         showFavorites: 'Mostrar solo mis favoritos',
         rememberComic: 'Recordar último cómic al salir/actualizar',
@@ -1879,6 +1899,7 @@ function translateInterface(lang) {
             btn.setAttribute('aria-label', tooltip);
         }
     }
+    if (typeof updateToolbarModeControls === 'function') updateToolbarModeControls();
 
     // Translate date picker
     const datePicker = document.getElementById('DatePicker');
@@ -1957,6 +1978,19 @@ let _shuffleNextDate = null;
 let _shuffleCandidateGeneration = 0;
 const _shuffleBackStack = [];
 const _shuffleForwardStack = [];
+
+const TOOLBAR_ICONS = Object.freeze({
+    first: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>',
+    previous: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>',
+    random: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle></svg>',
+    next: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>',
+    last: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>',
+    shuffleFirst: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"></path><path d="M8 7l-5 5 5 5"></path><path d="M21 5v14"></path></svg>',
+    shufflePrevious: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path><path d="M14 8l-4 4 4 4"></path></svg>',
+    shuffleNextRandom: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3c4 0 5 10 9 10h6"></path><path d="M3 17h3c4 0 5-10 9-10h6"></path><polyline points="18 4 21 7 18 10"></polyline><polyline points="18 14 21 17 18 20"></polyline></svg>',
+    shuffleNextHistory: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v6h-6"></path><path d="M10 8l4 4-4 4"></path></svg>',
+    shuffleLast: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12H8"></path><path d="M16 7l5 5-5 5"></path><path d="M3 5v14"></path></svg>'
+});
 
 /**
  * Share comic via Web Share API
@@ -3307,8 +3341,17 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         // But we know today's comic isn't published yet (that's why the redirect happened),
         // so disable linear forward navigation immediately. Shuffle keeps Next usable
         // when there is another comic in the active pool.
-        document.getElementById("Next").disabled = !(isShuffleEnabled() && UTILS.canShuffleNavigate());
-        document.getElementById("Last").disabled = true;
+        if (isShuffleEnabled()) {
+            document.getElementById('First').disabled = !UTILS.canShuffleNavigate('first');
+            document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
+            document.getElementById('Random').disabled = true;
+            document.getElementById('Next').disabled = !UTILS.canShuffleNavigate('next');
+            document.getElementById('Last').disabled = !UTILS.canShuffleNavigate('last');
+            updateToolbarModeControls();
+        } else {
+            document.getElementById('Next').disabled = true;
+            document.getElementById('Last').disabled = true;
+        }
         UTILS.updateHeartIcon();
         if (document.getElementById("lastdate").checked) {
             localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
@@ -3448,6 +3491,10 @@ function FirstClick() {
         _top10BrowseIndex = 0; loadTop10Comic();
         return;
     }
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        if (UTILS.canShuffleNavigate('first')) _jumpToFirstShuffle();
+        return;
+    }
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[0]);
@@ -3463,6 +3510,10 @@ function FirstClick() {
 function LastClick() {
     if (_isTop10Mode) {
         _top10BrowseIndex = _top10Entries.length - 1; loadTop10Comic();
+        return;
+    }
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        if (UTILS.canShuffleNavigate('last')) _jumpToLastShuffle();
         return;
     }
     if (document.getElementById('showfavs').checked) {
@@ -3609,6 +3660,10 @@ function importFavorites() {
 }
 
 function RandomClick() {
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        resetShuffleSession();
+    }
+
     if (document.getElementById('showfavs').checked) {
         const favs = UTILS.getFavorites();
         currentselectedDate = new Date(favs[Math.floor(Math.random() * favs.length)]);
@@ -3658,6 +3713,32 @@ function _backtrackShuffle() {
     showComic();
 }
 
+function _jumpToFirstShuffle() {
+    if (_shuffleBackStack.length === 0) return;
+
+    while (_shuffleBackStack.length > 0) {
+        _pushShuffleForwardHistory(currentselectedDate);
+        currentselectedDate = new Date(_shuffleBackStack.pop());
+    }
+
+    clearShuffleCandidates();
+    CompareDates();
+    showComic();
+}
+
+function _jumpToLastShuffle() {
+    if (_shuffleForwardStack.length === 0) return;
+
+    while (_shuffleForwardStack.length > 0) {
+        _pushShuffleHistory(currentselectedDate);
+        currentselectedDate = new Date(_shuffleForwardStack.pop());
+    }
+
+    clearShuffleCandidates();
+    CompareDates();
+    showComic();
+}
+
 // ============================================================
 // SHUFFLE MODE — history + pre-picked random candidate
 // ============================================================
@@ -3665,6 +3746,52 @@ function _backtrackShuffle() {
 function isShuffleEnabled() {
     const btn = document.getElementById('Shuffle');
     return btn?.getAttribute('aria-pressed') === 'true';
+}
+
+function _setToolbarIcon(id, iconKey) {
+    const btn = document.getElementById(id);
+    const icon = TOOLBAR_ICONS[iconKey];
+    if (!btn || !icon || btn.dataset.iconKey === iconKey) return;
+    btn.innerHTML = icon;
+    btn.dataset.iconKey = iconKey;
+}
+
+function _setToolbarLabel(id, label) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+}
+
+function updateToolbarModeControls() {
+    const lang = UTILS.isSpanishMode() ? 'es' : 'en';
+    const t = translations[lang] || translations.en;
+    const shuffle = isShuffleEnabled();
+
+    if (!shuffle) {
+        _setToolbarIcon('First', 'first');
+        _setToolbarIcon('Previous', 'previous');
+        _setToolbarIcon('Random', 'random');
+        _setToolbarIcon('Next', 'next');
+        _setToolbarIcon('Last', 'last');
+        _setToolbarLabel('First', t.first);
+        _setToolbarLabel('Previous', t.previous);
+        _setToolbarLabel('Random', t.random);
+        _setToolbarLabel('Next', t.next);
+        _setToolbarLabel('Last', t.last);
+        return;
+    }
+
+    _setToolbarIcon('First', 'shuffleFirst');
+    _setToolbarIcon('Previous', 'shufflePrevious');
+    _setToolbarIcon('Random', 'random');
+    _setToolbarIcon('Next', _shuffleForwardStack.length > 0 ? 'shuffleNextHistory' : 'shuffleNextRandom');
+    _setToolbarIcon('Last', 'shuffleLast');
+    _setToolbarLabel('First', t.shuffleFirst);
+    _setToolbarLabel('Previous', t.shufflePrevious);
+    _setToolbarLabel('Random', t.randomDisabledInShuffle);
+    _setToolbarLabel('Next', _shuffleForwardStack.length > 0 ? t.shuffleNextHistory : t.shuffleNextRandom);
+    _setToolbarLabel('Last', t.shuffleLast);
 }
 
 function clearShuffleCandidates() {
@@ -3836,15 +3963,22 @@ function CompareDates() {
             document.getElementById('Random').disabled = true;
             document.getElementById('Previous').disabled = true;
             document.getElementById('First').disabled = true;
+        } else {
+            document.getElementById('Random').disabled = false;
         }
     } else {
         document.getElementById('Random').disabled = false;
     }
 
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        document.getElementById('First').disabled = !UTILS.canShuffleNavigate('first');
         document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
+        document.getElementById('Random').disabled = true;
         document.getElementById('Next').disabled = !UTILS.canShuffleNavigate('next');
+        document.getElementById('Last').disabled = !UTILS.canShuffleNavigate('last');
     }
+
+    updateToolbarModeControls();
 }
 
 function formatDate(datetoFormat) {
