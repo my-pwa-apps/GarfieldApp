@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Serve GarfieldApp",
+			"type": "shell",
+			"command": "c:/Users/bartm/OneDrive - Microsoft/Documents/Git Repos/GarfieldApp/.venv/Scripts/python.exe",
+			"args": [
+				"-m",
+				"http.server",
+				"8000",
+				"--bind",
+				"127.0.0.1"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

@@ -150,11 +150,16 @@ const UTILS = {
     },
 
     /**
-     * Check if shuffle can jump to a different comic from the current pool
-     * @returns {boolean} True if at least one alternate comic is available
+     * Check if shuffle can navigate in the requested direction
+     * @param {'next'|'previous'} direction - Shuffle direction
+     * @returns {boolean} True if shuffle navigation is available
      */
-    canShuffleNavigate() {
-        if (_isTop10Mode) return false;
+    canShuffleNavigate(direction = 'next') {
+        if (direction === 'previous') {
+            return _shuffleBackStack.length > 0;
+        }
+
+        if (_shuffleForwardStack.length > 0) return true;
 
         const showFavs = document.getElementById('showfavs')?.checked || false;
         if (showFavs) {
@@ -1816,7 +1821,8 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
         const shuffleBtn = document.getElementById('Shuffle');
         if (shuffleBtn) shuffleBtn.setAttribute('aria-pressed', preferences.shuffle ? 'true' : 'false');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, preferences.shuffle ? 'true' : 'false');
-        if (!preferences.shuffle) clearShuffleCandidates();
+        resetShuffleSession();
+        if (preferences.shuffle) pickShuffleCandidates();
     }
 
     if (typeof preferences.spanish === 'boolean' && spanishEl) {
@@ -1947,6 +1953,10 @@ let day, month, year;
 let pictureUrl;
 let formattedComicDate;
 let formattedDate;
+let _shuffleNextDate = null;
+let _shuffleCandidateGeneration = 0;
+const _shuffleBackStack = [];
+const _shuffleForwardStack = [];
 
 /**
  * Share comic via Web Share API
@@ -2320,7 +2330,7 @@ function handleTouchEnd(e) {
     const goNext = randomSwipe ? RandomNewerClick : NextClick;
     const goPrev = randomSwipe ? RandomOlderClick : PreviousClick;
     const canSwipeNavigate = (direction) => randomSwipe
-        ? UTILS.canShuffleNavigate()
+        ? UTILS.canShuffleNavigate(direction)
         : UTILS.canNavigate(direction);
 
     // Determine swipe direction based on mode
@@ -3043,11 +3053,13 @@ function initApp() {
         this.setAttribute('aria-pressed', next ? 'true' : 'false');
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, next ? 'true' : 'false');
         if (next) {
+            resetShuffleSession();
             // Picking happens immediately so the next swipe is instant
             pickShuffleCandidates();
         } else {
-            clearShuffleCandidates();
+            resetShuffleSession();
         }
+        CompareDates();
         if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
     });
     document.getElementById('DatePicker').addEventListener('input', DateChange);
@@ -3392,7 +3404,7 @@ function PreviousClick() {
     }
     // Shuffle mode: redirect Previous to a random comic from the active pool.
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
-        if (!UTILS.canShuffleNavigate()) return;
+        if (!UTILS.canShuffleNavigate('previous')) return;
         RandomOlderClick();
         return;
     }
@@ -3415,7 +3427,7 @@ function NextClick() {
     }
     // Shuffle mode: redirect Next to a random comic from the active pool.
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
-        if (!UTILS.canShuffleNavigate()) return;
+        if (!UTILS.canShuffleNavigate('next')) return;
         RandomNewerClick();
         return;
     }
@@ -3610,44 +3622,45 @@ function RandomClick() {
 }
 
 /**
- * Shuffle navigation. In shuffle mode, direction is irrelevant — both
- * swipes/clicks just jump to a random comic from anywhere in the archive.
- * This keeps the user from quickly drifting toward the start or end of the
- * range. We still keep two pre-warmed candidates so the swipe is instant.
+ * Shuffle navigation.
+ * Next advances to a fresh random comic; Previous walks back through the
+ * shuffle session history so users can revisit comics they just saw.
  */
 function RandomNewerClick() {
-    _consumeShuffleCandidate('next');
+    _advanceShuffle();
 }
 
 function RandomOlderClick() {
-    _consumeShuffleCandidate('prev');
+    _backtrackShuffle();
 }
 
-function _consumeShuffleCandidate(slot) {
-    const primary = slot === 'next' ? _shuffleNextDate : _shufflePrevDate;
-    const secondary = slot === 'next' ? _shufflePrevDate : _shuffleNextDate;
-    let target = primary || secondary;
-    if (target) {
-        currentselectedDate = new Date(target);
-        clearShuffleCandidates();
-        CompareDates();
-        showComic();
-        return;
-    }
-    const picked = _pickRandomAnyDate();
-    if (!picked) return;
-    currentselectedDate = picked;
+function _advanceShuffle() {
+    if (!UTILS.canShuffleNavigate('next')) return;
+
+    const target = _shuffleForwardStack.pop() || _shuffleNextDate || _pickRandomAnyDate();
+    if (!target) return;
+
+    _pushShuffleHistory(currentselectedDate);
+    currentselectedDate = new Date(target);
+    clearShuffleCandidates();
+    CompareDates();
+    showComic();
+}
+
+function _backtrackShuffle() {
+    const target = _shuffleBackStack.pop();
+    if (!target) return;
+
+    _pushShuffleForwardHistory(currentselectedDate);
+    currentselectedDate = new Date(target);
+    clearShuffleCandidates();
     CompareDates();
     showComic();
 }
 
 // ============================================================
-// SHUFFLE MODE — pre-picked random candidates
+// SHUFFLE MODE — history + pre-picked random candidate
 // ============================================================
-
-let _shuffleNextDate = null;
-let _shufflePrevDate = null;
-let _shuffleCandidateGeneration = 0;
 
 function isShuffleEnabled() {
     const btn = document.getElementById('Shuffle');
@@ -3657,7 +3670,38 @@ function isShuffleEnabled() {
 function clearShuffleCandidates() {
     _shuffleCandidateGeneration++;
     _shuffleNextDate = null;
-    _shufflePrevDate = null;
+}
+
+function resetShuffleSession() {
+    clearShuffleCandidates();
+    _shuffleBackStack.length = 0;
+    _shuffleForwardStack.length = 0;
+}
+
+function _shuffleDateKey(date) {
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized.getTime();
+}
+
+function _pushShuffleHistory(date) {
+    if (!date) return;
+    const entry = new Date(date);
+    entry.setHours(12, 0, 0, 0);
+    const previous = _shuffleBackStack[_shuffleBackStack.length - 1];
+    if (!previous || _shuffleDateKey(previous) !== _shuffleDateKey(entry)) {
+        _shuffleBackStack.push(entry);
+    }
+}
+
+function _pushShuffleForwardHistory(date) {
+    if (!date) return;
+    const entry = new Date(date);
+    entry.setHours(12, 0, 0, 0);
+    const next = _shuffleForwardStack[_shuffleForwardStack.length - 1];
+    if (!next || _shuffleDateKey(next) !== _shuffleDateKey(entry)) {
+        _shuffleForwardStack.push(entry);
+    }
 }
 
 /**
@@ -3692,7 +3736,7 @@ function _pickRandomAnyDate() {
 }
 
 /**
- * Pick two random candidates from the active pool and warm-cache both.
+ * Pick the next random candidate from the active pool and warm-cache it.
  * Called by preloadAdjacentComics when shuffle is enabled.
  */
 function pickShuffleCandidates() {
@@ -3701,7 +3745,6 @@ function pickShuffleCandidates() {
 
     const generation = ++_shuffleCandidateGeneration;
     _shuffleNextDate = null;
-    _shufflePrevDate = null;
 
     const language = UTILS.isSpanishMode() ? 'es' : 'en';
     const source = UTILS.getPreferredSource();
@@ -3714,7 +3757,7 @@ function pickShuffleCandidates() {
         img.src = imageUrl;
     };
 
-    const fetchAndCache = (date, assignTarget) => {
+    const fetchAndCache = (date) => {
         getAuthenticatedComic(date, language, source, {
             silent: true,
             maxSources: 1,
@@ -3730,22 +3773,13 @@ function pickShuffleCandidates() {
 
             if (result.success && result.imageUrl) {
                 warmImageCache(result.imageUrl);
-                if (assignTarget === 'next') {
-                    _shuffleNextDate = date;
-                } else {
-                    _shufflePrevDate = date;
-                }
+                _shuffleNextDate = date;
             }
         }).catch(() => {});
     };
 
-    // Both candidates are picked from anywhere in the archive — direction
-    // is meaningless in shuffle mode, but we keep two slots so whichever way
-    // the user swipes first, an image is already warm in cache.
-    const a = _pickRandomAnyDate();
-    if (a) fetchAndCache(a, 'next');
-    const b = _pickRandomAnyDate();
-    if (b) fetchAndCache(b, 'prev');
+    const next = _pickRandomAnyDate();
+    if (next) fetchAndCache(next);
 }
 
 function CompareDates() {
@@ -3808,9 +3842,8 @@ function CompareDates() {
     }
 
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
-        const canShuffle = UTILS.canShuffleNavigate();
-        document.getElementById('Previous').disabled = !canShuffle;
-        document.getElementById('Next').disabled = !canShuffle;
+        document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
+        document.getElementById('Next').disabled = !UTILS.canShuffleNavigate('next');
     }
 }
 
@@ -3842,7 +3875,7 @@ document.getElementById('lastdate').addEventListener('change', function() {
 });
 
 document.getElementById('showfavs').addEventListener('change', function() {
-    clearShuffleCandidates();
+    resetShuffleSession();
     const favs = UTILS.getFavorites();
     if (this.checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
@@ -3859,7 +3892,7 @@ document.getElementById('showfavs').addEventListener('change', function() {
 const spanishCheckbox = document.getElementById('spanish');
 if (spanishCheckbox) {
     spanishCheckbox.addEventListener('change', async function() {
-        clearShuffleCandidates();
+        resetShuffleSession();
         const isSpanish = this.checked;
         const datePicker = document.getElementById('DatePicker');
         const t = translations[isSpanish ? 'es' : 'en'];
@@ -3933,7 +3966,7 @@ if (sourceSelect) {
     sourceSelect.addEventListener('change', function () {
         const source = this.value;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SOURCE, source);
-        clearShuffleCandidates();
+        resetShuffleSession();
         _applySourceSetting(source);
         CompareDates();
         showComic();
