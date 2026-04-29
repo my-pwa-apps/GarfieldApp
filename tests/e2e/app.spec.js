@@ -357,15 +357,18 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
 });
 
 test('filmstrip navigation waits for the preloaded target image before swapping comics', async ({ page }) => {
   await page.addInitScript(() => {
+  await expect(page.locator('#DatePickerBtn')).toBeEnabled();
     Object.defineProperty(navigator, 'connection', {
       value: { saveData: true },
       configurable: true
     });
   });
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
 
   let releaseNextImage;
   let nextImageRequested;

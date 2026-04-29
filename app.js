@@ -3866,23 +3866,34 @@ function updateToolbarModeControls() {
         _setToolbarLabel('Next', t.next);
         _setToolbarLabel('Last', t.last);
         return;
+    function setDatePickerDisabled(disabled) {
+        const datePicker = document.getElementById('DatePicker');
+        const datePickerBtn = document.getElementById('DatePickerBtn');
+        if (datePicker) datePicker.disabled = disabled;
+        if (datePickerBtn) {
+            datePickerBtn.disabled = disabled;
+            datePickerBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        }
+    }
     }
 
     _setToolbarIcon('First', 'shuffleFirst');
     _setToolbarIcon('Previous', 'shufflePrevious');
-    _setToolbarIcon('Random', 'random');
+            const datePicker = document.getElementById('DatePicker');
+            if (datePicker?.disabled) return;
+            datePicker?.showPicker?.();
     _setToolbarIcon('Next', _shuffleForwardStack.length > 0 ? 'shuffleNextHistory' : 'shuffleNextRandom');
     _setToolbarIcon('Last', 'shuffleLast');
     _setToolbarLabel('First', t.shuffleFirst);
-    _setToolbarLabel('Previous', t.shufflePrevious);
+            setDatePickerDisabled(true);
     _setToolbarLabel('Random', t.randomDisabledInShuffle);
     _setToolbarLabel('Next', _shuffleForwardStack.length > 0 ? t.shuffleNextHistory : t.shuffleNextRandom);
-    _setToolbarLabel('Last', t.shuffleLast);
+            setDatePickerDisabled(false);
 }
 
 function clearShuffleCandidates() {
     _shuffleCandidateGeneration++;
-    _shuffleNextDate = null;
+            setDatePickerDisabled(true);
 }
 
 function resetShuffleSession() {

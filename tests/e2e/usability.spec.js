@@ -246,9 +246,11 @@ test('ordinary user can discover and use the main app features in one journey', 
   await page.getByRole('button', { name: 'Shuffle', exact: true }).click();
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#DatePicker')).toBeDisabled();
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
   await expect(page.locator('#Random')).toBeDisabled();
   await page.getByRole('button', { name: 'Shuffle', exact: true }).click();
   await expect(page.locator('#DatePicker')).toBeEnabled();
+  await expect(page.locator('#DatePickerBtn')).toBeEnabled();
 
   await page.getByRole('button', { name: 'Support this App' }).click();
   await expect(page.locator('#donationModal')).toHaveClass(/visible/);
