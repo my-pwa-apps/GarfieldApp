@@ -781,10 +781,21 @@ input[type="date"]::-webkit-datetime-edit {
 #Shuffle[aria-pressed="false"] {
     background: var(--primary-gradient);
     background-size: 200% auto;
-    background-position: left center;
     border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(240, 152, 25, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
     color: #333;
+    transform: none;
+}
+
+#Shuffle[aria-pressed="false"]:focus-visible {
+    outline: 3px solid rgba(240, 152, 25, 0.4);
+    outline-offset: 2px;
+    box-shadow: 0 4px 16px rgba(240, 152, 25, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: none;
 }
 
 #Shuffle[aria-pressed="false"] svg,
@@ -2036,6 +2047,9 @@ input[type="date"]::-webkit-datetime-edit {
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 10;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .copyright-footer a {

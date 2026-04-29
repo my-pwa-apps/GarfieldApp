@@ -382,9 +382,19 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
     return {
       backgroundImage: shuffle.backgroundImage === share.backgroundImage,
       backgroundSize: shuffle.backgroundSize === share.backgroundSize,
+      backgroundPosition: shuffle.backgroundPosition === share.backgroundPosition,
+      noSelectedGlow: !shuffle.boxShadow.includes('0px 0px 0px 2px'),
+      transform: shuffle.transform === 'none',
       iconStroke: shuffleIcon.stroke === shareIcon.stroke
     };
-  })).toEqual({ backgroundImage: true, backgroundSize: true, iconStroke: true });
+  })).toEqual({
+    backgroundImage: true,
+    backgroundSize: true,
+    backgroundPosition: true,
+    noSelectedGlow: true,
+    transform: true,
+    iconStroke: true
+  });
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

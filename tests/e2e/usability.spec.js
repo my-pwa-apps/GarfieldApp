@@ -117,8 +117,9 @@ test('keyboard users can discover and activate the main workflow controls', asyn
   await setUsableMidRangeDate(page);
   await page.locator('#First').focus();
 
-  const focusedControls = ['First'];
-  for (let step = 0; step < 13; step += 1) {
+  const expectedControls = ['First', 'Previous', 'Random', 'DatePickerBtn', 'Next', 'Last', 'supportBtn', 'settingsBtn', 'favheart', 'Shuffle', 'shareBtn'];
+  const focusedControls = [];
+  for (let step = 0; step < expectedControls.length; step += 1) {
     focusedControls.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.textContent?.trim() || ''));
     const focusVisible = await page.evaluate(() => {
       const element = document.activeElement;
@@ -298,4 +299,15 @@ test('mobile layout keeps important touch targets large enough and readable', as
   expect(undersizedTargets).toEqual([]);
   await expect(page.locator('#settingsDIV')).toBeInViewport();
   await expect(page.locator('#comic')).toBeInViewport();
+
+  const footerMetrics = await page.locator('.copyright-footer').evaluate(element => ({
+    text: element.textContent.trim(),
+    lineHeight: parseFloat(getComputedStyle(element).lineHeight),
+    height: element.getBoundingClientRect().height,
+    links: element.querySelectorAll('a').length
+  }));
+
+  expect(footerMetrics.text).toBe('GARFIELD \u00a9 Paws, Inc.');
+  expect(footerMetrics.links).toBe(0);
+  expect(footerMetrics.height).toBeLessThanOrEqual(footerMetrics.lineHeight + 10);
 });
