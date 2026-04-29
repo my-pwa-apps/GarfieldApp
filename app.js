@@ -415,9 +415,15 @@ const UTILS = {
      */
     updateHeartIcon() {
         const favs = this.getFavorites();
-        const heartSvg = document.getElementById('favheart')?.querySelector('svg path');
+        const heartButton = document.getElementById('favheart');
+        const heartSvg = heartButton?.querySelector('svg path');
+        const isFavorite = favs.includes(formattedComicDate);
+        if (heartButton) {
+            heartButton.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
+            heartButton.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
+        }
         if (heartSvg) {
-            heartSvg.setAttribute('fill', favs.includes(formattedComicDate) ? 'currentColor' : 'none');
+            heartSvg.setAttribute('fill', isFavorite ? 'currentColor' : 'none');
         }
     },
 

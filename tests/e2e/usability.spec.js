@@ -305,6 +305,21 @@ test('mobile layout keeps important touch targets large enough and readable', as
   await expect(page.locator('#settingsDIV')).toBeInViewport();
   await expect(page.locator('#comic')).toBeInViewport();
 
+  const lowerToolbarLayout = await page.evaluate(() => {
+    const comic = document.querySelector('#comic').getBoundingClientRect();
+    const controls = document.querySelector('.settings-icons-container').getBoundingClientRect();
+    const viewportCenter = window.innerWidth / 2;
+    return {
+      belowComic: controls.top >= comic.bottom - 1,
+      centerDelta: Math.abs((controls.left + controls.width / 2) - viewportCenter),
+      fitsViewport: controls.left >= 0 && controls.right <= window.innerWidth
+    };
+  });
+
+  expect(lowerToolbarLayout.belowComic).toBe(true);
+  expect(lowerToolbarLayout.centerDelta).toBeLessThanOrEqual(8);
+  expect(lowerToolbarLayout.fitsViewport).toBe(true);
+
   const footerMetrics = await page.locator('.copyright-footer').evaluate(element => ({
     text: element.textContent.trim(),
     lineHeight: parseFloat(getComputedStyle(element).lineHeight),

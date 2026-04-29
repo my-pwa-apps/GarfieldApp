@@ -334,15 +334,22 @@ test('favorites update local storage and the heart state', async ({ page }) => {
 
   const currentDate = await page.locator('#DatePicker').inputValue();
   const storedDate = currentDate.replaceAll('-', '/');
+  const heartButton = page.locator('#favheart');
   const heartPath = page.locator('#favheart svg path');
 
-  await page.locator('#favheart').click();
+  await heartButton.click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]'))).toContain(storedDate);
+  await expect(heartButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(heartButton).toHaveAttribute('aria-label', 'Remove from favorites');
   await expect(heartPath).toHaveAttribute('fill', 'currentColor');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).transform)).toBe('none');
 
-  await page.locator('#favheart').click();
+  await heartButton.click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]'))).not.toContain(storedDate);
+  await expect(heartButton).toHaveAttribute('aria-pressed', 'false');
+  await expect(heartButton).toHaveAttribute('aria-label', 'Add to favorites');
   await expect(heartPath).toHaveAttribute('fill', 'none');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).transform)).toBe('none');
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

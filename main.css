@@ -592,11 +592,13 @@ input[type="date"]::-webkit-datetime-edit {
 
 #controls-container {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
     width: 100%;
+    max-width: 900px;
     box-sizing: border-box;
-    padding: 0 8px;
+    margin: 0 auto;
+    padding: 0 12px 8px;
     flex-wrap: wrap;
     gap: 10px;
 }
@@ -1235,10 +1237,11 @@ input[type="date"]::-webkit-datetime-edit {
    ======================================== */
 .settings-icons-container {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
+    flex-wrap: wrap;
     gap: 16px;
-    padding-right: 8px;
+    padding: 0;
 }
 
 .icon-button {
@@ -1300,6 +1303,20 @@ input[type="date"]::-webkit-datetime-edit {
 .icon-button:focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
+}
+
+#favheart[aria-pressed="true"],
+#favheart[aria-pressed="false"] {
+    transform: none;
+}
+
+#favheart[aria-pressed="true"]:hover,
+#favheart[aria-pressed="false"]:hover,
+#favheart[aria-pressed="true"]:active,
+#favheart[aria-pressed="false"]:active,
+#favheart[aria-pressed="true"]:focus-visible,
+#favheart[aria-pressed="false"]:focus-visible {
+    transform: none;
 }
 
 .icon-button svg {
