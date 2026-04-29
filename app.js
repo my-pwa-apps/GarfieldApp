@@ -12,7 +12,23 @@ let pictureUrl;
 let formattedComicDate;
 let formattedDate;
 let isRotatedMode = false; // Track if we're in rotated mode
-let darkModeEnabled = localStorage.getItem('darkmode') === 'true'; // Track dark mode state
+const THEME_STORAGE_KEY = 'darkmode';
+const LIGHT_THEME_COLOR = '#eee239';
+const DARK_THEME_COLOR = '#111111';
+let darkModeEnabled = getPreferredDarkMode(); // Track dark mode state
+
+function getPreferredDarkMode() {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme !== null) return storedTheme === 'true';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches || false;
+}
+
+function updateThemeColor(isDark) {
+    const themeColor = isDark ? DARK_THEME_COLOR : LIGHT_THEME_COLOR;
+    document.querySelectorAll('meta[name="theme-color"], meta[name="msapplication-TileColor"]').forEach(meta => {
+        meta.setAttribute('content', themeColor);
+    });
+}
 
 if("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./serviceworker.js");
@@ -1113,11 +1129,13 @@ function Rotate() {
 
 // Update the function to handle dark mode toggling with the new black/orange gradient
 function toggleDarkMode(isDark) {
+    darkModeEnabled = isDark;
     if (isDark) {
         document.body.classList.add('dark-theme');
     } else {
         document.body.classList.remove('dark-theme');
     }
+    updateThemeColor(isDark);
     
     // In fullscreen mode, also ensure the comic container uses the correct theme variables
     const comicContainer = document.getElementById('comic-container');
@@ -1143,29 +1161,26 @@ function toggleDarkMode(isDark) {
     }
 }
 
-// Add dark mode event handler after the other settings handlers
-setStatus = document.getElementById('darkmode');
-setStatus.onclick = function() {
-    darkModeEnabled = document.getElementById('darkmode').checked;
-    localStorage.setItem('darkmode', darkModeEnabled ? 'true' : 'false');
+function initDarkMode() {
+    const darkModeCheckbox = document.getElementById('darkmode');
+    if (!darkModeCheckbox) return;
+
+    darkModeEnabled = getPreferredDarkMode();
+    darkModeCheckbox.checked = darkModeEnabled;
     toggleDarkMode(darkModeEnabled);
+
+    darkModeCheckbox.addEventListener('change', function() {
+        localStorage.setItem(THEME_STORAGE_KEY, this.checked ? 'true' : 'false');
+        toggleDarkMode(this.checked);
+    });
+
+    const colorSchemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+    colorSchemeQuery?.addEventListener?.('change', event => {
+        if (localStorage.getItem(THEME_STORAGE_KEY) !== null) return;
+        darkModeCheckbox.checked = event.matches;
+        toggleDarkMode(event.matches);
+    });
 }
 
-// Initialize dark mode based on stored preference
-getStatus = localStorage.getItem('darkmode');
-if (getStatus == "true") {
-    document.getElementById("darkmode").checked = true;
-    toggleDarkMode(true);
-} else {
-    document.getElementById("darkmode").checked = false;
-    toggleDarkMode(false);
-}
-
-// Consider system preference for dark mode if no stored preference
-if (getStatus == null && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.getElementById("darkmode").checked = true;
-    darkModeEnabled = true;
-    localStorage.setItem('darkmode', 'true');
-    toggleDarkMode(true);
-}
+document.addEventListener('DOMContentLoaded', initDarkMode);
 

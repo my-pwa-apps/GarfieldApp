@@ -1,5 +1,6 @@
 /* Root CSS Variables for theming */
 :root {
+    color-scheme: light;
     --primary-bg: linear-gradient(#eee239, orange);
     --text-color: black;
     --card-bg: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
@@ -16,6 +17,7 @@
 
 /* Dark mode variables - black and orange gradient */
 .dark-theme {
+    color-scheme: dark;
     --primary-bg: linear-gradient(#000000, #F09819);
     --text-color: #ffffff;
     --card-bg: linear-gradient(45deg, #222222 0%, #F09819 51%, #222222 100%);
@@ -47,7 +49,7 @@ body {
     overflow: hidden;
     box-sizing: border-box;
     width: 100%;
-    transition: background 0.5s ease;
+    transition: background 0.5s ease, color 0.3s ease;
 }
 
 main {
@@ -71,6 +73,7 @@ main {
     font-size: 0.85rem; /* Slightly smaller font size */
     background-image: var(--card-bg);
     cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
     touch-action: manipulation;
     box-shadow: 0 4px 10px var(--shadow-color);
