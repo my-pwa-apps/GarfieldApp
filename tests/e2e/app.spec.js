@@ -69,6 +69,15 @@ async function mockExternalServices(page, options = {}) {
   });
 
   await context.route('https://featureassets.gocomics.com/**', route => {
+    const imageUrl = route.request().url();
+    if (options.heldImagePattern && imageUrl.includes(options.heldImagePattern)) {
+      options.onHeldImageRequest?.(imageUrl);
+      (options.imageHoldPromise || Promise.resolve()).then(() => {
+        route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
+      });
+      return;
+    }
+
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
 
@@ -348,6 +357,45 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
+});
+
+test('filmstrip navigation waits for the preloaded target image before swapping comics', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true
+    });
+  });
+
+  let releaseNextImage;
+  let nextImageRequested;
+  const nextImageReleased = new Promise(resolve => {
+    releaseNextImage = resolve;
+  });
+  const nextImageRequestSeen = new Promise(resolve => {
+    nextImageRequested = resolve;
+  });
+
+  const errors = await openApp(page, '/', {
+    heldImagePattern: '19780621',
+    imageHoldPromise: nextImageReleased,
+    onHeldImageRequest: nextImageRequested
+  });
+
+  await setComicDate(page, '1978-06-20');
+  await expect(page.locator('#comic')).toHaveAttribute('src', /19780620/);
+
+  await page.locator('#Next').click();
+  await nextImageRequestSeen;
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-21');
+  await page.waitForTimeout(150);
+  await expect(page.locator('#comic')).toHaveAttribute('src', /19780620/);
+
+  releaseNextImage();
+  await expect(page.locator('#comic')).toHaveAttribute('src', /19780621/);
+  await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
 });
 
 test('toolbar navigation walks normal date boundaries', async ({ page }) => {

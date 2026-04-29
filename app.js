@@ -2796,12 +2796,34 @@ async function loadComic(date, silentMode = false, direction = null) {
             const resizeRotatedComicWhenReady = (imgElement) => {
                 scheduleRotatedComicResize(imgElement);
             };
+            const hasExistingComicImage = () => comicImg.src && comicImg.src !== window.location.href;
+            const waitForImageReady = (imageUrl) => new Promise((resolve) => {
+                const image = new Image();
+                let settled = false;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    resolve();
+                };
+                const decodeThenFinish = () => {
+                    if (typeof image.decode === 'function') {
+                        image.decode().catch(() => {}).finally(finish);
+                    } else {
+                        finish();
+                    }
+                };
+                image.onload = decodeThenFinish;
+                image.onerror = finish;
+                image.src = imageUrl;
+                if (image.complete) decodeThenFinish();
+                setTimeout(finish, 8000);
+            });
 
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
                 return new Promise((resolve) => {
                     // Only animate if there's an existing image
-                    if (comicImg.src && comicImg.src !== window.location.href) {
+                    if (hasExistingComicImage()) {
 
                         if (direction === 'next' || direction === 'previous') {
                             // FILMSTRIP SLIDE animation - both comics visible during transition
@@ -2883,6 +2905,9 @@ async function loadComic(date, silentMode = false, direction = null) {
                 });
             };
 
+            if (hasExistingComicImage()) {
+                await waitForImageReady(result.imageUrl);
+            }
             await animateTransition();
             comicImg.style.display = 'block';
 
