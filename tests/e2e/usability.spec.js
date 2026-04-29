@@ -181,6 +181,89 @@ test('visible controls use understandable names for non-technical users', async 
   expect(unnamedControls).toEqual([]);
 });
 
+test('ordinary user can discover and use the main app features in one journey', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true
+    });
+    window.__showPickerCalls = 0;
+    HTMLInputElement.prototype.showPicker = function showPicker() {
+      window.__showPickerCalls += 1;
+    };
+  });
+
+  await openApp(page);
+  await expect(page.locator('#comic')).toBeVisible();
+
+  for (const selector of ['#First', '#Previous', '#Random', '#DatePickerBtn', '#Next', '#Last', '#supportBtn', '#settingsBtn', '#favheart', '#Shuffle', '#shareBtn']) {
+    const control = page.locator(selector);
+    await expect(control).toBeVisible();
+    await expect(control).toHaveAttribute('aria-label', /\S/);
+  }
+
+  await page.locator('#DatePickerBtn').click();
+  await expect.poll(() => page.evaluate(() => window.__showPickerCalls)).toBe(1);
+
+  await setUsableMidRangeDate(page);
+  const startDate = await page.locator('#DatePicker').inputValue();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.locator('#DatePicker')).not.toHaveValue(startDate);
+
+  const favoriteDate = (await page.locator('#DatePicker').inputValue()).replaceAll('-', '/');
+  await page.getByRole('button', { name: 'Add to favorites' }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]'))).toContain(favoriteDate);
+  await expect(page.locator('#favheart svg path')).toHaveAttribute('fill', 'currentColor');
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
+
+  await page.locator('#spanish').check();
+  await expect(page.getByRole('button', { name: 'Anterior' })).toBeVisible();
+  await page.locator('#spanish').uncheck();
+  await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();
+
+  await page.locator('#comicSource').selectOption('fandom');
+  await expect(page.locator('#spanish-setting-row')).toHaveCSS('display', 'none');
+  await page.locator('#comicSource').selectOption('gocomics');
+  await expect(page.locator('#spanish-setting-row')).not.toHaveCSS('display', 'none');
+
+  await page.locator('#showfavs').check();
+  await expect(page.locator('#DatePicker')).toBeDisabled();
+  await page.locator('#showfavs').uncheck();
+  await expect(page.locator('#DatePicker')).toBeEnabled();
+
+  await clickSettingsControl(page, '#top10Btn');
+  await expect(page.locator('#top10Modal')).toHaveClass(/visible/);
+  await expect(page.locator('.top10-entry')).toHaveCount(2);
+  await page.locator('.top10-entry').first().click();
+  await expect(page.locator('#top10Indicator')).toBeVisible();
+  await expect(page.locator('#DatePicker')).toBeDisabled();
+  await page.locator('#top10ExitBtn').click();
+  await expect(page.locator('#top10Indicator')).toHaveCount(0);
+  await expect(page.locator('#DatePicker')).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Shuffle', exact: true }).click();
+  await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#DatePicker')).toBeDisabled();
+  await expect(page.locator('#Random')).toBeDisabled();
+  await page.getByRole('button', { name: 'Shuffle', exact: true }).click();
+  await expect(page.locator('#DatePicker')).toBeEnabled();
+
+  await page.getByRole('button', { name: 'Support this App' }).click();
+  await expect(page.locator('#donationModal')).toHaveClass(/visible/);
+  await page.getByRole('button', { name: 'Ko-fi' }).click();
+  await expect(page.locator('#donationFrame')).toHaveAttribute('src', /ko-fi/);
+  await page.getByRole('button', { name: 'Stripe' }).click();
+  await expect(page.locator('#donationStripeOverlay')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#donationModal')).not.toHaveClass(/visible/);
+
+  await page.getByRole('button', { name: 'Share' }).click();
+  await expect(page.locator('#notificationToast')).toHaveClass(/show/);
+  await expect(page.locator('#notificationContent')).toHaveText('Sharing is not supported on this device.');
+});
+
 test('mobile layout keeps important touch targets large enough and readable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page);
