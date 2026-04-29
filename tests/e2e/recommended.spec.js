@@ -60,6 +60,13 @@ async function mockExternalServices(page, options = {}) {
 }
 
 async function openApp(page, options = {}) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', {
+      value: { saveData: true },
+      configurable: true
+    });
+  });
+
   const requestLog = await mockExternalServices(page, options);
   const errors = [];
   page.on('pageerror', error => {
@@ -72,7 +79,6 @@ async function openApp(page, options = {}) {
     }
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle');
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
   return { ...requestLog, errors };
 }

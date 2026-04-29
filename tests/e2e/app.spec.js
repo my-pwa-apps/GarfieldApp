@@ -122,6 +122,7 @@ async function mockExternalServices(page, options = {}) {
 
     const requestUrl = new URL(route.request().url());
     const targetUrl = decodeURIComponent(requestUrl.search.slice(1));
+    options.onComicProxyRequest?.(targetUrl);
     if (targetUrl.includes('featureassets.gocomics.com') || targetUrl.includes('assets.amuniversal.com')) {
       route.fulfill({
         status: failShareImage ? 500 : 200,
@@ -185,6 +186,15 @@ async function installMockClock(context, fixedIso) {
 }
 
 async function openApp(page, url = '/', options = {}) {
+  if (!options.allowPrefetch) {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', {
+        value: { saveData: true },
+        configurable: true
+      });
+    });
+  }
+
   const consoleErrors = [];
   page.on('console', message => {
     if (message.type() === 'error' && !message.text().startsWith('Failed to load resource:')) {
@@ -207,7 +217,11 @@ async function openApp(page, url = '/', options = {}) {
 
   await mockExternalServices(page, options);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle');
+  if (options.failComics) {
+    await expect(page.locator('#comic-message')).toBeVisible();
+  } else {
+    await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  }
 
   return { consoleErrors, pageErrors, requestErrors };
 }
@@ -437,6 +451,31 @@ test('filmstrip navigation waits for the preloaded target image before swapping 
   releaseNextImage();
   await expect(page.locator('#comic')).toHaveAttribute('src', /19780621/);
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+});
+
+test('preloads multiple adjacent comics around the current date for smoother swiping', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Prefetch behavior is viewport-independent and covered in desktop Chromium.');
+
+  const requestedComicDates = [];
+  const errors = await openApp(page, '/', {
+    allowPrefetch: true,
+    onComicProxyRequest: targetUrl => {
+      const match = targetUrl.match(/garfield\/(\d{4})\/(\d{2})\/(\d{2})/);
+      if (match) requestedComicDates.push(`${match[1]}-${match[2]}-${match[3]}`);
+    }
+  });
+
+  await setComicDate(page, '1978-06-21');
+
+  await expect.poll(() => requestedComicDates).toEqual(expect.arrayContaining([
+    '1978-06-19',
+    '1978-06-20',
+    '1978-06-22',
+    '1978-06-23'
+  ]));
+
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
 });
@@ -814,7 +853,7 @@ test('settings options persist and change dependent UI state', async ({ page }) 
   await page.locator('#settingsCloseBtn').click();
   await setComicDate(page, '1978-06-20');
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle');
+  await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
@@ -871,6 +910,32 @@ test('shuffle mode keeps deterministic favorites history across next previous fi
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
+});
+
+test('shuffle mode preloads a small queue of random comics for faster swiping', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Shuffle prefetch behavior is viewport-independent and covered in desktop Chromium.');
+
+  const requestedComicDates = [];
+  await page.addInitScript(() => {
+    const picks = [0.25, 0.5, 0.75, 0.9, 0.1];
+    Math.random = () => picks.length ? picks.shift() : 0.33;
+  });
+
+  const errors = await openApp(page, '/', {
+    allowPrefetch: true,
+    onComicProxyRequest: targetUrl => {
+      const match = targetUrl.match(/garfield\/(\d{4})\/(\d{2})\/(\d{2})/);
+      if (match) requestedComicDates.push(`${match[1]}-${match[2]}-${match[3]}`);
+    }
+  });
+
+  await page.locator('#Shuffle').click();
+  await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
+
+  await expect.poll(() => new Set(requestedComicDates).size).toBeGreaterThanOrEqual(3);
+  await expect(page.locator('#Next')).toHaveAttribute('aria-label', 'Next random shuffle comic');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
 });
 
 test('mobile landscape viewing opens rotated comic, supports swipe navigation, and exits cleanly', async ({ page }, testInfo) => {

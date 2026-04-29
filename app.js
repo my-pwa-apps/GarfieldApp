@@ -29,6 +29,9 @@ const CONFIG = Object.freeze({
     REVIEW_RETRY_DAYS: 60,                // Days to wait before re-prompting after a cancel
     REVIEW_MAX_PROMPTS: 3,                // Stop asking after this many prompts
     REVIEW_PROMPT_DELAY_MS: 45000,        // Delay after startup before showing the dialog
+    PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
+    PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
+    PREFETCH_STAGGER_MS: 150,              // Delay between background prefetch requests
 
     // Storage keys
     STORAGE_KEYS: Object.freeze({
@@ -337,6 +340,7 @@ const UTILS = {
         const source = this.getPreferredSource();
         if (language === 'es') return;
         const startDate = this.dateFromISODateString(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
+        startDate.setHours(0, 0, 0, 0);
         // Use Eastern Time since comics are released based on ET
         const today = this.getEasternDate();
         today.setHours(0, 0, 0, 0);
@@ -348,31 +352,17 @@ const UTILS = {
             image.src = imageUrl;
         };
 
-        // Preload previous comic (if not before start date)
-        const prevDate = new Date(currentDate);
-        prevDate.setDate(prevDate.getDate() - 1);
-        if (prevDate >= startDate) {
-            getAuthenticatedComic(prevDate, language, source, {
+        const preloadDate = (targetDate, offset) => {
+            getAuthenticatedComic(targetDate, language, source, {
                 silent: true,
                 maxSources: 1,
                 disableTodayFallback: true
             }).then(result => {
                 if (result.success && result.imageUrl) {
                     warmImageCache(result.imageUrl);
-                }
-            }).catch(() => {}); // Silently ignore errors
-        }
 
-        // Preload next comic (if not after today)
-        const nextDate = new Date(currentDate);
-        nextDate.setDate(nextDate.getDate() + 1);
-        if (nextDate <= today) {
-            getAuthenticatedComic(nextDate, language, source, {
-                silent: true,
-                maxSources: 1,
-                disableTodayFallback: true
-            }).then(result => {
-                if (result.success && result.imageUrl) {
+                    if (offset !== 1) return;
+
                     // If GoComics redirected to a date that isn't newer than the
                     // comic currently shown, the next strip isn't published yet.
                     // Normalize both to midnight before comparing — actualDate is
@@ -383,16 +373,14 @@ const UTILS = {
                         if (actualDay <= currentDay) {
                             nextComicUrl = currentComicUrl;
                         } else {
-                            warmImageCache(result.imageUrl);
                             nextComicUrl = result.imageUrl;
                         }
                     } else {
-                        warmImageCache(result.imageUrl);
                         // Store next comic URL and check for timezone edge case
                         nextComicUrl = result.imageUrl;
                     }
                     this.checkNextComicAvailability();
-                } else if (result.notFound) {
+                } else if (offset === 1 && result.notFound) {
                     // Next comic definitively doesn't exist — disable forward navigation
                     nextComicUrl = currentComicUrl; // Force same-comic detection
                     this.checkNextComicAvailability();
@@ -403,10 +391,23 @@ const UTILS = {
                 // On network/proxy error, leave navigation buttons as-is;
                 // don't penalise the user for a transient failure.
             });
-        } else {
-            // Already at or past today, clear next comic URL
-            nextComicUrl = "";
+        };
+
+        const prefetchTasks = [];
+        for (let offset = 1; offset <= CONFIG.PREFETCH_ADJACENT_DAYS; offset += 1) {
+            const prevDate = new Date(currentDate);
+            prevDate.setDate(prevDate.getDate() - offset);
+            if (prevDate >= startDate) prefetchTasks.push(() => preloadDate(prevDate, -offset));
+
+            const nextDate = new Date(currentDate);
+            nextDate.setDate(nextDate.getDate() + offset);
+            if (nextDate <= today) prefetchTasks.push(() => preloadDate(nextDate, offset));
+            else if (offset === 1) nextComicUrl = "";
         }
+
+        prefetchTasks.forEach((task, index) => {
+            setTimeout(task, index * CONFIG.PREFETCH_STAGGER_MS);
+        });
     },
 
     /**
@@ -2025,6 +2026,7 @@ let formattedComicDate;
 let formattedDate;
 let _shuffleNextDate = null;
 let _shuffleCandidateGeneration = 0;
+const _shuffleCandidateQueue = [];
 const _shuffleBackStack = [];
 const _shuffleForwardStack = [];
 
@@ -3780,7 +3782,7 @@ function RandomOlderClick() {
 function _advanceShuffle() {
     if (!UTILS.canShuffleNavigate('next')) return;
 
-    const target = _shuffleForwardStack.pop() || _shuffleNextDate || _pickRandomAnyDate();
+    const target = _shuffleForwardStack.pop() || _shiftShuffleCandidate() || _pickRandomAnyDate();
     if (!target) return;
 
     _pushShuffleHistory(currentselectedDate);
@@ -3894,6 +3896,8 @@ function setDatePickerDisabled(disabled) {
 
 function clearShuffleCandidates() {
     _shuffleCandidateGeneration++;
+    _shuffleCandidateQueue.length = 0;
+    _shuffleNextDate = null;
             setDatePickerDisabled(true);
 }
 
@@ -3960,6 +3964,12 @@ function _pickRandomAnyDate() {
     return new Date(start.getTime() + Math.random() * span);
 }
 
+function _shiftShuffleCandidate() {
+    const candidate = _shuffleCandidateQueue.shift() || null;
+    _shuffleNextDate = _shuffleCandidateQueue[0] || null;
+    return candidate;
+}
+
 /**
  * Pick the next random candidate from the active pool and warm-cache it.
  * Called by preloadAdjacentComics when shuffle is enabled.
@@ -3969,6 +3979,7 @@ function pickShuffleCandidates() {
     if (!UTILS.shouldPrefetch()) return;
 
     const generation = ++_shuffleCandidateGeneration;
+    _shuffleCandidateQueue.length = 0;
     _shuffleNextDate = null;
 
     const language = UTILS.isSpanishMode() ? 'es' : 'en';
@@ -3998,13 +4009,36 @@ function pickShuffleCandidates() {
 
             if (result.success && result.imageUrl) {
                 warmImageCache(result.imageUrl);
-                _shuffleNextDate = date;
+                const alreadyQueued = _shuffleCandidateQueue.some(candidate => _shuffleDateKey(candidate) === _shuffleDateKey(date));
+                if (!alreadyQueued && _shuffleCandidateQueue.length < CONFIG.PREFETCH_SHUFFLE_QUEUE_SIZE) {
+                    _shuffleCandidateQueue.push(date);
+                    _shuffleNextDate = _shuffleCandidateQueue[0] || null;
+                    updateToolbarModeControls();
+                }
             }
         }).catch(() => {});
     };
 
-    const next = _pickRandomAnyDate();
-    if (next) fetchAndCache(next);
+    const pickedKeys = new Set();
+    const candidates = [];
+    const maxAttempts = CONFIG.PREFETCH_SHUFFLE_QUEUE_SIZE * 6;
+
+    for (let attempt = 0; candidates.length < CONFIG.PREFETCH_SHUFFLE_QUEUE_SIZE && attempt < maxAttempts; attempt += 1) {
+        const next = _pickRandomAnyDate();
+        if (!next) break;
+
+        const key = _shuffleDateKey(next);
+        if (pickedKeys.has(key)) continue;
+
+        pickedKeys.add(key);
+        candidates.push(next);
+    }
+
+    candidates.forEach((candidate, index) => {
+        setTimeout(() => {
+            if (generation === _shuffleCandidateGeneration) fetchAndCache(candidate);
+        }, index * CONFIG.PREFETCH_STAGGER_MS);
+    });
 }
 
 function CompareDates() {
