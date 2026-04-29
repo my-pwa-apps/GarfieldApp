@@ -342,6 +342,8 @@ test('favorites update local storage and the heart state', async ({ page }) => {
   await expect(heartButton).toHaveAttribute('aria-pressed', 'true');
   await expect(heartButton).toHaveAttribute('aria-label', 'Remove from favorites');
   await expect(heartPath).toHaveAttribute('fill', 'currentColor');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('linear-gradient');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).backgroundPositionX)).toBe('0%');
   await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).transform)).toBe('none');
 
   await heartButton.click();
@@ -349,6 +351,8 @@ test('favorites update local storage and the heart state', async ({ page }) => {
   await expect(heartButton).toHaveAttribute('aria-pressed', 'false');
   await expect(heartButton).toHaveAttribute('aria-label', 'Add to favorites');
   await expect(heartPath).toHaveAttribute('fill', 'none');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('linear-gradient');
+  await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).backgroundPositionX)).toBe('0%');
   await expect.poll(() => heartButton.evaluate(element => getComputedStyle(element).transform)).toBe('none');
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);

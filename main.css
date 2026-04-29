@@ -1307,6 +1307,12 @@ input[type="date"]::-webkit-datetime-edit {
 
 #favheart[aria-pressed="true"],
 #favheart[aria-pressed="false"] {
+    background: var(--primary-gradient);
+    background-size: 200% auto;
+    background-position: left center;
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #333;
     transform: none;
 }
 
@@ -1314,8 +1320,18 @@ input[type="date"]::-webkit-datetime-edit {
 #favheart[aria-pressed="false"]:hover,
 #favheart[aria-pressed="true"]:active,
 #favheart[aria-pressed="false"]:active,
+#favheart[aria-pressed="true"].touch-active,
+#favheart[aria-pressed="false"].touch-active {
+    background-position: left center;
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: none;
+}
+
 #favheart[aria-pressed="true"]:focus-visible,
 #favheart[aria-pressed="false"]:focus-visible {
+    background-position: left center;
+    box-shadow: var(--focus-ring);
     transform: none;
 }
 
