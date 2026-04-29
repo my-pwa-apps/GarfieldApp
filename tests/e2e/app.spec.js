@@ -374,6 +374,17 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   await expect(page.locator('#DatePicker')).toBeEnabled();
   await expect(page.locator('#DatePickerBtn')).toBeEnabled();
   await expect(page.locator('#Random')).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => {
+    const shuffle = getComputedStyle(document.getElementById('Shuffle'));
+    const share = getComputedStyle(document.getElementById('shareBtn'));
+    const shuffleIcon = getComputedStyle(document.querySelector('#Shuffle svg path'));
+    const shareIcon = getComputedStyle(document.querySelector('#shareBtn svg circle'));
+    return {
+      backgroundImage: shuffle.backgroundImage === share.backgroundImage,
+      backgroundSize: shuffle.backgroundSize === share.backgroundSize,
+      iconStroke: shuffleIcon.stroke === shareIcon.stroke
+    };
+  })).toEqual({ backgroundImage: true, backgroundSize: true, iconStroke: true });
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
