@@ -1,4 +1,4 @@
-const VERSION = 'v1.12.74';
+const VERSION = 'v1.12.76';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -21,6 +21,13 @@ const PRECACHE_ASSETS = [
   './garlogo.webp'
 ];
 
+const REQUIRED_PRECACHE_ASSETS = new Set([
+  './',
+  './index.html',
+  './main.css',
+  './app.js'
+]);
+
 /**
  * Message handler for client communication
  */
@@ -36,12 +43,21 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => Promise.all(
-        PRECACHE_ASSETS.map(asset => cache.add(new Request(asset, { cache: 'reload' })))
-      ))
+      .then(cache => Promise.all(PRECACHE_ASSETS.map(asset => precacheAsset(cache, asset))))
       .then(() => self.skipWaiting())
   );
 });
+
+async function precacheAsset(cache, asset) {
+  try {
+    await cache.add(new Request(asset, { cache: 'reload' }));
+  } catch (error) {
+    console.error(`Failed to precache ${asset}`, error);
+    if (REQUIRED_PRECACHE_ASSETS.has(asset)) {
+      throw error;
+    }
+  }
+}
 
 /**
  * Activate - clean old caches

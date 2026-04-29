@@ -2054,6 +2054,7 @@ const TOOLBAR_ICONS = Object.freeze({
  */
 async function Share() {
     const imageUrl = window.pictureUrl || previousUrl;
+    const appUrl = new URL('.', window.location.href).href;
 
     if (!imageUrl) {
         showNotification("No comic to share. Please load a comic first.", 3000);
@@ -2113,7 +2114,7 @@ async function Share() {
         // we omit the 'url' parameter and just append the link to the 'text'.
         await navigator.share({
             title: `Garfield ${formattedComicDate}`,
-            text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}\nhttps://garfieldapp.pages.dev`,
+            text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}\n${appUrl}`,
             files: [file]
         });
     } catch (error) {
@@ -2121,7 +2122,7 @@ async function Share() {
         if (error.name !== 'AbortError') {
             try {
                 await navigator.share({
-                    url: 'https://garfieldapp.pages.dev',
+                    url: appUrl,
                     text: `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`
                 });
             } catch (fallbackError) {
@@ -3904,7 +3905,6 @@ function clearShuffleCandidates() {
     _shuffleCandidateGeneration++;
     _shuffleCandidateQueue.length = 0;
     _shuffleNextDate = null;
-            setDatePickerDisabled(true);
 }
 
 function resetShuffleSession() {

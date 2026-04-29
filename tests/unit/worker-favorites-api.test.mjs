@@ -107,6 +107,23 @@ test('worker wrapper applies CORS for local and production origins', async () =>
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://garfieldapp.pages.dev');
 });
 
+test('worker wrapper accepts additional deployment origins from environment configuration', async () => {
+  const object = createObject();
+  const env = {
+    ALLOWED_ORIGINS: 'https://example.github.io, https://comics.example.com',
+    LEADERBOARD: {
+      idFromName: () => 'global',
+      get: () => ({ fetch: req => object.fetch(req) })
+    }
+  };
+
+  const response = await worker.fetch(new Request('https://favorites-api.garfieldapp.workers.dev/top', {
+    headers: { Origin: 'https://example.github.io' }
+  }), env);
+
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://example.github.io');
+});
+
 test('invalid client id, date, action, and JSON return client errors', async () => {
   const api = createObject();
 

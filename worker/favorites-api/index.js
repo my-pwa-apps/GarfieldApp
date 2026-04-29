@@ -35,21 +35,21 @@ const TOP_KEY = 'top';
 export default {
     async fetch(request, env) {
         if (request.method === 'OPTIONS') {
-            return new Response(null, { status: 204, headers: corsHeaders(request) });
+            return new Response(null, { status: 204, headers: corsHeaders(request, env) });
         }
 
         const url = new URL(request.url);
         if (!isSupportedRoute(url.pathname, request.method)) {
-            return withCors(request, jsonResponse({ error: 'Not found' }, 404));
+            return withCors(request, jsonResponse({ error: 'Not found' }, 404), env);
         }
 
         try {
             const stub = getLeaderboardStub(env);
             const response = await stub.fetch(request);
-            return withCors(request, response);
+            return withCors(request, response, env);
         } catch (error) {
             console.error('favorites-api worker error', error);
-            return withCors(request, jsonResponse({ error: 'Internal error' }, 500));
+            return withCors(request, jsonResponse({ error: 'Internal error' }, 500), env);
         }
     }
 };
@@ -366,26 +366,34 @@ async function parseJson(request) {
     }
 }
 
-function resolveOrigin(request) {
-    const origin = request.headers.get('Origin') || '';
-    if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.garfieldapp.pages.dev')) {
-        return origin;
-    }
-    return ALLOWED_ORIGINS[0];
+function getAllowedOrigins(env) {
+    const configuredOrigins = typeof env?.ALLOWED_ORIGINS === 'string'
+        ? env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
+        : [];
+    return [...new Set([...ALLOWED_ORIGINS, ...configuredOrigins])];
 }
 
-function corsHeaders(request) {
+function resolveOrigin(request, env) {
+    const origin = request.headers.get('Origin') || '';
+    const allowedOrigins = getAllowedOrigins(env);
+    if (allowedOrigins.includes(origin) || origin.endsWith('.garfieldapp.pages.dev')) {
+        return origin;
+    }
+    return allowedOrigins[0];
+}
+
+function corsHeaders(request, env) {
     return new Headers({
-        'Access-Control-Allow-Origin': resolveOrigin(request),
+        'Access-Control-Allow-Origin': resolveOrigin(request, env),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Id',
         'Access-Control-Max-Age': '86400'
     });
 }
 
-function withCors(request, response) {
+function withCors(request, response, env) {
     const headers = new Headers(response.headers);
-    for (const [key, value] of corsHeaders(request).entries()) {
+    for (const [key, value] of corsHeaders(request, env).entries()) {
         headers.set(key, value);
     }
     return new Response(response.body, {

@@ -380,7 +380,7 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
     const share = getComputedStyle(document.getElementById('shareBtn'));
     const shuffleIcon = getComputedStyle(document.querySelector('#Shuffle svg path'));
     return {
-      backgroundImage: shuffle.backgroundImage,
+      backgroundColor: shuffle.backgroundColor,
       iconStroke: shuffleIcon.stroke,
       transform: shuffle.transform,
       borderRadius: shuffle.borderRadius === share.borderRadius,
@@ -388,7 +388,7 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
       height: shuffle.height === share.height
     };
   })).toEqual({
-    backgroundImage: 'linear-gradient(135deg, rgb(26, 26, 26), rgb(0, 0, 0))',
+    backgroundColor: 'rgb(47, 38, 27)',
     iconStroke: 'rgb(240, 152, 25)',
     transform: 'none',
     borderRadius: true,
@@ -694,7 +694,7 @@ test('share falls back to text-only when image preparation fails', async ({ page
   await expect.poll(() => page.evaluate(() => window.__shareCalls.length)).toBe(1);
   const shareCall = await page.evaluate(() => window.__shareCalls[0]);
   expect(shareCall.files).toBe(0);
-  expect(shareCall.url).toBe('https://garfieldapp.pages.dev');
+  expect(shareCall.url).toBe('http://127.0.0.1:8010/');
   expect(shareCall.text).toContain('Shared from GarfieldApp');
 });
 

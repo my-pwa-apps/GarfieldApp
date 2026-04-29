@@ -9,12 +9,14 @@
     "test:cross-browser": "playwright test --config=playwright.cross-browser.config.js",
     "test:e2e": "playwright test",
     "test:lighthouse": "node tests/support/lighthouse-audit.cjs",
+    "test:workers": "node tests/support/live-worker-health.cjs",
+    "test:predeploy": "npm run test:syntax && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
     "test:pwa": "playwright test tests/e2e/pwa-offline.spec.js --project=chromium",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "test:usability": "playwright test tests/e2e/usability.spec.js",
     "test:production": "playwright test tests/e2e/production-smoke.spec.js",
     "test:headed": "playwright test --headed",
-    "test:syntax": "node --check app.js && node --check comicExtractor.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check playwright.config.js && node --check playwright.cross-browser.config.js && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs"
+    "test:syntax": "node --check app.js && node --check comicExtractor.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check playwright.config.js && node --check playwright.cross-browser.config.js && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs && node --check tests/support/live-worker-health.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
