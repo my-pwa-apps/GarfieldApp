@@ -353,13 +353,21 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   await expect.poll(() => page.evaluate(() => {
     const shuffle = getComputedStyle(document.getElementById('Shuffle'));
     const share = getComputedStyle(document.getElementById('shareBtn'));
+    const shuffleIcon = getComputedStyle(document.querySelector('#Shuffle svg path'));
     return {
-      backgroundImage: shuffle.backgroundImage === share.backgroundImage,
+      backgroundImage: shuffle.backgroundImage,
+      iconStroke: shuffleIcon.stroke,
       borderRadius: shuffle.borderRadius === share.borderRadius,
       width: shuffle.width === share.width,
       height: shuffle.height === share.height
     };
-  })).toEqual({ backgroundImage: true, borderRadius: true, width: true, height: true });
+  })).toEqual({
+    backgroundImage: 'linear-gradient(135deg, rgb(26, 26, 26), rgb(0, 0, 0))',
+    iconStroke: 'rgb(240, 152, 25)',
+    borderRadius: true,
+    width: true,
+    height: true
+  });
 
   await page.locator('#Shuffle').click();
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'false');

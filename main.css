@@ -757,6 +757,27 @@ input[type="date"]::-webkit-datetime-edit {
     fill: none;
 }
 
+#Shuffle[aria-pressed="true"] {
+    background: linear-gradient(135deg, #1a1a1a, #000);
+    border-color: rgba(240, 152, 25, 0.7);
+    box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.6),
+                0 4px 16px rgba(240, 152, 25, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #f09819;
+}
+
+#Shuffle[aria-pressed="true"]:hover {
+    box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.8),
+                0 8px 24px rgba(240, 152, 25, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+#Shuffle[aria-pressed="true"] svg,
+#Shuffle[aria-pressed="true"] svg * {
+    stroke: #f09819;
+    fill: none;
+}
+
 .toolbar-button:active {
     transform: translateY(-1px) scale(1.02);
     box-shadow: 0 4px 12px rgba(240, 152, 25, 0.3),
