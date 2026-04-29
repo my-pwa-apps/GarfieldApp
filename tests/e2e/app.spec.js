@@ -478,6 +478,7 @@ test('donation providers load their embedded content and failed provider respons
 
   await page.locator('#supportBtn').click();
   await expect(page.locator('#donationModal')).toHaveClass(/visible/);
+  await expect(page.locator('#donationFrame')).toHaveAttribute('sandbox', /allow-same-origin/);
   await expect(page.frameLocator('#donationFrame').locator('body')).toContainText('Buy Me a Coffee');
   await expect(page.locator('#donationLoading')).toHaveCSS('display', 'none');
 
