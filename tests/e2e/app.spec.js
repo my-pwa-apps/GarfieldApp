@@ -357,6 +357,7 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
     return {
       backgroundImage: shuffle.backgroundImage,
       iconStroke: shuffleIcon.stroke,
+      transform: shuffle.transform,
       borderRadius: shuffle.borderRadius === share.borderRadius,
       width: shuffle.width === share.width,
       height: shuffle.height === share.height
@@ -364,6 +365,7 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   })).toEqual({
     backgroundImage: 'linear-gradient(135deg, rgb(26, 26, 26), rgb(0, 0, 0))',
     iconStroke: 'rgb(240, 152, 25)',
+    transform: 'none',
     borderRadius: true,
     width: true,
     height: true

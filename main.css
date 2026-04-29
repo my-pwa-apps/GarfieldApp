@@ -742,12 +742,14 @@ input[type="date"]::-webkit-datetime-edit {
                 0 4px 16px rgba(240, 152, 25, 0.45),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
     color: #f09819;
+    transform: none;
 }
 
 .toolbar-button[aria-pressed="true"]:hover {
     box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.8),
                 0 8px 24px rgba(240, 152, 25, 0.6),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: none;
 }
 
 /* Force the SVG strokes/fills to inherit the orange accent color */
@@ -764,12 +766,19 @@ input[type="date"]::-webkit-datetime-edit {
                 0 4px 16px rgba(240, 152, 25, 0.45),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
     color: #f09819;
+    transform: none;
 }
 
 #Shuffle[aria-pressed="true"]:hover {
     box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.8),
                 0 8px 24px rgba(240, 152, 25, 0.6),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: none;
+}
+
+#Shuffle[aria-pressed="true"]:focus-visible,
+#Shuffle[aria-pressed="true"]:active {
+    transform: none;
 }
 
 #Shuffle[aria-pressed="true"] svg,
