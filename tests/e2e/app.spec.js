@@ -339,6 +339,12 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('shuffle'))).toBe('true');
   await expect(page.locator('#Random')).toBeDisabled();
+  await expect(page.locator('#DatePicker')).toBeDisabled();
+
+  await page.locator('#Shuffle').click();
+  await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#DatePicker')).toBeEnabled();
+  await expect(page.locator('#Random')).toBeEnabled();
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
@@ -748,6 +754,7 @@ test('shuffle mode keeps deterministic favorites history across next previous fi
 
   await page.locator('#Shuffle').click();
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#DatePicker')).toBeDisabled();
   await expect(page.locator('#Random')).toBeDisabled();
   await expect(page.locator('#Next')).toHaveAttribute('aria-label', 'Next random shuffle comic');
 

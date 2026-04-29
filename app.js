@@ -4032,6 +4032,7 @@ function CompareDates() {
     }
 
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
+        document.getElementById('DatePicker').disabled = true;
         document.getElementById('First').disabled = !UTILS.canShuffleNavigate('first');
         document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
         document.getElementById('Random').disabled = true;
