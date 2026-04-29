@@ -113,6 +113,12 @@ main {
     box-shadow: var(--focus-ring);
 }
 
+a:focus-visible,
+input:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
 .button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -923,8 +929,11 @@ input[type="date"]::-webkit-datetime-edit {
     background: rgba(0, 0, 0, 0.1);
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
     font-size: 24px;
     line-height: 1;
     cursor: pointer;
@@ -956,6 +965,9 @@ input[type="date"]::-webkit-datetime-edit {
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
+    min-height: 48px;
+    box-sizing: border-box;
+    flex-shrink: 0;
     background: rgba(240, 152, 25, 0.05);
     border-radius: 10px;
     transition: all var(--transition-fast);
@@ -1004,6 +1016,7 @@ input[type="date"]::-webkit-datetime-edit {
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(240, 152, 25, 0.3), transparent);
     margin: 4px 0;
+    flex-shrink: 0;
 }
 
 .setting-item-select {
@@ -1022,6 +1035,9 @@ input[type="date"]::-webkit-datetime-edit {
 .source-select {
     width: 100%;
     padding: 8px 12px;
+    min-height: 48px;
+    height: 48px;
+    box-sizing: border-box;
     border: 1px solid rgba(240, 152, 25, 0.4);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.9);
@@ -1063,6 +1079,10 @@ input[type="date"]::-webkit-datetime-edit {
     gap: 10px;
     width: 100%;
     padding: 10px 14px;
+    min-height: 48px;
+    height: 48px;
+    box-sizing: border-box;
+    flex-shrink: 0;
     background: var(--primary-gradient);
     background-size: 200% auto;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1364,8 +1384,8 @@ input[type="date"]::-webkit-datetime-edit {
     }
 
     .icon-button {
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
     }
 
     .icon-button svg {
@@ -1740,8 +1760,11 @@ input[type="date"]::-webkit-datetime-edit {
     background: rgba(0, 0, 0, 0.1);
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    box-sizing: border-box;
     font-size: 24px;
     line-height: 1;
     cursor: pointer;

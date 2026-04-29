@@ -1,3 +1,7 @@
 .wrangler/
 node_modules/
 .venv/
+playwright-report/
+playwright-report-cross-browser/
+test-results/
+tests/lighthouse-report.json

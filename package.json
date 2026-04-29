@@ -1,0 +1,24 @@
+{
+  "name": "garfieldapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated browser tests for the Garfield Comics PWA.",
+  "scripts": {
+    "serve": "node tests/support/static-server.cjs --host 127.0.0.1 --port 8000",
+    "test": "npm run test:unit && playwright test",
+    "test:cross-browser": "playwright test --config=playwright.cross-browser.config.js",
+    "test:e2e": "playwright test",
+    "test:lighthouse": "node tests/support/lighthouse-audit.cjs",
+    "test:pwa": "playwright test tests/e2e/pwa-offline.spec.js --project=chromium",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:usability": "playwright test tests/e2e/usability.spec.js",
+    "test:production": "playwright test tests/e2e/production-smoke.spec.js",
+    "test:headed": "playwright test --headed",
+    "test:syntax": "node --check app.js && node --check comicExtractor.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check playwright.config.js && node --check playwright.cross-browser.config.js && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@playwright/test": "1.59.1",
+    "lighthouse": "^12.6.1"
+  }
+}

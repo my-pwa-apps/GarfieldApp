@@ -1,4 +1,4 @@
-const VERSION = 'v1.12.27';
+const VERSION = 'v1.12.57';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -36,7 +36,9 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE_ASSETS))
+      .then(cache => Promise.all(
+        PRECACHE_ASSETS.map(asset => cache.add(new Request(asset, { cache: 'reload' })))
+      ))
       .then(() => self.skipWaiting())
   );
 });

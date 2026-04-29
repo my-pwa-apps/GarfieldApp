@@ -6,6 +6,9 @@ const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.goo
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const FAVORITES_FILENAME = 'garfield-favorites.json';
 const SILENT_REFRESH_COOLDOWN_MS = 30000;
+const GOOGLE_AUTH_ALLOWED_ORIGINS = [
+    'https://garfieldapp.pages.dev'
+];
 
 let tokenClient = null;
 let accessToken = null;
@@ -24,6 +27,14 @@ function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
 function _getSyncPreferences() { return typeof window.getSyncPreferences === 'function' ? window.getSyncPreferences() : null; }
 function _applySyncedPreferences(preferences) { if (typeof window.applySyncedPreferences === 'function') window.applySyncedPreferences(preferences); }
+
+function _isGoogleAuthAllowedOrigin() {
+    return GOOGLE_AUTH_ALLOWED_ORIGINS.includes(window.location.origin);
+}
+
+function _getGoogleUnavailableMessage() {
+    return _t('googleUnavailableOnThisUrl') || 'Google sign-in is not available on this URL.';
+}
 
 function _getStoredTokenData() {
     const stored = localStorage.getItem('gDriveToken');
@@ -71,6 +82,7 @@ function _hasUsableToken() {
 }
 
 function _canAutoSync() {
+    if (!_isGoogleAuthAllowedOrigin()) return false;
     return _hasUsableToken() || _restoreStoredToken();
 }
 
@@ -120,6 +132,10 @@ function _rejectPendingTokenRequest(error) {
 }
 
 function _requestAccessToken(options = {}, { interactive = false } = {}) {
+    if (!_isGoogleAuthAllowedOrigin()) {
+        return Promise.reject(new Error('Google sign-in is not available on this URL'));
+    }
+
     if (!tokenClient) {
         return Promise.reject(new Error('Google services not loaded'));
     }
@@ -157,6 +173,10 @@ function _requestAccessToken(options = {}, { interactive = false } = {}) {
 }
 
 async function _attemptSilentTokenRefresh({ force = false } = {}) {
+    if (!_isGoogleAuthAllowedOrigin()) {
+        throw new Error('Google sign-in is not available on this URL');
+    }
+
     if (_hasUsableToken()) {
         return accessToken;
     }
@@ -183,6 +203,10 @@ async function _attemptSilentTokenRefresh({ force = false } = {}) {
 }
 
 async function ensureValidAccessToken({ interactive = false } = {}) {
+    if (!_isGoogleAuthAllowedOrigin()) {
+        throw new Error('Google sign-in is not available on this URL');
+    }
+
     if (_hasUsableToken()) {
         return accessToken;
     }
@@ -234,6 +258,14 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
  * Retries if the GIS script hasn't loaded yet.
  */
 function initGoogleSync() {
+    if (!_isGoogleAuthAllowedOrigin()) {
+        tokenClient = null;
+        _clearTokenState(false);
+        updateGoogleUI(false, 'unsupported-origin');
+        window.dispatchEvent(new CustomEvent('google-sync-ready'));
+        return;
+    }
+
     if (typeof google !== 'undefined' && google.accounts) {
         _initTokenClient();
         return;
@@ -326,6 +358,11 @@ function handleTokenResponse(response) {
  * Sign in with Google — triggers the consent popup.
  */
 function googleSignIn() {
+    if (!_isGoogleAuthAllowedOrigin()) {
+        _notify(_getGoogleUnavailableMessage());
+        return;
+    }
+
     if (!tokenClient) {
         _notify(_t('googleNotLoaded') || 'Google services not loaded');
         return;
@@ -339,7 +376,7 @@ function googleSignIn() {
  * Sign out — revoke the token and clear state.
  */
 function googleSignOut() {
-    if (accessToken) {
+    if (accessToken && _isGoogleAuthAllowedOrigin() && typeof google !== 'undefined') {
         google.accounts.oauth2.revoke(accessToken);
     }
     _clearTokenState(true);

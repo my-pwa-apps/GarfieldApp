@@ -15,20 +15,33 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Service Worker Registration with update handling
  */
-if ('serviceWorker' in navigator) {
+function getServiceWorkerContainer() {
+    try {
+        return navigator.serviceWorker || null;
+    } catch {
+        return null;
+    }
+}
+
+const serviceWorkerContainer = getServiceWorkerContainer();
+if (serviceWorkerContainer) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./serviceworker.js', { scope: './' })
-            .then(registration => {
-                registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    newWorker?.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            showUpdateNotification();
-                        }
+        try {
+            serviceWorkerContainer.register('./serviceworker.js', { scope: './' })
+                .then(registration => {
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker?.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && serviceWorkerContainer.controller) {
+                                showUpdateNotification();
+                            }
+                        });
                     });
-                });
-            })
-            .catch(() => {/* Silent fail - app still works without SW */});
+                })
+                .catch(() => {/* Silent fail - app still works without SW */});
+        } catch {
+            // Silent fail - app still works without SW
+        }
     });
 }
 
