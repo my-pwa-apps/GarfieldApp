@@ -3206,7 +3206,9 @@ function initApp() {
 
     // Install button click is handled in showInstallButton()
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
-        document.getElementById('DatePicker').showPicker?.();
+        const datePicker = document.getElementById('DatePicker');
+        if (datePicker?.disabled) return;
+        datePicker?.showPicker?.();
     });
 
     // Rotation/fullscreen logic:
@@ -3866,29 +3868,28 @@ function updateToolbarModeControls() {
         _setToolbarLabel('Next', t.next);
         _setToolbarLabel('Last', t.last);
         return;
-    function setDatePickerDisabled(disabled) {
-        const datePicker = document.getElementById('DatePicker');
-        const datePickerBtn = document.getElementById('DatePickerBtn');
-        if (datePicker) datePicker.disabled = disabled;
-        if (datePickerBtn) {
-            datePickerBtn.disabled = disabled;
-            datePickerBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-        }
-    }
     }
 
     _setToolbarIcon('First', 'shuffleFirst');
     _setToolbarIcon('Previous', 'shufflePrevious');
-            const datePicker = document.getElementById('DatePicker');
-            if (datePicker?.disabled) return;
-            datePicker?.showPicker?.();
+    _setToolbarIcon('Random', 'random');
     _setToolbarIcon('Next', _shuffleForwardStack.length > 0 ? 'shuffleNextHistory' : 'shuffleNextRandom');
     _setToolbarIcon('Last', 'shuffleLast');
     _setToolbarLabel('First', t.shuffleFirst);
-            setDatePickerDisabled(true);
+    _setToolbarLabel('Previous', t.shufflePrevious);
     _setToolbarLabel('Random', t.randomDisabledInShuffle);
     _setToolbarLabel('Next', _shuffleForwardStack.length > 0 ? t.shuffleNextHistory : t.shuffleNextRandom);
-            setDatePickerDisabled(false);
+    _setToolbarLabel('Last', t.shuffleLast);
+}
+
+function setDatePickerDisabled(disabled) {
+    const datePicker = document.getElementById('DatePicker');
+    const datePickerBtn = document.getElementById('DatePickerBtn');
+    if (datePicker) datePicker.disabled = disabled;
+    if (datePickerBtn) {
+        datePickerBtn.disabled = disabled;
+        datePickerBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    }
 }
 
 function clearShuffleCandidates() {
@@ -4015,10 +4016,10 @@ function CompareDates() {
             document.getElementById('showfavs').disabled = true;
             localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'false');
         }
-        document.getElementById('DatePicker').disabled = true;
+        setDatePickerDisabled(true);
         startDate = favs.length ? UTILS.dateFromFavoriteDateString(favs[0]) : UTILS.getEasternDate();
     } else {
-        document.getElementById('DatePicker').disabled = false;
+        setDatePickerDisabled(false);
         startDate = UTILS.dateFromISODateString(UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
     }
     startDate = startDate.setHours(0, 0, 0, 0);
@@ -4068,7 +4069,7 @@ function CompareDates() {
     }
 
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
-        document.getElementById('DatePicker').disabled = true;
+        setDatePickerDisabled(true);
         document.getElementById('First').disabled = !UTILS.canShuffleNavigate('first');
         document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
         document.getElementById('Random').disabled = true;

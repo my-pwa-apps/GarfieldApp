@@ -734,10 +734,8 @@ input[type="date"]::-webkit-datetime-edit {
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Active toggle state (used by the Shuffle button) — black background with
-   the orange Garfield accent so the toggle stays in theme. */
-.toolbar-button[aria-pressed="true"],
-.icon-button[aria-pressed="true"] {
+/* Active toggle state for toolbar buttons. */
+.toolbar-button[aria-pressed="true"] {
     background: linear-gradient(135deg, #1a1a1a, #000);
     border-color: rgba(240, 152, 25, 0.7);
     box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.6),
@@ -746,8 +744,7 @@ input[type="date"]::-webkit-datetime-edit {
     color: #f09819;
 }
 
-.toolbar-button[aria-pressed="true"]:hover,
-.icon-button[aria-pressed="true"]:hover {
+.toolbar-button[aria-pressed="true"]:hover {
     box-shadow: 0 0 0 2px rgba(240, 152, 25, 0.8),
                 0 8px 24px rgba(240, 152, 25, 0.6),
                 inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -755,9 +752,7 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Force the SVG strokes/fills to inherit the orange accent color */
 .toolbar-button[aria-pressed="true"] svg,
-.icon-button[aria-pressed="true"] svg,
-.toolbar-button[aria-pressed="true"] svg *,
-.icon-button[aria-pressed="true"] svg * {
+.toolbar-button[aria-pressed="true"] svg * {
     stroke: #f09819;
     fill: none;
 }

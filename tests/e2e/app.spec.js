@@ -349,26 +349,35 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   await expect.poll(() => page.evaluate(() => localStorage.getItem('shuffle'))).toBe('true');
   await expect(page.locator('#Random')).toBeDisabled();
   await expect(page.locator('#DatePicker')).toBeDisabled();
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
+  await expect.poll(() => page.evaluate(() => {
+    const shuffle = getComputedStyle(document.getElementById('Shuffle'));
+    const share = getComputedStyle(document.getElementById('shareBtn'));
+    return {
+      backgroundImage: shuffle.backgroundImage === share.backgroundImage,
+      borderRadius: shuffle.borderRadius === share.borderRadius,
+      width: shuffle.width === share.width,
+      height: shuffle.height === share.height
+    };
+  })).toEqual({ backgroundImage: true, borderRadius: true, width: true, height: true });
 
   await page.locator('#Shuffle').click();
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('#DatePicker')).toBeEnabled();
+  await expect(page.locator('#DatePickerBtn')).toBeEnabled();
   await expect(page.locator('#Random')).toBeEnabled();
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
-  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
 });
 
 test('filmstrip navigation waits for the preloaded target image before swapping comics', async ({ page }) => {
   await page.addInitScript(() => {
-  await expect(page.locator('#DatePickerBtn')).toBeEnabled();
     Object.defineProperty(navigator, 'connection', {
       value: { saveData: true },
       configurable: true
     });
   });
-  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
 
   let releaseNextImage;
   let nextImageRequested;
@@ -807,6 +816,7 @@ test('shuffle mode keeps deterministic favorites history across next previous fi
   await page.locator('#Shuffle').click();
   await expect(page.locator('#Shuffle')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#DatePicker')).toBeDisabled();
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
   await expect(page.locator('#Random')).toBeDisabled();
   await expect(page.locator('#Next')).toHaveAttribute('aria-label', 'Next random shuffle comic');
 
