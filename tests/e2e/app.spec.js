@@ -309,8 +309,12 @@ test('boots and loads the current comic without runtime errors', async ({ page }
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('ad placement shows a local placeholder until AdSense identifiers are configured', async ({ page }) => {
+test('ad placement loads the configured AdSense unit', async ({ page }) => {
   const adRequests = [];
+  await page.route('https://pagead2.googlesyndication.com/**', route => {
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.adsbygoogle = window.adsbygoogle || [];' });
+  });
+
   page.on('request', request => {
     if (request.url().includes('googlesyndication.com') || request.url().includes('doubleclick.net')) {
       adRequests.push(request.url());
@@ -320,18 +324,22 @@ test('ad placement shows a local placeholder until AdSense identifiers are confi
   const errors = await openApp(page);
 
   await expect(page.locator('#adSupportSlot')).toBeVisible();
-  await expect(page.locator('#adSupportSlot')).toHaveAttribute('data-ad-state', 'placeholder');
-  await expect(page.locator('.ad-placeholder-preview')).toBeVisible();
-  await expect(page.locator('.ad-placeholder-preview')).toContainText('GarfieldApp Sponsor');
-  await expect(page.locator('#adsenseScript')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isConfigured())).toBe(false);
-  expect(adRequests).toEqual([]);
+  await expect(page.locator('#adSupportSlot')).toHaveAttribute('data-ad-state', 'ready');
+  await expect(page.locator('#adsenseScript')).toHaveAttribute('src', /client=ca-pub-8199141612193910/);
+  await expect(page.locator('.adsbygoogle')).toHaveAttribute('data-ad-client', 'ca-pub-8199141612193910');
+  await expect(page.locator('.adsbygoogle')).toHaveAttribute('data-ad-slot', '7960972415');
+  await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isConfigured())).toBe(true);
+  expect(adRequests.some(url => url.includes('pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'))).toBe(true);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
 });
 
 test('supporter code flow rejects invalid codes and stored supporters hide ads', async ({ page }) => {
+  await page.route('https://pagead2.googlesyndication.com/**', route => {
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: 'window.adsbygoogle = window.adsbygoogle || [];' });
+  });
+
   const errors = await openApp(page);
 
   await page.getByRole('button', { name: 'Support this App' }).click();

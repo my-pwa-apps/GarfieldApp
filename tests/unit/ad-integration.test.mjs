@@ -4,12 +4,15 @@ import test from 'node:test';
 
 const source = await readFile(new URL('../../adIntegration.js', import.meta.url), 'utf8');
 
-test('ad integration renders a local placeholder until real AdSense identifiers are configured', () => {
-  assert.match(source, /ADSENSE_CLIENT: ''/);
-  assert.match(source, /ADSENSE_SLOT: ''/);
+test('ad integration is configured with the GarfieldAds AdSense unit', () => {
+  assert.match(source, /ADSENSE_CLIENT: 'ca-pub-8199141612193910'/);
+  assert.match(source, /ADSENSE_SLOT: '7960972415'/);
   assert.match(source, /SUPPORTER_KEY: 'supporterAdFree'/);
   assert.match(source, /SUPPORTER_CODE_PUBLIC_KEY_JWK/);
   assert.match(source, /function isAdSenseConfigured\(\)/);
+});
+
+test('ad integration can render a local placeholder when identifiers are not configured', () => {
   assert.match(source, /function renderPlaceholderAd\(frame\)/);
   assert.match(source, /showAdContainer\('placeholder'\)/);
 });

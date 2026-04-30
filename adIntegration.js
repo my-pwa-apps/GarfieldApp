@@ -3,8 +3,8 @@
 // ========================================
 
 const AD_CONFIG = Object.freeze({
-    ADSENSE_CLIENT: '',
-    ADSENSE_SLOT: '',
+    ADSENSE_CLIENT: 'ca-pub-8199141612193910',
+    ADSENSE_SLOT: '7960972415',
     SUPPORTER_KEY: 'supporterAdFree',
     SUPPORTER_CODE_KEY: 'supporterCode',
     SUPPORTER_LABEL_KEY: 'supporterLabel',

@@ -23,6 +23,10 @@ async function mockExternalServices(page, options = {}) {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
   await context.route('https://accounts.google.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+  await context.route('https://pagead2.googlesyndication.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+  await context.route('https://googleads.g.doubleclick.net/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>' }));
+  await context.route('https://tpc.googlesyndication.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>' }));
+  await context.route('https://ep1.adtrafficquality.google/**', route => route.fulfill({ status: 204, body: '' }));
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
   await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://assets.amuniversal.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
