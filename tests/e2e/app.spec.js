@@ -331,14 +331,26 @@ test('ad placement shows a local placeholder until AdSense identifiers are confi
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('supporter acknowledgement hides ads on this device', async ({ page }) => {
+test('supporter code flow rejects invalid codes and stored supporters hide ads', async ({ page }) => {
   const errors = await openApp(page);
 
   await page.getByRole('button', { name: 'Support this App' }).click();
   await expect(page.locator('#donationModal')).toHaveClass(/visible/);
-  await page.getByRole('button', { name: "I've donated - hide ads" }).click();
+  await expect(page.locator('#donationSupporterHelp')).toContainText('garfieldapp@outlook.com');
+  await page.getByLabel('Personal supporter code').fill('GARFIELD.invalid.code');
+  await page.getByRole('button', { name: 'Apply code' }).click();
 
-  await expect(page.locator('#donationSupporterStatus')).toHaveText('Ads are hidden on this device. Thank you.');
+  await expect(page.locator('#donationSupporterStatus')).toContainText('not valid');
+  await expect(page.locator('#adSupportSlot')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('supporterAdFree'))).toBeNull();
+
+  await page.evaluate(() => {
+    localStorage.setItem('supporterAdFree', 'true');
+    localStorage.setItem('supporterLabel', 'Test Supporter');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+
   await expect(page.locator('#adSupportSlot')).toBeHidden();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('supporterAdFree'))).toBe('true');
   await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isSupporterAdFree())).toBe(true);

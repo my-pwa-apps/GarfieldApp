@@ -16,7 +16,9 @@
     "test:usability": "playwright test tests/e2e/usability.spec.js",
     "test:production": "playwright test tests/e2e/production-smoke.spec.js",
     "test:headed": "playwright test --headed",
-    "test:syntax": "node --check app.js && node --check adIntegration.js && node --check comicExtractor.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check playwright.config.js && node --check playwright.cross-browser.config.js && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs && node --check tests/support/live-worker-health.cjs"
+    "supporter:keygen": "node tools/supporter-code.mjs keygen",
+    "supporter:issue": "node tools/supporter-code.mjs issue",
+    "test:syntax": "node --check app.js && node --check adIntegration.js && node --check comicExtractor.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check tools/supporter-code.mjs && node --check playwright.config.js && node --check playwright.cross-browser.config.js && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs && node --check tests/support/live-worker-health.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",

@@ -8,6 +8,7 @@ test('ad integration renders a local placeholder until real AdSense identifiers 
   assert.match(source, /ADSENSE_CLIENT: ''/);
   assert.match(source, /ADSENSE_SLOT: ''/);
   assert.match(source, /SUPPORTER_KEY: 'supporterAdFree'/);
+  assert.match(source, /SUPPORTER_CODE_PUBLIC_KEY_JWK/);
   assert.match(source, /function isAdSenseConfigured\(\)/);
   assert.match(source, /function renderPlaceholderAd\(frame\)/);
   assert.match(source, /showAdContainer\('placeholder'\)/);
@@ -15,7 +16,9 @@ test('ad integration renders a local placeholder until real AdSense identifiers 
 
 test('supporter ad-free mode prevents ad loading', () => {
   assert.match(source, /function isSupporterAdFree\(\)/);
-  assert.match(source, /function setSupporterAdFree\(enabled\)/);
+  assert.match(source, /function setSupporterAdFree\(enabled, details = \{\}\)/);
+  assert.match(source, /async function verifySupporterCode\(code\)/);
+  assert.match(source, /async function applySupporterCode\(code\)/);
   assert.match(source, /if \(isSupporterAdFree\(\)\) \{/);
   assert.match(source, /hideAdContainer\('supporter'\)/);
 });

@@ -84,12 +84,9 @@
     <script src="./init.js" defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./googleDriveSync.js" defer></script>
-    <script src="./adIntegration.js?v=1.12.83" defer></script>
-    <script src="./app.js?v=1.12.83" type="module"></script>
+    <script src="./adIntegration.js?v=1.12.85" defer></script>
+    <script src="./app.js?v=1.12.85" type="module"></script>
 
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8199141612193910"
-     crossorigin="anonymous"></script>
-     
 </head>
 
 <body id="app-body">
@@ -317,7 +314,11 @@
         </div>
         <p class="donation-message" id="donationMessage">Help keep this app free. Your support funds ongoing development and new features.</p>
         <div class="donation-supporter" id="donationSupporterPanel">
-            <button class="donation-supporter-button" id="donationSupporterBtn" type="button">I've donated - hide ads</button>
+            <p class="donation-supporter-help" id="donationSupporterHelp">Already donated? Send proof to garfieldapp@outlook.com and enter your personal supporter code to hide ads.</p>
+            <div class="donation-supporter-code-row">
+                <input class="donation-supporter-input" id="donationSupporterCode" type="text" autocomplete="off" spellcheck="false" placeholder="Personal supporter code" aria-label="Personal supporter code">
+                <button class="donation-supporter-button" id="donationSupporterBtn" type="button">Apply code</button>
+            </div>
             <span class="donation-supporter-status" id="donationSupporterStatus" aria-live="polite"></span>
         </div>
         <div class="donation-tabs">

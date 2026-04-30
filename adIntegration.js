@@ -6,24 +6,114 @@ const AD_CONFIG = Object.freeze({
     ADSENSE_CLIENT: '',
     ADSENSE_SLOT: '',
     SUPPORTER_KEY: 'supporterAdFree',
+    SUPPORTER_CODE_KEY: 'supporterCode',
+    SUPPORTER_LABEL_KEY: 'supporterLabel',
+    SUPPORTER_EXPIRY_KEY: 'supporterExpiry',
+    SUPPORTER_CODE_PUBLIC_KEY_JWK: Object.freeze({
+        kty: 'EC',
+        crv: 'P-256',
+        x: 'SY7_4IFCOxYFoeAr67LtmtcY_wLW6oaSPAzm9jFEaf4',
+        y: '8seKwREcdSF9Lc_JTaaa-FTIcUbjSHnuT5EkelH62Vc',
+        ext: true,
+        key_ops: ['verify']
+    }),
     SCRIPT_ID: 'adsenseScript',
     CONTAINER_ID: 'adSupportSlot',
     FRAME_ID: 'adSupportFrame'
 });
 
 function isSupporterAdFree() {
-    return localStorage.getItem(AD_CONFIG.SUPPORTER_KEY) === 'true';
+    if (localStorage.getItem(AD_CONFIG.SUPPORTER_KEY) !== 'true') return false;
+
+    const expiry = localStorage.getItem(AD_CONFIG.SUPPORTER_EXPIRY_KEY);
+    if (expiry && Date.now() > Date.parse(`${expiry}T23:59:59Z`)) {
+        setSupporterAdFree(false);
+        return false;
+    }
+
+    return true;
 }
 
-function setSupporterAdFree(enabled) {
+function setSupporterAdFree(enabled, details = {}) {
     if (enabled) {
         localStorage.setItem(AD_CONFIG.SUPPORTER_KEY, 'true');
+        if (details.code) localStorage.setItem(AD_CONFIG.SUPPORTER_CODE_KEY, details.code);
+        if (details.label) localStorage.setItem(AD_CONFIG.SUPPORTER_LABEL_KEY, details.label);
+        if (details.expiry) localStorage.setItem(AD_CONFIG.SUPPORTER_EXPIRY_KEY, details.expiry);
         hideAdContainer('supporter');
         return;
     }
 
     localStorage.removeItem(AD_CONFIG.SUPPORTER_KEY);
+    localStorage.removeItem(AD_CONFIG.SUPPORTER_CODE_KEY);
+    localStorage.removeItem(AD_CONFIG.SUPPORTER_LABEL_KEY);
+    localStorage.removeItem(AD_CONFIG.SUPPORTER_EXPIRY_KEY);
     initializeAds();
+}
+
+function getSupporterLabel() {
+    return localStorage.getItem(AD_CONFIG.SUPPORTER_LABEL_KEY) || '';
+}
+
+function base64UrlDecode(value) {
+    const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4);
+    const raw = atob(padded);
+    return Uint8Array.from(raw, char => char.charCodeAt(0));
+}
+
+function parseSupporterCode(code) {
+    const trimmed = String(code || '').trim();
+    const parts = trimmed.split('.');
+    if (parts.length !== 3 || parts[0] !== 'GARFIELD') {
+        throw new Error('invalid-format');
+    }
+
+    const payloadText = new TextDecoder().decode(base64UrlDecode(parts[1]));
+    const payload = JSON.parse(payloadText);
+    if (!payload || payload.v !== 1 || typeof payload.sub !== 'string' || !payload.sub.trim()) {
+        throw new Error('invalid-payload');
+    }
+    if (payload.exp && Date.now() > Date.parse(`${payload.exp}T23:59:59Z`)) {
+        throw new Error('expired');
+    }
+
+    return { trimmed, payloadPart: parts[1], signaturePart: parts[2], payload };
+}
+
+async function verifySupporterCode(code) {
+    try {
+        const parsed = parseSupporterCode(code);
+        const key = await crypto.subtle.importKey(
+            'jwk',
+            AD_CONFIG.SUPPORTER_CODE_PUBLIC_KEY_JWK,
+            { name: 'ECDSA', namedCurve: 'P-256' },
+            false,
+            ['verify']
+        );
+        const isValid = await crypto.subtle.verify(
+            { name: 'ECDSA', hash: 'SHA-256' },
+            key,
+            base64UrlDecode(parsed.signaturePart),
+            new TextEncoder().encode(parsed.payloadPart)
+        );
+
+        if (!isValid) throw new Error('invalid-signature');
+        return { ok: true, code: parsed.trimmed, payload: parsed.payload };
+    } catch (error) {
+        return { ok: false, error: error.message || 'invalid-code' };
+    }
+}
+
+async function applySupporterCode(code) {
+    const result = await verifySupporterCode(code);
+    if (!result.ok) return result;
+
+    setSupporterAdFree(true, {
+        code: result.code,
+        label: result.payload.sub,
+        expiry: result.payload.exp || ''
+    });
+    return result;
 }
 
 function isAdSenseConfigured() {
@@ -124,6 +214,9 @@ window.GarfieldAds = Object.freeze({
     config: AD_CONFIG,
     isConfigured: isAdSenseConfigured,
     isSupporterAdFree,
+    getSupporterLabel,
+    verifySupporterCode,
+    applySupporterCode,
     setSupporterAdFree,
     initialize: initializeAds
 });

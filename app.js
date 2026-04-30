@@ -1607,6 +1607,8 @@ function initDonationModal() {
     const iframe = document.getElementById('donationFrame');
     const loading = document.getElementById('donationLoading');
     const supporterBtn = document.getElementById('donationSupporterBtn');
+    const supporterInput = document.getElementById('donationSupporterCode');
+    const supporterHelp = document.getElementById('donationSupporterHelp');
     const supporterStatus = document.getElementById('donationSupporterStatus');
 
     if (!supportBtn || !modal) return;
@@ -1622,12 +1624,19 @@ function initDonationModal() {
     function updateSupporterUI() {
         const isSupporter = window.GarfieldAds?.isSupporterAdFree?.() || localStorage.getItem(SUPPORTER_AD_FREE_KEY) === 'true';
         const t = translations[getActiveLanguage()] || translations.en;
+        const supporterLabel = window.GarfieldAds?.getSupporterLabel?.() || '';
+        if (supporterHelp) supporterHelp.textContent = t.donationSupporterHelp;
+        if (supporterInput) {
+            supporterInput.placeholder = t.donationSupporterPlaceholder;
+            supporterInput.setAttribute('aria-label', t.donationSupporterPlaceholder);
+            supporterInput.disabled = isSupporter;
+        }
         if (supporterBtn) {
-            supporterBtn.textContent = t.donationSupporterButton;
+            supporterBtn.textContent = isSupporter ? t.donationSupporterActiveButton : t.donationSupporterButton;
             supporterBtn.disabled = isSupporter;
         }
         if (supporterStatus) {
-            supporterStatus.textContent = isSupporter ? t.donationSupporterActive : t.donationSupporterHint;
+            supporterStatus.textContent = isSupporter ? t.donationSupporterActive.replace('{name}', supporterLabel || t.donationSupporterFallbackName) : t.donationSupporterHint;
         }
     }
 
@@ -1668,12 +1677,27 @@ function initDonationModal() {
         }
     }
 
-    modal.addEventListener('click', event => {
+    modal.addEventListener('click', async event => {
         if (event.target?.closest?.('#donationSupporterBtn')) {
-            localStorage.setItem(SUPPORTER_AD_FREE_KEY, 'true');
-            window.GarfieldAds?.setSupporterAdFree?.(true);
-            updateSupporterUI();
-            showNotification((translations[getActiveLanguage()] || translations.en).donationSupporterThanks, 4000);
+            const t = translations[getActiveLanguage()] || translations.en;
+            const code = supporterInput?.value?.trim() || '';
+            if (!code) {
+                if (supporterStatus) supporterStatus.textContent = t.donationSupporterEmpty;
+                return;
+            }
+
+            supporterBtn.disabled = true;
+            if (supporterStatus) supporterStatus.textContent = t.donationSupporterChecking;
+
+            const result = await window.GarfieldAds?.applySupporterCode?.(code);
+            if (result?.ok) {
+                if (supporterInput) supporterInput.value = '';
+                updateSupporterUI();
+                showNotification(t.donationSupporterThanks, 4000);
+            } else {
+                supporterBtn.disabled = false;
+                if (supporterStatus) supporterStatus.textContent = t.donationSupporterInvalid;
+            }
         }
     });
 
@@ -1858,9 +1882,16 @@ const translations = {
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
         googleUnavailableOnThisUrl: 'Google sign-in is not available on this test URL.',
         donationMessage: 'Help keep this app free. Your support funds ongoing development and new features.',
-        donationSupporterButton: "I've donated - hide ads",
-        donationSupporterHint: 'Supporters can turn off ads on this device.',
-        donationSupporterActive: 'Ads are hidden on this device. Thank you.',
+        donationSupporterHelp: 'Already donated? Send proof to garfieldapp@outlook.com and enter your personal supporter code to hide ads.',
+        donationSupporterPlaceholder: 'Personal supporter code',
+        donationSupporterButton: 'Apply code',
+        donationSupporterActiveButton: 'Ads hidden',
+        donationSupporterHint: 'Codes are personal and issued after donation proof is reviewed.',
+        donationSupporterActive: 'Ads are hidden on this device for {name}. Thank you.',
+        donationSupporterFallbackName: 'supporter',
+        donationSupporterEmpty: 'Enter your personal supporter code first.',
+        donationSupporterChecking: 'Checking code...',
+        donationSupporterInvalid: 'That supporter code is not valid. Check the code or email garfieldapp@outlook.com.',
         donationSupporterThanks: 'Thank you for supporting the app. Ads are now hidden on this device.',
         retry: 'Retry',
         top10Title: 'Top Favorites',
@@ -1917,9 +1948,16 @@ const translations = {
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
         googleUnavailableOnThisUrl: 'El inicio de sesión con Google no está disponible en esta URL de prueba.',
         donationMessage: 'Ayuda a mantener esta app gratuita. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
-        donationSupporterButton: 'He donado - ocultar anuncios',
-        donationSupporterHint: 'Los colaboradores pueden desactivar anuncios en este dispositivo.',
-        donationSupporterActive: 'Los anuncios están ocultos en este dispositivo. Gracias.',
+        donationSupporterHelp: '¿Ya donaste? Envía el comprobante a garfieldapp@outlook.com e introduce tu código personal para ocultar anuncios.',
+        donationSupporterPlaceholder: 'Código personal de colaborador',
+        donationSupporterButton: 'Aplicar código',
+        donationSupporterActiveButton: 'Anuncios ocultos',
+        donationSupporterHint: 'Los códigos son personales y se emiten después de revisar el comprobante de donación.',
+        donationSupporterActive: 'Los anuncios están ocultos en este dispositivo para {name}. Gracias.',
+        donationSupporterFallbackName: 'colaborador',
+        donationSupporterEmpty: 'Introduce primero tu código personal.',
+        donationSupporterChecking: 'Comprobando código...',
+        donationSupporterInvalid: 'Ese código no es válido. Revisa el código o escribe a garfieldapp@outlook.com.',
         donationSupporterThanks: 'Gracias por apoyar la app. Los anuncios ahora están ocultos en este dispositivo.',
         retry: 'Reintentar',
         top10Title: 'Favoritos Destacados',
@@ -2089,11 +2127,19 @@ function translateInterface(lang) {
     // Translate donation modal
     const donationMsg = document.getElementById('donationMessage');
     if (donationMsg) donationMsg.textContent = t.donationMessage;
+    const donationSupporterHelp = document.getElementById('donationSupporterHelp');
+    if (donationSupporterHelp) donationSupporterHelp.textContent = t.donationSupporterHelp;
+    const donationSupporterInput = document.getElementById('donationSupporterCode');
+    if (donationSupporterInput) {
+        donationSupporterInput.placeholder = t.donationSupporterPlaceholder;
+        donationSupporterInput.setAttribute('aria-label', t.donationSupporterPlaceholder);
+    }
     const donationSupporterBtn = document.getElementById('donationSupporterBtn');
     if (donationSupporterBtn) donationSupporterBtn.textContent = t.donationSupporterButton;
     const donationSupporterStatus = document.getElementById('donationSupporterStatus');
     if (donationSupporterStatus) {
-        donationSupporterStatus.textContent = window.GarfieldAds?.isSupporterAdFree?.() ? t.donationSupporterActive : t.donationSupporterHint;
+        const label = window.GarfieldAds?.getSupporterLabel?.() || t.donationSupporterFallbackName;
+        donationSupporterStatus.textContent = window.GarfieldAds?.isSupporterAdFree?.() ? t.donationSupporterActive.replace('{name}', label) : t.donationSupporterHint;
     }
 
     // Translate Top Favorites button and modal header
