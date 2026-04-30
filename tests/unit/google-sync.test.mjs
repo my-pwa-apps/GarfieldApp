@@ -115,6 +115,47 @@ test('sign-out revokes current token and clears stored user context', () => {
   assert.equal(context.store.has('gDriveToken'), false);
   assert.equal(context.store.has('gDriveUser'), false);
   assert.equal(context.store.has('gDriveUserEmail'), false);
+  assert.equal(context.store.has('gDriveSyncEnabled'), false);
+});
+
+test('stored Google user context does not restore or request tokens until sync is enabled', () => {
+  const context = createContext();
+  const requests = [];
+  context.store.set('gDriveUser', 'Tester');
+  context.store.set('gDriveUserEmail', 'tester@example.com');
+  context.google = {
+    accounts: {
+      oauth2: {
+        initTokenClient: () => ({ requestAccessToken: options => requests.push(options) })
+      }
+    }
+  };
+
+  context.__api.initGoogleSync();
+  context.__api.syncFavoritesToDrive();
+
+  assert.deepEqual(requests, []);
+});
+
+test('auto-sync does not request tokens until user explicitly opts in', () => {
+  const context = createContext();
+  const requests = [];
+  context.store.set('gDriveUser', 'Tester');
+  context.store.set('gDriveUserEmail', 'tester@example.com');
+  context.store.set('favs', JSON.stringify(['2024-01-01']));
+  context.google = {
+    accounts: {
+      oauth2: {
+        initTokenClient: () => ({ requestAccessToken: options => requests.push(options) })
+      }
+    }
+  };
+
+  context.__api.initGoogleSync();
+  context.__api.syncFavoritesToDrive();
+
+  assert.deepEqual(requests, []);
+  assert.equal(context.store.has('gDriveSyncEnabled'), false);
 });
 
 test('googleApiFetch retries once on 401 using a refreshed token', async () => {
@@ -131,6 +172,7 @@ test('googleApiFetch retries once on 401 using a refreshed token', async () => {
     }
   };
   const authorizations = [];
+  context.store.set('gDriveSyncEnabled', 'true');
   context.fetch = async (_url, options = {}) => {
     authorizations.push(options.headers?.get('Authorization'));
     return new Response('{}', { status: authorizations.length === 1 ? 401 : 200 });

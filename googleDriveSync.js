@@ -6,6 +6,7 @@ const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.goo
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const FAVORITES_FILENAME = 'garfield-favorites.json';
 const SILENT_REFRESH_COOLDOWN_MS = 30000;
+const GOOGLE_DRIVE_SYNC_ENABLED_KEY = 'gDriveSyncEnabled';
 const GOOGLE_AUTH_ALLOWED_ORIGINS = [
     'https://garfieldapp.pages.dev'
 ];
@@ -62,6 +63,18 @@ function _hasStoredUserContext() {
     return !!(_getStoredUserEmail() || localStorage.getItem('gDriveUser'));
 }
 
+function _isSyncEnabled() {
+    return localStorage.getItem(GOOGLE_DRIVE_SYNC_ENABLED_KEY) === 'true';
+}
+
+function _setSyncEnabled(enabled) {
+    if (enabled) {
+        localStorage.setItem(GOOGLE_DRIVE_SYNC_ENABLED_KEY, 'true');
+    } else {
+        localStorage.removeItem(GOOGLE_DRIVE_SYNC_ENABLED_KEY);
+    }
+}
+
 function _buildTokenRequestOptions({ interactive = false } = {}) {
     const options = {};
     const email = _getStoredUserEmail();
@@ -83,6 +96,7 @@ function _hasUsableToken() {
 
 function _canAutoSync() {
     if (!_isGoogleAuthAllowedOrigin()) return false;
+    if (!_isSyncEnabled()) return false;
     return _hasUsableToken() || _restoreStoredToken();
 }
 
@@ -177,6 +191,10 @@ async function _attemptSilentTokenRefresh({ force = false } = {}) {
         throw new Error('Google sign-in is not available on this URL');
     }
 
+    if (!_isSyncEnabled()) {
+        throw new Error('Google Drive sync is not enabled');
+    }
+
     if (_hasUsableToken()) {
         return accessToken;
     }
@@ -207,6 +225,10 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         throw new Error('Google sign-in is not available on this URL');
     }
 
+    if (!interactive && !_isSyncEnabled()) {
+        throw new Error('Google Drive sync is not enabled');
+    }
+
     if (_hasUsableToken()) {
         return accessToken;
     }
@@ -220,7 +242,7 @@ async function ensureValidAccessToken({ interactive = false } = {}) {
         } catch (_) {}
     }
 
-    if (_restoreStoredToken()) {
+    if (_isSyncEnabled() && _restoreStoredToken()) {
         updateGoogleUI(true, 'restore');
         return accessToken;
     }
@@ -292,11 +314,12 @@ function _initTokenClient() {
     });
 
     window.dispatchEvent(new CustomEvent('google-sync-ready'));
+    _getStoredTokenData();
 
-    if (_restoreStoredToken()) {
+    if (_isSyncEnabled() && _restoreStoredToken()) {
         updateGoogleUI(true, 'restore');
         pullFavoritesFromDrive();
-    } else if (_hasStoredUserContext()) {
+    } else if (_isSyncEnabled() && _hasStoredUserContext()) {
         _attemptSilentTokenRefresh()
             .catch(() => {
                 updateGoogleUI(false, 'expired');
@@ -367,7 +390,9 @@ function googleSignIn() {
         _notify(_t('googleNotLoaded') || 'Google services not loaded');
         return;
     }
+    _setSyncEnabled(true);
     ensureValidAccessToken({ interactive: true }).catch(() => {
+        _setSyncEnabled(false);
         _notify(_t('googleSignInFailed') || 'Google sign-in failed');
     });
 }
@@ -380,6 +405,7 @@ function googleSignOut() {
         google.accounts.oauth2.revoke(accessToken);
     }
     _clearTokenState(true);
+    _setSyncEnabled(false);
     updateGoogleUI(false, 'signout');
 }
 

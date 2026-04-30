@@ -907,10 +907,11 @@ function clampSettingsPanelPosition(left, top, width, height) {
     const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     const minVisibleWidth = 64;
     const minVisibleHeaderHeight = 48;
+    const minVisiblePanelHeight = 64;
 
     return {
         left: Math.max(minVisibleWidth - width, Math.min(left, viewportWidth - minVisibleWidth)),
-        top: Math.max(0, Math.min(top, window.innerHeight - minVisibleHeaderHeight))
+        top: Math.max(minVisiblePanelHeight - height, Math.min(top, window.innerHeight - minVisibleHeaderHeight))
     };
 }
 
