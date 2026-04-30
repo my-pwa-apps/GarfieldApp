@@ -13,7 +13,7 @@
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
 
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https: data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com; frame-src https://ko-fi.com https://buymeacoffee.com https://accounts.google.com; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.google.com data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https: data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net; frame-src https://ko-fi.com https://buymeacoffee.com https://accounts.google.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; manifest-src 'self';">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
@@ -34,6 +34,7 @@
     <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
     <link rel="preconnect" href="https://static.wikia.nocookie.net" crossorigin>
     <link rel="preconnect" href="https://resources.arcamax.com" crossorigin>
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
 
 
     <!-- Icons and manifest -->
@@ -83,6 +84,7 @@
     <script src="./init.js" defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./googleDriveSync.js" defer></script>
+    <script src="./adIntegration.js" defer></script>
     <script src="./app.js" type="module"></script>
 </head>
 
@@ -200,6 +202,11 @@
         </div>
     </div>
 
+    <section id="adSupportSlot" class="ad-support-slot" aria-label="Advertisement" hidden aria-hidden="true">
+        <div class="ad-support-label">Advertisement</div>
+        <div id="adSupportFrame" class="ad-support-frame"></div>
+    </section>
+
     <button id="installBtn" class="button">Install App</button>
 
     <!-- Modern Floating Settings Panel -->
@@ -304,7 +311,7 @@
             <h3 id="donationTitle">Support this App</h3>
             <button class="donation-close" id="donationCloseBtn" aria-label="Close">&times;</button>
         </div>
-        <p class="donation-message" id="donationMessage">Help keep this app free and ad-free. Your support funds ongoing development and new features.</p>
+        <p class="donation-message" id="donationMessage">Help keep this app free. Your support funds ongoing development and new features.</p>
         <div class="donation-tabs">
             <button class="donation-tab active" data-service="bmc">Buy Me a Coffee</button>
             <button class="donation-tab" data-service="kofi">Ko-fi</button>

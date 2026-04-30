@@ -1827,7 +1827,7 @@ const translations = {
         googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
         googleUnavailableOnThisUrl: 'Google sign-in is not available on this test URL.',
-        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
+        donationMessage: 'Help keep this app free. Your support funds ongoing development and new features.',
         retry: 'Retry',
         top10Title: 'Top Favorites',
         top10Loading: 'Loading…',
@@ -1882,7 +1882,7 @@ const translations = {
         googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
         googleUnavailableOnThisUrl: 'El inicio de sesión con Google no está disponible en esta URL de prueba.',
-        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
+        donationMessage: 'Ayuda a mantener esta app gratuita. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
         retry: 'Reintentar',
         top10Title: 'Favoritos Destacados',
         top10Loading: 'Cargando…',
@@ -4376,7 +4376,7 @@ function showFullsizeVertical(event) {
 
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, #adSupportSlot');
     const controlsDiv = document.querySelector('#controls-container');
 
     // Switch to fullscreen view
@@ -4432,7 +4432,7 @@ function exitFullsizeVertical(event) {
 
     const comic = document.getElementById('comic');
     const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
+    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container, #adSupportSlot');
     const controlsDiv = document.querySelector('#controls-container');
 
     // Reset container background

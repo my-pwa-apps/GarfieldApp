@@ -644,6 +644,36 @@ input[type="date"]::-webkit-datetime-edit {
     gap: 10px;
 }
 
+.ad-support-slot {
+    width: min(100% - 24px, 900px);
+    min-height: 78px;
+    margin: 0 auto 10px;
+    padding: 8px 10px 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    box-shadow: var(--shadow-sm);
+}
+
+.ad-support-slot[hidden] {
+    display: none !important;
+}
+
+.ad-support-label {
+    margin: 0 0 5px;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    line-height: 1;
+    text-align: center;
+}
+
+.ad-support-frame,
+.ad-support-ad {
+    min-height: 50px;
+    overflow: hidden;
+}
+
 #installBtn {
     position: fixed;
     bottom: 20px;
@@ -1475,6 +1505,13 @@ input[type="date"]::-webkit-datetime-edit {
 
     .settings-icons-container {
         gap: 8px;
+    }
+
+    .ad-support-slot {
+        width: min(100% - 20px, 728px);
+        min-height: 68px;
+        margin-bottom: 8px;
+        padding: 7px 8px 8px;
     }
 
     .icon-button {

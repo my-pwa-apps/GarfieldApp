@@ -309,6 +309,25 @@ test('boots and loads the current comic without runtime errors', async ({ page }
   expect(errors.requestErrors).toEqual([]);
 });
 
+test('ad placement stays hidden until AdSense identifiers are configured', async ({ page }) => {
+  const adRequests = [];
+  page.on('request', request => {
+    if (request.url().includes('googlesyndication.com') || request.url().includes('doubleclick.net')) {
+      adRequests.push(request.url());
+    }
+  });
+
+  const errors = await openApp(page);
+
+  await expect(page.locator('#adSupportSlot')).toBeHidden();
+  await expect(page.locator('#adsenseScript')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isConfigured())).toBe(false);
+  expect(adRequests).toEqual([]);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
 test('settings and Spanish mode update labels and date boundaries', async ({ page }) => {
   const errors = await openApp(page);
 

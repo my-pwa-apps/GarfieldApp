@@ -16,7 +16,7 @@ test('install precache bypasses the browser HTTP cache for fresh deploy assets',
   assert.match(source, /new Request\(asset, \{ cache: 'reload' \}\)/);
   assert.match(source, /const REQUIRED_PRECACHE_ASSETS = new Set/);
   assert.match(source, /console\.error\(`Failed to precache \$\{asset\}`/);
-  for (const asset of ['index.html', 'main.css', 'app.js', 'comicExtractor.js', 'googleDriveSync.js', 'manifest.webmanifest']) {
+  for (const asset of ['index.html', 'main.css', 'app.js', 'adIntegration.js', 'comicExtractor.js', 'googleDriveSync.js', 'manifest.webmanifest']) {
     assert.match(source, new RegExp(`'\\./${asset.replace('.', '\\.')}'`));
   }
 });
