@@ -495,7 +495,7 @@ input {
     position: relative;
     margin: 5px;
     border-radius: 10px;
-    background-image: linear-gradient(45deg, #eee239 0%, #F09819 51%, #eee239 100%);
+    background-image: linear-gradient(45deg, #fff7bd 0%, #f09819 51%, #fff7bd 100%);
     background-size: 200% auto;
     box-shadow: var(--shadow-md);
     transition: all var(--transition-slow);
@@ -602,7 +602,7 @@ input[type="date"]::-webkit-datetime-edit {
     width: 100vw;
     height: 100vh;
     margin: 0;
-    background: linear-gradient(#eee239, orange) no-repeat fixed;
+    background: var(--app-background);
     z-index: 999;
     display: flex;
     justify-content: center;

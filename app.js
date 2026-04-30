@@ -56,7 +56,7 @@ const CONFIG = Object.freeze({
 });
 
 const THEME_COLORS = Object.freeze({
-    LIGHT: '#eee239',
+    LIGHT: '#fff7bd',
     DARK: '#14110d'
 });
 
