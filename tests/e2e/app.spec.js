@@ -851,7 +851,8 @@ test('random, date picker button, and keyboard navigation update dates', async (
 test('settings options persist and change dependent UI state', async ({ page }) => {
   const errors = await openApp(page);
 
-  await expect(page.locator('#mainToolbar #darkmode')).toBeVisible();
+  await expect(page.locator('.settings-icons-container #darkmode')).toBeVisible();
+  await expect(page.locator('#mainToolbar #darkmode')).toHaveCount(0);
   await expect(page.locator('label[for="darkmode"]')).toHaveCount(0);
   await page.locator('#darkmode').evaluate(element => element.click());
   await expect(page.locator('#darkmode')).toHaveAttribute('aria-pressed', 'true');
