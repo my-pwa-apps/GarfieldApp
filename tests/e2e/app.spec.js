@@ -234,6 +234,17 @@ async function setComicDate(page, dateValue) {
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
 }
 
+function getEasternTodayString() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 async function openSettings(page) {
   if (!(await page.locator('#settingsDIV').evaluate(element => element.classList.contains('visible')))) {
     await page.getByRole('button', { name: 'Settings' }).click();
@@ -504,7 +515,7 @@ test('toolbar navigation walks normal date boundaries', async ({ page }) => {
   await setComicDate(page, '1978-06-20');
   await expect(page.locator('#Last')).toBeEnabled();
   await page.locator('#Last').evaluate(element => element.click());
-  await expect(page.locator('#DatePicker')).toHaveValue('2026-04-29');
+  await expect(page.locator('#DatePicker')).toHaveValue(getEasternTodayString());
   await expect(page.locator('#Next')).toBeDisabled();
   await expect(page.locator('#Last')).toBeDisabled();
 
@@ -839,6 +850,16 @@ test('random, date picker button, and keyboard navigation update dates', async (
 
 test('settings options persist and change dependent UI state', async ({ page }) => {
   const errors = await openApp(page);
+
+  await expect(page.locator('#mainToolbar #darkmode')).toBeVisible();
+  await expect(page.locator('label[for="darkmode"]')).toHaveCount(0);
+  await page.locator('#darkmode').evaluate(element => element.click());
+  await expect(page.locator('#darkmode')).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('darkmode'))).toBe('true');
+  await page.locator('#darkmode').evaluate(element => element.click());
+  await expect(page.locator('#darkmode')).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
 
   await openSettings(page);
   await page.locator('#swipe').uncheck();

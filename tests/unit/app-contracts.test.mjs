@@ -66,7 +66,7 @@ test('localStorage reads use safe helpers for favorites and corrupt JSON protect
 test('settings sync preferences cover user-facing configuration state', () => {
   const match = appSource.match(/window\.getSyncPreferences = function getSyncPreferences\(\) \{[\s\S]*?\n\};/);
   assert.ok(match, 'getSyncPreferences should be exported');
-  for (const key of ['comicSource', 'spanish', 'swipeEnabled', 'shuffle']) {
+  for (const key of ['comicSource', 'spanish', 'swipeEnabled', 'shuffle', 'darkMode']) {
     assert.match(match[0], new RegExp(`${key}:`));
   }
 });

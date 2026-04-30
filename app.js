@@ -78,18 +78,30 @@ function applyDarkMode(isDark) {
     updateThemeColor(isDark);
 }
 
+function setDarkModeControlState(control, isDark) {
+    if (!control) return;
+    if ('checked' in control) control.checked = isDark;
+    control.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+}
+
+function getDarkModeControlState(control) {
+    if (!control) return false;
+    if ('checked' in control) return control.checked;
+    return control.getAttribute('aria-pressed') === 'true';
+}
+
 function initializeDarkMode() {
-    const darkModeCheckbox = document.getElementById('darkmode');
-    if (!darkModeCheckbox) return;
+    const darkModeControl = document.getElementById('darkmode');
+    if (!darkModeControl) return;
 
     const useDarkMode = getPreferredDarkMode();
-    darkModeCheckbox.checked = useDarkMode;
+    setDarkModeControlState(darkModeControl, useDarkMode);
     applyDarkMode(useDarkMode);
 
     const colorSchemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
     colorSchemeQuery?.addEventListener?.('change', event => {
         if (localStorage.getItem(CONFIG.STORAGE_KEYS.DARK_MODE) !== null) return;
-        darkModeCheckbox.checked = event.matches;
+        setDarkModeControlState(darkModeControl, event.matches);
         applyDarkMode(event.matches);
     });
 }
@@ -1947,7 +1959,7 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
     }
 
     if (typeof preferences.darkMode === 'boolean' && darkModeEl) {
-        darkModeEl.checked = preferences.darkMode;
+        setDarkModeControlState(darkModeEl, preferences.darkMode);
         localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, preferences.darkMode ? 'true' : 'false');
         applyDarkMode(preferences.darkMode);
     }
@@ -1995,6 +2007,7 @@ function translateInterface(lang) {
         'Previous': t.previous,
         'Random': t.random,
         'DatePickerBtn': t.selectDate,
+        'darkmode': t.darkMode,
         'Next': t.next,
         'Last': t.last,
         'Shuffle': t.shuffle
@@ -4201,9 +4214,11 @@ document.getElementById('lastdate').addEventListener('change', function() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, this.checked ? 'true' : 'false');
 });
 
-document.getElementById('darkmode')?.addEventListener('change', function() {
-    localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, this.checked ? 'true' : 'false');
-    applyDarkMode(this.checked);
+document.getElementById('darkmode')?.addEventListener('click', function() {
+    const useDarkMode = !getDarkModeControlState(this);
+    setDarkModeControlState(this, useDarkMode);
+    localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, useDarkMode ? 'true' : 'false');
+    applyDarkMode(useDarkMode);
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
