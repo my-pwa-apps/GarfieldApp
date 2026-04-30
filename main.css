@@ -674,6 +674,49 @@ input[type="date"]::-webkit-datetime-edit {
     overflow: hidden;
 }
 
+.ad-placeholder-preview {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    border: 1px dashed rgba(240, 152, 25, 0.45);
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--surface-strong) 70%, transparent));
+    color: var(--text-primary);
+}
+
+.ad-placeholder-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.ad-placeholder-copy strong {
+    font-size: 0.84rem;
+    line-height: 1.2;
+}
+
+.ad-placeholder-copy span {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    line-height: 1.25;
+}
+
+.ad-placeholder-badge {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: var(--control-surface);
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
 #installBtn {
     position: fixed;
     bottom: 20px;
@@ -1512,6 +1555,12 @@ input[type="date"]::-webkit-datetime-edit {
         min-height: 68px;
         margin-bottom: 8px;
         padding: 7px 8px 8px;
+    }
+
+    .ad-placeholder-preview {
+        min-height: 50px;
+        padding: 9px 10px;
+        gap: 10px;
     }
 
     .icon-button {

@@ -1,4 +1,4 @@
-const VERSION = 'v1.12.82';
+const VERSION = 'v1.12.83';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -13,8 +13,8 @@ const PRECACHE_ASSETS = [
   './index.html',
   './offline.html',
   './main.css',
-  './app.js?v=1.12.82',
-  './adIntegration.js?v=1.12.82',
+  './app.js?v=1.12.83',
+  './adIntegration.js?v=1.12.83',
   './init.js',
   './comicExtractor.js',
   './googleDriveSync.js',

@@ -4,12 +4,13 @@ import test from 'node:test';
 
 const source = await readFile(new URL('../../adIntegration.js', import.meta.url), 'utf8');
 
-test('ad integration stays disabled until real AdSense identifiers are configured', () => {
+test('ad integration renders a local placeholder until real AdSense identifiers are configured', () => {
   assert.match(source, /ADSENSE_CLIENT: ''/);
   assert.match(source, /ADSENSE_SLOT: ''/);
   assert.match(source, /SUPPORTER_KEY: 'supporterAdFree'/);
   assert.match(source, /function isAdSenseConfigured\(\)/);
-  assert.match(source, /hideAdContainer\(\)/);
+  assert.match(source, /function renderPlaceholderAd\(frame\)/);
+  assert.match(source, /showAdContainer\('placeholder'\)/);
 });
 
 test('supporter ad-free mode prevents ad loading', () => {
@@ -20,6 +21,7 @@ test('supporter ad-free mode prevents ad loading', () => {
 });
 
 test('ad integration uses one responsive non-intrusive AdSense placement', () => {
+  assert.match(source, /ad-placeholder-preview/);
   assert.match(source, /data-ad-format', 'auto'/);
   assert.match(source, /data-full-width-responsive', 'true'/);
   assert.match(source, /pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js/);

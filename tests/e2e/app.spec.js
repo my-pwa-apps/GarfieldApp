@@ -309,7 +309,7 @@ test('boots and loads the current comic without runtime errors', async ({ page }
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('ad placement stays hidden until AdSense identifiers are configured', async ({ page }) => {
+test('ad placement shows a local placeholder until AdSense identifiers are configured', async ({ page }) => {
   const adRequests = [];
   page.on('request', request => {
     if (request.url().includes('googlesyndication.com') || request.url().includes('doubleclick.net')) {
@@ -319,7 +319,10 @@ test('ad placement stays hidden until AdSense identifiers are configured', async
 
   const errors = await openApp(page);
 
-  await expect(page.locator('#adSupportSlot')).toBeHidden();
+  await expect(page.locator('#adSupportSlot')).toBeVisible();
+  await expect(page.locator('#adSupportSlot')).toHaveAttribute('data-ad-state', 'placeholder');
+  await expect(page.locator('.ad-placeholder-preview')).toBeVisible();
+  await expect(page.locator('.ad-placeholder-preview')).toContainText('GarfieldApp Sponsor');
   await expect(page.locator('#adsenseScript')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isConfigured())).toBe(false);
   expect(adRequests).toEqual([]);

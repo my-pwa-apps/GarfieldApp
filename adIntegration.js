@@ -39,6 +39,33 @@ function hideAdContainer(reason = 'not-configured') {
     container.dataset.adState = reason;
 }
 
+function showAdContainer(state) {
+    const container = document.getElementById(AD_CONFIG.CONTAINER_ID);
+    if (!container) return;
+
+    container.hidden = false;
+    container.removeAttribute('aria-hidden');
+    container.dataset.adState = state;
+}
+
+function renderPlaceholderAd(frame) {
+    showAdContainer('placeholder');
+    frame.replaceChildren();
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'ad-placeholder-preview';
+    placeholder.setAttribute('role', 'img');
+    placeholder.setAttribute('aria-label', 'Advertisement preview placeholder');
+    placeholder.innerHTML = `
+        <div class="ad-placeholder-copy">
+            <strong>GarfieldApp Sponsor</strong>
+            <span>Quiet responsive banner preview</span>
+        </div>
+        <div class="ad-placeholder-badge">Ad preview</div>
+    `;
+    frame.appendChild(placeholder);
+}
+
 function loadAdSenseScript() {
     const existingScript = document.getElementById(AD_CONFIG.SCRIPT_ID);
     if (existingScript) return Promise.resolve(existingScript);
@@ -66,13 +93,11 @@ async function initializeAds() {
     }
 
     if (!isAdSenseConfigured()) {
-        hideAdContainer();
+        renderPlaceholderAd(frame);
         return;
     }
 
-    container.hidden = false;
-    container.removeAttribute('aria-hidden');
-    container.dataset.adState = 'loading';
+    showAdContainer('loading');
 
     frame.replaceChildren();
     const adElement = document.createElement('ins');
