@@ -43,6 +43,7 @@ const CONFIG = Object.freeze({
         LAST_DATE: 'lastdate',
         SPANISH: 'spanish',
         SOURCE: 'comicSource',
+        DARK_MODE: 'darkmode',
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
@@ -53,6 +54,45 @@ const CONFIG = Object.freeze({
         FAVORITES_CLIENT_ID: 'favoritesClientId'
     })
 });
+
+const THEME_COLORS = Object.freeze({
+    LIGHT: '#eee239',
+    DARK: '#14110d'
+});
+
+function getPreferredDarkMode() {
+    const storedTheme = localStorage.getItem(CONFIG.STORAGE_KEYS.DARK_MODE);
+    if (storedTheme !== null) return storedTheme === 'true';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches || false;
+}
+
+function updateThemeColor(isDark) {
+    const themeColor = isDark ? THEME_COLORS.DARK : THEME_COLORS.LIGHT;
+    document.querySelectorAll('meta[name="theme-color"], meta[name="msapplication-TileColor"]').forEach(meta => {
+        meta.setAttribute('content', themeColor);
+    });
+}
+
+function applyDarkMode(isDark) {
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    updateThemeColor(isDark);
+}
+
+function initializeDarkMode() {
+    const darkModeCheckbox = document.getElementById('darkmode');
+    if (!darkModeCheckbox) return;
+
+    const useDarkMode = getPreferredDarkMode();
+    darkModeCheckbox.checked = useDarkMode;
+    applyDarkMode(useDarkMode);
+
+    const colorSchemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+    colorSchemeQuery?.addEventListener?.('change', event => {
+        if (localStorage.getItem(CONFIG.STORAGE_KEYS.DARK_MODE) !== null) return;
+        darkModeCheckbox.checked = event.matches;
+        applyDarkMode(event.matches);
+    });
+}
 
 // ========================================
 // UTILITY FUNCTIONS
@@ -1759,6 +1799,7 @@ const translations = {
         swipeEnabled: 'Swipe enabled',
         showFavorites: 'Show only my favorites',
         rememberComic: 'Remember last comic on exit/refresh',
+        darkMode: 'Dark mode',
         comicSource: 'Comic source',
         spanish: 'Spanish / Español',
         loadingComic: 'Loading comic...',
@@ -1813,6 +1854,7 @@ const translations = {
         swipeEnabled: 'Deslizar habilitado',
         showFavorites: 'Mostrar solo mis favoritos',
         rememberComic: 'Recordar último cómic al salir/actualizar',
+        darkMode: 'Modo oscuro',
         comicSource: 'Fuente de cómics',
         spanish: 'Spanish / Español',
         loadingComic: 'Cargando cómic...',
@@ -1871,7 +1913,8 @@ window.getSyncPreferences = function getSyncPreferences() {
         comicSource: getValidComicSource(localStorage.getItem(CONFIG.STORAGE_KEYS.SOURCE)),
         spanish: localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH) === 'true',
         swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false',
-        shuffle: localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === 'true'
+        shuffle: localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === 'true',
+        darkMode: getPreferredDarkMode()
     };
 };
 
@@ -1879,6 +1922,7 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
     const sourceEl = document.getElementById('comicSource');
     const spanishEl = document.getElementById('spanish');
     const swipeEl = document.getElementById('swipe');
+    const darkModeEl = document.getElementById('darkmode');
     const datePicker = document.getElementById('DatePicker');
 
     if (preferences.comicSource && sourceEl) {
@@ -1899,6 +1943,12 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHUFFLE, preferences.shuffle ? 'true' : 'false');
         resetShuffleSession();
         if (preferences.shuffle) pickShuffleCandidates();
+    }
+
+    if (typeof preferences.darkMode === 'boolean' && darkModeEl) {
+        darkModeEl.checked = preferences.darkMode;
+        localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, preferences.darkMode ? 'true' : 'false');
+        applyDarkMode(preferences.darkMode);
     }
 
     if (typeof preferences.spanish === 'boolean' && spanishEl) {
@@ -1927,6 +1977,7 @@ function translateInterface(lang) {
         'swipe': t.swipeEnabled,
         'showfavs': t.showFavorites,
         'lastdate': t.rememberComic,
+        'darkmode': t.darkMode,
         'comicSource': t.comicSource,
         'spanish': t.spanish,
         'notifications': t.notifyNewComics
@@ -3111,6 +3162,8 @@ function showErrorMessage(message) {
 
 function initApp() {
     // Restore checkbox states from localStorage FIRST, before any code depends on them
+    initializeDarkMode();
+
     const swipeStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE);
     if (swipeStatus === null) {
         document.getElementById("swipe").checked = true;
@@ -4145,6 +4198,12 @@ document.getElementById('swipe').addEventListener('change', function() {
 
 document.getElementById('lastdate').addEventListener('change', function() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, this.checked ? 'true' : 'false');
+});
+
+document.getElementById('darkmode')?.addEventListener('change', function() {
+    localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, this.checked ? 'true' : 'false');
+    applyDarkMode(this.checked);
+    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
 document.getElementById('showfavs').addEventListener('change', function() {

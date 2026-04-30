@@ -8,6 +8,15 @@
     --surface-border: rgba(93, 62, 18, 0.14);
     --text-primary: #24201a;
     --text-secondary: rgba(36, 32, 26, 0.68);
+    --app-background: linear-gradient(180deg, #fff7bd 0%, #ffd16b 48%, #f2a23a 100%) no-repeat fixed;
+    --app-background-color: #f2a23a;
+    --button-text: #24201a;
+    --panel-header: rgba(255, 246, 214, 0.88);
+    --panel-item: rgba(255, 255, 255, 0.46);
+    --panel-item-hover: rgba(255, 248, 224, 0.76);
+    --control-surface: rgba(255, 255, 255, 0.9);
+    --modal-surface: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    --footer-surface: rgba(255, 248, 212, 0.72);
     --primary-gradient: linear-gradient(135deg, #ffcf54 0%, #f09819 100%);
     --toolbar-gradient: linear-gradient(135deg, #fff4bf 0%, #ffd164 100%);
     --button-gradient: linear-gradient(135deg, #fff4bf 0%, #f5aa2b 100%);
@@ -20,6 +29,34 @@
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
     --footer-height: 24px;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --accent: #ffad3d;
+    --accent-soft: rgba(255, 173, 61, 0.18);
+    --surface: rgba(34, 29, 23, 0.78);
+    --surface-strong: rgba(28, 24, 19, 0.96);
+    --surface-border: rgba(255, 173, 61, 0.24);
+    --text-primary: #f7efe3;
+    --text-secondary: rgba(247, 239, 227, 0.68);
+    --app-background: linear-gradient(180deg, #14110d 0%, #251a12 50%, #4a250f 100%) no-repeat fixed;
+    --app-background-color: #14110d;
+    --button-text: #20160f;
+    --panel-header: rgba(43, 35, 27, 0.94);
+    --panel-item: rgba(255, 255, 255, 0.06);
+    --panel-item-hover: rgba(255, 173, 61, 0.12);
+    --control-surface: rgba(20, 17, 13, 0.92);
+    --modal-surface: linear-gradient(135deg, #201a14 0%, #15110d 100%);
+    --footer-surface: rgba(20, 17, 13, 0.78);
+    --primary-gradient: linear-gradient(135deg, #ffbf4f 0%, #f09819 100%);
+    --toolbar-gradient: linear-gradient(135deg, #2a2118 0%, #5c3213 100%);
+    --button-gradient: linear-gradient(135deg, #ffbf4f 0%, #f09819 100%);
+    --dark-gradient: linear-gradient(135deg, rgba(10, 9, 8, 0.88) 0%, rgba(10, 9, 8, 0.97) 100%);
+    --focus-ring: 0 0 0 3px rgba(255, 173, 61, 0.44);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
+    --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.34);
+    --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.46);
 }
 
 .visually-hidden {
@@ -46,8 +83,8 @@ body {
     text-rendering: optimizeLegibility;
     overscroll-behavior: none;
     color: var(--text-primary);
-    background: linear-gradient(180deg, #fff7bd 0%, #ffd16b 48%, #f2a23a 100%) no-repeat fixed;
-    background-color: #f2a23a;
+    background: var(--app-background);
+    background-color: var(--app-background-color);
     min-height: 100vh;
     margin: 0;
     padding: 0 0 calc(var(--footer-height) + env(safe-area-inset-bottom, 0px));
@@ -68,7 +105,7 @@ main {
     padding: 12px;
     text-align: center;
     background-size: 200% auto;
-    color: black;
+    color: var(--button-text);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: background-position var(--transition-normal), box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
@@ -140,7 +177,8 @@ input {
     text-align: center;
     border-radius: 10px;
     opacity: 0.9;
-    background-color: #eee239;
+    background-color: var(--control-surface);
+    color: var(--text-primary);
 }
 
 .rotate {
@@ -927,7 +965,7 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .settings-header {
-    background: rgba(255, 246, 214, 0.88);
+    background: var(--panel-header);
     padding: 12px 16px;
     margin: -5px -5px 0 -5px;
     cursor: move;
@@ -947,7 +985,7 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #333;
+    color: var(--text-primary);
     text-shadow: none;
 }
 
@@ -963,7 +1001,7 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 24px;
     line-height: 1;
     cursor: pointer;
-    color: #333;
+    color: var(--text-primary);
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -994,14 +1032,14 @@ input[type="date"]::-webkit-datetime-edit {
     min-height: 48px;
     box-sizing: border-box;
     flex-shrink: 0;
-    background: rgba(255, 255, 255, 0.46);
+    background: var(--panel-item);
     border: 1px solid rgba(93, 62, 18, 0.08);
     border-radius: 8px;
     transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .setting-item:hover {
-    background: rgba(255, 248, 224, 0.76);
+    background: var(--panel-item-hover);
     border-color: rgba(240, 152, 25, 0.18);
 }
 
@@ -1031,7 +1069,7 @@ input[type="date"]::-webkit-datetime-edit {
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     flex: 1;
     line-height: 18px;
@@ -1054,7 +1092,7 @@ input[type="date"]::-webkit-datetime-edit {
 
 .setting-item-select .labels {
     font-size: 13px;
-    color: #666;
+    color: var(--text-secondary);
     font-weight: 500;
     flex: none;
 }
@@ -1067,8 +1105,8 @@ input[type="date"]::-webkit-datetime-edit {
     box-sizing: border-box;
     border: 1px solid rgba(240, 152, 25, 0.4);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
+    background: var(--control-surface);
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -1114,7 +1152,7 @@ input[type="date"]::-webkit-datetime-edit {
     background-size: 200% auto;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 10px;
-    color: #333;
+    color: var(--button-text);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1135,7 +1173,7 @@ input[type="date"]::-webkit-datetime-edit {
 .backup-button svg {
     width: 18px;
     height: 18px;
-    stroke: #333;
+    stroke: currentColor;
 }
 
 .backup-button:disabled {
@@ -1166,14 +1204,14 @@ input[type="date"]::-webkit-datetime-edit {
     gap: 8px;
     font-size: 14px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     width: 100%;
 }
 
 .google-sync-desc {
     margin: 0;
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     line-height: 1.4;
     width: 100%;
 }
@@ -1204,6 +1242,46 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 12px;
     color: #888;
     font-weight: 400;
+}
+
+:root[data-theme="dark"] .settings-close,
+:root[data-theme="dark"] .donation-close {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme="dark"] .settings-close:hover,
+:root[data-theme="dark"] .donation-close:hover {
+    background: rgba(255, 173, 61, 0.2);
+}
+
+:root[data-theme="dark"] .setting-google-sync {
+    background: rgba(66, 133, 244, 0.12);
+}
+
+:root[data-theme="dark"] .google-signin-btn {
+    background: #211b15 !important;
+    border-color: rgba(255, 173, 61, 0.22) !important;
+    color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] .google-signin-btn:hover {
+    background: #2a2118 !important;
+}
+
+:root[data-theme="dark"] .google-signout-label {
+    color: var(--text-secondary);
+}
+
+:root[data-theme="dark"] .top10-entry:hover {
+    background: rgba(255, 173, 61, 0.12);
+}
+
+:root[data-theme="dark"] .top10-entry:active {
+    background: rgba(255, 173, 61, 0.2);
+}
+
+:root[data-theme="dark"] .top10-thumb-placeholder {
+    color: var(--text-secondary);
 }
 
 /* ========================================
@@ -1505,7 +1583,7 @@ input[type="date"]::-webkit-datetime-edit {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    background: var(--modal-surface);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
                 0 10px 30px rgba(0, 0, 0, 0.15),
@@ -1539,7 +1617,7 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
-    color: #333;
+    color: var(--text-primary);
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
     display: flex;
     align-items: center;
@@ -1556,7 +1634,7 @@ input[type="date"]::-webkit-datetime-edit {
 .top10-empty {
     text-align: center;
     padding: 32px 16px;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 14px;
 }
 
@@ -1582,7 +1660,7 @@ input[type="date"]::-webkit-datetime-edit {
     transition: background 0.15s ease;
     font-family: inherit;
     font-size: 14px;
-    color: #333;
+    color: var(--text-primary);
     gap: 10px;
     text-align: left;
 }
@@ -1608,7 +1686,7 @@ input[type="date"]::-webkit-datetime-edit {
     text-align: center;
     font-weight: 700;
     font-size: 16px;
-    color: #555;
+    color: var(--text-secondary);
     flex-shrink: 0;
 }
 
@@ -1618,7 +1696,7 @@ input[type="date"]::-webkit-datetime-edit {
     flex-shrink: 0;
     border-radius: 6px;
     overflow: hidden;
-    background: #f0f0f0;
+    background: var(--panel-item);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1775,7 +1853,7 @@ input[type="date"]::-webkit-datetime-edit {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    background: var(--modal-surface);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3),
                 0 10px 30px rgba(0, 0, 0, 0.15),
@@ -1809,7 +1887,7 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: #333;
+    color: var(--text-primary);
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
@@ -1825,7 +1903,7 @@ input[type="date"]::-webkit-datetime-edit {
     font-size: 24px;
     line-height: 1;
     cursor: pointer;
-    color: #333;
+    color: var(--text-primary);
     transition: all var(--transition-fast);
     display: flex;
     align-items: center;
@@ -1842,7 +1920,7 @@ input[type="date"]::-webkit-datetime-edit {
     margin: 0;
     padding: 12px 20px;
     font-size: 13px;
-    color: #555;
+    color: var(--text-secondary);
     line-height: 1.5;
     text-align: center;
     background: rgba(240, 152, 25, 0.06);
@@ -2102,8 +2180,8 @@ input[type="date"]::-webkit-datetime-edit {
     padding: 4px 10px env(safe-area-inset-bottom, 0px);
     line-height: 1.6;
     font-size: 0.65rem;
-    color: rgba(36, 32, 26, 0.5);
-    background: rgba(255, 248, 212, 0.72);
+    color: var(--text-secondary);
+    background: var(--footer-surface);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     z-index: 10;
@@ -2113,7 +2191,7 @@ input[type="date"]::-webkit-datetime-edit {
 }
 
 .copyright-footer a {
-    color: rgba(36, 32, 26, 0.64);
+    color: var(--text-secondary);
     text-decoration: none;
 }
 
