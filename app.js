@@ -60,6 +60,12 @@ const THEME_COLORS = Object.freeze({
     DARK: '#14110d'
 });
 
+const SUPPORTER_AD_FREE_KEY = 'supporterAdFree';
+
+function getActiveLanguage() {
+    return UTILS.isSpanishMode() ? 'es' : 'en';
+}
+
 function getPreferredDarkMode() {
     const storedTheme = localStorage.getItem(CONFIG.STORAGE_KEYS.DARK_MODE);
     if (storedTheme !== null) return storedTheme === 'true';
@@ -1600,6 +1606,8 @@ function initDonationModal() {
     const tabs = modal?.querySelectorAll('.donation-tab');
     const iframe = document.getElementById('donationFrame');
     const loading = document.getElementById('donationLoading');
+    const supporterBtn = document.getElementById('donationSupporterBtn');
+    const supporterStatus = document.getElementById('donationSupporterStatus');
 
     if (!supportBtn || !modal) return;
 
@@ -1611,9 +1619,22 @@ function initDonationModal() {
 
     const stripeOverlay = document.getElementById('donationStripeOverlay');
 
+    function updateSupporterUI() {
+        const isSupporter = window.GarfieldAds?.isSupporterAdFree?.() || localStorage.getItem(SUPPORTER_AD_FREE_KEY) === 'true';
+        const t = translations[getActiveLanguage()] || translations.en;
+        if (supporterBtn) {
+            supporterBtn.textContent = t.donationSupporterButton;
+            supporterBtn.disabled = isSupporter;
+        }
+        if (supporterStatus) {
+            supporterStatus.textContent = isSupporter ? t.donationSupporterActive : t.donationSupporterHint;
+        }
+    }
+
     function openDonationModal() {
         modal.classList.add('visible');
         backdrop.classList.add('visible');
+        updateSupporterUI();
         const activeTab = modal.querySelector('.donation-tab.active');
         if (activeTab) {
             loadService(activeTab.dataset.service);
@@ -1646,6 +1667,15 @@ function initDonationModal() {
             }
         }
     }
+
+    modal.addEventListener('click', event => {
+        if (event.target?.closest?.('#donationSupporterBtn')) {
+            localStorage.setItem(SUPPORTER_AD_FREE_KEY, 'true');
+            window.GarfieldAds?.setSupporterAdFree?.(true);
+            updateSupporterUI();
+            showNotification((translations[getActiveLanguage()] || translations.en).donationSupporterThanks, 4000);
+        }
+    });
 
     supportBtn.addEventListener('click', openDonationModal);
     closeBtn?.addEventListener('click', closeDonationModal);
@@ -1828,6 +1858,10 @@ const translations = {
         googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
         googleUnavailableOnThisUrl: 'Google sign-in is not available on this test URL.',
         donationMessage: 'Help keep this app free. Your support funds ongoing development and new features.',
+        donationSupporterButton: "I've donated - hide ads",
+        donationSupporterHint: 'Supporters can turn off ads on this device.',
+        donationSupporterActive: 'Ads are hidden on this device. Thank you.',
+        donationSupporterThanks: 'Thank you for supporting the app. Ads are now hidden on this device.',
         retry: 'Retry',
         top10Title: 'Top Favorites',
         top10Loading: 'Loading…',
@@ -1883,6 +1917,10 @@ const translations = {
         googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
         googleUnavailableOnThisUrl: 'El inicio de sesión con Google no está disponible en esta URL de prueba.',
         donationMessage: 'Ayuda a mantener esta app gratuita. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
+        donationSupporterButton: 'He donado - ocultar anuncios',
+        donationSupporterHint: 'Los colaboradores pueden desactivar anuncios en este dispositivo.',
+        donationSupporterActive: 'Los anuncios están ocultos en este dispositivo. Gracias.',
+        donationSupporterThanks: 'Gracias por apoyar la app. Los anuncios ahora están ocultos en este dispositivo.',
         retry: 'Reintentar',
         top10Title: 'Favoritos Destacados',
         top10Loading: 'Cargando…',
@@ -2051,6 +2089,12 @@ function translateInterface(lang) {
     // Translate donation modal
     const donationMsg = document.getElementById('donationMessage');
     if (donationMsg) donationMsg.textContent = t.donationMessage;
+    const donationSupporterBtn = document.getElementById('donationSupporterBtn');
+    if (donationSupporterBtn) donationSupporterBtn.textContent = t.donationSupporterButton;
+    const donationSupporterStatus = document.getElementById('donationSupporterStatus');
+    if (donationSupporterStatus) {
+        donationSupporterStatus.textContent = window.GarfieldAds?.isSupporterAdFree?.() ? t.donationSupporterActive : t.donationSupporterHint;
+    }
 
     // Translate Top Favorites button and modal header
     const top10BtnSpan = document.querySelector('#top10Btn span');

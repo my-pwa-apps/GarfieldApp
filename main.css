@@ -1964,6 +1964,41 @@ input[type="date"]::-webkit-datetime-edit {
     border-bottom: 1px solid rgba(240, 152, 25, 0.1);
 }
 
+.donation-supporter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: rgba(240, 152, 25, 0.04);
+    border-bottom: 1px solid rgba(240, 152, 25, 0.1);
+    flex-wrap: wrap;
+}
+
+.donation-supporter-button {
+    border: 1px solid var(--surface-border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    background: var(--control-surface);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.donation-supporter-button:hover {
+    background: var(--panel-item-hover);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+}
+
+.donation-supporter-status {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
 .donation-tabs {
     display: flex;
     padding: 0;

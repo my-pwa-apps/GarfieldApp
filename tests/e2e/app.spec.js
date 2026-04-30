@@ -328,6 +328,22 @@ test('ad placement stays hidden until AdSense identifiers are configured', async
   expect(errors.requestErrors).toEqual([]);
 });
 
+test('supporter acknowledgement hides ads on this device', async ({ page }) => {
+  const errors = await openApp(page);
+
+  await page.getByRole('button', { name: 'Support this App' }).click();
+  await expect(page.locator('#donationModal')).toHaveClass(/visible/);
+  await page.getByRole('button', { name: "I've donated - hide ads" }).click();
+
+  await expect(page.locator('#donationSupporterStatus')).toHaveText('Ads are hidden on this device. Thank you.');
+  await expect(page.locator('#adSupportSlot')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('supporterAdFree'))).toBe('true');
+  await expect.poll(() => page.evaluate(() => window.GarfieldAds?.isSupporterAdFree())).toBe(true);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
 test('settings and Spanish mode update labels and date boundaries', async ({ page }) => {
   const errors = await openApp(page);
 

@@ -84,8 +84,8 @@
     <script src="./init.js" defer></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="./googleDriveSync.js" defer></script>
-    <script src="./adIntegration.js" defer></script>
-    <script src="./app.js" type="module"></script>
+    <script src="./adIntegration.js?v=1.12.82" defer></script>
+    <script src="./app.js?v=1.12.82" type="module"></script>
 </head>
 
 <body id="app-body">
@@ -312,6 +312,10 @@
             <button class="donation-close" id="donationCloseBtn" aria-label="Close">&times;</button>
         </div>
         <p class="donation-message" id="donationMessage">Help keep this app free. Your support funds ongoing development and new features.</p>
+        <div class="donation-supporter" id="donationSupporterPanel">
+            <button class="donation-supporter-button" id="donationSupporterBtn" type="button">I've donated - hide ads</button>
+            <span class="donation-supporter-status" id="donationSupporterStatus" aria-live="polite"></span>
+        </div>
         <div class="donation-tabs">
             <button class="donation-tab active" data-service="bmc">Buy Me a Coffee</button>
             <button class="donation-tab" data-service="kofi">Ko-fi</button>

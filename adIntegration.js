@@ -5,10 +5,26 @@
 const AD_CONFIG = Object.freeze({
     ADSENSE_CLIENT: '',
     ADSENSE_SLOT: '',
+    SUPPORTER_KEY: 'supporterAdFree',
     SCRIPT_ID: 'adsenseScript',
     CONTAINER_ID: 'adSupportSlot',
     FRAME_ID: 'adSupportFrame'
 });
+
+function isSupporterAdFree() {
+    return localStorage.getItem(AD_CONFIG.SUPPORTER_KEY) === 'true';
+}
+
+function setSupporterAdFree(enabled) {
+    if (enabled) {
+        localStorage.setItem(AD_CONFIG.SUPPORTER_KEY, 'true');
+        hideAdContainer('supporter');
+        return;
+    }
+
+    localStorage.removeItem(AD_CONFIG.SUPPORTER_KEY);
+    initializeAds();
+}
 
 function isAdSenseConfigured() {
     return /^ca-pub-\d{10,}$/.test(AD_CONFIG.ADSENSE_CLIENT) && /^\d{4,}$/.test(AD_CONFIG.ADSENSE_SLOT);
@@ -44,6 +60,11 @@ async function initializeAds() {
     const frame = document.getElementById(AD_CONFIG.FRAME_ID);
     if (!container || !frame) return;
 
+    if (isSupporterAdFree()) {
+        hideAdContainer('supporter');
+        return;
+    }
+
     if (!isAdSenseConfigured()) {
         hideAdContainer();
         return;
@@ -77,6 +98,8 @@ async function initializeAds() {
 window.GarfieldAds = Object.freeze({
     config: AD_CONFIG,
     isConfigured: isAdSenseConfigured,
+    isSupporterAdFree,
+    setSupporterAdFree,
     initialize: initializeAds
 });
 
