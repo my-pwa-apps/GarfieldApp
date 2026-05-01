@@ -84,6 +84,14 @@ async function setUsableMidRangeDate(page) {
 }
 
 async function expectNoSeriousAxeViolations(page, contextLabel) {
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `
+  });
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze();
@@ -122,7 +130,7 @@ test('keyboard users can discover and activate the main workflow controls', asyn
   await setUsableMidRangeDate(page);
   await page.locator('#First').focus();
 
-  const expectedControls = ['First', 'Previous', 'Random', 'DatePickerBtn', 'Next', 'Last', 'supportBtn', 'settingsBtn', 'favheart', 'Shuffle', 'shareBtn'];
+  const expectedControls = ['First', 'Previous', 'Random', 'DatePickerBtn', 'Next', 'Last', 'supportBtn', 'settingsBtn', 'darkmode', 'favheart', 'Shuffle', 'shareBtn'];
   const focusedControls = [];
   for (let step = 0; step < expectedControls.length; step += 1) {
     focusedControls.push(await page.evaluate(() => document.activeElement?.id || document.activeElement?.textContent?.trim() || ''));
@@ -144,6 +152,7 @@ test('keyboard users can discover and activate the main workflow controls', asyn
   expect(focusedControls).toContain('Last');
   expect(focusedControls).toContain('supportBtn');
   expect(focusedControls).toContain('settingsBtn');
+  expect(focusedControls).toContain('darkmode');
   expect(focusedControls).toContain('favheart');
   expect(focusedControls).toContain('Shuffle');
   expect(focusedControls).toContain('shareBtn');

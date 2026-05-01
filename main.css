@@ -1223,6 +1223,19 @@ input[type="date"]::-webkit-datetime-edit {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
+.google-signin-btn span,
+.google-signin-btn svg {
+    color: #3c4043 !important;
+    stroke: currentColor !important;
+}
+
+#googleSignInBtn,
+#googleSignInBtn span {
+    background: #ffffff !important;
+    color: #24201a !important;
+    font-weight: 700 !important;
+}
+
 .google-signin-btn:hover {
     background: #f8f9fa !important;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12) !important;
@@ -1261,6 +1274,18 @@ input[type="date"]::-webkit-datetime-edit {
 :root[data-theme="dark"] .google-signin-btn {
     background: #211b15 !important;
     border-color: rgba(255, 173, 61, 0.22) !important;
+    color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] .google-signin-btn span,
+:root[data-theme="dark"] .google-signin-btn svg {
+    color: var(--text-primary) !important;
+    stroke: currentColor !important;
+}
+
+:root[data-theme="dark"] #googleSignInBtn,
+:root[data-theme="dark"] #googleSignInBtn span {
+    background: #211b15 !important;
     color: var(--text-primary) !important;
 }
 

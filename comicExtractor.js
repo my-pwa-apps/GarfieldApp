@@ -16,7 +16,6 @@ const CORS_PROXIES = [
 const FETCH_TIMEOUT = 15000;
 
 // Performance tracking
-let workingProxyIndex = 0;
 const proxyFailureCount = new Array(CORS_PROXIES.length).fill(0);
 const proxyResponseTimes = new Array(CORS_PROXIES.length).fill(0);
 
@@ -55,7 +54,6 @@ function updateProxyStats(proxyIndex, success, responseTime) {
         // Update average response time
         const currentAvg = proxyResponseTimes[proxyIndex] || responseTime;
         proxyResponseTimes[proxyIndex] = (currentAvg + responseTime) / 2;
-        workingProxyIndex = proxyIndex;
         // Reset failure count on success
         proxyFailureCount[proxyIndex] = Math.max(0, proxyFailureCount[proxyIndex] - 1);
     }
