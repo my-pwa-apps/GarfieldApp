@@ -60,6 +60,11 @@ const THEME_COLORS = Object.freeze({
     DARK: '#14110d'
 });
 
+const DARK_MODE_ICONS = Object.freeze({
+    MOON: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>',
+    SUN: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line></svg>'
+});
+
 function getPreferredDarkMode() {
     const storedTheme = localStorage.getItem(CONFIG.STORAGE_KEYS.DARK_MODE);
     if (storedTheme !== null) return storedTheme === 'true';
@@ -82,6 +87,7 @@ function setDarkModeControlState(control, isDark) {
     if (!control) return;
     if ('checked' in control) control.checked = isDark;
     control.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    control.innerHTML = isDark ? DARK_MODE_ICONS.SUN : DARK_MODE_ICONS.MOON;
 }
 
 function getDarkModeControlState(control) {
@@ -2450,8 +2456,8 @@ function handleTouchMove(e) {
     const deltaX = Math.abs(touch.clientX - touchStartX);
     const deltaY = Math.abs(touch.clientY - touchStartY);
 
-    // If horizontal swipe is more significant than vertical, prevent vertical scrolling
-    if (deltaX > deltaY && deltaX > 20 && e.cancelable) {
+    // If a handled swipe is underway, prevent native scrolling from fighting it.
+    if (((deltaX > deltaY && deltaX > 20) || (deltaY > deltaX && touch.clientY < touchStartY && deltaY > 20)) && e.cancelable) {
         e.preventDefault();
     }
 }
@@ -2500,6 +2506,12 @@ function handleTouchEnd(e) {
     const canSwipeNavigate = (direction) => randomSwipe
         ? UTILS.canShuffleNavigate(direction)
         : UTILS.canNavigate(direction);
+    const canSwipeRandom = () => !document.getElementById('Random')?.disabled;
+    const triggerRandomSwipe = () => {
+        swipeDetected = true;
+        lastSwipeTime = Date.now();
+        RandomClick();
+    };
 
     // Determine swipe direction based on mode
     if (isInRotatedMode) {
@@ -2534,6 +2546,8 @@ function handleTouchEnd(e) {
                     goPrev();
                 }
             }
+        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE && deltaY < 0 && canSwipeRandom()) {
+            triggerRandomSwipe();
         }
     } else {
         // Normal portrait mode: Horizontal only for Next/Prev
@@ -2552,6 +2566,8 @@ function handleTouchEnd(e) {
                     goNext();
                 }
             }
+        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE && deltaY < 0 && canSwipeRandom()) {
+            triggerRandomSwipe();
         }
     }
 }

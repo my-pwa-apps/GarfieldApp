@@ -438,6 +438,19 @@ test('date navigation and shuffle mode update control state', async ({ page }) =
   expect(errors.requestErrors).toEqual([]);
 });
 
+test('swipe up opens a random comic in normal viewing mode', async ({ page }) => {
+  const errors = await openApp(page);
+
+  await setComicDate(page, '1978-06-20');
+  await page.evaluate(() => { Math.random = () => 0; });
+  await dispatchTouchGesture(page, '#comic', [{ x: 240, y: 620 }, { x: 240, y: 220 }]);
+
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
 test('filmstrip navigation waits for the preloaded target image before swapping comics', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'connection', {
@@ -856,10 +869,12 @@ test('settings options persist and change dependent UI state', async ({ page }) 
   await expect(page.locator('label[for="darkmode"]')).toHaveCount(0);
   await page.locator('#darkmode').evaluate(element => element.click());
   await expect(page.locator('#darkmode')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#darkmode svg circle')).toHaveCount(1);
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('darkmode'))).toBe('true');
   await page.locator('#darkmode').evaluate(element => element.click());
   await expect(page.locator('#darkmode')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#darkmode svg path')).toHaveAttribute('d', 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
 
   await openSettings(page);
