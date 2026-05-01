@@ -21,25 +21,25 @@ const proxyFailureCount = new Array(CORS_PROXIES.length).fill(0);
 const proxyResponseTimes = new Array(CORS_PROXIES.length).fill(0);
 
 /**
- * Gets the best performing proxy based on success rate and response time
- * @returns {number} Index of the best proxy
+ * Scores a proxy based on success rate and response time.
+ * @param {number} proxyIndex - Proxy index to score
+ * @returns {number} Higher score means a better proxy
  */
-function getBestProxyIndex() {
-    let bestIndex = workingProxyIndex;
-    let bestScore = -Infinity;
+function getProxyScore(proxyIndex) {
+    const failurePenalty = proxyFailureCount[proxyIndex] * 2000;
+    const avgTime = proxyResponseTimes[proxyIndex] || 1500;
+    return 10000 / (avgTime + failurePenalty + 1);
+}
 
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
-        const failurePenalty = proxyFailureCount[i] * 2000;
-        const avgTime = proxyResponseTimes[i] || 1500;
-        const score = 10000 / (avgTime + failurePenalty + 1);
-
-        if (score > bestScore) {
-            bestScore = score;
-            bestIndex = i;
-        }
-    }
-
-    return bestIndex;
+/**
+ * Gets public fallback proxies ordered by score.
+ * @returns {number[]} Proxy indexes, excluding the Garfield Cloudflare proxy
+ */
+function getPublicProxyOrder() {
+    return CORS_PROXIES
+        .map((_, index) => index)
+        .filter(index => index !== 0)
+        .sort((a, b) => getProxyScore(b) - getProxyScore(a));
 }
 
 /**
@@ -95,26 +95,23 @@ async function tryProxy(url, proxyIndex, startTime) {
 }
 
 /**
- * Fetches with intelligent proxy fallback and parallel racing
+ * Fetches through the Garfield Cloudflare proxy first, then public fallbacks.
  * @param {string} url - URL to fetch
  * @returns {Promise<string>} HTML content
  */
 async function fetchWithProxyFallback(url) {
-    const startTime = Date.now();
-    const bestProxy = getBestProxyIndex();
-
     try {
-        return await tryProxy(url, bestProxy, startTime);
-    } catch (firstError) {
-        // Race all other proxies in parallel
-        const otherProxies = CORS_PROXIES.map((_, i) => i).filter(i => i !== bestProxy);
-        const promises = otherProxies.map(i => tryProxy(url, i, Date.now()));
-
-        try {
-            return await Promise.any(promises);
-        } catch (allError) {
-            throw new Error('All proxies failed');
+        return await tryProxy(url, 0, Date.now());
+    } catch {
+        for (const proxyIndex of getPublicProxyOrder()) {
+            try {
+                return await tryProxy(url, proxyIndex, Date.now());
+            } catch {
+                continue;
+            }
         }
+
+        throw new Error('All proxies failed');
     }
 }
 
