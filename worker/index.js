@@ -11,6 +11,7 @@ const DEFAULT_ALLOWED_HOSTS = [
     'gocomics.com',
     '*.gocomics.com',
     'assets.amuniversal.com',
+    'picayune.uclick.com',
     'www.arcamax.com',
     'resources.arcamax.com',
     'garfield.fandom.com',
