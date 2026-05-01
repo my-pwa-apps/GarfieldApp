@@ -1404,8 +1404,11 @@ input[type="date"]::-webkit-datetime-edit {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-    .logo img {
-        margin-top: 0;
+    .logo {
+        margin-top: -1px;
+        padding-top: 1px;
+        background: var(--app-background);
+        background-color: var(--app-background-color);
     }
 
     #comic-container {
