@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "GarfieldNative (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "GarfieldNative (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

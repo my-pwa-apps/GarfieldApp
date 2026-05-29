@@ -20,6 +20,20 @@ async function mockExternalServices(page, options = {}) {
     return `<!doctype html><html><head><meta property="og:image" content="${imageUrl}"></head><body></body></html>`;
   };
 
+  // When the app proxies an image asset (e.g. during share, to build a
+  // same-origin canvas source) the nested target is an image URL, not a
+  // comic page — return PNG bytes instead of HTML so the image decodes.
+  const isImageTarget = (target) => /\.(png|jpe?g|gif|webp)(\?|$)/i.test(target) ||
+    /featureassets\.gocomics\.com|static\.wikia\.nocookie\.net|assets\.amuniversal\.com|resources\.arcamax\.com/i.test(target);
+
+  const proxyFulfill = (route, target) => {
+    if (isImageTarget(target)) {
+      route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
+    } else {
+      route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(target) });
+    }
+  };
+
   await context.route('**/{favicon-16x16.png,favicon-32x32.png,apple-touch-icon.png}', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
@@ -53,13 +67,13 @@ async function mockExternalServices(page, options = {}) {
   });
   await context.route('https://corsproxy.garfieldapp.workers.dev/**', route => {
     const requestUrl = new URL(route.request().url());
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(decodeURIComponent(requestUrl.search.slice(1))) });
+    proxyFulfill(route, decodeURIComponent(requestUrl.search.slice(1)));
   });
   await context.route('https://api.codetabs.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url()) });
+    proxyFulfill(route, route.request().url());
   });
   await context.route('https://api.allorigins.win/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url()) });
+    proxyFulfill(route, route.request().url());
   });
 }
 
