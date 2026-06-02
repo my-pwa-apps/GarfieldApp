@@ -11,11 +11,11 @@ Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic st
 ### Module System
 - **ES6 modules** via `type="module"` in HTML
 - `app.js` imports from `comicExtractor.js` using `import { getAuthenticatedComic } from './comicExtractor.js'`
-- `init.js` runs before DOM load for language detection
+- `init.js` performs early bootstrap and fullscreen setup before the DOM is ready; the actual language detection runs in `initApp()` inside `app.js`
 - All functions exposed globally via `window.FunctionName = FunctionName` pattern
 
 ### Key Files & Responsibilities
-- **`app.js`** (~2900 lines): Main app logic—UI, navigation, settings, draggables, translations, rotation/fullscreen
+- **`app.js`**: Main app logic—UI, navigation, settings, draggables, translations, rotation/fullscreen
 - **`comicExtractor.js`**: Comic fetching with CORS proxy fallback system, performance tracking
 - **`serviceworker.js`**: PWA caching (precache, runtime, image cache with LRU eviction)
 - **`init.js`**: Language detection and fullscreen management—runs before DOM ready
@@ -73,7 +73,7 @@ Native touch events with rotation-awareness:
 ### Service Worker Versioning
 **CRITICAL**: Bump `VERSION` in `serviceworker.js` with every deployment:
 ```javascript
-const VERSION = 'v1.2.7';  // Current version - increment on changes
+const VERSION = 'v1.12.98';  // Current version - increment on changes
 ```
 
 ### Sitemap Maintenance
@@ -134,4 +134,4 @@ if (!success) { /* handle unavailable */ }
 - No npm packages—pure vanilla JS
 
 ---
-*Service Worker v1.2.7 | Key patterns: UTILS helpers, CONFIG constants, device-specific rotation*
+*Service Worker v1.12.98 | Key patterns: UTILS helpers, CONFIG constants, device-specific rotation*

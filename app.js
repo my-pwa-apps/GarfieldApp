@@ -1,4 +1,5 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
+import { makeDraggable } from './toolbar.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -933,135 +934,6 @@ function clampSettingsPanelPosition(left, top, width, height) {
     };
 }
 
-function makeDraggable(element, dragHandle, storageKey) {
-    let isDragging = false;
-    let offsetX = 0;
-    let offsetY = 0;
-    let cachedWidth = 0;
-    let cachedHeight = 0;
-    let isTicking = false;
-    let pendingLeft = 0;
-    let pendingTop = 0;
-
-    function onDown(e) {
-        // For mouse events, only drag with the left button
-        if (e.type === 'mousedown' && e.button !== 0) return;
-
-        // Prevent dragging when interacting with buttons or inputs
-        if (e.target.closest('button, input')) return;
-
-        // Check if target is the handle or within it
-        if (!(e.target === dragHandle || dragHandle.contains(e.target))) return;
-
-        isDragging = true;
-        element.style.cursor = dragHandle === element ? 'grabbing' : '';
-
-        const event = e.touches ? e.touches[0] : e;
-
-        // Cache dimensions to prevent layout thrashing during drag
-        cachedWidth = element.offsetWidth;
-        cachedHeight = element.offsetHeight;
-
-        // Get actual rendered position
-        const rect = element.getBoundingClientRect();
-        const elementStartX = rect.left + window.scrollX;
-        const elementStartY = rect.top + window.scrollY;
-
-        // Calculate offset from touch/click point to element's rendered top-left
-        offsetX = event.clientX + window.scrollX - elementStartX;
-        offsetY = event.clientY + window.scrollY - elementStartY;
-
-        document.addEventListener('mousemove', onMove, { passive: false });
-        document.addEventListener('touchmove', onMove, { passive: false });
-        document.addEventListener('mouseup', onUp);
-        document.addEventListener('touchend', onUp);
-
-        e.preventDefault();
-    }
-
-    function onMove(e) {
-        if (!isDragging) return;
-        e.preventDefault();
-
-        const event = e.touches ? e.touches[0] : e;
-
-        // Use cached dimensions to prevent layout thrashing
-        const width = cachedWidth;
-        const height = cachedHeight;
-
-        // Calculate new position
-        let newLeft = event.clientX - offsetX + window.scrollX;
-        let newTop = event.clientY - offsetY + window.scrollY;
-        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-
-        // Toolbar: vertical drag only — keep current horizontal position
-        // Settings: allow partial off-screen parking while keeping the header reachable
-        // Other elements: free 2D drag clamped to viewport
-        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
-            newLeft = parseFloat(element.style.left) || (viewportWidth - width) / 2;
-            newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
-        } else if (storageKey === CONFIG.STORAGE_KEYS.SETTINGS + '_pos') {
-            const clamped = clampSettingsPanelPosition(newLeft, newTop, width, height);
-            newLeft = clamped.left;
-            newTop = clamped.top;
-        } else {
-            newLeft = Math.max(0, Math.min(newLeft, viewportWidth - width));
-            newTop = Math.max(0, Math.min(newTop, window.innerHeight - height));
-        }
-
-        // Always store the latest coordinates so the RAF reads up-to-date values
-        pendingLeft = newLeft;
-        pendingTop = newTop;
-
-        if (!isTicking) {
-            window.requestAnimationFrame(() => {
-                if (isDragging) {
-                    element.style.left = pendingLeft + 'px';
-                    element.style.top = pendingTop + 'px';
-                    element.style.transform = 'none';
-                }
-                isTicking = false;
-            });
-            isTicking = true;
-        }
-    }
-
-    function onUp() {
-        if (!isDragging) return;
-
-        isDragging = false;
-        element.style.cursor = dragHandle === element ? 'grab' : '';
-
-        // Save position
-        const numericTop = parseFloat(element.style.top) || 0;
-        const numericLeft = parseFloat(element.style.left) || 0;
-
-        // Special handling for toolbar: DirkJan-style snap-to-optimal behavior
-        if (storageKey === CONFIG.STORAGE_KEYS.TOOLBAR_POS) {
-            const vw = document.documentElement.clientWidth || window.innerWidth;
-            const centerLeft = (vw - (element.offsetWidth || cachedWidth)) / 2;
-            try {
-                localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
-            } catch (_) {}
-            storeToolbarPosition(numericTop, numericLeft, element, {
-                leftOffsetFromCenter: numericLeft - centerLeft
-            });
-        } else {
-            // For other elements (like settings panel), save both positions
-            try {
-                localStorage.setItem(storageKey, JSON.stringify({ top: numericTop, left: numericLeft }));
-            } catch (_) {}
-        }
-
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.removeEventListener('touchend', onUp);
-    }
-
-    dragHandle.addEventListener('mousedown', onDown);
-    dragHandle.addEventListener('touchstart', onDown, { passive: false });
-}
 
 /**
  * Positions toolbar centered below logo
@@ -1209,7 +1081,9 @@ function initializeDraggableSettings() {
     }
 
     // Make draggable
-    makeDraggable(panel, header, settingsStorageKey);
+    makeDraggable(panel, header, settingsStorageKey, {
+        clampPosition: clampSettingsPanelPosition
+    });
     window.addEventListener('resize', keepPanelReachable);
 }
 
@@ -1472,7 +1346,15 @@ function initializeToolbar() {
     }
 
     // Make toolbar draggable (vertical only)
-    makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS);
+    makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS, {
+        isToolbar: true,
+        onDrop: ({ element, left, top }) => {
+            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+            const centerLeft = (viewportWidth - (element.offsetWidth || 0)) / 2;
+            storeToolbarPosition(top, left, element, { leftOffsetFromCenter: left - centerLeft });
+            moveToolbarBetweenLogoAndComic(element);
+        }
+    });
 
     // Only clamp on resize, not on orientation change to prevent toolbar movement
     // Debounce resize handler to avoid excessive calculations

@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Automated browser tests for the Garfield Comics PWA.",
   "scripts": {
@@ -11,6 +11,7 @@
     "test:native": "playwright test --config=playwright.native.config.js",
     "test:lighthouse": "node tests/support/lighthouse-audit.cjs",
     "test:workers": "node tests/support/live-worker-health.cjs",
+    "bump:version": "node tools/bump-version.cjs",
     "test:predeploy": "npm run test:syntax && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
     "test:pwa": "playwright test tests/e2e/pwa-offline.spec.js --project=chromium",
     "test:unit": "node --test tests/unit/*.test.mjs",

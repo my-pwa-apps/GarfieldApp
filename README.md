@@ -1,6 +1,6 @@
 # Daily Garfield Comics PWA
 
-A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, switch between English and Spanish when supported, choose a comic source, save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, and install the app.
+A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, switch between English and Spanish when supported, choose a comic source (the shipped UI default is GoComics), save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, and install the app.
 
 ## Core Files
 

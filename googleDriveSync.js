@@ -20,6 +20,10 @@ let pendingTokenRequestReject = null;
 let pendingTokenInteractive = false;
 let lastSilentRefreshAttempt = 0;
 
+function _storage() {
+    return typeof sessionStorage !== 'undefined' ? sessionStorage : localStorage;
+}
+
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
 function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem('favs') || '[]'); }
@@ -38,18 +42,19 @@ function _getGoogleUnavailableMessage() {
 }
 
 function _getStoredTokenData() {
-    const stored = localStorage.getItem('gDriveToken');
+    const storage = _storage();
+    const stored = storage.getItem('gDriveToken');
     if (!stored) return null;
 
     try {
         const parsed = JSON.parse(stored);
         if (!parsed || typeof parsed.token !== 'string' || typeof parsed.expiry !== 'number') {
-            localStorage.removeItem('gDriveToken');
+            storage.removeItem('gDriveToken');
             return null;
         }
         return parsed;
     } catch (_) {
-        localStorage.removeItem('gDriveToken');
+        _storage().removeItem('gDriveToken');
         return null;
     }
 }
@@ -110,9 +115,10 @@ function _restoreStoredToken() {
 }
 
 function _storeToken(token, expiresInSeconds) {
+    const storage = _storage();
     accessToken = token;
     accessTokenExpiry = Date.now() + (Number(expiresInSeconds || 0) * 1000);
-    localStorage.setItem('gDriveToken', JSON.stringify({
+    storage.setItem('gDriveToken', JSON.stringify({
         token: accessToken,
         expiry: accessTokenExpiry
     }));
@@ -124,7 +130,7 @@ function _clearTokenState(clearUser = false) {
     pendingTokenRequest = null;
     pendingTokenRequestResolve = null;
     pendingTokenRequestReject = null;
-    localStorage.removeItem('gDriveToken');
+    _storage().removeItem('gDriveToken');
     if (clearUser) {
         localStorage.removeItem('gDriveUser');
         localStorage.removeItem('gDriveUserEmail');
@@ -578,7 +584,7 @@ async function pullFavoritesFromDrive() {
 /**
  * Update the UI to reflect signed-in / signed-out state.
  */
-function updateGoogleUI(signedIn) {
+function updateGoogleUI(signedIn, reason = 'state') {
     const signInBtn = document.getElementById('googleSignInBtn');
     const signOutBtn = document.getElementById('googleSignOutBtn');
     const nameEl = document.getElementById('googleUserName');

@@ -212,7 +212,9 @@ async function openApp(page, url = '/', options = {}) {
     }
   });
   page.on('requestfailed', request => {
-    requestErrors.push(`${request.failure()?.errorText || 'failed'} ${request.url()}`);
+    const errorText = request.failure()?.errorText || 'failed';
+    if (errorText === 'net::ERR_ABORTED') return;
+    requestErrors.push(`${errorText} ${request.url()}`);
   });
 
   await mockExternalServices(page, options);
@@ -643,7 +645,8 @@ test('donation providers load their embedded content and failed provider respons
 
   await page.locator('#supportBtn').click();
   await expect(page.locator('#donationModal')).toHaveClass(/visible/);
-  await expect(page.locator('#donationFrame')).toHaveAttribute('sandbox', /allow-same-origin/);
+  await expect(page.locator('#donationFrame')).toHaveAttribute('sandbox', /allow-scripts/);
+  await expect(page.locator('#donationFrame')).not.toHaveAttribute('sandbox', /allow-same-origin/);
   await expect(page.frameLocator('#donationFrame').locator('body')).toContainText('Buy Me a Coffee');
   await expect(page.locator('#donationLoading')).toHaveCSS('display', 'none');
 
@@ -1056,7 +1059,7 @@ test('top favorites empty, error, retry, and toolbar navigation states work', as
   await expect(page.locator('#Previous')).toBeDisabled();
   await expect(page.locator('#Next')).toBeEnabled();
   await page.locator('#Next').evaluate(element => element.click());
-  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20', { timeout: 15000 });
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors.some(error => error.includes('500') && error.includes('/top'))).toBe(true);

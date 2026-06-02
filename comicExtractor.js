@@ -1,10 +1,10 @@
 /**
  * CORS proxy configuration and performance tracking
  *
- * Comic source fallback chain (default: Fandom first):
- *   1. Garfield Fandom Wiki (primary) — all dates from 1978, EN only
- *   2. GoComics (first fallback) — all dates from 1978, supports EN + ES
- *   3. uClick / picayune (second fallback) — all dates from 1978, EN only
+ * Comic source fallback chain (runtime default in the app: GoComics first):
+ *   1. GoComics (default UI source) — all dates from 1978, supports EN + ES
+ *   2. Garfield Fandom Wiki (fallback) — all dates from 1978, EN only
+ *   3. uClick / picayune (fallback) — all dates from 1978, EN only
  *   4. ArcaMax (last fallback) — last ~30 days, EN only
  */
 const CORS_PROXIES = [
@@ -245,6 +245,11 @@ async function _getComicFromGoComics(date, language, options = {}) {
  */
 async function _getComicFromFandom(date, options = {}) {
     const dateStr = _dateToISO(date);
+    const cacheKey = `fandom:${dateStr}`;
+    if (_fandomLookupCache.has(cacheKey)) {
+        return _fandomLookupCache.get(cacheKey);
+    }
+
     // Fandom filenames use either regular hyphens (2026-04-01.gif) or
     // en dashes (2026–04–02.gif, U+2013). Try both variants for each extension.
     const enDashStr = dateStr.replace(/-/g, '\u2013');
@@ -271,7 +276,9 @@ async function _getComicFromFandom(date, options = {}) {
                     // Route through the CORS proxy so the browser loads via
                     // Cloudflare — independent of client VPN routing or CDN edge.
                     const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
-                    return { success: true, imageUrl: proxiedUrl };
+                    const result = { success: true, imageUrl: proxiedUrl };
+                    _fandomLookupCache.set(cacheKey, result);
+                    return result;
                 }
             }
         } catch (err) {
@@ -282,10 +289,12 @@ async function _getComicFromFandom(date, options = {}) {
         }
     }
 
+    const result = { success: false, imageUrl: null };
+    _fandomLookupCache.set(cacheKey, result);
     if (!options.silent) {
         console.warn(`Fandom wiki: no image found for ${dateStr}`);
     }
-    return { success: false, imageUrl: null };
+    return result;
 }
 
 // ============================================================
@@ -332,6 +341,7 @@ async function _getComicFromUClick(date, options = {}) {
 
 // In-session date→articleId cache built up during traversal
 const _arcamaxDateCache = new Map();
+const _fandomLookupCache = new Map();
 
 function _isValidArcaMaxPage(html) {
     return html.includes('resources.arcamax.com/newspics') ||
@@ -459,7 +469,7 @@ async function _getComicFromArcaMax(date) {
  *
  * @param {Date} date
  * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
- * @param {string} preferredSource - 'fandom' (default) | 'gocomics' | 'uclick'
+ * @param {string} preferredSource - 'fandom' | 'gocomics' | 'uclick' (the app defaults to 'gocomics' when the saved setting is invalid)
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
 export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom', options = {}) {
