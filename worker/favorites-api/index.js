@@ -4,9 +4,7 @@
  * Uses a Durable Object as the source of truth so leaderboard writes are
  * serialized and counts remain consistent under concurrent traffic.
  *
- * Identity model:
- * - Preferred: verified Google bearer token (stable across devices/profiles)
- * - Fallback: local anonymous client id sent by the app
+ * Leaderboard writes require a verified Google bearer token. Reads remain public.
  */
 
 const ALLOWED_ORIGINS = [
@@ -18,7 +16,6 @@ const ALLOWED_ORIGINS = [
 ];
 
 const DATE_PATTERN = /^\d{4}\/\d{2}\/\d{2}$/;
-const CLIENT_ID_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const MIGRATE_MAX = 500;
@@ -30,8 +27,10 @@ const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.goo
 const IDENTITY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const IDENTITY_CACHE_MAX = 500;
 const LEADERBOARD_OBJECT_NAME = 'global';
-const COUNTS_KEY = 'counts';
-const TOP_KEY = 'top';
+const LEADERBOARD_VERSION = 'google-v1';
+const COUNTS_KEY = `counts:${LEADERBOARD_VERSION}`;
+const TOP_KEY = `top:${LEADERBOARD_VERSION}`;
+const UPDATED_AT_KEY = `updated-at:${LEADERBOARD_VERSION}`;
 
 export default {
     async fetch(request, env) {
@@ -113,17 +112,28 @@ export class FavoritesLeaderboard {
         const userStorageKey = getUserStorageKey(identity.key);
         const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
         const counts = (await this.state.storage.get(COUNTS_KEY)) || {};
+        const updatedAtByDate = (await this.state.storage.get(UPDATED_AT_KEY)) || {};
         const currentCount = counts[date] || 0;
 
         if (action === 'add') {
             if (favorites.has(date)) {
-                return jsonResponse({ ok: true, count: currentCount, unchanged: true });
+                return jsonResponse({
+                    ok: true,
+                    count: currentCount,
+                    updatedAt: updatedAtByDate[date] || null,
+                    unchanged: true
+                });
             }
             favorites.add(date);
             counts[date] = currentCount + 1;
         } else {
             if (!favorites.has(date)) {
-                return jsonResponse({ ok: true, count: currentCount, unchanged: true });
+                return jsonResponse({
+                    ok: true,
+                    count: currentCount,
+                    updatedAt: updatedAtByDate[date] || null,
+                    unchanged: true
+                });
             }
             favorites.delete(date);
             const nextCount = Math.max(0, currentCount - 1);
@@ -134,8 +144,12 @@ export class FavoritesLeaderboard {
             }
         }
 
-        await this.persistState(userStorageKey, favorites, counts);
-        return jsonResponse({ ok: true, count: counts[date] || 0 });
+        const updatedAt = new Date().toISOString();
+        if (counts[date]) updatedAtByDate[date] = updatedAt;
+        else delete updatedAtByDate[date];
+
+        await this.persistState(userStorageKey, favorites, counts, updatedAtByDate);
+        return jsonResponse({ ok: true, count: counts[date] || 0, updatedAt });
     }
 
     async handleMigrate(request) {
@@ -164,12 +178,15 @@ export class FavoritesLeaderboard {
         const userStorageKey = getUserStorageKey(identity.key);
         const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
         const counts = (await this.state.storage.get(COUNTS_KEY)) || {};
+        const updatedAtByDate = (await this.state.storage.get(UPDATED_AT_KEY)) || {};
+        const updatedAt = new Date().toISOString();
         let migrated = 0;
 
         for (const date of validDates) {
             if (favorites.has(date)) continue;
             favorites.add(date);
             counts[date] = (counts[date] || 0) + 1;
+            updatedAtByDate[date] = updatedAt;
             migrated++;
         }
 
@@ -177,15 +194,16 @@ export class FavoritesLeaderboard {
             return jsonResponse({ ok: true, migrated: 0, unchanged: true });
         }
 
-        await this.persistState(userStorageKey, favorites, counts);
-        return jsonResponse({ ok: true, migrated });
+        await this.persistState(userStorageKey, favorites, counts, updatedAtByDate);
+        return jsonResponse({ ok: true, migrated, updatedAt });
     }
 
-    async persistState(userStorageKey, favorites, counts) {
-        const top = buildTopEntries(counts);
+    async persistState(userStorageKey, favorites, counts, updatedAtByDate) {
+        const top = buildTopEntries(counts, updatedAtByDate);
         const operations = [
             this.state.storage.put(COUNTS_KEY, counts),
-            this.state.storage.put(TOP_KEY, top)
+            this.state.storage.put(TOP_KEY, top),
+            this.state.storage.put(UPDATED_AT_KEY, updatedAtByDate)
         ];
 
         if (favorites.size > 0) {
@@ -216,35 +234,19 @@ export class FavoritesLeaderboard {
 
     async resolveIdentity(request) {
         const authHeader = request.headers.get('Authorization') || '';
-        if (authHeader.startsWith('Bearer ')) {
-            const token = authHeader.slice('Bearer '.length).trim();
-            const googleIdentity = await this.verifyGoogleIdentity(token);
-            if (!googleIdentity) {
-                return { errorResponse: jsonResponse({ error: 'Invalid Google token' }, 401) };
-            }
-
-            return {
-                key: `google:${googleIdentity.sub}`,
-                kind: 'google'
-            };
+        if (!authHeader.startsWith('Bearer ')) {
+            return { errorResponse: jsonResponse({ error: 'Google sign-in required' }, 401) };
         }
 
-        const clientId = (request.headers.get('X-Client-Id') || '').trim();
-        if (!CLIENT_ID_PATTERN.test(clientId)) {
-            const legacyIdentity = getLegacyIdentity(request);
-            if (!legacyIdentity) {
-                return { errorResponse: jsonResponse({ error: 'Missing or invalid client id' }, 401) };
-            }
-
-            return {
-                key: legacyIdentity,
-                kind: 'legacy'
-            };
+        const token = authHeader.slice('Bearer '.length).trim();
+        const googleIdentity = await this.verifyGoogleIdentity(token);
+        if (!googleIdentity) {
+            return { errorResponse: jsonResponse({ error: 'Invalid Google token' }, 401) };
         }
 
         return {
-            key: `anon:${clientId}`,
-            kind: 'anonymous'
+            key: `google:${googleIdentity.sub}`,
+            kind: 'google'
         };
     }
 
@@ -328,28 +330,16 @@ function getLeaderboardStub(env) {
     return env.LEADERBOARD.get(id);
 }
 
-function buildTopEntries(counts) {
+function buildTopEntries(counts, updatedAtByDate) {
     return Object.entries(counts)
-        .map(([date, count]) => ({ date, count }))
+        .map(([date, count]) => ({ date, count, updatedAt: updatedAtByDate[date] || null }))
         .filter(entry => entry.count > 0)
         .sort((a, b) => b.count - a.count || a.date.localeCompare(b.date))
         .slice(0, TOP_N);
 }
 
 function getUserStorageKey(identityKey) {
-    return `user:${identityKey}`;
-}
-
-function getLegacyIdentity(request) {
-    const ip = (request.headers.get('CF-Connecting-IP') || '').trim();
-    if (!ip) return null;
-
-    const userAgent = (request.headers.get('User-Agent') || 'unknown')
-        .trim()
-        .slice(0, 120)
-        .replace(/[^A-Za-z0-9 ._:-]/g, '_');
-
-    return `legacy:${ip}:${userAgent}`;
+    return `user:${LEADERBOARD_VERSION}:${identityKey}`;
 }
 
 function isSupportedRoute(pathname, method) {
@@ -387,7 +377,7 @@ function corsHeaders(request, env) {
     return new Headers({
         'Access-Control-Allow-Origin': resolveOrigin(request, env),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Id',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '86400'
     });
 }

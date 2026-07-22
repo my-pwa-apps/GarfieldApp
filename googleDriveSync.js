@@ -598,6 +598,10 @@ function updateGoogleUI(signedIn, reason = 'state') {
         const stored = localStorage.getItem('gDriveUser');
         if (stored) nameEl.textContent = stored;
     }
+
+    window.dispatchEvent(new CustomEvent('google-auth-changed', {
+        detail: { signedIn, reason }
+    }));
 }
 
 // Expose to global scope for app.js

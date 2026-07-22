@@ -117,12 +117,6 @@ async function mockExternalServices(targetPage, options = {}) {
   await targetPage.route('https://assets.amuniversal.com/**', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
-  await targetPage.route('https://buymeacoffee.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><body>Buy Me a Coffee</body></html>' });
-  });
-  await targetPage.route('https://ko-fi.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><body>Ko-fi</body></html>' });
-  });
   await targetPage.route('https://garfield.fandom.com/**', route => {
     route.fulfill({
       status: 200,

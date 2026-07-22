@@ -27,8 +27,6 @@ async function mockExternalServices(page, options = {}) {
   await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://assets.amuniversal.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
-  await context.route('https://buymeacoffee.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>' }));
-  await context.route('https://ko-fi.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>' }));
   await context.route('https://garfield.fandom.com/**', route => {
     comicRequests.push(route.request().url());
     route.fulfill({
@@ -126,7 +124,7 @@ test('corrupt and unknown local storage preferences recover without breaking boo
   expect(result.errors).toEqual([]);
 });
 
-test('settings, support, and top favorites layouts do not overlap critical controls', async ({ page }) => {
+test('settings and top favorites layouts do not overlap critical controls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page);
 
@@ -153,9 +151,7 @@ test('settings, support, and top favorites layouts do not overlap critical contr
   expect(settingsOverlap).toEqual([]);
 
   await page.locator('#settingsCloseBtn').click();
-  await page.locator('#supportBtn').click();
-  await expect(page.locator('#donationModal')).toBeInViewport();
-  await page.keyboard.press('Escape');
+  await expect(page.locator('#supportBtn')).toHaveAttribute('href', 'https://buy.stripe.com/9B63cubyG45ldITfim1VK00');
 });
 
 test('basic performance budget stays within an app-shell threshold', async ({ page }) => {

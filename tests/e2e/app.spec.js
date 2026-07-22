@@ -15,16 +15,6 @@ async function mockExternalServices(page, options = {}) {
   const failComics = options.failComics || false;
   const failShareImage = options.failShareImage || false;
   const googleScriptBody = options.googleScriptBody || '';
-  const donationResponses = {
-    bmc: {
-      status: options.donationResponses?.bmc?.status || 200,
-      body: options.donationResponses?.bmc?.body || '<!doctype html><html><body>Buy Me a Coffee</body></html>'
-    },
-    kofi: {
-      status: options.donationResponses?.kofi?.status || 200,
-      body: options.donationResponses?.kofi?.body || '<!doctype html><html><body>Ko-fi</body></html>'
-    }
-  };
 
   const comicHtml = (url, source = 'garfield') => {
     const target = url ? new URL(url) : null;
@@ -61,6 +51,7 @@ async function mockExternalServices(page, options = {}) {
       return;
     }
 
+    options.onFavoriteRequest?.(route.request());
     route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -87,14 +78,6 @@ async function mockExternalServices(page, options = {}) {
 
   await context.route('https://assets.amuniversal.com/**', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-  });
-
-  await context.route('https://buymeacoffee.com/**', route => {
-    route.fulfill({ status: donationResponses.bmc.status, contentType: 'text/html; charset=utf-8', body: donationResponses.bmc.body });
-  });
-
-  await context.route('https://ko-fi.com/**', route => {
-    route.fulfill({ status: donationResponses.kofi.status, contentType: 'text/html; charset=utf-8', body: donationResponses.kofi.body });
   });
 
   await context.route('https://garfield.fandom.com/**', route => {
@@ -592,28 +575,22 @@ test('favorites-only mode navigates stored favorites and empty state', async ({ 
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('support and top favorites modals open, switch, and close cleanly', async ({ page }) => {
+test('Stripe support link and top favorites modal work cleanly', async ({ page }) => {
   const errors = await openApp(page, '/', {
     topFavorites: [
-      { date: '1978/06/19', count: 42 },
-      { date: '1978/06/20', count: 17 }
+      { date: '1978/06/19', count: 42, updatedAt: '2026-07-22T12:30:00.000Z' },
+      { date: '1978/06/20', count: 17, updatedAt: '2026-07-21T12:30:00.000Z' }
     ]
   });
 
-  await page.locator('#supportBtn').click();
-  await expect(page.locator('#donationModal')).toHaveClass(/visible/);
-  await expect(page.locator('#donationFrame')).toHaveAttribute('src', /buymeacoffee/);
-  await page.getByRole('button', { name: 'Ko-fi' }).click();
-  await expect(page.locator('#donationFrame')).toHaveAttribute('src', /ko-fi/);
-  await page.getByRole('button', { name: 'Stripe' }).click();
-  await expect(page.locator('#donationStripeOverlay')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#donationModal')).not.toHaveClass(/visible/);
+  await expect(page.locator('#supportBtn')).toHaveAttribute('href', 'https://buy.stripe.com/9B63cubyG45ldITfim1VK00');
+  await expect(page.locator('#supportBtn')).toHaveAttribute('target', '_blank');
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await clickSettingsControl(page, '#top10Btn');
   await expect(page.locator('#top10Modal')).toHaveClass(/visible/);
   await expect(page.locator('.top10-entry')).toHaveCount(2);
+  await expect(page.locator('.top10-updated').first()).toContainText('Updated');
 
   await page.locator('.top10-entry').first().click();
   await expect(page.locator('#top10Modal')).not.toHaveClass(/visible/);
@@ -636,31 +613,20 @@ test('support and top favorites modals open, switch, and close cleanly', async (
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('donation providers load their embedded content and failed provider responses stay contained', async ({ page }) => {
+test('signed-out favorites stay local and do not write to community rankings', async ({ page }) => {
+  let favoriteWrites = 0;
   const errors = await openApp(page, '/', {
-    donationResponses: {
-      kofi: { status: 503, body: '<!doctype html><html><body>Ko-fi temporarily unavailable</body></html>' }
-    }
+    onFavoriteRequest: () => { favoriteWrites += 1; }
   });
 
-  await page.locator('#supportBtn').click();
-  await expect(page.locator('#donationModal')).toHaveClass(/visible/);
-  await expect(page.locator('#donationFrame')).toHaveAttribute('sandbox', /allow-scripts/);
-  await expect(page.locator('#donationFrame')).not.toHaveAttribute('sandbox', /allow-same-origin/);
-  await expect(page.frameLocator('#donationFrame').locator('body')).toContainText('Buy Me a Coffee');
-  await expect(page.locator('#donationLoading')).toHaveCSS('display', 'none');
-
-  await page.getByRole('button', { name: 'Ko-fi' }).click();
-  await expect(page.locator('#donationFrame')).toHaveAttribute('src', /ko-fi/);
-  await expect(page.frameLocator('#donationFrame').locator('body')).toContainText('Ko-fi temporarily unavailable');
-  await expect(page.locator('#donationLoading')).toHaveCSS('display', 'none');
-
-  await page.getByRole('button', { name: 'Stripe' }).click();
-  await expect(page.locator('#donationStripeOverlay')).toBeVisible();
-  await expect(page.locator('#donationFrame')).toHaveCSS('display', 'none');
+  await page.locator('#favheart').click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]').length)).toBe(1);
+  await expect(page.locator('#notificationToast')).toHaveClass(/show/);
+  await expect(page.locator('#notificationContent')).toContainText('Sign in with Google');
+  expect(favoriteWrites).toBe(0);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
-  expect(errors.requestErrors.some(error => error.includes('503') && error.includes('ko-fi.com'))).toBe(true);
+  expect(errors.requestErrors).toEqual([]);
 });
 
 test('share fallback notifies when Web Share is unavailable', async ({ page }) => {

@@ -70,3 +70,21 @@ test('settings sync preferences cover user-facing configuration state', () => {
     assert.match(match[0], new RegExp(`${key}:`));
   }
 });
+
+test('offline comics are indexed locally and exposed through connection-aware navigation', () => {
+  assert.match(appSource, /OFFLINE_COMICS: 'offlineComics'/);
+  assert.match(appSource, /getOfflineComics\(language\)/);
+  assert.match(appSource, /rememberOfflineComic\(date, language, imageUrl\)/);
+  assert.match(appSource, /getOfflineComic\(date, language, direction/);
+  assert.match(appSource, /window\.addEventListener\('online'/);
+  assert.match(appSource, /window\.addEventListener\('offline'/);
+  assert.match(appSource, /\.\/garfield-first\.gif/);
+});
+
+test('community favorite writes require Google auth and expose failures', () => {
+  assert.match(appSource, /requireAuth/);
+  assert.match(appSource, /favoriteSignInRequired/);
+  assert.match(appSource, /favoriteVoteFailed/);
+  assert.doesNotMatch(appSource, /X-Client-Id/);
+  assert.doesNotMatch(appSource, /Silently ignore network errors/);
+});

@@ -23,8 +23,6 @@ async function mockExternalServices(page) {
   await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
   await context.route('https://assets.amuniversal.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
-  await context.route('https://buymeacoffee.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>', headers: corsHeaders }));
-  await context.route('https://ko-fi.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<!doctype html><html></html>', headers: corsHeaders }));
   await context.route('https://garfield.fandom.com/**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',

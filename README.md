@@ -1,6 +1,8 @@
 # Daily Garfield Comics PWA
 
-A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, switch between English and Spanish when supported, choose a comic source (the shipped UI default is GoComics), save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, and install the app.
+A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, switch between English and Spanish when supported, choose a comic source (the shipped UI default is GoComics), save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, support development through Stripe, and install the app.
+
+> **Windows Native App**: The WinUI 3 desktop wrapper for Windows has been split into a separate repository: **[GarfieldNative](https://github.com/YOUR_ORG/GarfieldNative)**. It references this PWA as a sibling dependency for web assets.
 
 ## Core Files
 
@@ -72,4 +74,6 @@ ALLOWED_ORIGINS = "https://garfieldapp.pages.dev,https://example.github.io"
 ```
 
 Keep the Google OAuth client ID in `googleDriveSync.js` aligned with the validation client ID in `worker/favorites-api/index.js`.
+
+Community rankings are public to read, but adding, removing, or migrating votes requires a verified Google access token issued for this app. Signed-out users can still manage favorites locally; those changes do not affect Top Favorites.
 

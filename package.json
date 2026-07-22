@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "private": true,
   "description": "Automated browser tests for the Garfield Comics PWA.",
   "scripts": {
@@ -24,6 +24,6 @@
     "@axe-core/playwright": "^4.11.2",
     "@playwright/test": "1.59.1",
     "lighthouse": "^12.6.1",
-    "wrangler": "^4.93.0"
+    "wrangler": "^4.111.0"
   }
 }

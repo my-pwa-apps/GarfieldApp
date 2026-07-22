@@ -26,7 +26,13 @@ class MemoryStorage {
 }
 
 function createObject() {
-  return new FavoritesLeaderboard({ storage: new MemoryStorage() }, {});
+  const api = new FavoritesLeaderboard({ storage: new MemoryStorage() }, {});
+  api.verifyGoogleIdentity = async token => {
+    if (token === 'valid-google-token') return { sub: 'google-user-1', email: 'reader@example.com' };
+    if (token === 'second-google-token') return { sub: 'google-user-2', email: 'second@example.com' };
+    return null;
+  };
+  return api;
 }
 
 function request(path, options = {}) {
@@ -34,7 +40,7 @@ function request(path, options = {}) {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'X-Client-Id': 'client_1234567890abcdef',
+      'Authorization': 'Bearer valid-google-token',
       ...(options.headers || {})
     }
   });
@@ -45,13 +51,41 @@ test('favorite add/remove updates counts and preserves duplicate idempotence', a
 
   let response = await api.fetch(request('/favorite', { method: 'POST', body: JSON.stringify({ date: '1978/06/19', action: 'add' }) }));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, count: 1 });
+  const added = await response.json();
+  assert.equal(added.ok, true);
+  assert.equal(added.count, 1);
+  assert.match(added.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
 
   response = await api.fetch(request('/favorite', { method: 'POST', body: JSON.stringify({ date: '1978/06/19', action: 'add' }) }));
-  assert.deepEqual(await response.json(), { ok: true, count: 1, unchanged: true });
+  const unchanged = await response.json();
+  assert.equal(unchanged.ok, true);
+  assert.equal(unchanged.count, 1);
+  assert.equal(unchanged.unchanged, true);
+  assert.equal(unchanged.updatedAt, added.updatedAt);
 
   response = await api.fetch(request('/favorite', { method: 'POST', body: JSON.stringify({ date: '1978/06/19', action: 'remove' }) }));
-  assert.deepEqual(await response.json(), { ok: true, count: 0 });
+  const removed = await response.json();
+  assert.equal(removed.ok, true);
+  assert.equal(removed.count, 0);
+  assert.match(removed.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('leaderboard writes require a verified Google token', async () => {
+  const api = createObject();
+
+  let response = await api.fetch(request('/favorite', {
+    method: 'POST',
+    headers: { Authorization: '' },
+    body: JSON.stringify({ date: '1978/06/19', action: 'add' })
+  }));
+  assert.equal(response.status, 401);
+
+  response = await api.fetch(request('/migrate', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer invalid-token' },
+    body: JSON.stringify({ dates: ['1978/06/19'] })
+  }));
+  assert.equal(response.status, 401);
 });
 
 test('top favorites are sorted by count then date and limited to positive counts', async () => {
@@ -61,17 +95,19 @@ test('top favorites are sorted by count then date and limited to positive counts
   }
   await api.fetch(request('/favorite', {
     method: 'POST',
-    headers: { 'X-Client-Id': 'client_other_12345678' },
+    headers: { Authorization: 'Bearer second-google-token' },
     body: JSON.stringify({ date: '1978/06/19', action: 'add' })
   }));
 
   const response = await api.fetch(request('/top', { method: 'GET' }));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), [
+  const top = await response.json();
+  assert.deepEqual(top.map(({ date, count }) => ({ date, count })), [
     { date: '1978/06/19', count: 2 },
     { date: '1978/06/20', count: 1 },
     { date: '1978/06/21', count: 1 }
   ]);
+  top.forEach(entry => assert.match(entry.updatedAt, /^\d{4}-\d{2}-\d{2}T/));
 });
 
 test('migrate validates input, deduplicates dates, and reports unchanged migrations', async () => {
@@ -81,7 +117,10 @@ test('migrate validates input, deduplicates dates, and reports unchanged migrati
   assert.equal(response.status, 400);
 
   response = await api.fetch(request('/migrate', { method: 'POST', body: JSON.stringify({ dates: ['1978/06/19', '1978/06/19', '1978/06/20'] }) }));
-  assert.deepEqual(await response.json(), { ok: true, migrated: 2 });
+  const migrated = await response.json();
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.migrated, 2);
+  assert.match(migrated.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
 
   response = await api.fetch(request('/migrate', { method: 'POST', body: JSON.stringify({ dates: ['1978/06/19'] }) }));
   assert.deepEqual(await response.json(), { ok: true, migrated: 0, unchanged: true });
@@ -124,10 +163,10 @@ test('worker wrapper accepts additional deployment origins from environment conf
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://example.github.io');
 });
 
-test('invalid client id, date, action, and JSON return client errors', async () => {
+test('invalid token, date, action, and JSON return client errors', async () => {
   const api = createObject();
 
-  let response = await api.fetch(request('/favorite', { method: 'POST', headers: { 'X-Client-Id': 'bad' }, body: '{}' }));
+  let response = await api.fetch(request('/favorite', { method: 'POST', headers: { Authorization: 'Bearer bad' }, body: '{}' }));
   assert.equal(response.status, 401);
 
   response = await api.fetch(request('/favorite', { method: 'POST', body: JSON.stringify({ date: '1978-06-19', action: 'add' }) }));

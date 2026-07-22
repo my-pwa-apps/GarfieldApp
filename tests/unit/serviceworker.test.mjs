@@ -31,6 +31,7 @@ test('activation removes stale Garfield caches while preserving the current cach
 test('offline and cache limits are covered by service worker strategies', () => {
   assert.match(source, /const MAX_IMAGE_CACHE_SIZE = 50/);
   assert.match(source, /const MAX_RUNTIME_CACHE_SIZE = 30/);
+  assert.match(source, /'\.\/garfield-first\.gif'/);
   assert.match(source, /while \(keys\.length >= maxSize\)/);
   assert.match(source, /while \(keys\.length >= MAX_RUNTIME_CACHE_SIZE\)/);
   assert.match(source, /return caches\.match\('\.\/index\.html'\)/);
@@ -40,4 +41,11 @@ test('offline and cache limits are covered by service worker strategies', () => 
 test('update flow supports skip waiting messages', () => {
   assert.match(source, /event\.data\?\.type === 'SKIP_WAITING'/);
   assert.match(source, /self\.skipWaiting\(\)/);
+});
+
+test('support is standardized on the Stripe payment link', async () => {
+  const html = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+  assert.match(html, /https:\/\/buy\.stripe\.com\/9B63cubyG45ldITfim1VK00/);
+  assert.doesNotMatch(html, /buymeacoffee|ko-fi/i);
+  assert.doesNotMatch(html, /donationModal|donationFrame/);
 });

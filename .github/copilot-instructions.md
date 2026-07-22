@@ -130,7 +130,7 @@ if (!success) { /* handle unavailable */ }
 
 ## External Dependencies
 - GoComics (via CORS proxies)
-- Ko-fi widget (CDN loaded)
+- Stripe hosted payment link
 - No npm packages—pure vanilla JS
 
 ---

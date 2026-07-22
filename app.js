@@ -22,7 +22,7 @@ const CONFIG = Object.freeze({
 
     // Favorites leaderboard API
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
-    FAVORITES_MIGRATION_VERSION: 'do-reseed-2026-04-07',
+    FAVORITES_MIGRATION_VERSION: 'google-only-v1',
 
     // Windows Store review prompting
     REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
@@ -52,7 +52,7 @@ const CONFIG = Object.freeze({
         FAVS_MIGRATED: 'favsMigrated',
         FAVS_MIGRATED_DATES: 'favsMigratedDates',
         FAVS_MIGRATION_VERSION: 'favsMigrationVersion',
-        FAVORITES_CLIENT_ID: 'favoritesClientId'
+        OFFLINE_COMICS: 'offlineComics'
     })
 });
 
@@ -152,6 +152,13 @@ const UTILS = {
         return this.createLocalDate(yearValue, monthValue, dayValue);
     },
 
+    dateToISODateString(date) {
+        const yearValue = date.getFullYear();
+        const monthValue = String(date.getMonth() + 1).padStart(2, '0');
+        const dayValue = String(date.getDate()).padStart(2, '0');
+        return `${yearValue}-${monthValue}-${dayValue}`;
+    },
+
     /**
      * Get the current calendar parts in US Eastern Time.
      * @returns {{year: number, month: number, day: number}}
@@ -174,7 +181,6 @@ const UTILS = {
 
     /**
      * Get current date in US Eastern Time (where GoComics releases comics)
-     * Comics are released around midnight ET, so this ensures consistent behavior globally
      * @returns {Date} Current date adjusted to Eastern Time
      */
     getEasternDate() {
@@ -236,6 +242,57 @@ const UTILS = {
      */
     getFavorites() {
         return this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+    },
+
+    getOfflineComics(language) {
+        const comics = this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.OFFLINE_COMICS), []);
+        if (!Array.isArray(comics)) return [];
+        return comics
+            .filter(comic => comic?.date && comic?.imageUrl && (!language || comic.language === language))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    },
+
+    rememberOfflineComic(date, language, imageUrl) {
+        const dateString = typeof date === 'string' ? date : this.dateToISODateString(date);
+        const comics = this.getOfflineComics();
+        const remaining = comics.filter(comic => !(comic.date === dateString && comic.language === language));
+        remaining.push({ date: dateString, language, imageUrl, cachedAt: Date.now() });
+        remaining.sort((a, b) => b.cachedAt - a.cachedAt);
+        localStorage.setItem(CONFIG.STORAGE_KEYS.OFFLINE_COMICS, JSON.stringify(remaining.slice(0, 50)));
+    },
+
+    getOfflineComic(date, language, direction = null) {
+        const dateString = typeof date === 'string' ? date : this.dateToISODateString(date);
+        const comics = this.getOfflineComics(language);
+        let comic = comics.find(entry => entry.date === dateString);
+
+        if (!comic && direction === 'previous') {
+            comic = [...comics].reverse().find(entry => entry.date < dateString);
+        } else if (!comic && direction === 'next') {
+            comic = comics.find(entry => entry.date > dateString);
+        } else if (!comic && !direction) {
+            comic = comics.at(-1);
+        }
+
+        if (comic) {
+            return {
+                success: true,
+                imageUrl: comic.imageUrl,
+                actualDate: this.dateFromISODateString(comic.date),
+                isOffline: true
+            };
+        }
+
+        if (comics.length === 0) {
+            return {
+                success: true,
+                imageUrl: './garfield-first.gif',
+                actualDate: this.dateFromISODateString(CONFIG.GARFIELD_START_EN),
+                isOffline: true
+            };
+        }
+
+        return { success: false, imageUrl: null, isOffline: true };
     },
 
     /**
@@ -1489,83 +1546,6 @@ function initGoogleSyncUI() {
     });
 }
 
-/**
- * Initialize donation modal functionality
- */
-function initDonationModal() {
-    const supportBtn = document.getElementById('supportBtn');
-    const modal = document.getElementById('donationModal');
-    const backdrop = document.getElementById('donationBackdrop');
-    const closeBtn = document.getElementById('donationCloseBtn');
-    const tabs = modal?.querySelectorAll('.donation-tab');
-    const iframe = document.getElementById('donationFrame');
-    const loading = document.getElementById('donationLoading');
-
-    if (!supportBtn || !modal) return;
-
-    const serviceUrls = {
-        kofi: 'https://ko-fi.com/X8X811H46M/?hidefeed=true&widget=true&embed=true',
-        bmc: 'https://buymeacoffee.com/widget/page/garfieldapp',
-        stripe: 'https://buy.stripe.com/9B63cubyG45ldITfim1VK00'
-    };
-
-    const stripeOverlay = document.getElementById('donationStripeOverlay');
-
-    function openDonationModal() {
-        modal.classList.add('visible');
-        backdrop.classList.add('visible');
-        const activeTab = modal.querySelector('.donation-tab.active');
-        if (activeTab) {
-            loadService(activeTab.dataset.service);
-        }
-    }
-
-    function closeDonationModal() {
-        modal.classList.remove('visible');
-        backdrop.classList.remove('visible');
-        if (iframe) iframe.src = 'about:blank';
-        if (loading) loading.style.display = 'flex';
-        if (stripeOverlay) stripeOverlay.style.display = 'none';
-    }
-
-    function loadService(service) {
-        if (service === 'stripe') {
-            // Stripe blocks iframes — show a button overlay instead
-            if (iframe) iframe.style.display = 'none';
-            if (loading) loading.style.display = 'none';
-            if (stripeOverlay) stripeOverlay.style.display = 'flex';
-        } else {
-            if (stripeOverlay) stripeOverlay.style.display = 'none';
-            if (iframe) {
-                iframe.style.display = '';
-                if (loading) loading.style.display = 'flex';
-                iframe.src = serviceUrls[service] || '';
-                iframe.onload = () => {
-                    if (loading) loading.style.display = 'none';
-                };
-            }
-        }
-    }
-
-    supportBtn.addEventListener('click', openDonationModal);
-    closeBtn?.addEventListener('click', closeDonationModal);
-    backdrop?.addEventListener('click', closeDonationModal);
-
-    tabs?.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            loadService(tab.dataset.service);
-        });
-    });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.classList.contains('visible')) {
-            closeDonationModal();
-        }
-    });
-}
-
 function initTop10Modal() {
     const top10Btn = document.getElementById('top10Btn');
     const closeBtn = document.getElementById('top10CloseBtn');
@@ -1641,7 +1621,6 @@ if (document.readyState === 'loading') {
         initializeToolbar();
         initializeDraggableSettings();
         initializeMobileButtonStates();
-        initDonationModal();
         initGoogleSyncUI();
         initTop10Modal();
         if (typeof initGoogleSync === 'function') initGoogleSync();
@@ -1654,7 +1633,6 @@ if (document.readyState === 'loading') {
     initializeToolbar();
     initializeDraggableSettings();
     initializeMobileButtonStates();
-    initDonationModal();
     initGoogleSyncUI();
     initTop10Modal();
     if (typeof initGoogleSync === 'function') initGoogleSync();
@@ -1736,7 +1714,10 @@ const translations = {
         top10CommunityFavorites: 'Community Favorites',
         top10ExitLabel: 'Exit community favorites',
         top10ViewComic: 'View comic from {date}',
-        top10ComicAlt: 'Comic from {date}'
+        top10ComicAlt: 'Comic from {date}',
+        top10Updated: 'Updated {date}',
+        favoriteSignInRequired: 'Favorite saved locally. Sign in with Google to add your vote to Top Favorites.',
+        favoriteVoteFailed: 'Favorite saved locally, but Top Favorites could not be updated.'
     },
     es: {
         previous: 'Anterior',
@@ -1791,7 +1772,10 @@ const translations = {
         top10CommunityFavorites: 'Favoritos de la Comunidad',
         top10ExitLabel: 'Salir de favoritos de la comunidad',
         top10ViewComic: 'Ver cómic del {date}',
-        top10ComicAlt: 'Cómic del {date}'
+        top10ComicAlt: 'Cómic del {date}',
+        top10Updated: 'Actualizado {date}',
+        favoriteSignInRequired: 'Favorito guardado localmente. Inicia sesión con Google para añadir tu voto a Favoritos Destacados.',
+        favoriteVoteFailed: 'Favorito guardado localmente, pero no se pudo actualizar Favoritos Destacados.'
     }
 };
 
@@ -2282,9 +2266,8 @@ function Addfav() {
     CompareDates();
     showComic();
 
-    // Report to global leaderboard and keep the active Top Favorites session visually in sync.
+    // Report authenticated changes to the global leaderboard.
     const favoriteAction = wasAdded ? 'add' : 'remove';
-    updateCurrentTop10EntryCount(dateToFavorite, favoriteAction);
     reportFavoriteToggle(dateToFavorite, favoriteAction);
 
     if (isRotatedMode) {
@@ -2882,11 +2865,14 @@ async function loadComic(date, silentMode = false, direction = null) {
         const language = useSpanish ? 'es' : 'en';
         const source = UTILS.getPreferredSource();
 
-        const result = await getAuthenticatedComic(date, language, source);
+        const result = navigator.onLine
+            ? await getAuthenticatedComic(date, language, source)
+            : UTILS.getOfflineComic(date, language, direction);
 
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
             if (currentComicUrl === result.imageUrl) {
+                updateOfflineNavigationControls(result.actualDate || date, language);
                 // Same comic - return special value to indicate duplicate
                 return { success: true, isSameComic: true };
             }
@@ -3014,6 +3000,16 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;
 
+            if (!result.isOffline) {
+                const rememberComic = () => {
+                    if (comicImg.naturalWidth > 0) {
+                        UTILS.rememberOfflineComic(result.actualDate || date, language, result.imageUrl);
+                    }
+                };
+                if (comicImg.complete) rememberComic();
+                else comicImg.addEventListener('load', rememberComic, { once: true });
+            }
+
             const ensureOrientationCheck = () => {
                 checkImageOrientation();
                 // Recalculate default toolbar midpoint after the comic has real dimensions.
@@ -3132,7 +3128,9 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Preload adjacent comics for faster navigation.
             // Use actualDate when GoComics detected a date redirect so that
             // checkNextComicAvailability fires against the real strip date.
-            UTILS.preloadAdjacentComics(result.actualDate || date);
+            if (!result.isOffline) UTILS.preloadAdjacentComics(result.actualDate || date);
+
+            updateOfflineNavigationControls(result.actualDate || date, language);
 
             return { success: true, isSameComic: false, actualDate: result.actualDate || null };
         }
@@ -3200,7 +3198,54 @@ function showErrorMessage(message) {
     messageContainer.append(title, body, hint);
 }
 
+function updateConnectionStatus() {
+    const indicator = document.getElementById('offline-indicator');
+    if (!indicator) return;
+    indicator.hidden = navigator.onLine;
+}
+
+function updateOfflineNavigationControls(date, language) {
+    if (navigator.onLine) return;
+    const comics = UTILS.getOfflineComics(language);
+    const dateString = UTILS.dateToISODateString(date);
+    document.getElementById('First').disabled = comics.length === 0 || comics[0].date === dateString;
+    document.getElementById('Previous').disabled = !comics.some(comic => comic.date < dateString);
+    document.getElementById('Next').disabled = !comics.some(comic => comic.date > dateString);
+    document.getElementById('Last').disabled = comics.length === 0 || comics.at(-1).date === dateString;
+}
+
+function navigateOfflineComics(destination) {
+    if (navigator.onLine) return false;
+    const language = UTILS.isSpanishMode() ? 'es' : 'en';
+    const comics = UTILS.getOfflineComics(language);
+    if (comics.length === 0) return true;
+
+    const currentDate = UTILS.dateToISODateString(currentselectedDate);
+    let target;
+    if (destination === 'first') target = comics[0];
+    if (destination === 'last') target = comics.at(-1);
+    if (destination === 'previous') target = [...comics].reverse().find(comic => comic.date < currentDate);
+    if (destination === 'next') target = comics.find(comic => comic.date > currentDate);
+    if (!target) return true;
+
+    currentselectedDate = UTILS.dateFromISODateString(target.date);
+    CompareDates();
+    showComic(false, destination === 'previous' || destination === 'next' ? destination : null);
+    return true;
+}
+
 function initApp() {
+    updateConnectionStatus();
+    window.addEventListener('online', () => {
+        updateConnectionStatus();
+        CompareDates();
+        showComic();
+    });
+    window.addEventListener('offline', () => {
+        updateConnectionStatus();
+        showComic();
+    });
+
     // Restore checkbox states from localStorage FIRST, before any code depends on them
     initializeDarkMode();
 
@@ -3631,6 +3676,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 }
 
 function PreviousClick() {
+    if (navigateOfflineComics('previous')) return;
     if (_isTop10Mode) {
         if (_top10BrowseIndex > 0) { _top10BrowseIndex--; loadTop10Comic(); }
         return;
@@ -3654,6 +3700,7 @@ function PreviousClick() {
 }
 
 function NextClick() {
+    if (navigateOfflineComics('next')) return;
     if (_isTop10Mode) {
         if (_top10BrowseIndex < _top10Entries.length - 1) { _top10BrowseIndex++; loadTop10Comic(); }
         return;
@@ -3677,6 +3724,7 @@ function NextClick() {
 }
 
 function FirstClick() {
+    if (navigateOfflineComics('first')) return;
     if (_isTop10Mode) {
         _top10BrowseIndex = 0; loadTop10Comic();
         return;
@@ -3698,6 +3746,7 @@ function FirstClick() {
 }
 
 function LastClick() {
+    if (navigateOfflineComics('last')) return;
     if (_isTop10Mode) {
         _top10BrowseIndex = _top10Entries.length - 1; loadTop10Comic();
         return;
@@ -4572,24 +4621,8 @@ function showInstallButton() {
 // GLOBAL FAVORITES LEADERBOARD
 // ========================================
 
-function getFavoritesApiClientId() {
-    let clientId = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVORITES_CLIENT_ID);
-    if (clientId) return clientId;
-
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        clientId = crypto.randomUUID();
-    } else {
-        clientId = `anon-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-    }
-
-    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVORITES_CLIENT_ID, clientId);
-    return clientId;
-}
-
-async function favoritesApiFetch(path, init = {}, { includeAuth = true } = {}) {
+async function favoritesApiFetch(path, init = {}, { includeAuth = true, requireAuth = false } = {}) {
     const headers = new Headers(init.headers || {});
-
-    headers.set('X-Client-Id', getFavoritesApiClientId());
 
     if (init.body && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
@@ -4602,30 +4635,39 @@ async function favoritesApiFetch(path, init = {}, { includeAuth = true } = {}) {
         }
     }
 
+    if (requireAuth && !headers.has('Authorization')) {
+        const error = new Error('Google sign-in required');
+        error.code = 'FAVORITES_AUTH_REQUIRED';
+        throw error;
+    }
+
     return fetch(`${CONFIG.FAVORITES_API_URL}${path}`, {
         ...init,
         headers
     });
 }
 
-function reportFavoriteToggle(date, action) {
+async function reportFavoriteToggle(date, action) {
     try {
         if (!/^\d{4}\/\d{2}\/\d{2}$/.test(date)) return;
 
-        favoritesApiFetch('/favorite', {
+        const response = await favoritesApiFetch('/favorite', {
             method: 'POST',
             body: JSON.stringify({ date, action })
-        })
-        .then(async response => {
-            if (!response.ok) return;
+        }, { requireAuth: true });
 
-            const data = await response.json().catch(() => null);
-            if (data && typeof data.count === 'number') {
-                setTop10EntryCount(date, data.count);
-            }
-        })
-        .catch(() => {}); // Silently ignore network errors
-    } catch { /* noop */ }
+        if (!response.ok) throw new Error(`Top Favorites update failed: ${response.status}`);
+
+        const data = await response.json().catch(() => null);
+        if (data && typeof data.count === 'number') {
+            setTop10EntryCount(date, data.count, data.updatedAt);
+        }
+    } catch (error) {
+        const language = UTILS.isSpanishMode() ? 'es' : 'en';
+        const key = error?.code === 'FAVORITES_AUTH_REQUIRED' ? 'favoriteSignInRequired' : 'favoriteVoteFailed';
+        showNotification(translations[language][key], 6000);
+        if (key === 'favoriteVoteFailed') console.error('Top Favorites update failed:', error);
+    }
 }
 
 function getValidFavoriteDates(favorites) {
@@ -4708,7 +4750,7 @@ function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
                     method: 'POST',
                     cache: 'no-store',
                     body: JSON.stringify({ dates: pendingDates })
-                });
+                }, { requireAuth: true });
                 if (!response.ok) return;
 
                 const data = await response.json().catch(() => null);
@@ -4720,6 +4762,10 @@ function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
 
     return _favoritesMigrationQueue;
 }
+
+window.addEventListener('google-auth-changed', event => {
+    if (event.detail?.signedIn) migrateExistingFavorites();
+});
 
 async function fetchTop10() {
     const response = await favoritesApiFetch('/top', { cache: 'no-store' }, { includeAuth: false });
@@ -4770,26 +4816,16 @@ function trapTop10ModalFocus(event) {
     }
 }
 
-function setTop10EntryCount(date, count) {
+function setTop10EntryCount(date, count, updatedAt = null) {
     const entry = _top10Entries.find(item => item && item.date === date);
     if (!entry) return;
 
     entry.count = Math.max(0, count);
+    if (updatedAt) entry.updatedAt = updatedAt;
 
     if (_isTop10Mode && _top10Entries[_top10BrowseIndex]?.date === date) {
         updateTop10Indicator();
     }
-}
-
-function updateCurrentTop10EntryCount(date, action) {
-    if (!_isTop10Mode) return;
-
-    const entry = _top10Entries[_top10BrowseIndex];
-    if (!entry || entry.date !== date) return;
-
-    const delta = action === 'add' ? 1 : -1;
-    entry.count = Math.max(0, (entry.count || 0) + delta);
-    updateTop10Indicator();
 }
 
 function showTop10Modal() {
@@ -4823,6 +4859,10 @@ function showTop10Modal() {
             const parts = entry.date.split('/');
             const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
             const formatted = dateObj.toLocaleDateString(dateFmtLocale, { year: 'numeric', month: 'short', day: 'numeric' });
+            const updatedDate = entry.updatedAt ? new Date(entry.updatedAt) : null;
+            const updatedLabel = updatedDate && !Number.isNaN(updatedDate.getTime())
+                ? t.top10Updated.replace('{date}', updatedDate.toLocaleString(dateFmtLocale, { dateStyle: 'medium', timeStyle: 'short' }))
+                : '';
             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
             const ariaLabel = t.top10ViewComic.replace('{date}', formatted);
             return `<button class="top10-entry" data-index="${i}" data-date="${entry.date}" aria-label="${ariaLabel}">
@@ -4838,6 +4878,7 @@ function showTop10Modal() {
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                         ${entry.count}
                     </span>
+                    ${updatedLabel ? `<span class="top10-updated">${updatedLabel}</span>` : ''}
                 </div>
             </button>`;
         }).join('');

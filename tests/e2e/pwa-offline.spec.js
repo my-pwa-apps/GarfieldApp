@@ -39,6 +39,10 @@ test('service worker precaches the app shell and serves it while offline', async
   await mockExternalServices(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  await expect.poll(() => page.evaluate(() => {
+    const comics = JSON.parse(localStorage.getItem('offlineComics') || '[]');
+    return comics.length;
+  })).toBeGreaterThan(0);
 
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
@@ -54,5 +58,8 @@ test('service worker precaches the app shell and serves it while offline', async
   await expect(page).toHaveTitle(/Daily Garfield Comics/);
   await expect(page.locator('#settingsBtn')).toBeVisible();
   await expect(page.locator('#DatePicker')).toBeVisible();
+  await expect(page.locator('#offline-indicator')).toBeVisible();
+  await expect(page.locator('#offline-indicator')).toHaveText('Offline: showing saved comics');
+  await expect(page.locator('#comic')).toHaveAttribute('src', /offline-test-image/);
   expect(errors.filter(error => !error.includes('net::ERR_INTERNET_DISCONNECTED'))).toEqual([]);
 });
