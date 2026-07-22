@@ -66,8 +66,16 @@ test('core comic workflow works across browser engines', async ({ page }) => {
   await expect(page.locator('#comicSource')).toHaveValue('gocomics');
   await page.locator('#settingsCloseBtn').click();
 
+  const selectedDate = await page.locator('#DatePicker').inputValue();
   await page.locator('#favheart').click();
   await expect.poll(() => page.evaluate(() => window.UTILS.getFavorites().length)).toBe(1);
+  const favoriteDate = await page.evaluate(() => window.UTILS.getFavorites()[0]);
+
+  // A favorite toggle must not asynchronously reload a fallback comic and change its date.
+  await page.waitForTimeout(500);
+  await expect(page.locator('#DatePicker')).toHaveValue(selectedDate);
+  await expect.poll(() => page.evaluate(() => window.UTILS.getFavorites()[0])).toBe(favoriteDate);
+
   await page.locator('#favheart').click();
   await expect.poll(() => page.evaluate(() => window.UTILS.getFavorites().length)).toBe(0);
 

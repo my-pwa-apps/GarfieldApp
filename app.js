@@ -2264,7 +2264,6 @@ function Addfav() {
     UTILS.updateHeartIcon();
     updateExportButtonState();
     CompareDates();
-    showComic();
 
     // Report authenticated changes to the global leaderboard.
     const favoriteAction = wasAdded ? 'add' : 'remove';

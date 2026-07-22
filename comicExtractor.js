@@ -149,6 +149,29 @@ function _getPreviousDayAtNoon(date) {
  * @returns {string|null}
  */
 function _extractGoComicsImage(html) {
+    // The page can contain unrelated CDN images in sections such as "Five Favorites".
+    // Prefer the page-level Open Graph image and accept either HTML attribute order.
+    const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+    for (const metaTag of metaTags) {
+        const propertyMatch = metaTag.match(/(?:property|name)\s*=\s*(["'])og:image\1/i);
+        if (!propertyMatch) continue;
+
+        const contentMatch = metaTag.match(/content\s*=\s*(["'])(.*?)\1/i);
+        if (!contentMatch?.[2]) continue;
+
+        try {
+            const imageUrl = new URL(contentMatch[2].replace(/&amp;/gi, '&'));
+            const isApprovedHost =
+                imageUrl.hostname === 'featureassets.gocomics.com' ||
+                imageUrl.hostname === 'assets.amuniversal.com';
+            if (imageUrl.protocol === 'https:' && isApprovedHost) {
+                return imageUrl.href;
+            }
+        } catch {
+            // Ignore malformed metadata and continue to the existing fallbacks.
+        }
+    }
+
     // featureassets CDN (current)
     let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
     if (match) return match[0];
@@ -156,12 +179,6 @@ function _extractGoComicsImage(html) {
     // amuniversal CDN (legacy)
     match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
     if (match) return match[0];
-
-    // og:image meta tag
-    match = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-    if (match && match[1] && (match[1].includes('gocomics') || match[1].includes('amuniversal'))) {
-        return match[1];
-    }
 
     // picture tag fallback
     match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
