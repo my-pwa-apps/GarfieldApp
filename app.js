@@ -1716,7 +1716,6 @@ const translations = {
         top10ViewComic: 'View comic from {date}',
         top10ComicAlt: 'Comic from {date}',
         top10Updated: 'Updated {date}',
-        favoriteSignInRequired: 'Favorite saved locally. Sign in with Google to add your vote to Top Favorites.',
         favoriteVoteFailed: 'Favorite saved locally, but Top Favorites could not be updated.'
     },
     es: {
@@ -1774,7 +1773,6 @@ const translations = {
         top10ViewComic: 'Ver cómic del {date}',
         top10ComicAlt: 'Cómic del {date}',
         top10Updated: 'Actualizado {date}',
-        favoriteSignInRequired: 'Favorito guardado localmente. Inicia sesión con Google para añadir tu voto a Favoritos Destacados.',
         favoriteVoteFailed: 'Favorito guardado localmente, pero no se pudo actualizar Favoritos Destacados.'
     }
 };
@@ -4662,10 +4660,13 @@ async function reportFavoriteToggle(date, action) {
             setTop10EntryCount(date, data.count, data.updatedAt);
         }
     } catch (error) {
+        // Signed-out visitors simply do not vote; favoriting is a local action and
+        // nagging them to sign in every time would be noise, not information.
+        if (error?.code === 'FAVORITES_AUTH_REQUIRED') return;
+
         const language = UTILS.isSpanishMode() ? 'es' : 'en';
-        const key = error?.code === 'FAVORITES_AUTH_REQUIRED' ? 'favoriteSignInRequired' : 'favoriteVoteFailed';
-        showNotification(translations[language][key], 6000);
-        if (key === 'favoriteVoteFailed') console.error('Top Favorites update failed:', error);
+        showNotification(translations[language].favoriteVoteFailed, 6000);
+        console.error('Top Favorites update failed:', error);
     }
 }
 

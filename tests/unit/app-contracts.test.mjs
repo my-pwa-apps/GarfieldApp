@@ -83,7 +83,7 @@ test('offline comics are indexed locally and exposed through connection-aware na
 
 test('community favorite writes require Google auth and expose failures', () => {
   assert.match(appSource, /requireAuth/);
-  assert.match(appSource, /favoriteSignInRequired/);
+  assert.doesNotMatch(appSource, /favoriteSignInRequired/);
   assert.match(appSource, /favoriteVoteFailed/);
   assert.doesNotMatch(appSource, /X-Client-Id/);
   assert.doesNotMatch(appSource, /Silently ignore network errors/);
