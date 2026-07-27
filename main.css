@@ -21,7 +21,7 @@
     --toolbar-gradient: linear-gradient(135deg, #fff4bf 0%, #ffd164 100%);
     --button-gradient: linear-gradient(135deg, #fff4bf 0%, #f5aa2b 100%);
     --dark-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%);
-    --focus-ring: none;
+    --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #7a3d00;
     --shadow-sm: 0 2px 8px rgba(52, 36, 8, 0.08);
     --shadow-md: 0 8px 22px rgba(52, 36, 8, 0.14);
     --shadow-lg: 0 18px 44px rgba(52, 36, 8, 0.2);
@@ -53,7 +53,7 @@
     --toolbar-gradient: linear-gradient(135deg, #2a2118 0%, #5c3213 100%);
     --button-gradient: linear-gradient(135deg, #ffbf4f 0%, #f09819 100%);
     --dark-gradient: linear-gradient(135deg, rgba(10, 9, 8, 0.88) 0%, rgba(10, 9, 8, 0.97) 100%);
-    --focus-ring: none;
+    --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #ffd79a;
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
     --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.34);
     --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.46);
@@ -162,10 +162,32 @@ input:focus-visible {
     transform: none;
 }
 
-button:focus,
-button:focus-visible {
+button:focus {
     outline: none;
     -webkit-tap-highlight-color: transparent;
+}
+
+/* Keyboard-only focus indicator. Pointer clicks never match :focus-visible,
+   so this stays invisible for mouse/touch users while remaining discoverable
+   for keyboard and switch-device navigation (WCAG 2.4.7 / 2.4.11). */
+button:focus-visible,
+[tabindex]:focus-visible,
+select:focus-visible {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: var(--focus-ring);
+}
+
+@media (forced-colors: active) {
+
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    button:focus-visible,
+    [tabindex]:focus-visible {
+        outline: 3px solid Highlight;
+        outline-offset: 2px;
+    }
 }
 
 #offline-indicator {
@@ -516,82 +538,10 @@ input {
     transform: none;
 }
 
-/* Date picker styling */
-.date-input-container {
-    position: relative;
-    margin: 5px;
-    border-radius: 10px;
-    background-image: linear-gradient(45deg, #fff7bd 0%, #f09819 51%, #fff7bd 100%);
-    background-size: 200% auto;
-    box-shadow: var(--shadow-md);
-    transition: all var(--transition-slow);
-    overflow: hidden;
-}
-
-.date-input-container:hover {
-    background-position: right center;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
-}
-
-.date-center-wrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-}
-
-input[type="date"] {
-    width: auto;
-    height: 42px;
-    margin: 0;
-    padding: 0;
-    font-size: 0.85rem;
-    font-weight: 500;
-    background: transparent;
-    border: none;
-    color: black;
-    text-align: center;
-    appearance: none;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-    opacity: 0;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-}
-
-input[type="date"]::-webkit-datetime-edit {
-    width: 100%;
-    text-align: center;
-}
-
-@media (max-width: 768px) {
-    input[type="date"] {
-        opacity: 0;
-    }
-
-    .date-center-wrapper {
-        position: relative;
-    }
-
-    .date-center-wrapper::before {
-        content: attr(data-display-date);
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.85rem;
-        font-weight: 500;
-        pointer-events: none;
-    }
-}
+/* Note: the only date input in the app (#DatePicker) is a visually hidden 1x1
+   control opened programmatically by #DatePickerBtn. The legacy visible
+   date-field styling (.date-input-container / .date-center-wrapper) was removed
+   because no such markup exists. */
 
 .logo {
     width: 100%;
@@ -899,19 +849,17 @@ input[type="date"]::-webkit-datetime-edit {
     display: block;
 }
 
-.toolbar-svg path,
-.toolbar-svg polyline,
-.toolbar-svg line,
-.toolbar-svg circle,
-.toolbar-svg rect {
-    stroke: #333;
-    color: #333;
-}
+/* Toolbar glyphs are <use> references into the index.html sprite. Descendant
+   selectors cannot reach into the use-shadow tree, so colouring is driven by
+   inherited properties (stroke/fill/color) declared on .toolbar-svg above.
+   `fill="currentColor"` inside a symbol therefore resolves to the color below. */
 
-.toolbar-svg circle[fill="currentColor"],
-.toolbar-svg rect[fill="currentColor"],
-.toolbar-svg path[fill="currentColor"] {
-    fill: #333;
+/* The sprite only holds <symbol> definitions and must never paint or take space. */
+.icon-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
 }
 
 /* Tooltip styling for toolbar buttons */
@@ -1961,7 +1909,6 @@ input[type="date"]::-webkit-datetime-edit {
 .notification-toast.show {
     transform: translateY(0);
     opacity: 1;
-    pointer-events: auto;
 }
 
 .notification-icon {
@@ -1989,6 +1936,9 @@ input[type="date"]::-webkit-datetime-edit {
     border-radius: 4px;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    /* The toast itself stays pointer-events: none so it never blocks taps on
+       the comic or toolbar underneath; only the dismiss control is clickable. */
+    pointer-events: auto;
 }
 
 .notification-close:hover {

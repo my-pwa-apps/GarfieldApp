@@ -13,6 +13,7 @@ const CONFIG = Object.freeze({
     // Swipe & touch detection
     SWIPE_MIN_DISTANCE: 50,               // Minimum swipe distance in px
     SWIPE_MAX_TIME: 500,                  // Maximum swipe time in ms
+    SWIPE_CLICK_DEBOUNCE_MS: 300,         // Ignore clicks for this long after a swipe
     TAP_MAX_MOVEMENT: 10,                 // Maximum movement for tap detection in px
     TAP_MAX_TIME: 300,                    // Maximum time for tap detection in ms
 
@@ -22,17 +23,13 @@ const CONFIG = Object.freeze({
 
     // Favorites leaderboard API
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
+    FAVORITES_API_TIMEOUT_MS: 12000,
     FAVORITES_MIGRATION_VERSION: 'google-only-v1',
 
-    // Windows Store review prompting
-    REVIEW_MIN_SESSIONS: 5,               // Sessions before first prompt
-    REVIEW_MIN_DAYS: 3,                   // Days since first use before prompting
-    REVIEW_RETRY_DAYS: 60,                // Days to wait before re-prompting after a cancel
-    REVIEW_MAX_PROMPTS: 3,                // Stop asking after this many prompts
-    REVIEW_PROMPT_DELAY_MS: 45000,        // Delay after startup before showing the dialog
     PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
     PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
     PREFETCH_STAGGER_MS: 150,              // Delay between background prefetch requests
+    SHUFFLE_HISTORY_MAX: 200,              // Bound on shuffle back/forward history depth
 
     // Storage keys
     STORAGE_KEYS: Object.freeze({
@@ -48,7 +45,6 @@ const CONFIG = Object.freeze({
         SETTINGS: 'settings',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
-        REVIEW: 'reviewData',
         FAVS_MIGRATED: 'favsMigrated',
         FAVS_MIGRATED_DATES: 'favsMigratedDates',
         FAVS_MIGRATION_VERSION: 'favsMigrationVersion',
@@ -304,6 +300,21 @@ const UTILS = {
     },
 
     /**
+     * Build a simple `<div class="...">text</div>` node.
+     * Text is assigned via `textContent`, so it is safe for translated or
+     * remotely-influenced strings.
+     * @param {string} className
+     * @param {string} text
+     * @returns {HTMLDivElement}
+     */
+    createMessageDiv(className, text) {
+        const div = document.createElement('div');
+        div.className = className;
+        div.textContent = text;
+        return div;
+    },
+
+    /**
      * Get the preferred comic source setting
      * @returns {'gocomics'|'fandom'|'uclick'} Preferred source
      */
@@ -536,7 +547,8 @@ const UTILS = {
         const isFavorite = favs.includes(formattedComicDate);
         if (heartButton) {
             heartButton.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
-            heartButton.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
+            const t = translations[this.isSpanishMode() ? 'es' : 'en'] || translations.en;
+            heartButton.setAttribute('aria-label', isFavorite ? t.removeFromFavorites : t.favorites);
         }
         if (heartSvg) {
             heartSvg.setAttribute('fill', isFavorite ? 'currentColor' : 'none');
@@ -562,79 +574,6 @@ function getPrimaryComicElement() {
 
 function getToolbarBoundaryComicElement() {
     return document.getElementById('comic-wrapper') || document.getElementById('comic-container') || document.getElementById('comic');
-}
-
-// ========================================
-// WINDOWS STORE REVIEW
-// ========================================
-
-/**
- * Track the current session and schedule the store review prompt.
- * Called immediately from initApp so the session count is always recorded,
- * even if the user closes the app before the delayed prompt fires.
- */
-function initStoreReview() {
-    // Increment session count right away
-    const now = new Date();
-    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
-    const data = UTILS.safeJSONParse(raw, {});
-
-    if (!data.firstUsed) data.firstUsed = now.toISOString();
-    data.sessionCount = (data.sessionCount || 0) + 1;
-    localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
-
-    // Schedule the eligibility check / prompt after the user has had a chance to use the app
-    setTimeout(requestStoreReview, CONFIG.REVIEW_PROMPT_DELAY_MS);
-}
-
-/**
- * Check eligibility criteria and, if met, call the WinRT Store review API.
- * Only runs when the app is installed from the Microsoft Store (WinRT context).
- */
-async function requestStoreReview() {
-    // Only available in a packaged WinRT context (Windows Store PWA)
-    const storeNS = window?.Windows?.Services?.Store;
-    if (!storeNS?.StoreContext) return;
-
-    const now = new Date();
-    const raw = localStorage.getItem(CONFIG.STORAGE_KEYS.REVIEW);
-    const data = UTILS.safeJSONParse(raw, {});
-
-    // Stop after maximum prompts
-    if ((data.promptCount || 0) >= CONFIG.REVIEW_MAX_PROMPTS) return;
-
-    // Not enough sessions yet
-    if ((data.sessionCount || 0) < CONFIG.REVIEW_MIN_SESSIONS) return;
-
-    // First use too recent
-    const daysSinceFirst = data.firstUsed
-        ? (now - new Date(data.firstUsed)) / 86400000
-        : 0;
-    if (daysSinceFirst < CONFIG.REVIEW_MIN_DAYS) return;
-
-    // Was prompted recently (user canceled last time)
-    if (data.lastPrompted) {
-        const daysSinceLast = (now - new Date(data.lastPrompted)) / 86400000;
-        if (daysSinceLast < CONFIG.REVIEW_RETRY_DAYS) return;
-    }
-
-    try {
-        const storeContext = storeNS.StoreContext.getDefault();
-        const result = await storeContext.requestRateAndReviewAppAsync();
-
-        data.lastPrompted = now.toISOString();
-        data.promptCount = (data.promptCount || 0) + 1;
-
-        // If the user actually submitted a review, stop prompting forever
-        const { StoreRateAndReviewStatus } = storeNS;
-        if (result?.status === StoreRateAndReviewStatus?.succeeded) {
-            data.promptCount = CONFIG.REVIEW_MAX_PROMPTS;
-        }
-
-        localStorage.setItem(CONFIG.STORAGE_KEYS.REVIEW, JSON.stringify(data));
-    } catch {
-        // Non-critical – silently ignore
-    }
 }
 
 // ========================================
@@ -786,9 +725,34 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
 }
 
 /**
- * Calculate optimal centered toolbar position between logo and comic (DirkJan pattern)
+ * Resolve once the page layout can be measured reliably.
+ *
+ * Replaces a ladder of arbitrary setTimeout delays with the actual signals that
+ * change layout: web fonts finishing (which resizes the toolbar) and the window
+ * load event (which sizes the logo and comic images). A final animation frame
+ * guarantees the resulting style recalculation has been flushed.
+ *
+ * @returns {Promise<void>}
+ */
+function whenLayoutSettled() {
+    const fontsReady = document.fonts?.ready?.catch?.(() => {}) || Promise.resolve();
+    const windowLoaded = document.readyState === 'complete'
+        ? Promise.resolve()
+        : new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
+
+    return Promise.all([fontsReady, windowLoaded])
+        .then(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
+}
+
+/**
+ * Calculate optimal centered toolbar position between logo and comic (DirkJan pattern).
+ *
+ * Pure: this only reads layout. When the gap between the logo and the comic is
+ * too small the caller must apply `extraComicMarginTop` to the comic container
+ * before the returned position becomes accurate.
+ *
  * @param {HTMLElement} toolbar - Toolbar element
- * @returns {{top: number, left: number}|null} Optimal position or null if not calculable
+ * @returns {{top: number, left: number, extraComicMarginTop: number}|null} Optimal position or null if not calculable
  */
 function calculateOptimalToolbarPosition(toolbar) {
     const logo = document.querySelector('.logo');
@@ -806,32 +770,45 @@ function calculateOptimalToolbarPosition(toolbar) {
     const logoBottom = logoRect.bottom;
     const comicTop = comicRect.top;
     const availableSpace = comicTop - logoBottom;
+    const left = (viewportWidth - toolbarWidth) / 2;
 
-    // Adaptive spacing: If default CSS spacing is insufficient to fit the toolbar with its required clearances,
-    // dynamically push the comic container down to create enough room.
+    // Adaptive spacing: if the default CSS spacing cannot fit the toolbar with its
+    // required clearances, report the deficit so the caller can push the comic down.
     const requiredSpace = toolbarHeight + TOOLBAR_MIN_VERTICAL_GAP + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
-    if (availableSpace < requiredSpace) {
-        const comicContainer = document.getElementById('comic-container');
-        if (comicContainer) {
-            const currentMargin = parseInt(window.getComputedStyle(comicContainer).marginTop, 10) || 80;
-            const deficit = requiredSpace - availableSpace;
-            comicContainer.style.marginTop = `${currentMargin + deficit}px`;
-            // The next RAF will place the toolbar cleanly since layout reflowed
-            return { top: logoBottom + TOOLBAR_MIN_VERTICAL_GAP, left: (viewportWidth - toolbarWidth) / 2 };
-        }
+    if (availableSpace < requiredSpace && document.getElementById('comic-container')) {
+        return {
+            top: logoBottom + TOOLBAR_MIN_VERTICAL_GAP,
+            left,
+            extraComicMarginTop: requiredSpace - availableSpace
+        };
     }
 
     // Calculate centered position (DirkJan pattern)
     const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, ((availableSpace - toolbarHeight) / 2) - TOOLBAR_CENTER_BIAS);
-    const left = (viewportWidth - toolbarWidth) / 2;
 
     // Final safety: ensure we're not overlapping comic
     if (top + toolbarHeight > comicTop - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
         // Clamp to just above comic
-        return { top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE), left };
+        return {
+            top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE),
+            left,
+            extraComicMarginTop: 0
+        };
     }
 
-    return { top, left };
+    return { top, left, extraComicMarginTop: 0 };
+}
+
+/**
+ * Apply the comic-container margin growth requested by calculateOptimalToolbarPosition().
+ * @param {{extraComicMarginTop: number}|null} optimal
+ */
+function applyComicContainerSpacing(optimal) {
+    if (!optimal?.extraComicMarginTop) return;
+    const comicContainer = document.getElementById('comic-container');
+    if (!comicContainer) return;
+    const currentMargin = parseInt(window.getComputedStyle(comicContainer).marginTop, 10) || 80;
+    comicContainer.style.marginTop = `${currentMargin + optimal.extraComicMarginTop}px`;
 }
 
 function rectsOverlap(firstRect, secondRect, padding = 0) {
@@ -877,6 +854,7 @@ function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
         nextTop = overlapsLogo ? minimumTop : maximumTop;
     } else {
         const optimal = calculateOptimalToolbarPosition(toolbar);
+        applyComicContainerSpacing(optimal);
         nextTop = optimal ? optimal.top : minimumTop;
         nextLeft = optimal ? optimal.left : centeredLeft;
     }
@@ -900,85 +878,6 @@ function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
     return true;
 }
 
-/**
- * Check if toolbar is within snap zone of optimal position (DirkJan pattern)
- * @param {number} top - Current toolbar top position
- * @param {HTMLElement} toolbar - Toolbar element
- * @returns {boolean} True if within snap zone
- */
-function isInSnapZone(top, toolbar) {
-    const optimal = calculateOptimalToolbarPosition(toolbar);
-    if (!optimal) return false;
-    const SNAP_THRESHOLD = 25;
-    return Math.abs(top - optimal.top) <= SNAP_THRESHOLD;
-}
-
-/**
- * Get bounding rectangles of elements the toolbar should not overlap
- * @returns {Array<DOMRect>} Array of bounding rectangles
- */
-function getProtectedElementRects() {
-    const selectors = ['.logo', '#comic-container', '#controls-container', '.settings-panel', '.copyright-footer', '#installBtn'];
-    const rects = [];
-
-    for (const selector of selectors) {
-        const el = document.querySelector(selector);
-        if (el && el.offsetParent !== null) { // Check if visible
-            const rect = el.getBoundingClientRect();
-            // Only include if element has actual dimensions
-            if (rect.width > 0 && rect.height > 0) {
-                rects.push(rect);
-            }
-        }
-    }
-    return rects;
-}
-
-/**
- * Check if a rectangle overlaps with any protected elements
- * @param {number} top - Top position
- * @param {number} left - Left position
- * @param {number} width - Element width
- * @param {number} height - Element height
- * @returns {{overlaps: boolean, suggestedTop: number}} Overlap status and suggested position
- */
-function checkToolbarOverlap(top, left, width, height) {
-    const toolbarRect = {
-        top: top,
-        bottom: top + height,
-        left: left,
-        right: left + width
-    };
-
-    const protectedRects = getProtectedElementRects();
-    let suggestedTop = top;
-    let overlaps = false;
-
-    for (const rect of protectedRects) {
-        // Check for overlap (both must overlap horizontally AND vertically)
-        const horizontalOverlap = toolbarRect.left < rect.right && toolbarRect.right > rect.left;
-        const verticalOverlap = toolbarRect.top < rect.bottom && toolbarRect.bottom > rect.top;
-
-        if (horizontalOverlap && verticalOverlap) {
-            overlaps = true;
-            // Find the nearest non-overlapping position (prefer moving down below the element)
-            const moveDown = rect.bottom + 10; // 10px gap
-            const moveUp = rect.top - height - 10;
-
-            // Choose the direction that requires less movement
-            if (Math.abs(moveDown - top) < Math.abs(moveUp - top) && moveDown + height < window.innerHeight) {
-                suggestedTop = Math.max(suggestedTop, moveDown);
-            } else if (moveUp >= 0) {
-                suggestedTop = Math.min(suggestedTop === top ? moveUp : suggestedTop, moveUp);
-            } else {
-                suggestedTop = Math.max(suggestedTop, moveDown);
-            }
-        }
-    }
-
-    return { overlaps, suggestedTop };
-}
-
 function clampSettingsPanelPosition(left, top, width, height) {
     const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     const minVisibleWidth = 64;
@@ -1000,6 +899,7 @@ function positionToolbarCentered(toolbar, savePosition = false) {
     if (!toolbar || toolbar.offsetHeight === 0) return;
 
     const optimal = calculateOptimalToolbarPosition(toolbar);
+    applyComicContainerSpacing(optimal);
     if (!optimal) {
         // Fallback: place below logo if we can't compute optimal
         const logo = document.querySelector('.logo');
@@ -1182,6 +1082,7 @@ function clampToolbarInView() {
             requestAnimationFrame(() => {
                 // Toolbar is in optimal mode - recalculate centered position on resize
                 const optimalPos = calculateOptimalToolbarPosition(toolbar);
+                applyComicContainerSpacing(optimalPos);
                 if (optimalPos) {
                     // Additional safety: ensure we're not placing toolbar over logo or comic
                     const logo = document.querySelector('.logo');
@@ -1361,11 +1262,8 @@ function initializeToolbar() {
             moveToolbarBetweenLogoAndComic(mainToolbar);
         };
 
-        setTimeout(enforceSafeStartupPosition, 0);
-        setTimeout(enforceSafeStartupPosition, 100);
-        window.addEventListener('load', () => {
-            setTimeout(enforceSafeStartupPosition, 250);
-        });
+        enforceSafeStartupPosition();
+        whenLayoutSettled().then(enforceSafeStartupPosition);
     } else {
         // No saved position - calculate centered position
         // Set a safe default first to avoid showing over comic
@@ -1377,28 +1275,19 @@ function initializeToolbar() {
             mainToolbar.style.transform = 'translateX(-50%)';
         }
 
-        // Then position correctly after elements load and save the position
-        const tryPosition = () => {
+        const position = (savePosition) => {
             mainToolbar.style.transform = 'none'; // Clear transform before positioning
-            positionToolbarCentered(mainToolbar, false); // Don't save yet during intermediate attempts
+            positionToolbarCentered(mainToolbar, savePosition);
         };
 
-        const finalPosition = () => {
-            mainToolbar.style.transform = 'none';
-            positionToolbarCentered(mainToolbar, true); // Save position on final attempt
-            // Mark as optimal mode
+        // One provisional pass so the toolbar is never drawn over the comic, then a
+        // single authoritative pass once fonts and the window load event have settled.
+        position(false);
+        whenLayoutSettled().then(() => {
+            position(true);
             try {
                 localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
             } catch (_) {}
-        };
-
-        // Try positioning multiple times as elements load
-        setTimeout(tryPosition, 0);
-        setTimeout(tryPosition, 50);
-        setTimeout(tryPosition, 100);
-        window.addEventListener('load', () => {
-            tryPosition();
-            setTimeout(finalPosition, 300); // Save position after final positioning
         });
     }
 
@@ -1684,6 +1573,8 @@ const translations = {
         loadingComic: 'Loading comic...',
         settings: 'Settings',
         favorites: 'Add to favorites',
+        removeFromFavorites: 'Remove from favorites',
+        viewFullSize: 'Click to view full size',
         share: 'Share',
         selectDate: 'Select comic date',
         installApp: 'Install App',
@@ -1742,6 +1633,8 @@ const translations = {
         loadingComic: 'Cargando cómic...',
         settings: 'Configuración',
         favorites: 'Agregar a favoritos',
+        removeFromFavorites: 'Quitar de favoritos',
+        viewFullSize: 'Haz clic para ver a tamaño completo',
         share: 'Compartir',
         selectDate: 'Seleccionar fecha del cómic',
         installApp: 'Instalar App',
@@ -1899,6 +1792,9 @@ function translateInterface(lang) {
     if (datePicker) {
         datePicker.setAttribute('aria-label', t.selectDate);
     }
+    // Re-append the selected date to the date button's accessible name, which
+    // the toolbarButtons loop above just reset to the bare label.
+    updateDateDisplay();
 
     // Translate install and support buttons
     const installBtn = document.getElementById('installBtn');
@@ -1973,17 +1869,21 @@ const _shuffleCandidateQueue = [];
 const _shuffleBackStack = [];
 const _shuffleForwardStack = [];
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Toolbar glyphs are defined once as <symbol> elements in the index.html sprite;
+// this maps a logical icon key to its sprite id so the artwork is never duplicated.
 const TOOLBAR_ICONS = Object.freeze({
-    first: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>',
-    previous: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>',
-    random: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="8.5" r="1.5" fill="currentColor"></circle><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor"></circle><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor"></circle></svg>',
-    next: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>',
-    last: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>',
-    shuffleFirst: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"></path><path d="M8 7l-5 5 5 5"></path><path d="M21 5v14"></path></svg>',
-    shufflePrevious: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path><path d="M14 8l-4 4 4 4"></path></svg>',
-    shuffleNextRandom: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3c4 0 5 10 9 10h6"></path><path d="M3 17h3c4 0 5-10 9-10h6"></path><polyline points="18 4 21 7 18 10"></polyline><polyline points="18 14 21 17 18 20"></polyline></svg>',
-    shuffleNextHistory: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v6h-6"></path><path d="M10 8l4 4-4 4"></path></svg>',
-    shuffleLast: '<svg class="toolbar-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12H8"></path><path d="M16 7l5 5-5 5"></path><path d="M3 5v14"></path></svg>'
+    first: 'icon-first',
+    previous: 'icon-previous',
+    random: 'icon-random',
+    next: 'icon-next',
+    last: 'icon-last',
+    shuffleFirst: 'icon-shuffleFirst',
+    shufflePrevious: 'icon-shufflePrevious',
+    shuffleNextRandom: 'icon-shuffleNextRandom',
+    shuffleNextHistory: 'icon-shuffleNextHistory',
+    shuffleLast: 'icon-shuffleLast'
 });
 
 /**
@@ -2223,7 +2123,10 @@ function Addfav() {
     if (isTimezoneEdgeCase) {
         // Timezone edge case: we're showing yesterday's comic on today's date
         // Calculate the previous day's date
-        const currentDate = new Date(formattedComicDate.replace(/\//g, '-'));
+        // Calculate the previous day's date.
+        // `new Date('YYYY-MM-DD')` would parse as UTC midnight and then be read
+        // back with local getters, shifting the result by a day west of UTC.
+        const currentDate = UTILS.dateFromFavoriteDateString(formattedComicDate);
         currentDate.setDate(currentDate.getDate() - 1);
         const prevYear = currentDate.getFullYear();
         const prevMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
@@ -2321,7 +2224,7 @@ function bindComicTapGestures(target, singleTapAction = null) {
 
     target.addEventListener('touchend', (e) => {
         if (isVerticalFullscreen) return;
-        if (Date.now() - lastSwipeTime < 300) {
+        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) {
             resetComicTapTracking();
             return;
         }
@@ -2359,7 +2262,7 @@ function bindComicTapGestures(target, singleTapAction = null) {
     }, { passive: false });
 
     target.addEventListener('dblclick', (e) => {
-        if (Date.now() - lastSwipeTime < 300) return;
+        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) return;
         e.preventDefault();
         suppressComicClickUntil = Date.now() + 400;
         resetComicTapTracking();
@@ -2371,6 +2274,23 @@ function initializeComicTapGestures(singleTapAction = null) {
     bindComicTapGestures(document.getElementById('comic'), singleTapAction);
 }
 
+
+/** Element that had focus before the settings dialog was opened. */
+let _settingsLastFocusedElement = null;
+
+/**
+ * Close the settings dialog and hand focus back to whatever opened it.
+ */
+function closeSettingsPanel(panel) {
+    panel.classList.remove('visible');
+    panel.classList.remove('animate');
+    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+
+    if (_settingsLastFocusedElement?.isConnected) {
+        _settingsLastFocusedElement.focus();
+    }
+    _settingsLastFocusedElement = null;
+}
 
 function HideSettings(e) {
     // Prevent event from bubbling if called from event handler
@@ -2388,10 +2308,9 @@ function HideSettings(e) {
 
     // Toggle visibility using class
     if (panel.classList.contains('visible')) {
-        panel.classList.remove('visible');
-        panel.classList.remove('animate');
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+        closeSettingsPanel(panel);
     } else {
+        _settingsLastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         panel.classList.add('visible');
         // Only animate if showing from centered position (no saved position)
         const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
@@ -2400,18 +2319,25 @@ function HideSettings(e) {
             panel.classList.add('animate');
         }
         localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
+
+        // Move focus into the dialog so keyboard and screen-reader users land
+        // on its controls instead of staying behind it.
+        getFocusableElements(panel)[0]?.focus();
     }
 }
 
 document.addEventListener('keydown', function(e) {
-    if (e.key !== 'Escape') return;
-
     const panel = document.getElementById("settingsDIV");
     if (!panel?.classList.contains('visible')) return;
 
-    panel.classList.remove('visible');
-    panel.classList.remove('animate');
-    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
+    if (e.key === 'Tab') {
+        trapFocusWithin(e, panel);
+        return;
+    }
+
+    if (e.key === 'Escape') {
+        closeSettingsPanel(panel);
+    }
 });
 
 // ========================================
@@ -2428,9 +2354,8 @@ function handleTouchStart(e) {
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     touchStartTime = Date.now();
-
-    // Early return for swipe gesture handling, but keep tracking for tap detection
-    if (!document.getElementById("swipe").checked) return;
+    // Tap detection always tracks; the swipe preference is honoured in
+    // handleTouchMove/handleTouchEnd, which decide whether to navigate.
 }
 
 /**
@@ -2441,7 +2366,7 @@ function handleTouchStart(e) {
 function handleTouchMove(e) {
     // Always allow swipes in rotated mode
     const rotatedComic = document.getElementById('rotated-comic');
-    if (!rotatedComic && !document.getElementById("swipe").checked) return;
+    if (!rotatedComic && !document.getElementById('swipe')?.checked) return;
 
     // Prevent default scrolling behavior during swipe
     const touch = e.touches[0];
@@ -2480,7 +2405,7 @@ function handleTouchEnd(e) {
 
     // For swipe navigation - always enabled in rotated mode
     const rotatedComic = document.getElementById('rotated-comic');
-    if (!rotatedComic && !document.getElementById("swipe").checked) return;
+    if (!rotatedComic && !document.getElementById('swipe')?.checked) return;
 
     // Check if the swipe is valid (meets distance and time requirements)
     if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
@@ -2574,46 +2499,67 @@ function handleTouchEnd(e) {
  * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
  * @param {boolean} clickToExit - Whether clicking exits fullscreen (default: true, false for PWA physical rotation)
  */
+/**
+ * Escape handler for the rotated/fullscreen view.
+ *
+ * Held at module scope so every exit path can remove it. Previously the
+ * listener was only removed inside its own Escape branch, so exiting by click,
+ * overlay tap, or device rotation leaked one listener per cycle.
+ * @type {((event: KeyboardEvent) => void)|null}
+ */
+let _rotatedEscapeHandler = null;
+
+/**
+ * Tear down the rotated/fullscreen comic view and restore the normal layout.
+ *
+ * Single teardown path for every exit route (Escape, comic click, overlay
+ * click, device rotation, toggling the toolbar button).
+ * @param {{respectGestureDebounce?: boolean}} [options]
+ */
+function exitRotatedView({ respectGestureDebounce = false } = {}) {
+    if (respectGestureDebounce) {
+        // Ignore clicks immediately after a swipe or a suppressed tap.
+        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) return;
+        if (Date.now() < suppressComicClickUntil) return;
+    }
+
+    document.getElementById('comic-overlay')?.remove();
+    document.getElementById('rotated-comic')?.remove();
+
+    document.querySelectorAll('[data-was-hidden]').forEach(el => {
+        // Remove the inline display style completely - let CSS classes take over
+        el.style.removeProperty('display');
+        // If there was an original inline display value, restore it
+        if (el.dataset.originalDisplayInline) {
+            el.style.display = el.dataset.originalDisplayInline;
+        }
+        delete el.dataset.wasHidden;
+        delete el.dataset.originalDisplay;
+        delete el.dataset.originalDisplayInline;
+    });
+
+    const comic = document.getElementById('comic');
+    if (comic) comic.className = 'normal';
+
+    document.body.style.overflow = '';
+    window.removeEventListener('resize', handleRotatedViewResize);
+
+    if (_rotatedEscapeHandler) {
+        document.removeEventListener('keydown', _rotatedEscapeHandler);
+        _rotatedEscapeHandler = null;
+    }
+
+    isRotatedMode = false;
+    restoreToolbarStateAfterRotate();
+}
+
 function Rotate(applyRotation = true, clickToExit = true) {
     const element = document.getElementById('comic');
     if (!element) return;
 
-    // Check if we're already in fullscreen mode
-    const existingOverlay = document.getElementById('comic-overlay');
-    if (existingOverlay) {
-        // We're in fullscreen mode, exit it immediately
-        document.body.removeChild(existingOverlay);
-
-        // Remove rotated image if it exists
-        const rotatedComic = document.getElementById('rotated-comic');
-        if (rotatedComic) {
-            document.body.removeChild(rotatedComic);
-        }
-
-        // Restore all elements with data-was-hidden attribute
-        const hiddenElements = document.querySelectorAll('[data-was-hidden]');
-        hiddenElements.forEach(el => {
-            // Remove the inline display style completely - let CSS classes take over
-            el.style.removeProperty('display');
-            // If there was an original inline display value, restore it
-            if (el.dataset.originalDisplayInline) {
-                el.style.display = el.dataset.originalDisplayInline;
-            }
-            delete el.dataset.wasHidden;
-            delete el.dataset.originalDisplay;
-            delete el.dataset.originalDisplayInline;
-        });
-
-        // Make sure original comic is in normal state
-        element.className = "normal";
-
-        // Remove resize listener
-        window.removeEventListener('resize', handleRotatedViewResize);
-
-        isRotatedMode = false;
-
-        // Restore toolbar to its exact pre-rotate position
-        restoreToolbarStateAfterRotate();
+    // Already in fullscreen mode: exit it immediately.
+    if (document.getElementById('comic-overlay')) {
+        exitRotatedView();
         return;
     }
 
@@ -2658,52 +2604,13 @@ function Rotate(applyRotation = true, clickToExit = true) {
         });
 
         // Handler function to exit fullscreen
-        const exitFullscreen = function() {
-            // Ignore clicks immediately after a swipe
-            if (Date.now() - lastSwipeTime < 300) return;
-            if (Date.now() < suppressComicClickUntil) return;
-
-            const overlay = document.getElementById('comic-overlay');
-            if (overlay) document.body.removeChild(overlay);
-
-            const rotatedComic = document.getElementById('rotated-comic');
-            if (rotatedComic) document.body.removeChild(rotatedComic);
-
-            // Restore visibility of hidden elements
-            const hiddenElements = document.querySelectorAll('[data-was-hidden]');
-            hiddenElements.forEach(el => {
-                // Remove the inline display style completely - let CSS classes take over
-                el.style.removeProperty('display');
-                // If there was an original inline display value, restore it
-                if (el.dataset.originalDisplayInline) {
-                    el.style.display = el.dataset.originalDisplayInline;
-                }
-                delete el.dataset.wasHidden;
-                delete el.dataset.originalDisplay;
-                delete el.dataset.originalDisplayInline;
-            });
-
-            // Ensure original comic is back to normal
-            if (element) element.className = "normal";
-
-            // Restore scrolling
-            document.body.style.overflow = '';
-
-            window.removeEventListener('resize', handleRotatedViewResize);
-            isRotatedMode = false;
-
-            // Restore toolbar to its exact pre-rotate position
-            restoreToolbarStateAfterRotate();
-        };
+        const exitFullscreen = () => exitRotatedView({ respectGestureDebounce: true });
 
         // Escape key to exit fullscreen
-        const handleEscapeKey = function(e) {
-            if (e.key === 'Escape') {
-                exitFullscreen();
-                document.removeEventListener('keydown', handleEscapeKey);
-            }
+        _rotatedEscapeHandler = function(e) {
+            if (e.key === 'Escape') exitRotatedView();
         };
-        document.addEventListener('keydown', handleEscapeKey);
+        document.addEventListener('keydown', _rotatedEscapeHandler);
 
         // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
         if (clickToExit) {
@@ -2814,41 +2721,35 @@ function handleRotatedViewResize() {
     }
 }
 
-// Update the date display function to use regional date settings
+/**
+ * Keep the date-picker button's accessible name in sync with the selected date.
+ *
+ * `#DatePicker` is a visually hidden 1x1 input opened programmatically by
+ * `#DatePickerBtn`, so screen-reader and tooltip users otherwise have no way to
+ * know which comic date is currently selected. The date is formatted with the
+ * user's own locale rather than the raw ISO value.
+ */
 function updateDateDisplay() {
     const dateInput = document.getElementById('DatePicker');
-    const wrapper = document.querySelector('.date-center-wrapper');
+    const button = document.getElementById('DatePickerBtn');
+    if (!dateInput || !button) return;
 
-    if (dateInput && wrapper) {
-        // Parse the date value from the input
-        const dateValue = dateInput.value; // Format: YYYY-MM-DD
-        if (dateValue) {
-            const dateParts = dateValue.split('-');
-            if (dateParts.length === 3) {
-                const year = parseInt(dateParts[0]);
-                const month = parseInt(dateParts[1]) - 1; // JS months are 0-based
-                const day = parseInt(dateParts[2]);
+    const t = translations[UTILS.isSpanishMode() ? 'es' : 'en'] || translations.en;
+    const baseLabel = t.selectDate;
+    const [year, month, day] = (dateInput.value || '').split('-').map(Number);
 
-                // Create a date object
-                const date = new Date(year, month, day);
-
-                // Format the date according to user's locale
-                const localizedDate = date.toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'numeric',
-                    day: 'numeric'
-                });
-
-                // Set the localized date as the display value
-                wrapper.setAttribute('data-display-date', localizedDate);
-            } else {
-                // Fallback if date format is unexpected
-                wrapper.setAttribute('data-display-date', dateValue);
-            }
-        } else {
-            wrapper.setAttribute('data-display-date', '');
-        }
+    let label = baseLabel;
+    if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+        const localizedDate = new Date(year, month - 1, day).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        label = `${baseLabel} (${localizedDate})`;
     }
+
+    button.title = label;
+    button.setAttribute('aria-label', label);
 }
 
 /**
@@ -3233,6 +3134,60 @@ function navigateOfflineComics(destination) {
     return true;
 }
 
+/**
+ * Ask the active service worker for its build version over a MessageChannel.
+ *
+ * The worker is the authority on which cache generation is actually serving the
+ * page, so asking it directly is more accurate than re-fetching serviceworker.js
+ * (which may be served from cache, or from a newer deployment that has not been
+ * activated yet).
+ *
+ * @param {number} [timeoutMs] How long to wait for the worker to reply.
+ * @returns {Promise<string|null>} The version string, or null when unavailable.
+ */
+function requestServiceWorkerVersion(timeoutMs = 3000) {
+    const worker = navigator.serviceWorker?.controller;
+    if (!worker || typeof MessageChannel !== 'function') return Promise.resolve(null);
+
+    return new Promise(resolve => {
+        const channel = new MessageChannel();
+        const timer = setTimeout(() => {
+            channel.port1.close();
+            resolve(null);
+        }, timeoutMs);
+
+        channel.port1.onmessage = event => {
+            clearTimeout(timer);
+            channel.port1.close();
+            resolve(event.data?.version || null);
+        };
+
+        try {
+            worker.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+        } catch {
+            clearTimeout(timer);
+            resolve(null);
+        }
+    });
+}
+
+/**
+ * Render the active service worker version in the settings footer.
+ */
+async function displayServiceWorkerVersion() {
+    const swDisplay = document.getElementById('swVersionDisplay');
+    if (!swDisplay) return;
+
+    // On a first visit the worker has not claimed the page yet, so wait for the
+    // registration to become active before asking.
+    if (!navigator.serviceWorker?.controller && navigator.serviceWorker?.ready) {
+        await navigator.serviceWorker.ready.catch(() => null);
+    }
+
+    const version = await requestServiceWorkerVersion();
+    swDisplay.textContent = version ? `Version: ${version}` : 'Version: Unknown';
+}
+
 function initApp() {
     updateConnectionStatus();
     window.addEventListener('online', () => {
@@ -3249,11 +3204,12 @@ function initApp() {
     initializeDarkMode();
 
     const swipeStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE);
+    const swipeCheckbox = document.getElementById('swipe');
     if (swipeStatus === null) {
-        document.getElementById("swipe").checked = true;
+        if (swipeCheckbox) swipeCheckbox.checked = true;
         localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'true');
-    } else {
-        document.getElementById("swipe").checked = swipeStatus === "true";
+    } else if (swipeCheckbox) {
+        swipeCheckbox.checked = swipeStatus === "true";
     }
 
     // One-time migration: previously stored 'randomSwipe' key (settings checkbox)
@@ -3337,18 +3293,7 @@ function initApp() {
     document.getElementById('importFavs').addEventListener('click', importFavorites);
 
     // Load Service Worker Version into Settings
-    const swDisplay = document.getElementById('swVersionDisplay');
-    if (swDisplay) {
-        fetch('./serviceworker.js', { cache: 'no-store' })
-            .then(res => res.text())
-            .then(text => {
-                const match = text.match(/const\s+VERSION\s*=\s*['"]([^'"]+)['"]/);
-                swDisplay.textContent = match ? `Version: ${match[1]}` : 'Version: Unknown';
-            })
-            .catch(() => {
-                swDisplay.textContent = 'Version: Check failed';
-            });
-    }
+    displayServiceWorkerVersion();
 
     // Install button click is handled in showInstallButton()
     document.getElementById('DatePickerBtn').addEventListener('click', () => {
@@ -3403,7 +3348,7 @@ function initApp() {
         } else {
             // Mobile browser (not PWA): use single tap to rotate unless it becomes a double tap.
             comicSingleTapAction = () => {
-                if (Date.now() - lastSwipeTime < 300 || Date.now() < suppressComicClickUntil) return;
+                if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS || Date.now() < suppressComicClickUntil) return;
                 Rotate(true);
             };
         }
@@ -3472,9 +3417,6 @@ function initApp() {
     showComic();
     updateDateDisplay(); // Add this line to update the display
     updateExportButtonState(); // Enable/disable export button based on favorites
-
-    // Windows Store review: track session & schedule prompt
-    initStoreReview();
 
     // One-time migration of existing favorites to global leaderboard
     migrateExistingFavorites();
@@ -3985,11 +3927,33 @@ function isShuffleEnabled() {
     return btn?.getAttribute('aria-pressed') === 'true';
 }
 
+/**
+ * Build a toolbar icon that references a <symbol> in the index.html sprite.
+ * @param {string} symbolId
+ * @returns {SVGSVGElement}
+ */
+function createToolbarIcon(symbolId) {
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'toolbar-svg');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+
+    const use = document.createElementNS(SVG_NS, 'use');
+    use.setAttribute('href', `#${symbolId}`);
+    svg.appendChild(use);
+    return svg;
+}
+
 function _setToolbarIcon(id, iconKey) {
     const btn = document.getElementById(id);
-    const icon = TOOLBAR_ICONS[iconKey];
-    if (!btn || !icon || btn.dataset.iconKey === iconKey) return;
-    btn.innerHTML = icon;
+    const symbolId = TOOLBAR_ICONS[iconKey];
+    if (!btn || !symbolId || btn.dataset.iconKey === iconKey) return;
+    btn.replaceChildren(createToolbarIcon(symbolId));
     btn.dataset.iconKey = iconKey;
 }
 
@@ -4059,13 +4023,27 @@ function _shuffleDateKey(date) {
     return normalized.getTime();
 }
 
+/**
+ * Push onto a shuffle history stack, discarding the oldest entries once the
+ * stack exceeds `CONFIG.SHUFFLE_HISTORY_MAX`. Without this bound a long shuffle
+ * session grows both stacks without limit.
+ * @param {Date[]} stack
+ * @param {Date} entry
+ */
+function _pushBoundedShuffleEntry(stack, entry) {
+    stack.push(entry);
+    if (stack.length > CONFIG.SHUFFLE_HISTORY_MAX) {
+        stack.splice(0, stack.length - CONFIG.SHUFFLE_HISTORY_MAX);
+    }
+}
+
 function _pushShuffleHistory(date) {
     if (!date) return;
     const entry = new Date(date);
     entry.setHours(12, 0, 0, 0);
     const previous = _shuffleBackStack[_shuffleBackStack.length - 1];
     if (!previous || _shuffleDateKey(previous) !== _shuffleDateKey(entry)) {
-        _shuffleBackStack.push(entry);
+        _pushBoundedShuffleEntry(_shuffleBackStack, entry);
     }
 }
 
@@ -4075,7 +4053,7 @@ function _pushShuffleForwardHistory(date) {
     entry.setHours(12, 0, 0, 0);
     const next = _shuffleForwardStack[_shuffleForwardStack.length - 1];
     if (!next || _shuffleDateKey(next) !== _shuffleDateKey(entry)) {
-        _shuffleForwardStack.push(entry);
+        _pushBoundedShuffleEntry(_shuffleForwardStack, entry);
     }
 }
 
@@ -4272,7 +4250,7 @@ function formatDate(datetoFormat) {
 // SETTINGS EVENT HANDLERS
 // ========================================
 
-document.getElementById('swipe').addEventListener('change', function() {
+document.getElementById('swipe')?.addEventListener('change', function() {
     if (this.checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SWIPE, 'true');
     } else {
@@ -4283,7 +4261,7 @@ document.getElementById('swipe').addEventListener('change', function() {
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
-document.getElementById('lastdate').addEventListener('change', function() {
+document.getElementById('lastdate')?.addEventListener('change', function() {
     localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_DATE, this.checked ? 'true' : 'false');
 });
 
@@ -4295,7 +4273,7 @@ document.getElementById('darkmode')?.addEventListener('click', function() {
     if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
 });
 
-document.getElementById('showfavs').addEventListener('change', function() {
+document.getElementById('showfavs')?.addEventListener('change', function() {
     resetShuffleSession();
     const favs = UTILS.getFavorites();
     if (this.checked) {
@@ -4438,7 +4416,7 @@ function checkImageOrientation() {
         // Create notice
         const notice = document.createElement('div');
         notice.className = 'thumbnail-notice';
-        notice.textContent = 'Click to view full size';
+        notice.textContent = (translations[UTILS.isSpanishMode() ? 'es' : 'en'] || translations.en).viewFullSize;
 
         // Set up the thumbnail display
         comicWrapper.replaceChild(thumbnailContainer, comic);
@@ -4591,29 +4569,39 @@ window.addEventListener('beforeinstallprompt', (e) => {
   }
 });
 
+/**
+ * Handle a click on the install button.
+ * Registered exactly once (see below) so repeated `beforeinstallprompt` events
+ * cannot stack duplicate listeners and fire `prompt()` more than once.
+ */
+async function handleInstallButtonClick() {
+  const installBtn = document.getElementById('installBtn');
+  if (!deferredPrompt) {
+    return;
+  }
+
+  // Show the install prompt
+  deferredPrompt.prompt();
+
+  // Wait for the user to respond
+  const choiceResult = await deferredPrompt.userChoice;
+
+  if (choiceResult.outcome === 'accepted' && installBtn) {
+    installBtn.style.display = 'none';
+  }
+
+  deferredPrompt = null;
+}
+
 function showInstallButton() {
   const installBtn = document.getElementById('installBtn');
-  if (installBtn) {
-    installBtn.style.display = 'block';
+  if (!installBtn) return;
 
-    installBtn.addEventListener('click', async function() {
-      if (!deferredPrompt) {
-        return;
-      }
+  installBtn.style.display = 'block';
 
-      // Show the install prompt
-      deferredPrompt.prompt();
-
-      // Wait for the user to respond
-      const choiceResult = await deferredPrompt.userChoice;
-
-      if (choiceResult.outcome === 'accepted') {
-        installBtn.style.display = 'none';
-      }
-
-      deferredPrompt = null;
-    });
-  }
+  if (installBtn.dataset.installHandlerBound === 'true') return;
+  installBtn.dataset.installHandlerBound = 'true';
+  installBtn.addEventListener('click', handleInstallButtonClick);
 }
 
 // ========================================
@@ -4642,7 +4630,10 @@ async function favoritesApiFetch(path, init = {}, { includeAuth = true, requireA
 
     return fetch(`${CONFIG.FAVORITES_API_URL}${path}`, {
         ...init,
-        headers
+        headers,
+        // Without a deadline a stalled connection leaves the leaderboard modal
+        // spinning forever and favorite votes silently pending.
+        signal: init.signal || AbortSignal.timeout(CONFIG.FAVORITES_API_TIMEOUT_MS)
     });
 }
 
@@ -4778,27 +4769,32 @@ let _top10BrowseIndex = -1;
 let _isTop10Mode = false;
 const _thumbCache = new Map(); // date string → image URL
 
-function getTop10FocusableElements() {
-    const modal = document.getElementById('top10Modal');
-    if (!modal) return [];
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-    return [...modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+/**
+ * Collect the currently focusable, visible, enabled descendants of a container.
+ * @param {Element|null} container
+ * @returns {HTMLElement[]}
+ */
+function getFocusableElements(container) {
+    if (!container) return [];
+
+    return [...container.querySelectorAll(FOCUSABLE_SELECTOR)]
         .filter(element => !element.disabled && element.getAttribute('aria-hidden') !== 'true' && element.offsetParent !== null);
 }
 
-function focusTop10Modal() {
-    const modal = document.getElementById('top10Modal');
-    if (!modal) return;
+/**
+ * Keep Tab / Shift+Tab inside a dialog container.
+ * @param {KeyboardEvent} event
+ * @param {Element|null} container
+ */
+function trapFocusWithin(event, container) {
+    if (!container) return;
 
-    const focusTarget = document.getElementById('top10CloseBtn') || getTop10FocusableElements()[0] || modal;
-    focusTarget.focus();
-}
-
-function trapTop10ModalFocus(event) {
-    const focusable = getTop10FocusableElements();
+    const focusable = getFocusableElements(container);
     if (!focusable.length) {
         event.preventDefault();
-        document.getElementById('top10Modal')?.focus();
+        if (container instanceof HTMLElement) container.focus();
         return;
     }
 
@@ -4815,6 +4811,22 @@ function trapTop10ModalFocus(event) {
     }
 }
 
+function getTop10FocusableElements() {
+    return getFocusableElements(document.getElementById('top10Modal'));
+}
+
+function focusTop10Modal() {
+    const modal = document.getElementById('top10Modal');
+    if (!modal) return;
+
+    const focusTarget = document.getElementById('top10CloseBtn') || getTop10FocusableElements()[0] || modal;
+    focusTarget.focus();
+}
+
+function trapTop10ModalFocus(event) {
+    trapFocusWithin(event, document.getElementById('top10Modal'));
+}
+
 function setTop10EntryCount(date, count, updatedAt = null) {
     const entry = _top10Entries.find(item => item && item.date === date);
     if (!entry) return;
@@ -4825,6 +4837,77 @@ function setTop10EntryCount(date, count, updatedAt = null) {
     if (_isTop10Mode && _top10Entries[_top10BrowseIndex]?.date === date) {
         updateTop10Indicator();
     }
+}
+
+/**
+ * Build one leaderboard row as real DOM nodes.
+ *
+ * Deliberately avoids `innerHTML` for anything derived from the remote
+ * leaderboard response (`entry.date`, `entry.count`, `entry.updatedAt`): those
+ * values are attacker-influencable if the API is ever compromised, and they
+ * previously flowed straight into an HTML string, including into an
+ * `aria-label="..."` attribute where a quote would break out of the attribute.
+ * @param {{date: string, count: number, updatedAt?: string}} entry
+ * @param {number} index
+ * @param {Record<string, string>} t - Active translation table
+ * @param {string} dateFmtLocale
+ * @returns {HTMLButtonElement}
+ */
+function createTop10EntryButton(entry, index, t, dateFmtLocale) {
+    const [y, m, d] = entry.date.split('/').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const formatted = dateObj.toLocaleDateString(dateFmtLocale, { year: 'numeric', month: 'short', day: 'numeric' });
+    const updatedDate = entry.updatedAt ? new Date(entry.updatedAt) : null;
+    const updatedLabel = updatedDate && !Number.isNaN(updatedDate.getTime())
+        ? t.top10Updated.replace('{date}', updatedDate.toLocaleString(dateFmtLocale, { dateStyle: 'medium', timeStyle: 'short' }))
+        : '';
+    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'top10-entry';
+    button.dataset.index = String(index);
+    button.dataset.date = entry.date;
+    button.setAttribute('aria-label', t.top10ViewComic.replace('{date}', formatted));
+
+    const rank = document.createElement('span');
+    rank.className = 'top10-rank';
+    rank.textContent = medal || String(index + 1);
+    button.appendChild(rank);
+
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'top10-thumb-wrap';
+    thumbWrap.id = `top10Thumb${index}`;
+    const placeholder = document.createElement('div');
+    placeholder.className = 'top10-thumb-placeholder';
+    // Static, developer-authored markup only.
+    placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+    thumbWrap.appendChild(placeholder);
+    button.appendChild(thumbWrap);
+
+    const info = document.createElement('div');
+    info.className = 'top10-info';
+
+    const dateSpan = document.createElement('span');
+    dateSpan.className = 'top10-date';
+    dateSpan.textContent = formatted;
+    info.appendChild(dateSpan);
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'top10-count';
+    countSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+    countSpan.append(` ${Number(entry.count) || 0}`);
+    info.appendChild(countSpan);
+
+    if (updatedLabel) {
+        const updatedSpan = document.createElement('span');
+        updatedSpan.className = 'top10-updated';
+        updatedSpan.textContent = updatedLabel;
+        info.appendChild(updatedSpan);
+    }
+
+    button.appendChild(info);
+    return button;
 }
 
 function showTop10Modal() {
@@ -4841,7 +4924,7 @@ function showTop10Modal() {
         _top10LastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     }
     modal.setAttribute('aria-busy', 'true');
-    list.innerHTML = `<div class="top10-loading">${t.top10Loading}</div>`;
+    list.replaceChildren(UTILS.createMessageDiv('top10-loading', t.top10Loading));
     backdrop.classList.add('visible');
     modal.classList.add('visible');
     focusTop10Modal();
@@ -4849,44 +4932,22 @@ function showTop10Modal() {
     fetchTop10().then(entries => {
         modal.removeAttribute('aria-busy');
         if (!entries || entries.length === 0) {
-            list.innerHTML = `<div class="top10-empty">${t.top10Empty}</div>`;
+            list.replaceChildren(UTILS.createMessageDiv('top10-empty', t.top10Empty));
             return;
         }
         _top10Entries = entries;
 
-        list.innerHTML = entries.map((entry, i) => {
-            const parts = entry.date.split('/');
-            const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-            const formatted = dateObj.toLocaleDateString(dateFmtLocale, { year: 'numeric', month: 'short', day: 'numeric' });
-            const updatedDate = entry.updatedAt ? new Date(entry.updatedAt) : null;
-            const updatedLabel = updatedDate && !Number.isNaN(updatedDate.getTime())
-                ? t.top10Updated.replace('{date}', updatedDate.toLocaleString(dateFmtLocale, { dateStyle: 'medium', timeStyle: 'short' }))
-                : '';
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
-            const ariaLabel = t.top10ViewComic.replace('{date}', formatted);
-            return `<button class="top10-entry" data-index="${i}" data-date="${entry.date}" aria-label="${ariaLabel}">
-                <span class="top10-rank">${medal || (i + 1)}</span>
-                <div class="top10-thumb-wrap" id="top10Thumb${i}">
-                    <div class="top10-thumb-placeholder">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
-                    </div>
-                </div>
-                <div class="top10-info">
-                    <span class="top10-date">${formatted}</span>
-                    <span class="top10-count">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                        ${entry.count}
-                    </span>
-                    ${updatedLabel ? `<span class="top10-updated">${updatedLabel}</span>` : ''}
-                </div>
-            </button>`;
-        }).join('');
+        list.replaceChildren(...entries.map((entry, i) => createTop10EntryButton(entry, i, t, dateFmtLocale)));
 
         // Load thumbnails in batches, using cached URLs when available.
         // Abort after too many consecutive failures (proxy may be down/rate-limited).
         const BATCH_SIZE = 5;
         const MAX_CONSECUTIVE_FAILURES = 3;
         let _consecutiveThumbFails = 0;
+        // Honour the reader's own source and language preference so thumbnails
+        // match the strips they will actually see when they open an entry.
+        const thumbSource = UTILS.getPreferredSource();
+        const thumbLanguage = lang;
 
         function applyThumb(i, imageUrl, dateStr) {
             const thumbWrap = document.getElementById(`top10Thumb${i}`);
@@ -4896,8 +4957,7 @@ function showTop10Modal() {
                 img.loading = 'lazy';
                 img.setAttribute('src', imageUrl);
                 img.setAttribute('alt', t.top10ComicAlt.replace('{date}', dateStr));
-                thumbWrap.innerHTML = '';
-                thumbWrap.appendChild(img);
+                thumbWrap.replaceChildren(img);
             }
         }
 
@@ -4915,7 +4975,7 @@ function showTop10Modal() {
                 }
                 const parts = entry.date.split('/');
                 const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                return getAuthenticatedComic(date, 'en', 'fandom', {
+                return getAuthenticatedComic(date, thumbLanguage, thumbSource, {
                     silent: true,
                     maxSources: 1,
                     disableTodayFallback: true
@@ -4945,8 +5005,18 @@ function showTop10Modal() {
         });
     }).catch(() => {
         modal.removeAttribute('aria-busy');
-        list.innerHTML = `<div class="top10-empty"><p>${t.top10Error}</p><button type="button" class="backup-button top10-retry-button" id="top10RetryBtn">${t.retry}</button></div>`;
-        document.getElementById('top10RetryBtn')?.addEventListener('click', showTop10Modal);
+        const errorWrap = document.createElement('div');
+        errorWrap.className = 'top10-empty';
+        const message = document.createElement('p');
+        message.textContent = t.top10Error;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.className = 'backup-button top10-retry-button';
+        retry.id = 'top10RetryBtn';
+        retry.textContent = t.retry;
+        retry.addEventListener('click', showTop10Modal);
+        errorWrap.append(message, retry);
+        list.replaceChildren(errorWrap);
     });
 }
 
@@ -5026,19 +5096,35 @@ function updateTop10Indicator() {
     const medal = _top10BrowseIndex === 0 ? '🥇' : _top10BrowseIndex === 1 ? '🥈' : _top10BrowseIndex === 2 ? '🥉' : '';
     const rank = medal || `#${_top10BrowseIndex + 1}`;
 
-    indicator.innerHTML = `
-        <span class="top10-indicator-rank">${rank}</span>
-        <span class="top10-indicator-label">${t.top10CommunityFavorites}</span>
-        <span class="top10-indicator-count">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            ${entry.count}
-        </span>
-        <span class="top10-indicator-pos">${_top10BrowseIndex + 1}/${_top10Entries.length}</span>
-        <button class="top10-indicator-exit" id="top10ExitBtn" aria-label="${t.top10ExitLabel}">✕</button>
-    `;
+    // Built with DOM APIs rather than innerHTML: `entry.count` and the
+    // translated exit label previously landed inside an HTML string (including
+    // inside an aria-label attribute).
+    const rankSpan = document.createElement('span');
+    rankSpan.className = 'top10-indicator-rank';
+    rankSpan.textContent = rank;
 
-    const exitBtn = document.getElementById('top10ExitBtn');
-    if (exitBtn) exitBtn.addEventListener('click', exitTop10Mode);
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'top10-indicator-label';
+    labelSpan.textContent = t.top10CommunityFavorites;
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'top10-indicator-count';
+    countSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+    countSpan.append(` ${Number(entry.count) || 0}`);
+
+    const posSpan = document.createElement('span');
+    posSpan.className = 'top10-indicator-pos';
+    posSpan.textContent = `${_top10BrowseIndex + 1}/${_top10Entries.length}`;
+
+    const exitBtn = document.createElement('button');
+    exitBtn.type = 'button';
+    exitBtn.className = 'top10-indicator-exit';
+    exitBtn.id = 'top10ExitBtn';
+    exitBtn.setAttribute('aria-label', t.top10ExitLabel);
+    exitBtn.textContent = '✕';
+    exitBtn.addEventListener('click', exitTop10Mode);
+
+    indicator.replaceChildren(rankSpan, labelSpan, countSpan, posSpan, exitBtn);
 }
 
 function closeTop10Modal() {

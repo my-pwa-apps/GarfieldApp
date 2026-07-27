@@ -3,7 +3,15 @@ export function makeDraggable(element, dragHandle, storageKey, options = {}) {
 
     const isToolbar = options.isToolbar === true || storageKey === 'toolbarPosition';
     const clampPosition = options.clampPosition || ((left, top) => ({ left, top }));
-    const onDrop = options.onDrop || (() => {});
+    // Persisting the dropped position is the default so every draggable surface
+    // survives a reload. Callers that need richer metadata (the main toolbar)
+    // override this with their own handler.
+    const onDrop = options.onDrop || (({ storageKey: key, left, top }) => {
+        if (!key) return;
+        try {
+            localStorage.setItem(key, JSON.stringify({ left, top }));
+        } catch { /* storage full or blocked — position is not critical */ }
+    });
 
     let startX = 0;
     let startY = 0;
@@ -60,7 +68,7 @@ export function makeDraggable(element, dragHandle, storageKey, options = {}) {
         startTop = parseFloat(element.style.top || getComputedStyle(element).top || '0');
 
         if (event.touches) event.preventDefault();
-        element.style.cursor = dragHandle === element ? 'grabbing' : 'grabbing';
+        element.style.cursor = 'grabbing';
         document.body.style.userSelect = 'none';
 
         function moveHandler(moveEvent) {

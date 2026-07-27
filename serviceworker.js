@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.5';
+const VERSION = 'v1.0.7';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = `garfield-images-${VERSION}`;
@@ -16,25 +16,46 @@ const PRECACHE_ASSETS = [
   './app.js',
   './init.js',
   './comicExtractor.js',
+  './toolbar.js',
   './googleDriveSync.js',
   './manifest.webmanifest',
   './garlogo.webp',
   './garfield-first.gif'
 ];
 
+// Assets without which the app cannot boot. `app.js` is an ES module that
+// statically imports `comicExtractor.js` and `toolbar.js`, so a missing module
+// graph member is a hard failure (blank screen), not a degraded experience.
 const REQUIRED_PRECACHE_ASSETS = new Set([
   './',
   './index.html',
   './main.css',
-  './app.js'
+  './app.js',
+  './comicExtractor.js',
+  './toolbar.js'
 ]);
 
 /**
- * Message handler for client communication
+ * Message handler for client communication.
+ *
+ * `SKIP_WAITING` is sent by the update banner in init.js. The install step
+ * deliberately does NOT call skipWaiting(), so a new worker stays in `waiting`
+ * until the user accepts the update. That keeps the currently open page on the
+ * cache generation it was loaded with (activate deletes older caches).
+ *
+ * `GET_VERSION` lets the settings panel read the *active* worker's version over
+ * a MessageChannel instead of re-fetching and regex-scraping this file.
  */
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
+  const type = event.data?.type;
+
+  if (type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  if (type === 'GET_VERSION') {
+    event.ports?.[0]?.postMessage({ type: 'VERSION', version: VERSION });
   }
 });
 
@@ -45,7 +66,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => Promise.all(PRECACHE_ASSETS.map(asset => precacheAsset(cache, asset))))
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -116,15 +136,19 @@ async function cacheFirstStrategy(request, cacheName) {
     const fetchOptions = request.mode === 'navigate' ? { redirect: 'follow' } : {};
     const networkResponse = await fetch(request, fetchOptions);
 
-    // Only cache successful, non-redirected responses
+    // Only cache successful, non-redirected responses.
+    // The write is awaited so the response is durably stored before the fetch
+    // handler settles — otherwise the browser may terminate the worker first.
     if (networkResponse?.status === 200 && !networkResponse.redirected) {
       const cache = await caches.open(cacheName);
-      cache.put(request, networkResponse.clone());
+      await cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
     if (request.headers.get('accept')?.includes('text/html')) {
-      return caches.match('./index.html');
+      return (await caches.match('./index.html')) ||
+        (await caches.match('./offline.html')) ||
+        Response.error();
     }
     throw error;
   }
@@ -149,7 +173,7 @@ async function cacheFirstWithLimit(request, cacheName, maxSize) {
         await cache.delete(keys.shift());
       }
 
-      cache.put(request, networkResponse.clone());
+      await cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
@@ -175,7 +199,7 @@ async function networkFirstStrategy(request, cacheName) {
         await cache.delete(keys.shift());
       }
 
-      cache.put(request, networkResponse.clone());
+      await cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch (error) {
