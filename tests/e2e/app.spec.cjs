@@ -621,8 +621,9 @@ test('signed-out favorites stay local and do not write to community rankings', a
 
   await page.locator('#favheart').click();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]').length)).toBe(1);
-  await expect(page.locator('#notificationToast')).toHaveClass(/show/);
-  await expect(page.locator('#notificationContent')).toContainText('Sign in with Google');
+  // Favouriting is a purely local action for signed-out visitors, so it must
+  // stay silent — no sign-in nag toast on every heart tap.
+  await expect(page.locator('#notificationToast')).not.toHaveClass(/show/);
   expect(favoriteWrites).toBe(0);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
