@@ -4,6 +4,13 @@ compatibility_date = "2026-04-29"
 
 [vars]
 ALLOWED_ORIGINS = "https://garfieldapp.pages.dev,https://garfield.local"
+# Must stay in sync with GOOGLE_CLIENT_ID in googleDriveSync.js.
+# tests/unit/google-sync.test.mjs enforces this.
+GOOGLE_CLIENT_ID = "495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
 
 [[durable_objects.bindings]]
 name = "LEADERBOARD"

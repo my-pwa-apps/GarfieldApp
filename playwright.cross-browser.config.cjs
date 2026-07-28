@@ -3,7 +3,7 @@ const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*cross-browser-smoke\.spec\.js/,
+  testMatch: /.*cross-browser-smoke\.spec\.cjs/,
   timeout: 30_000,
   expect: {
     timeout: 10_000

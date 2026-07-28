@@ -3,18 +3,30 @@
 	"tasks": [
 		{
 			"label": "Serve GarfieldApp",
-			"type": "shell",
-			"command": "c:/Users/bartm/OneDrive - Microsoft/Documents/Git Repos/GarfieldApp/.venv/Scripts/python.exe",
-			"args": [
-				"-m",
-				"http.server",
-				"8000",
-				"--bind",
-				"127.0.0.1"
-			],
+			"detail": "Serve the app on http://127.0.0.1:8000 using the repo's Node static server.",
+			"type": "npm",
+			"script": "serve",
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Unit tests",
+			"type": "npm",
+			"script": "test:unit",
+			"problemMatcher": [],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Pre-deploy checks",
+			"detail": "Syntax check, asset verification and unit tests.",
+			"type": "npm",
+			"script": "test:predeploy",
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

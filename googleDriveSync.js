@@ -4,14 +4,26 @@
 
 const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
+const GOOGLE_IDENTITY_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
 const FAVORITES_FILENAME = 'garfield-favorites.json';
 const SILENT_REFRESH_COOLDOWN_MS = 30000;
 const GOOGLE_DRIVE_SYNC_ENABLED_KEY = 'gDriveSyncEnabled';
+/**
+ * Origins on which Google sign-in may be attempted.
+ *
+ * Production is an exact match. Loopback development hosts are matched by
+ * hostname on any port so the sync flow can actually be exercised locally
+ * (`npm run serve` uses 8000, the Playwright static server uses 8010); Google
+ * Identity Services treats http://localhost and http://127.0.0.1 as valid
+ * JavaScript origins, so this does not widen the production attack surface.
+ */
 const GOOGLE_AUTH_ALLOWED_ORIGINS = [
     'https://garfieldapp.pages.dev'
 ];
+const GOOGLE_AUTH_ALLOWED_DEV_HOSTNAMES = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
 let tokenClient = null;
+let _gisLoadPromise = null;
 let accessToken = null;
 let accessTokenExpiry = 0;
 let pendingTokenRequest = null;
@@ -34,7 +46,10 @@ function _getSyncPreferences() { return typeof window.getSyncPreferences === 'fu
 function _applySyncedPreferences(preferences) { if (typeof window.applySyncedPreferences === 'function') window.applySyncedPreferences(preferences); }
 
 function _isGoogleAuthAllowedOrigin() {
-    return GOOGLE_AUTH_ALLOWED_ORIGINS.includes(window.location.origin);
+    if (GOOGLE_AUTH_ALLOWED_ORIGINS.includes(window.location.origin)) return true;
+
+    return window.location.protocol === 'http:' &&
+        GOOGLE_AUTH_ALLOWED_DEV_HOSTNAMES.has(window.location.hostname);
 }
 
 function _getGoogleUnavailableMessage() {
@@ -282,8 +297,48 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
 }
 
 /**
+ * Load the Google Identity Services client on demand.
+ *
+ * The script is roughly 100 KB of JavaScript that only matters to users who
+ * actually sync, so it is no longer a blocking <script> tag in index.html.
+ * Resolves with whether the client is usable; never rejects.
+ *
+ * @returns {Promise<boolean>}
+ */
+function _loadGoogleIdentityServices() {
+    if (typeof google !== 'undefined' && google.accounts) return Promise.resolve(true);
+    if (_gisLoadPromise) return _gisLoadPromise;
+
+    _gisLoadPromise = new Promise(resolve => {
+        const script = document.createElement('script');
+        script.src = GOOGLE_IDENTITY_SCRIPT_URL;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve(typeof google !== 'undefined' && !!google.accounts);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+    });
+
+    return _gisLoadPromise;
+}
+
+/**
+ * Create the token client if Google Identity Services is already available.
+ * @returns {boolean} True when a token client is ready to use.
+ */
+function _ensureTokenClient() {
+    if (tokenClient) return true;
+    if (typeof google === 'undefined' || !google.accounts) return false;
+    _initTokenClient();
+    return !!tokenClient;
+}
+
+/**
  * Initialize Google Identity Services token client.
- * Retries if the GIS script hasn't loaded yet.
+ *
+ * Returning users (an enabled sync flag or a stored profile) get the client
+ * immediately so their session can be restored. First-time visitors pay nothing
+ * until they press "Sign in".
  */
 function initGoogleSync() {
     if (!_isGoogleAuthAllowedOrigin()) {
@@ -294,21 +349,22 @@ function initGoogleSync() {
         return;
     }
 
-    if (typeof google !== 'undefined' && google.accounts) {
-        _initTokenClient();
+    // Always sanitize persisted token state, even when nothing else runs.
+    _getStoredTokenData();
+
+    if (!_isSyncEnabled() && !_hasStoredUserContext()) {
+        updateGoogleUI(false, 'signed-out');
+        window.dispatchEvent(new CustomEvent('google-sync-ready'));
         return;
     }
-    // GIS script not loaded yet — wait for it (up to 10s)
-    let attempts = 0;
-    const interval = setInterval(() => {
-        attempts++;
-        if (typeof google !== 'undefined' && google.accounts) {
-            clearInterval(interval);
-            _initTokenClient();
-        } else if (attempts >= 20) {
-            clearInterval(interval);
-        }
-    }, 500);
+
+    if (_ensureTokenClient()) return;
+
+    _loadGoogleIdentityServices().then(() => {
+        if (_ensureTokenClient()) return;
+        updateGoogleUI(false, 'expired');
+        window.dispatchEvent(new CustomEvent('google-sync-ready'));
+    });
 }
 
 function _initTokenClient() {
@@ -392,10 +448,22 @@ function googleSignIn() {
         return;
     }
 
-    if (!tokenClient) {
-        _notify(_t('googleNotLoaded') || 'Google services not loaded');
+    if (_ensureTokenClient()) {
+        _startInteractiveSignIn();
         return;
     }
+
+    // First-time visitor: the Identity script was never downloaded.
+    _loadGoogleIdentityServices().then(() => {
+        if (!_ensureTokenClient()) {
+            _notify(_t('googleNotLoaded') || 'Google services not loaded');
+            return;
+        }
+        _startInteractiveSignIn();
+    });
+}
+
+function _startInteractiveSignIn() {
     _setSyncEnabled(true);
     ensureValidAccessToken({ interactive: true }).catch(() => {
         _setSyncEnabled(false);

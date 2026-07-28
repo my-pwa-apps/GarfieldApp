@@ -713,7 +713,7 @@ test('share cancellation stays quiet but real share errors notify the user', asy
   await expect(page.locator('#notificationContent')).toHaveText('Failed to share the comic. Please try again.');
 });
 
-test('does not auto-start Google sign-in on unauthorized local origin', async ({ page }) => {
+test('never auto-starts Google sign-in, even with stored user context', async ({ page }) => {
   await page.addInitScript(() => {
     try {
       localStorage.setItem('gDriveUser', 'Test User');
@@ -744,14 +744,15 @@ test('does not auto-start Google sign-in on unauthorized local origin', async ({
   `;
   const errors = await openApp(page, '/', { googleScriptBody });
 
-  await expect.poll(() => page.evaluate(() => window.__googleInitCount)).toBe(0);
+  // Loopback is a trusted development origin, so the token client is created -
+  // but a leftover profile in localStorage must never silently reopen a session.
   await expect.poll(() => page.evaluate(() => window.__googleTokenRequests)).toEqual([]);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await clickSettingsControl(page, '#googleSignInBtn');
-  await expect(page.locator('#notificationToast')).toHaveClass(/show/);
-  await expect(page.locator('#notificationContent')).toHaveText('Google sign-in is not available on this test URL.');
-  await expect.poll(() => page.evaluate(() => window.__googleTokenRequests)).toEqual([]);
+
+  // Only an explicit click may request a token.
+  await expect.poll(() => page.evaluate(() => window.__googleTokenRequests.length)).toBe(1);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

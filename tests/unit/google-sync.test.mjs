@@ -29,7 +29,10 @@ function createContext(origin = 'https://garfieldapp.pages.dev') {
       }
     },
     window: {
-      location: { origin },
+      location: (() => {
+        const url = new URL(origin);
+        return { origin: url.origin, protocol: url.protocol, hostname: url.hostname };
+      })(),
       dispatchEvent() {},
       showNotification: message => notifications.push(message),
       UTILS: {
@@ -58,8 +61,8 @@ function createContext(origin = 'https://garfieldapp.pages.dev') {
   return context;
 }
 
-test('local unauthorized origins never initialize Google token client or request sign-in', () => {
-  const context = createContext('http://127.0.0.1:8000');
+test('unauthorized remote origins never initialize Google token client or request sign-in', () => {
+  const context = createContext('https://evil.example.com');
   let initialized = false;
   context.google = { accounts: { oauth2: { initTokenClient: () => { initialized = true; } } } };
 
@@ -68,6 +71,50 @@ test('local unauthorized origins never initialize Google token client or request
 
   assert.equal(initialized, false);
   assert.deepEqual(context.notifications, ['Google sign-in is not available on this test URL.']);
+});
+
+test('plain-http loopback development origins are allowed to sign in', () => {
+  for (const origin of ['http://localhost:8000', 'http://127.0.0.1:8000']) {
+    const context = createContext(origin);
+    const requests = [];
+    context.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: () => ({ requestAccessToken: options => requests.push(options) })
+        }
+      }
+    };
+
+    context.__api.initGoogleSync();
+    context.__api.googleSignIn();
+
+    assert.equal(requests.length, 1, `${origin} should be able to request a token`);
+    assert.deepEqual(context.notifications, [], `${origin} should not warn about an unsupported URL`);
+  }
+});
+
+test('a loopback hostname served over https is still treated as untrusted', () => {
+  const context = createContext('https://localhost:8443');
+  let initialized = false;
+  context.google = { accounts: { oauth2: { initTokenClient: () => { initialized = true; } } } };
+
+  context.__api.initGoogleSync();
+  context.__api.googleSignIn();
+
+  assert.equal(initialized, false);
+});
+
+test('the frontend and leaderboard worker agree on the Google OAuth client id', async () => {
+  const clientId = source.match(/const GOOGLE_CLIENT_ID = '([^']+)'/)?.[1];
+  assert.ok(clientId, 'googleDriveSync.js must declare GOOGLE_CLIENT_ID');
+
+  const wrangler = await readFile(new URL('../../worker/favorites-api/wrangler.toml', import.meta.url), 'utf8');
+  const configured = wrangler.match(/^GOOGLE_CLIENT_ID\s*=\s*"([^"]+)"/m)?.[1];
+  assert.equal(configured, clientId, 'worker/favorites-api/wrangler.toml must bind the same client id');
+
+  const workerSource = await readFile(new URL('../../worker/favorites-api/index.js', import.meta.url), 'utf8');
+  const fallback = workerSource.match(/const DEFAULT_GOOGLE_CLIENT_ID = '([^']+)'/)?.[1];
+  assert.equal(fallback, clientId, 'the worker fallback client id must match the frontend');
 });
 
 test('authorized sign-in requests an interactive token and stores token response', () => {
@@ -188,6 +235,16 @@ test('googleApiFetch retries once on 401 using a refreshed token', async () => {
   assert.equal(authorizations[0], 'Bearer old-token');
   assert.ok(authorizations.includes('Bearer new-token'));
   assert.equal(accessRequests[0].prompt, 'none');
+});
+
+test('the Google Identity script is never shipped as an eager page dependency', async () => {
+  const html = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(
+    html,
+    /<script[^>]+accounts\.google\.com/,
+    'index.html must not preload Google Identity Services; googleDriveSync.js injects it on demand'
+  );
+  assert.match(source, /const GOOGLE_IDENTITY_SCRIPT_URL = 'https:\/\/accounts\.google\.com\/gsi\/client'/);
 });
 
 test('corrupt stored token is removed during initialization', () => {

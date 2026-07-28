@@ -6,8 +6,6 @@
  */
 
 const DEFAULT_ALLOWED_HOSTS = [
-    'dirkjan.nl',
-    'www.dirkjan.nl',
     'gocomics.com',
     '*.gocomics.com',
     'assets.amuniversal.com',
@@ -19,6 +17,7 @@ const DEFAULT_ALLOWED_HOSTS = [
 ];
 
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
+const MAX_REDIRECTS = 5;
 
 const HOP_BY_HOP_HEADERS = new Set([
     'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
@@ -94,14 +93,14 @@ export default {
 
         let upstreamResponse;
         try {
-            upstreamResponse = await fetch(upstreamRequest, {
-                redirect: 'follow',
-                cf: {
-                    cacheEverything: request.method === 'GET',
-                    cacheTtl: getCacheTtl(upstreamUrl),
-                },
+            upstreamResponse = await fetchAllowlistedFollowingRedirects(upstreamRequest, upstreamUrl, allowedHosts, {
+                cacheEverything: request.method === 'GET',
+                cacheTtl: getCacheTtl(upstreamUrl),
             });
-        } catch {
+        } catch (error) {
+            if (error instanceof DisallowedRedirectError) {
+                return withCors(request, jsonResponse({ error: 'Redirect target not allowed' }, 403));
+            }
             return withCors(request, jsonResponse({ error: 'Upstream fetch failed' }, 502));
         }
 
@@ -120,6 +119,46 @@ export default {
         return withCors(request, response, false);
     },
 };
+
+class DisallowedRedirectError extends Error {}
+
+/**
+ * Follow redirects manually so every hop is re-validated against the host
+ * allowlist. `redirect: 'follow'` would let an open redirect on an allowed
+ * upstream turn this Worker into a proxy for an arbitrary destination (SSRF /
+ * proxy abuse).
+ */
+async function fetchAllowlistedFollowingRedirects(initialRequest, initialUrl, allowedHosts, cfOptions) {
+    let currentRequest = initialRequest;
+    let currentUrl = initialUrl;
+
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+        const response = await fetch(currentRequest, { redirect: 'manual', cf: cfOptions });
+
+        const location = response.headers.get('location');
+        const isRedirect = response.status >= 300 && response.status < 400 && location;
+        if (!isRedirect) return response;
+
+        let nextUrl;
+        try {
+            nextUrl = new URL(location, currentUrl);
+        } catch {
+            throw new DisallowedRedirectError('Unparseable redirect target');
+        }
+
+        if (!ALLOWED_PROTOCOLS.has(nextUrl.protocol) || !isAllowedHost(nextUrl.hostname, allowedHosts)) {
+            throw new DisallowedRedirectError(`Redirect to ${nextUrl.hostname} is not allowed`);
+        }
+
+        currentUrl = nextUrl;
+        currentRequest = new Request(nextUrl.toString(), {
+            method: currentRequest.method,
+            headers: currentRequest.headers,
+        });
+    }
+
+    throw new DisallowedRedirectError('Too many redirects');
+}
 
 function extractTargetUrl(requestUrl) {
     const explicitUrl = requestUrl.searchParams.get('url');

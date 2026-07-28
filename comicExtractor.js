@@ -251,13 +251,16 @@ async function _getComicFromGoComics(date, language, options = {}) {
  * Fetches a Garfield comic from the Fandom wiki via their public JSON API.
  * The API supports cross-origin requests with origin=* so no CORS proxy is needed.
  *
- * Strategy:
- *   1. Request imageinfo for File:YYYY-MM-DD.gif
- *   2. If not found, try File:YYYY-MM-DD.jpg / .jpeg / .png
- *   Both resolve to a static.wikia.nocookie.net CDN URL which is then
- *   wrapped in the CORS proxy before being returned.
+ * Strategy: MediaWiki's `titles` parameter accepts a pipe-separated batch, so
+ * all filename candidates (gif/jpg/jpeg/png x hyphen/en-dash) are resolved in a
+ * single round trip instead of up to eight sequential ones. The first candidate
+ * that exists — in preference order — wins. The resulting
+ * static.wikia.nocookie.net CDN URL is wrapped in the CORS proxy before being
+ * returned so it loads through Cloudflare regardless of the client's VPN or CDN
+ * edge assignment.
  *
  * @param {Date} date
+ * @param {{silent?: boolean}} [options]
  * @returns {Promise<{success: boolean, imageUrl: string|null}>}
  */
 async function _getComicFromFandom(date, options = {}) {
@@ -273,37 +276,44 @@ async function _getComicFromFandom(date, options = {}) {
     const extensions = ['gif', 'jpg', 'jpeg', 'png'];
     const dateCandidates = dateStr === enDashStr ? [dateStr] : [dateStr, enDashStr];
 
-    for (const ext of extensions) {
-        for (const ds of dateCandidates) {
-        const filename = `${ds}.${ext}`;
-        const apiUrl = `https://garfield.fandom.com/api.php?action=query&titles=File:${encodeURIComponent(filename)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+    // Preference order: extension first, then hyphen before en dash.
+    const filenames = extensions.flatMap(ext => dateCandidates.map(ds => `${ds}.${ext}`));
+    const titles = filenames.map(name => `File:${name}`);
+    const apiUrl = `https://garfield.fandom.com/api.php?action=query&titles=${encodeURIComponent(titles.join('|'))}&prop=imageinfo&iiprop=url&format=json&origin=*`;
 
-        try {
-            const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
-            if (!resp.ok) continue;
-
+    try {
+        const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+        if (resp.ok) {
             const data = await resp.json();
-            const pages = data?.query?.pages;
-            if (!pages) continue;
+            const pages = Object.values(data?.query?.pages || {});
 
-            // Pages with a negative ID (e.g. -1) are "missing" — skip them
-            for (const page of Object.values(pages)) {
-                if (page.pageid > 0 && page.imageinfo?.[0]?.url) {
-                    const imageUrl = page.imageinfo[0].url;
-                    // Route through the CORS proxy so the browser loads via
-                    // Cloudflare — independent of client VPN routing or CDN edge.
-                    const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
-                    const result = { success: true, imageUrl: proxiedUrl };
-                    _fandomLookupCache.set(cacheKey, result);
-                    return result;
+            // MediaWiki may normalize the requested titles (e.g. underscores),
+            // so map the responses back onto our preference order by title.
+            const byTitle = new Map();
+            for (const page of pages) {
+                // Pages with a negative ID (e.g. -1) are "missing" — skip them
+                if (page?.pageid > 0 && page.imageinfo?.[0]?.url && page.title) {
+                    byTitle.set(page.title.replace(/_/g, ' '), page.imageinfo[0].url);
                 }
             }
-        } catch (err) {
-            if (!options.silent) {
-                console.warn(`Fandom API (${filename}):`, err.message);
+
+            for (const title of titles) {
+                const imageUrl = byTitle.get(title);
+                if (!imageUrl) continue;
+                // Route through the CORS proxy so the browser loads via
+                // Cloudflare — independent of client VPN routing or CDN edge.
+                const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+                const result = { success: true, imageUrl: proxiedUrl };
+                _fandomLookupCache.set(cacheKey, result);
+                return result;
             }
         }
+    } catch (err) {
+        if (!options.silent) {
+            console.warn(`Fandom API (${dateStr}):`, err.message);
         }
+        // A transient network error must not be cached as a permanent miss.
+        return { success: false, imageUrl: null };
     }
 
     const result = { success: false, imageUrl: null };
@@ -333,8 +343,11 @@ async function _getComicFromUClick(date, options = {}) {
     const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
 
     try {
+        // HEAD, not GET: this call only probes for existence. A GET downloaded
+        // the whole strip and threw the bytes away, so every uClick comic was
+        // transferred twice (once here, once by the <img> tag).
         const resp = await fetch(proxiedUrl, {
-            method: 'GET',
+            method: 'HEAD',
             signal: AbortSignal.timeout(FETCH_TIMEOUT),
             mode: 'cors',
             credentials: 'omit',

@@ -25,15 +25,35 @@ function getServiceWorkerContainer() {
 
 const serviceWorkerContainer = getServiceWorkerContainer();
 if (serviceWorkerContainer) {
+    // A single reload guard: `controllerchange` fires once the accepted worker
+    // takes over, and only then is it safe to reload onto the new cache.
+    let reloadingForUpdate = false;
+    serviceWorkerContainer.addEventListener('controllerchange', () => {
+        if (!reloadingForUpdate) return;
+        reloadingForUpdate = false;
+        location.reload();
+    });
+
     window.addEventListener('load', () => {
         try {
             serviceWorkerContainer.register('./serviceworker.js', { scope: './' })
                 .then(registration => {
+                    const offerUpdate = worker => {
+                        if (!worker || !serviceWorkerContainer.controller) return;
+                        showUpdateNotification(() => {
+                            reloadingForUpdate = true;
+                            worker.postMessage({ type: 'SKIP_WAITING' });
+                        });
+                    };
+
+                    // An update may already be parked from a previous visit.
+                    offerUpdate(registration.waiting);
+
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
                         newWorker?.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && serviceWorkerContainer.controller) {
-                                showUpdateNotification();
+                            if (newWorker.state === 'installed') {
+                                offerUpdate(newWorker);
                             }
                         });
                     });
@@ -47,22 +67,30 @@ if (serviceWorkerContainer) {
 
 /**
  * Show update notification banner
+ * @param {() => void} onAccept Invoked when the user opts into the update.
  */
-function showUpdateNotification() {
+function showUpdateNotification(onAccept) {
     if (document.getElementById('update-banner')) return;
 
     const updateBanner = document.createElement('div');
     updateBanner.id = 'update-banner';
     updateBanner.className = 'update-banner';
-    
+
     const message = document.createElement('p');
     message.textContent = 'A new version is available.';
-    
+
     const updateButton = document.createElement('button');
     updateButton.textContent = 'Refresh';
     updateButton.className = 'button update-banner-button';
-    updateButton.onclick = () => location.reload();
-    
+    updateButton.addEventListener('click', () => {
+        updateButton.disabled = true;
+        if (typeof onAccept === 'function') {
+            onAccept();
+        } else {
+            location.reload();
+        }
+    });
+
     updateBanner.append(message, updateButton);
     document.body?.insertBefore(updateBanner, document.body.firstChild);
 }
