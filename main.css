@@ -179,9 +179,20 @@ input:focus-visible {
     transform: none;
 }
 
+/* Android and iOS paint a translucent highlight rectangle on touch-down, before
+   any focus or active state applies. Declaring this inside :focus rules was too
+   late, so a blue square still flashed on tap. It belongs on the base element. */
+button,
+a,
+input,
+select,
+label,
+[tabindex] {
+    -webkit-tap-highlight-color: transparent;
+}
+
 button:focus {
     outline: none;
-    -webkit-tap-highlight-color: transparent;
 }
 
 /* Keyboard-only focus indicator. Pointer clicks never match :focus-visible, and
@@ -191,7 +202,6 @@ button:focus-visible,
 [tabindex]:focus-visible,
 select:focus-visible {
     outline: none;
-    -webkit-tap-highlight-color: transparent;
     box-shadow: var(--focus-ring);
 }
 
