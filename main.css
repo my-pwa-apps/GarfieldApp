@@ -21,7 +21,10 @@
     --toolbar-gradient: linear-gradient(135deg, #fff4bf 0%, #ffd164 100%);
     --button-gradient: linear-gradient(135deg, #fff4bf 0%, #f5aa2b 100%);
     --dark-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.95) 100%);
-    --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #7a3d00;
+    /* Touch is the default assumption: no focus ring. A real one is restored
+       further down for fine-pointer devices, where keyboard navigation is the
+       reason the indicator exists in the first place. */
+    --focus-ring: none;
     --shadow-sm: 0 2px 8px rgba(52, 36, 8, 0.08);
     --shadow-md: 0 8px 22px rgba(52, 36, 8, 0.14);
     --shadow-lg: 0 18px 44px rgba(52, 36, 8, 0.2);
@@ -53,10 +56,24 @@
     --toolbar-gradient: linear-gradient(135deg, #2a2118 0%, #5c3213 100%);
     --button-gradient: linear-gradient(135deg, #ffbf4f 0%, #f09819 100%);
     --dark-gradient: linear-gradient(135deg, rgba(10, 9, 8, 0.88) 0%, rgba(10, 9, 8, 0.97) 100%);
-    --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #ffd79a;
+    --focus-ring: none;
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.28);
     --shadow-md: 0 8px 22px rgba(0, 0, 0, 0.34);
     --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.46);
+}
+
+/* Keyboard focus indicator, restricted to devices whose primary input is a
+   precise pointer (desktop/laptop). Touch browsers match :focus-visible after
+   programmatic focus moves — closing the settings panel returns focus to its
+   trigger, for example — which painted a ring nobody asked for on mobile. */
+@media (hover: hover) and (pointer: fine) {
+    :root {
+        --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #7a3d00;
+    }
+
+    :root[data-theme="dark"] {
+        --focus-ring: 0 0 0 2px var(--app-background-color), 0 0 0 4px #ffd79a;
+    }
 }
 
 .visually-hidden {
@@ -167,9 +184,9 @@ button:focus {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Keyboard-only focus indicator. Pointer clicks never match :focus-visible,
-   so this stays invisible for mouse/touch users while remaining discoverable
-   for keyboard and switch-device navigation (WCAG 2.4.7 / 2.4.11). */
+/* Keyboard-only focus indicator. Pointer clicks never match :focus-visible, and
+   --focus-ring resolves to `none` on touch devices, so this only paints for
+   keyboard and switch-device navigation (WCAG 2.4.7 / 2.4.11). */
 button:focus-visible,
 [tabindex]:focus-visible,
 select:focus-visible {
