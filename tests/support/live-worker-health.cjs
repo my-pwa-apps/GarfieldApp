@@ -4,7 +4,10 @@ const checks = [
     url: 'https://corsproxy.garfieldapp.workers.dev/?https%3A%2F%2Fwww.gocomics.com%2Fgarfield%2F2026%2F04%2F29',
     validate: async response => {
       const body = await response.text();
-      return response.ok && body.includes('featureassets.gocomics.com');
+      return response.ok &&
+        response.headers.get('access-control-allow-origin') === 'https://garfieldapp.pages.dev' &&
+        response.headers.get('x-proxy-by') === 'garfieldapp-corsproxy' &&
+        body.includes('featureassets.gocomics.com');
     }
   },
   {
@@ -18,6 +21,7 @@ const checks = [
 ];
 
 const headers = {
+  'Origin': 'https://garfieldapp.pages.dev',
   'User-Agent': 'GarfieldApp predeploy health check (+https://garfieldapp.pages.dev)'
 };
 
