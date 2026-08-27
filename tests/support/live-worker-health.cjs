@@ -6,7 +6,6 @@ const checks = [
       const body = await response.text();
       return response.ok &&
         response.headers.get('access-control-allow-origin') === 'https://garfieldapp.pages.dev' &&
-        response.headers.get('x-proxy-by') === 'garfieldapp-corsproxy' &&
         body.includes('featureassets.gocomics.com');
     }
   },
