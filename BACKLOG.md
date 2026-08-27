@@ -727,4 +727,111 @@ Notable implementation details:
 | Low | 9 | 1 |
 | **Total** | **24** | **3** |
 
+---
+
+## August 27, 2026 — Production Hardening Pass
+
+Scope: finish remaining production defects without extracting the `app.js` monolith. Deploy version **v1.0.12**.
+
+### Closed in this pass
+
+- [x] CORS proxy reflected any `Origin` — FIXED
+  Priority: High
+  Category: Security
+  Area: Workers
+  Affected files: [worker/index.js](worker/index.js), [tests/unit/worker-cors-proxy.test.mjs](tests/unit/worker-cors-proxy.test.mjs)
+  Problem: `buildCorsHeaders` echoed the request Origin (or `*`). Any site could use the proxy from a browser.
+  Impact: Browser-based proxy abuse and credential-less CORS use of GoComics HTML/images through this Worker.
+  Fix: `resolveAllowedOrigin()` allows `https://garfieldapp.pages.dev`, `https://*.garfieldapp.pages.dev`, `http://localhost` / `http://127.0.0.1`, and `https://garfield.local`. Missing Origin still succeeds with ACAO `*`. Foreign origins return `403` JSON without ACAO. OPTIONS is gated the same way. `x-proxy-target` is no longer forwarded.
+  Acceptance criteria: `evil.example.com` is 403 without CORS; Pages and no-Origin requests still succeed. Covered by unit tests.
+
+- [x] `loadComic` applied the latest fetch even when a newer navigation had started — FIXED
+  Priority: High
+  Category: Bug / Reliability
+  Area: Comic loading
+  Affected files: [app.js](app.js)
+  Problem: Rapid next/previous/date changes awaited `getAuthenticatedComic` then mutated `#comic` with whichever request finished last.
+  Impact: Wrong strip on screen, skipped dates when auto-skip treated a superseded load as failure, and animation races.
+  Fix: `_loadComicGeneration` token; stale results return `{ stale: true }` without DOM mutation. `showComic`, Sunday handling, and skip-on-failure treat stale as a no-op.
+
+- [x] `lastcomic` stored a Date object string — FIXED
+  Priority: Medium
+  Category: Bug
+  Area: Persistence
+  Affected files: [app.js](app.js)
+  Problem: `localStorage.setItem(..., currentselectedDate)` persisted `Date#toString()`, which is locale/engine dependent on restore via `new Date(...)`.
+  Fix: Store `UTILS.dateToISODateString`; restore via `dateFromISODateString`, with a legacy `Date.parse` fallback.
+
+- [x] Favorites import validated dates with `new Date('YYYY/MM/DD')` — FIXED
+  Priority: Medium
+  Category: Bug
+  Area: Favorites
+  Affected files: [app.js](app.js)
+  Problem: Slash dates are implementation-defined in `Date.parse`; UTC vs local midnight could drop valid favorites.
+  Fix: `UTILS.dateFromFavoriteDateString(entry)` after the `YYYY/MM/DD` shape check.
+
+- [x] Spanish mode skipped adjacent prefetch — FIXED
+  Priority: Medium
+  Category: Performance / i18n
+  Area: Prefetch
+  Affected files: [app.js](app.js)
+  Problem: `UTILS.preloadAdjacentComics` returned immediately when `language === 'es'`.
+  Impact: Spanish navigation paid full fetch latency every strip.
+  Fix: Removed the early return; GoComics remains the only Spanish source inside `getAuthenticatedComic`.
+
+- [x] GoComics HTML fetches sent `cache: 'no-cache'`; preferred source had no documented default — FIXED (earlier in this session)
+  Priority: Medium
+  Category: Performance / API
+  Area: Comic fetching
+  Affected files: [comicExtractor.js](comicExtractor.js), [tests/unit/comicExtractor.test.mjs](tests/unit/comicExtractor.test.mjs)
+  Problem: Client Cache-Control bypassed Worker `caches.default`. Invalid `preferredSource` was not guaranteed to fall back to GoComics.
+  Fix: `tryProxy` uses default cache mode; `getAuthenticatedComic(..., preferredSource = 'gocomics')` and `FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.gocomics`. uClick HEAD still uses `no-cache`.
+
+- [x] Logo competed with the comic for LCP; CSP allowed unused Google Fonts — PARTIAL
+  Priority: Medium
+  Category: Performance / Security
+  Area: Startup / CSP
+  Affected files: [index.html](index.html)
+  Problem: Logo preload and `<img>` both had `fetchpriority="high"` while `#comic` had none. CSP `style-src`/`font-src` allowed `fonts.googleapis.com` and any HTTPS font origin despite no Google Fonts usage.
+  Fix: `fetchpriority="high"` on `#comic`; logo priority lowered; unused Google Fonts origins removed; `font-src` tightened to `'self' data:`.
+  Residual: Mobile LCP target of 3.0 s still needs module split + minification (July 27 item).
+
+- [x] Worker `compatibility_date` lagged at `2026-04-29` — FIXED
+  Priority: Low
+  Category: Deployment
+  Area: Workers
+  Affected files: [worker/wrangler.toml](worker/wrangler.toml), [worker/favorites-api/wrangler.toml](worker/favorites-api/wrangler.toml)
+  Fix: Both set to `2026-08-27`.
+
+### Still open (carried forward — not duplicated as new work)
+
+- [ ] `app.js` remains a ~5,000-line monolith — see July 27 item. Not extracted this pass.
+- [ ] Mobile LCP target of 3.0 s — comic `fetchpriority` helps first paint of the strip, but unused JS/CSS and lack of minification remain.
+- [ ] Development-only `npm audit` advisories — accepted; `npm audit --omit=dev` is clean and enforced in CI.
+
+### New items found, not fixed this pass
+
+- [ ] Share, paywall, and load-error copy is English-only
+  Priority: Low
+  Category: Internationalization
+  Area: UX
+  Affected files: [app.js](app.js)
+  Problem: `Share()` notifications (`No comic to share`, `Failed to share...`) and `showPaywallMessage()` / `showErrorMessage()` titles/bodies are string literals, while toolbar labels go through `translations`.
+  Impact: Spanish UI still surfaces English failure and share text.
+  Suggested fix: Add keys to both dictionaries and read them through the existing language lookup.
+  Acceptance criteria: Spanish mode shows Spanish share/paywall/error copy; no new user-facing English literals in those paths.
+  Estimated effort: Small
+
+### August 27, 2026 Backlog Summary
+
+| Priority | Closed in this pass | Still open |
+|---|---:|---:|
+| Critical | 0 | 0 |
+| High | 2 | 2 |
+| Medium | 5 | 0 |
+| Low | 1 | 2 |
+| **Total** | **8** | **4** |
+
+*Carried-forward open items: monolith, mobile LCP, dev-only audit advisories. New: share/paywall/error i18n.*
+
 

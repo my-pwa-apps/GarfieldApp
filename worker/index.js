@@ -43,18 +43,23 @@ export default {
     async fetch(request, env, ctx) {
         const allowedHosts = getAllowedHosts(env);
 
+        const allowedOrigin = resolveAllowedOrigin(request);
+        if (allowedOrigin === false) {
+            return jsonResponse({ error: 'Origin not allowed' }, 403);
+        }
+
         if (request.method === 'OPTIONS') {
-            return new Response(null, { status: 204, headers: buildCorsHeaders(request) });
+            return new Response(null, { status: 204, headers: buildCorsHeaders(allowedOrigin) });
         }
 
         if (request.method !== 'GET' && request.method !== 'HEAD') {
-            return withCors(request, jsonResponse({ error: 'Method not allowed' }, 405));
+            return withCors(allowedOrigin, jsonResponse({ error: 'Method not allowed' }, 405));
         }
 
         const requestUrl = new URL(request.url);
         const targetUrl  = extractTargetUrl(requestUrl);
         if (!targetUrl) {
-            return withCors(request, new Response(
+            return withCors(allowedOrigin, new Response(
                 'Usage: /?https://example.com/path or /?url=https://example.com/path',
                 { status: 400, headers: { 'content-type': 'text/plain; charset=UTF-8' } }
             ));
@@ -64,15 +69,15 @@ export default {
         try {
             upstreamUrl = new URL(targetUrl);
         } catch {
-            return withCors(request, jsonResponse({ error: 'Invalid target URL' }, 400));
+            return withCors(allowedOrigin, jsonResponse({ error: 'Invalid target URL' }, 400));
         }
 
         if (!ALLOWED_PROTOCOLS.has(upstreamUrl.protocol)) {
-            return withCors(request, jsonResponse({ error: 'Unsupported protocol' }, 400));
+            return withCors(allowedOrigin, jsonResponse({ error: 'Unsupported protocol' }, 400));
         }
 
         if (!isAllowedHost(upstreamUrl.hostname, allowedHosts)) {
-            return withCors(request, jsonResponse({ error: 'Host not allowed' }, 403));
+            return withCors(allowedOrigin, jsonResponse({ error: 'Host not allowed' }, 403));
         }
 
         const cacheKey = new Request(upstreamUrl.toString(), { method: request.method });
@@ -83,7 +88,7 @@ export default {
 
         if (request.method === 'GET' && !bypassCache) {
             const cached = await cache.match(cacheKey);
-            if (cached) return withCors(request, cached, true);
+            if (cached) return withCors(allowedOrigin, cached, true);
         }
 
         const upstreamRequest = new Request(upstreamUrl.toString(), {
@@ -99,9 +104,9 @@ export default {
             });
         } catch (error) {
             if (error instanceof DisallowedRedirectError) {
-                return withCors(request, jsonResponse({ error: 'Redirect target not allowed' }, 403));
+                return withCors(allowedOrigin, jsonResponse({ error: 'Redirect target not allowed' }, 403));
             }
-            return withCors(request, jsonResponse({ error: 'Upstream fetch failed' }, 502));
+            return withCors(allowedOrigin, jsonResponse({ error: 'Upstream fetch failed' }, 502));
         }
 
         const response = sanitizeUpstreamResponse(upstreamResponse);
@@ -116,7 +121,7 @@ export default {
             }
         }
 
-        return withCors(request, response, false);
+        return withCors(allowedOrigin, response, false);
     },
 };
 
@@ -204,8 +209,7 @@ function buildUpstreamHeaders(request) {
 function sanitizeUpstreamResponse(upstreamResponse) {
     const headers = new Headers(upstreamResponse.headers);
     for (const header of HOP_BY_HOP_HEADERS) headers.delete(header);
-    headers.set('x-proxy-by',     'garfieldapp-corsproxy');
-    headers.set('x-proxy-target', upstreamResponse.url);
+    headers.set('x-proxy-by', 'garfieldapp-corsproxy');
     headers.set('vary', 'Origin');
     return new Response(upstreamResponse.body, {
         status:     upstreamResponse.status,
@@ -224,9 +228,32 @@ function getCacheTtl(targetUrl) {
     return DEFAULT_CACHE_TTL;
 }
 
-function withCors(request, response, cacheHit = false) {
+function resolveAllowedOrigin(request) {
+    const origin = request.headers.get('origin');
+    if (!origin) return '*';
+
+    let parsed;
+    try {
+        parsed = new URL(origin);
+    } catch {
+        return false;
+    }
+
+    if (parsed.username || parsed.password) return false;
+
+    const { protocol, hostname } = parsed;
+    if (protocol === 'https:' && hostname === 'garfieldapp.pages.dev') return origin;
+    if (protocol === 'https:' && hostname.endsWith('.garfieldapp.pages.dev') && hostname !== '.garfieldapp.pages.dev') {
+        return origin;
+    }
+    if (protocol === 'https:' && hostname === 'garfield.local') return origin;
+    if (protocol === 'http:' && (hostname === 'localhost' || hostname === '127.0.0.1')) return origin;
+    return false;
+}
+
+function withCors(allowedOrigin, response, cacheHit = false) {
     const headers = new Headers(response.headers);
-    for (const [key, value] of buildCorsHeaders(request).entries()) {
+    for (const [key, value] of buildCorsHeaders(allowedOrigin).entries()) {
         headers.set(key, value);
     }
     headers.set('x-proxy-cache', cacheHit ? 'HIT' : 'MISS');
@@ -237,13 +264,13 @@ function withCors(request, response, cacheHit = false) {
     });
 }
 
-function buildCorsHeaders(request) {
-    const origin = request.headers.get('origin') || '*';
+function buildCorsHeaders(allowedOrigin) {
     return new Headers({
-        'access-control-allow-origin':  origin,
+        'access-control-allow-origin':  allowedOrigin,
         'access-control-allow-methods': 'GET, HEAD, OPTIONS',
         'access-control-allow-headers': 'Content-Type, Accept',
         'access-control-max-age':       '86400',
+        'vary': 'Origin',
     });
 }
 

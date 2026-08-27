@@ -13,7 +13,7 @@
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
 
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https: data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; manifest-src 'self';">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
@@ -80,7 +80,7 @@
 
     <!-- Styles and scripts -->
     <link rel="stylesheet" href="./main.css">
-    <link rel="preload" as="image" href="./garlogo.webp" fetchpriority="high">
+    <link rel="preload" as="image" href="./garlogo.webp">
     <script src="./init.js" defer></script>
     <!-- Google Identity Services is injected on demand by googleDriveSync.js so
          visitors who never sync do not download it. -->
@@ -154,7 +154,7 @@
 
     <h1 class="visually-hidden">Daily Garfield Comics - Browse Comic Strips in English &amp; Spanish</h1>
     <div class="logo">
-        <img src="./garlogo.webp" alt="Daily Garfield Comics" fetchpriority="high" loading="eager">
+        <img src="./garlogo.webp" alt="Daily Garfield Comics" loading="eager">
     </div>
 
     <!-- Notification Toast -->
@@ -201,7 +201,7 @@
             Offline: showing saved comics
         </div>
         <div id="comic-wrapper">
-            <img id="comic" class="normal" alt="Loading comic..." decoding="async">
+            <img id="comic" class="normal" alt="Loading comic..." decoding="async" fetchpriority="high">
         </div>
     </div>
 

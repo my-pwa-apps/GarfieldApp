@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "private": true,
   "type": "module",
   "description": "Daily Garfield Comics — a vanilla-JavaScript Progressive Web App with English/Spanish strips, offline caching, favorites sync and a community leaderboard.",

@@ -133,3 +133,36 @@ test('upstream failures surface as 502 rather than an unhandled rejection', asyn
 
   assert.equal(response.status, 502);
 });
+
+test('foreign browser origins are rejected without CORS headers', async () => {
+  stubNetwork(() => new Response('should not be reached'));
+
+  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield', {
+    headers: { origin: 'https://evil.example.com' }
+  }), env, ctx);
+
+  assert.equal(response.status, 403);
+  assert.equal((await response.json()).error, 'Origin not allowed');
+  assert.equal(response.headers.get('access-control-allow-origin'), null);
+});
+
+test('requests with no Origin still succeed for same-origin and image fetches', async () => {
+  stubNetwork(() => new Response('ok', { status: 200 }));
+
+  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield'), env, ctx);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), '*');
+});
+
+test('Cloudflare Pages preview origins are allowed', async () => {
+  stubNetwork(() => new Response('ok', { status: 200 }));
+
+  const origin = 'https://abc123.garfieldapp.pages.dev';
+  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield', {
+    headers: { origin }
+  }), env, ctx);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('access-control-allow-origin'), origin);
+});

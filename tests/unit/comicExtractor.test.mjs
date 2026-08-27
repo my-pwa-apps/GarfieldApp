@@ -133,6 +133,30 @@ test('a transient Fandom network error is not cached as a permanent miss', async
   }
 });
 
+test('preferredSource defaults to GoComics when omitted', async () => {
+  const requestedStripUrl = 'https://featureassets.gocomics.com/assets/default-source-strip';
+  const html = `<!doctype html><html><head>
+    <meta content="${requestedStripUrl}" property="og:image">
+  </head></html>`;
+  const originalFetch = global.fetch;
+  const urls = [];
+  global.fetch = async (url, init) => {
+    urls.push(String(url));
+    assert.notEqual(init?.cache, 'no-cache', 'HTML proxy fetches must not bypass the Worker cache');
+    return { ok: true, text: async () => html };
+  };
+
+  try {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 20, 12), 'en');
+
+    assert.equal(result.success, true);
+    assert.equal(result.imageUrl, requestedStripUrl);
+    assert.ok(urls.some(url => url.includes('gocomics.com')), 'Default source must query GoComics');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('uClick probes for existence with HEAD so the strip is not downloaded twice', async () => {
   const originalFetch = global.fetch;
   const methods = [];

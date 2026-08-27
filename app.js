@@ -465,7 +465,6 @@ const UTILS = {
 
         const language = this.isSpanishMode() ? 'es' : 'en';
         const source = this.getPreferredSource();
-        if (language === 'es') return;
         const startDate = this.dateFromISODateString(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
         startDate.setHours(0, 0, 0, 0);
         // Use Eastern Time since comics are released based on ET
@@ -1863,6 +1862,7 @@ let formattedComicDate;
 let formattedDate;
 let _shuffleNextDate = null;
 let _shuffleCandidateGeneration = 0;
+let _loadComicGeneration = 0;
 const _shuffleCandidateQueue = [];
 const _shuffleBackStack = [];
 const _shuffleForwardStack = [];
@@ -2758,6 +2758,7 @@ function updateDateDisplay() {
  * @returns {Promise<{success: boolean, isSameComic: boolean, actualDate?: Date|null}>} Load result
  */
 async function loadComic(date, silentMode = false, direction = null) {
+    const generation = ++_loadComicGeneration;
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
@@ -2766,6 +2767,10 @@ async function loadComic(date, silentMode = false, direction = null) {
         const result = navigator.onLine
             ? await getAuthenticatedComic(date, language, source)
             : UTILS.getOfflineComic(date, language, direction);
+
+        if (generation !== _loadComicGeneration) {
+            return { success: false, isSameComic: false, stale: true };
+        }
 
         if (result.success && result.imageUrl) {
             // Check if this is the same comic we already have (timezone edge case)
@@ -2892,7 +2897,13 @@ async function loadComic(date, silentMode = false, direction = null) {
             if (hasExistingComicImage()) {
                 await waitForImageReady(result.imageUrl);
             }
+            if (generation !== _loadComicGeneration) {
+                return { success: false, isSameComic: false, stale: true };
+            }
             await animateTransition();
+            if (generation !== _loadComicGeneration) {
+                return { success: false, isSameComic: false, stale: true };
+            }
             comicImg.style.display = 'block';
 
             // Update current comic URL after successful load
@@ -3040,6 +3051,9 @@ async function loadComic(date, silentMode = false, direction = null) {
 
         throw new Error('Comic not available');
     } catch (error) {
+        if (generation !== _loadComicGeneration) {
+            return { success: false, isSameComic: false, stale: true };
+        }
         if (!silentMode) {
             showErrorMessage('Failed to load comic. Please try again.');
         }
@@ -3409,7 +3423,15 @@ function initApp() {
     formatDate(UTILS.getEasternDate());
 
     if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
-        currentselectedDate = new Date(localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC));
+        const storedLastComic = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(storedLastComic)) {
+            currentselectedDate = UTILS.dateFromISODateString(storedLastComic);
+        } else {
+            const parsedLastComic = new Date(storedLastComic);
+            if (!Number.isNaN(parsedLastComic.getTime())) {
+                currentselectedDate = parsedLastComic;
+            }
+        }
     }
     CompareDates();
     showComic();
@@ -3455,6 +3477,7 @@ async function _dateChangeImpl() {
         document.getElementById("DatePicker").value = formattedDate;
 
         const result = await loadComic(currentselectedDate, true);
+        if (result.stale) return;
 
         if (!result.success) {
             // Comic doesn't exist, show notification and revert to previous date
@@ -3492,11 +3515,12 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 
     // Save last viewed comic
     if (document.getElementById("lastdate").checked) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
+        localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, UTILS.dateToISODateString(currentselectedDate));
     }
 
     // Load the comic (silent mode off for first attempt when not auto-skipping)
     const result = await loadComic(currentselectedDate, skipOnFailure, direction);
+    if (result.stale) return;
     const success = result.success;
 
     // If GoComics detected a date redirect (today's comic not yet published, served
@@ -3528,7 +3552,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         }
         UTILS.updateHeartIcon();
         if (document.getElementById("lastdate").checked) {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, currentselectedDate);
+            localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, UTILS.dateToISODateString(currentselectedDate));
         }
     }
 
@@ -3602,6 +3626,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             updateDateDisplay();
 
             const retryResult = await loadComic(currentselectedDate, true, direction);
+            if (retryResult.stale) return;
             if (retryResult.success && !retryResult.isSameComic) {
                 UTILS.updateHeartIcon();
                 return;
@@ -3792,7 +3817,7 @@ function importFavorites() {
                 // Validate that every entry is a valid date string (YYYY/MM/DD)
                 const datePattern = /^\d{4}\/\d{2}\/\d{2}$/;
                 const importedFavs = data.favorites.filter(entry =>
-                    typeof entry === 'string' && datePattern.test(entry) && !isNaN(new Date(entry).getTime())
+                    typeof entry === 'string' && datePattern.test(entry) && !Number.isNaN(UTILS.dateFromFavoriteDateString(entry).getTime())
                 );
 
                 if (importedFavs.length === 0) {

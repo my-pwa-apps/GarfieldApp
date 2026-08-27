@@ -71,11 +71,12 @@ async function tryProxy(url, proxyIndex, startTime) {
 
     try {
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+        // Default cache mode (not 'no-cache') so the Cloudflare Worker can
+        // serve a HIT for previously fetched GoComics/ArcaMax HTML.
         const response = await fetch(fullUrl, {
             signal: AbortSignal.timeout(FETCH_TIMEOUT),
             mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-cache'
+            credentials: 'omit'
         });
 
         if (!response.ok) {
@@ -499,10 +500,10 @@ async function _getComicFromArcaMax(date) {
  *
  * @param {Date} date
  * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
- * @param {string} preferredSource - 'fandom' | 'gocomics' | 'uclick' (the app defaults to 'gocomics' when the saved setting is invalid)
+ * @param {string} preferredSource - 'gocomics' | 'fandom' | 'uclick' (defaults to GoComics, matching the app UI)
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
-export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'fandom', options = {}) {
+export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'gocomics', options = {}) {
     // Build the ordered list of sources to try.
     // ArcaMax is always appended last; the three EN-capable sources rotate
     // so the user's preferred source is first.
@@ -511,7 +512,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
         gocomics: ['gocomics', 'fandom', 'uclick', 'arcamax'],
         uclick:   ['uclick', 'fandom', 'gocomics', 'arcamax']
     };
-    const order = FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.fandom;
+    const order = FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.gocomics;
     const maxSources = Number.isInteger(options.maxSources) && options.maxSources > 0
         ? options.maxSources
         : null;
