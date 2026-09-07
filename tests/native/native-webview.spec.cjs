@@ -124,7 +124,7 @@ async function mockExternalServices(targetPage, options = {}) {
       body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
-  await targetPage.route('https://corsproxy.garfieldapp.workers.dev/**', route => {
+  await targetPage.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
     const requestUrl = new URL(route.request().url());
     const targetUrl = decodeURIComponent(requestUrl.search.slice(1));
     if (targetUrl.includes('featureassets.gocomics.com') || targetUrl.includes('assets.amuniversal.com')) {

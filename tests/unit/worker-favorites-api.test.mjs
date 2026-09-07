@@ -14,11 +14,22 @@ class MemoryStorage {
   }
 
   async get(key) {
-    return this.map.get(key);
+    return structuredClone(this.map.get(key));
   }
 
   async put(key, value) {
-    this.map.set(key, value);
+    if (this.failKey === key) throw new Error('Injected storage failure');
+    this.map.set(key, structuredClone(value));
+  }
+
+  async transaction(callback) {
+    const previous = structuredClone(this.map);
+    try {
+      return await callback(this);
+    } catch (error) {
+      this.map = previous;
+      throw error;
+    }
   }
 
   async delete(key) {
@@ -275,6 +286,30 @@ test('oversized request bodies are rejected before JSON parsing', async () => {
   assert.equal(response.status, 413);
 });
 
+test('unknown-length UTF-8 bodies are bounded in bytes and cancelled early', async () => {
+  const api = createObject();
+  let cancelled = false;
+  let pulls = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      pulls++;
+      controller.enqueue(new TextEncoder().encode('\u00e9'.repeat(20000)));
+    },
+    cancel() { cancelled = true; }
+  });
+  const response = await api.fetch(request('/favorite', { method: 'POST', body, duplex: 'half' }));
+  assert.equal(response.status, 413);
+  assert.equal(cancelled, true);
+  assert.ok(pulls <= 3, 'reader must stop once the byte limit is exceeded');
+});
+
+test('non-object JSON payloads return 400 instead of throwing', async () => {
+  const api = createObject();
+  for (const body of ['null', '[]', '42', '"date"']) {
+    assert.equal((await api.fetch(request('/favorite', { method: 'POST', body }))).status, 400);
+  }
+});
+
 test('CORS responses declare Vary: Origin so shared caches key on the requesting origin', async () => {
   const object = createObject();
   const env = {
@@ -399,4 +434,30 @@ test('the worker validates tokens against the configured Google client id', asyn
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('vote and migration retries cannot retain partially committed counts', async () => {
+  for (const path of ['/favorite', '/migrate']) {
+    for (const failKey of ['user:google-v1:google:google-user-1', 'top:google-v1']) {
+      const storage = new MemoryStorage();
+      const api = createObject(storage);
+      const body = JSON.stringify(path === '/favorite' ? { date: '2024/01/01', action: 'add' } : { dates: ['2024/01/01', '2024/01/02'] });
+      storage.failKey = failKey;
+      await assert.rejects(path === '/favorite' ? api.handlePostFavorite(request(path, { method: 'POST', body })) : api.handleMigrate(request(path, { method: 'POST', body })), /Injected/);
+      assert.equal(await storage.get('count:google-v1:2024/01/01'), undefined);
+      storage.failKey = null;
+      const restarted = createObject(storage);
+      assert.equal((await restarted.fetch(request(path, { method: 'POST', body }))).status, 200);
+      assert.equal((await storage.get('count:google-v1:2024/01/01')).count, 1);
+    }
+  }
+});
+
+test('rate sweeps traverse beyond a full expired first page', async () => {
+  const storage = new MemoryStorage();
+  for (let index = 0; index < 2001; index++) await storage.put(`rate:${String(index).padStart(5, '0')}`, { resetAt: 0 });
+  await storage.put('rate:zz-live', { resetAt: Date.now() + 60000 });
+  await createObject(storage).alarm();
+  assert.deepEqual([...storage.map.keys()], ['rate:zz-live']);
+  assert.ok(storage.alarm);
 });

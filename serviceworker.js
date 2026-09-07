@@ -1,7 +1,8 @@
-const VERSION = 'v1.0.12';
+const VERSION = 'v1.0.14';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
-const IMAGE_CACHE = `garfield-images-${VERSION}`;
+const IMAGE_CACHE = 'garfield-images-v1';
+let imageWriteQueue = Promise.resolve();
 
 // Cache size limits
 const MAX_IMAGE_CACHE_SIZE = 50;
@@ -18,6 +19,12 @@ const PRECACHE_ASSETS = [
   './comicExtractor.js',
   './toolbar.js',
   './googleDriveSync.js',
+  './favorites.js',
+  './translations.js',
+  './sharing.js',
+  './comicPresentation.js',
+  './driveFavorites.js',
+  './driveSyncState.js',
   './manifest.webmanifest',
   './garlogo.webp',
   './garfield-first.gif'
@@ -32,7 +39,14 @@ const REQUIRED_PRECACHE_ASSETS = new Set([
   './main.css',
   './app.js',
   './comicExtractor.js',
-  './toolbar.js'
+  './toolbar.js',
+  './googleDriveSync.js',
+  './favorites.js',
+  './translations.js',
+  './sharing.js',
+  './comicPresentation.js',
+  './driveFavorites.js',
+  './driveSyncState.js'
 ]);
 
 /**
@@ -56,6 +70,19 @@ self.addEventListener('message', (event) => {
 
   if (type === 'GET_VERSION') {
     event.ports?.[0]?.postMessage({ type: 'VERSION', version: VERSION });
+  }
+  if (type === 'CACHE_COMIC' && typeof event.data.url === 'string') {
+    event.waitUntil((async () => {
+      let cached = false;
+      try {
+        const url = new URL(event.data.url, location.href);
+        if (url.protocol !== 'https:' && url.origin !== location.origin) throw new Error('Unsupported image URL');
+        const request = new Request(url.href, { mode: 'no-cors', credentials: 'omit' });
+        await cacheFirstWithLimit(request, IMAGE_CACHE, MAX_IMAGE_CACHE_SIZE);
+        cached = !!(await caches.match(request));
+      } catch (_) {}
+      event.ports?.[0]?.postMessage({ cached });
+    })());
   }
 });
 
@@ -87,11 +114,26 @@ self.addEventListener('activate', (event) => {
   const currentCaches = [CACHE_NAME, RUNTIME_CACHE, IMAGE_CACHE];
   event.waitUntil(
     caches.keys()
-      .then(cacheNames => Promise.all(
-        cacheNames
-          .filter(name => name.startsWith('garfield-') && !currentCaches.includes(name))
-          .map(name => caches.delete(name))
-      ))
+      .then(async cacheNames => {
+        for (const name of cacheNames) {
+          if (!name.startsWith('garfield-') || currentCaches.includes(name)) continue;
+          if (name.startsWith('garfield-images-')) {
+            try {
+              const previous = await caches.open(name);
+              const images = await caches.open(IMAGE_CACHE);
+              for (const request of (await previous.keys()).slice(-MAX_IMAGE_CACHE_SIZE)) {
+                if (!(await images.match(request))) await images.put(request, await previous.match(request));
+              }
+              const keys = await images.keys();
+              while (keys.length > MAX_IMAGE_CACHE_SIZE) await images.delete(keys.shift());
+            } catch (error) {
+              console.warn('Image cache migration deferred', error);
+              continue;
+            }
+          }
+          await caches.delete(name);
+        }
+      })
       .then(() => self.clients.claim())
   );
 });
@@ -140,8 +182,12 @@ async function cacheFirstStrategy(request, cacheName) {
     // The write is awaited so the response is durably stored before the fetch
     // handler settles — otherwise the browser may terminate the worker first.
     if (networkResponse?.status === 200 && !networkResponse.redirected) {
-      const cache = await caches.open(cacheName);
-      await cache.put(request, networkResponse.clone());
+      try {
+        const cache = await caches.open(cacheName);
+        await cache.put(request, networkResponse.clone());
+      } catch (error) {
+        console.warn('Optional shell cache write failed', error);
+      }
     }
     return networkResponse;
   } catch (error) {
@@ -165,15 +211,14 @@ async function cacheFirstWithLimit(request, cacheName, maxSize) {
     // For opaque responses (no-cors cross-origin images), status will be 0
     const networkResponse = await fetch(request);
     if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-      const cache = await caches.open(cacheName);
-
-      // LRU eviction
-      const keys = await cache.keys();
-      while (keys.length >= maxSize) {
-        await cache.delete(keys.shift());
-      }
-
-      await cache.put(request, networkResponse.clone());
+      const copy = networkResponse.clone();
+      imageWriteQueue = imageWriteQueue.then(async () => {
+        const cache = await caches.open(cacheName);
+        await cache.put(request, copy);
+        const keys = await cache.keys();
+        while (keys.length > maxSize) await cache.delete(keys.shift());
+      }).catch(error => console.warn('Optional image cache write failed', error));
+      await imageWriteQueue;
     }
     return networkResponse;
   } catch (error) {
@@ -191,6 +236,7 @@ async function networkFirstStrategy(request, cacheName) {
   try {
     const networkResponse = await fetch(request);
     if (networkResponse?.status === 200) {
+      try {
       const cache = await caches.open(cacheName);
 
       // Limit cache size
@@ -200,6 +246,9 @@ async function networkFirstStrategy(request, cacheName) {
       }
 
       await cache.put(request, networkResponse.clone());
+      } catch (error) {
+        console.warn('Optional runtime cache write failed', error);
+      }
     }
     return networkResponse;
   } catch (error) {

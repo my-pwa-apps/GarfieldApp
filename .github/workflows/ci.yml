@@ -37,6 +37,9 @@ jobs:
       - name: Syntax check
         run: npm run test:syntax
 
+      - name: Lint maintained JavaScript
+        run: npm run test:lint
+
       - name: Unit tests
         run: npm run test:unit
 

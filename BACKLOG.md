@@ -1,5 +1,28 @@
 # Garfield App Backlog
 
+## September 7 Repair Status
+
+**Dedicated proxy follow-up:** Deployed `garfieldapp-corsproxy` at https://garfieldapp-corsproxy.garfieldapp.workers.dev and migrated this repository's active URLs, CSP, mocks, and health check. The shared `corsproxy` deployment's ETag and modification time were verified unchanged. Account inspection established that its DirkJan label belonged to a shared, multi-app allowlist, not a second Worker or proof of misrouting. Real-browser checks confirmed English works through both proxies. The live Spanish switch also succeeds through the shared proxy for September 7, but the same date returns 403 through the dedicated proxy. April 29 Spanish returned 403 on both. R06 remains open for health-check accuracy and this migration parity gap, not a general Spanish outage. Hold publication of the endpoint migration until the difference is understood and resolved or explicitly accepted. These frontend changes have not been published to Pages. See [README.md](README.md#worker-configuration).
+
+The review findings remain below for traceability. The initial repair pass closed **13 of 17 canonical findings** in repository code without deployment or live account changes. **R02, R06, R14, and R15 remain open**. The subsequent dedicated-proxy deployment is recorded above.
+
+| Finding | Repair And Verification |
+|---|---|
+| R01, R05 | Favorites and sharing consume the committed, decoded comic. Failed navigation restores its date; initial failures leave favorites disabled. Desktop/mobile image-failure regressions cover both cases. |
+| R03 | Membership, counts, legacy migration, and the ranking window use storage transactions. Fault injection and a real SQLite-backed Workerd test verify rollback and idempotent retries. |
+| R04 | Image cache survives app versions; the offline index is reconciled with resident bytes, and indexing requires a worker cache acknowledgment. A browser test upgrades the worker, then decodes the comic offline. |
+| R07, R12 | One strict favorite normalizer rejects invalid dates and shapes; community migration uses account-scoped acknowledgments and 500-date batches. |
+| R08 | Script, fetch, and OAuth waits are bounded; stale callbacks are ignored, failed script loads can retry, and failed sync remains visibly pending. Session-only bearer storage is tested. |
+| R09, R10 | JSON input is limited by streamed UTF-8 bytes and cancelled early; rate cleanup traverses every page. |
+| R11, R13, R17 | Keyboard focus works on touch profiles, loaded comics have dated/language-aware alternatives, and share/error/update messages use matching English/Spanish dictionaries. A main landmark was added. |
+| R16 | Updated Lighthouse and compatible transitive dependencies; the complete npm audit reports zero vulnerabilities. |
+| R02: Partial | Added tombstones, deterministic merge, coalescing, account isolation, duplicate reconciliation, conditional writes, and fault tests. Real Google Drive ETag/If-Match behavior is not credential-verified. Missing validators fail closed with local changes retained and sync pending. Do not sign off live sync until a two-device account test proves the contract. |
+| R06: Partial | Dedicated deployment and security restrictions are verified; the shared Worker is preserved. English browser checks pass on both. September 7 Spanish succeeds on the shared proxy but returns 403 on the dedicated proxy; April 29 Spanish fails on both. Hold endpoint migration pending parity verification. The custom-user-agent gate also needs a representative browser check. |
+| R14: Partial | Extracted favorite validation, image readiness, sharing, translation, and Drive state/coordinator modules. Sharing takes an explicit comic snapshot. Undefined identifiers fail lint; new client modules are limited to 800 lines and the legacy app has a 4,850-line no-growth cap. The fewer-than-3,000-line target and visual-baseline-backed gesture/leaderboard extraction remain open. |
+| R15: Partial | Prioritized the decode request and removed repeated formatter construction. The final audit measured LCP 4.66 s / Speed Index 8.32 s / performance 0.71, so the three-run target is not met. Accessibility is 1.00. Lighthouse 13 differs from the review's Lighthouse 12 baseline. |
+
+The local SQLite test pins the installed Miniflare runtime and uses its supported compatibility date (2026-08-18); deployment retains 2026-08-27. The live sync, native-host, performance, and deployment checks are not replaced by mocks. See [REPAIR-2026-09-07.md](REPAIR-2026-09-07.md) for final validation results and release conditions.
+
 ## May 20, 2026
 
 - [x] [Priority: High] — RESOLVED May 29, 2026
@@ -109,13 +132,24 @@
   **Suggested fix:** Remove the unnecessary `showComic()` call from `Addfav()` and update only favorite-dependent UI. Before: `CompareDates(); showComic();`. After: `CompareDates();` with no comic reload. Add a regression test that waits between clicks and asserts the stored date remains stable.
   **Acceptance criteria:** `npm run test:cross-browser -- --workers=1` passes in Chromium, Firefox, WebKit, and mobile Safari; add/remove leaves zero favorites and does not change the selected comic date.
 
-- [x] [Priority: High] — RESOLVED July 27, 2026
-  **Area:** UX / Accessibility
-  **File(s):** [main.css](main.css)
-  **Issue:** Both themes set `--focus-ring: none`, while button, link, and input `:focus-visible` rules also remove the native outline. Keyboard controls are reachable but have no visible focus indicator.
-  **Impact:** Keyboard and switch-device users cannot tell which control will activate. This violates the visible-focus expectation of WCAG 2.4.7/2.4.11 even though automated accessibility checks score 100.
-  **Suggested fix:** Keep pointer-click styling outline-free, but restore a high-contrast keyboard-only `:focus-visible` ring with sufficient offset and contrast in both themes.
-  **Acceptance criteria:** Every interactive control has a clearly visible focus indicator when reached with Tab, no ring appears for ordinary pointer clicks, and a Playwright assertion verifies computed focus styling.
+<a id="r11"></a>
+- [x] **R11: Preserve keyboard focus visibility on touch devices**
+
+  **Priority:** High  
+  **Category:** Accessibility  
+  **Confidence:** High  
+  **Area:** Keyboard navigation / responsive styling  
+  **Affected files:** [main.css](main.css#L24), [tests/e2e/usability.spec.cjs](tests/e2e/usability.spec.cjs)  
+  **Evidence:** CONFIRMED September 7. Pixel 5 Playwright emulation plus Tab focused `darkmode` with `:focus-visible=true`, `outline=none`, and `box-shadow=none`. The ring is enabled only for hover/fine-pointer devices.  
+  **Problem:** The July desktop fix did not cover keyboards or switch input on touch-primary devices; reopened, not a new duplicate.  
+  **Impact:** Users cannot locate keyboard focus despite passing axe and Lighthouse checks.  
+  **Recommended solution:** Apply a visible `:focus-visible` indicator independently of pointer capability; handle unwanted programmatic focus styling separately.  
+  **Regression considerations:** Preserve both themes and forced-colors support; avoid ordinary pointer-click rings where feasible.  
+  **Acceptance criteria:** Every interactive control has visible Tab focus on desktop and touch-primary viewports.  
+  **Validation:** Computed-style and screenshot assertions with mobile keyboard input, both themes, and forced colors.  
+  **Estimated effort:** Small  
+  **Business value:** High  
+  **Technical debt reduction:** Low
 
 - [x] [Priority: High] — RESOLVED July 27, 2026
   **Area:** Business Logic / Security
@@ -133,7 +167,7 @@
   **Suggested fix:** Before: `cache.put(request, networkResponse.clone());`. After: `await cache.put(request, networkResponse.clone());`, or pass the write to `event.waitUntil()` while returning the response promptly.
   **Acceptance criteria:** All cache writes are awaited or registered with `waitUntil`; an offline E2E test loads a new comic, immediately disables networking, and successfully reloads the cached comic across repeated runs.
 
-- [ ] [Priority: High] — MERGED July 27, 2026 into "Mobile LCP is 4.64 s" below
+- **Merged reference:** High-priority mobile performance finding; tracked by [R15](#r15), not a separate open item.
   **Area:** Performance
   **File(s):** [app.js](app.js), [main.css](main.css), [index.html](index.html), [tests/support/lighthouse-audit.cjs](tests/support/lighthouse-audit.cjs)
   **Issue:** Fresh mobile Lighthouse measured LCP at 4.64 seconds (poor), Speed Index at 7.91 seconds, and performance at 0.72. Initial transfer includes 211 KB of unminified `app.js`; Lighthouse estimates 181 KB unused JavaScript, 93 KB minification savings, and 34 KB unused CSS.
@@ -173,13 +207,24 @@
   **Suggested fix:** Use manual redirects, resolve each `Location`, enforce protocol and host allowlists on every hop, and cap redirect depth.
   **Acceptance criteria:** Redirects within the allowlist still work; redirects to any unlisted host return `403`; automated Worker tests cover both paths.
 
-- [x] [Priority: Medium] — RESOLVED July 27, 2026
-  **Area:** Security / Reliability
-  **File(s):** [worker/favorites-api/index.js](worker/favorites-api/index.js)
-  **Issue:** `parseJson()` reads the entire authenticated request body without a size limit. The API expects only a tiny favorite object or at most 500 date strings.
-  **Impact:** A valid account can force unnecessary Durable Object memory and CPU use with oversized JSON payloads, reducing availability for legitimate votes.
-  **Suggested fix:** Reject an excessive `Content-Length` before parsing and enforce a bounded streaming/read limit for chunked bodies.
-  **Acceptance criteria:** Bodies above the documented limit return `413` without JSON parsing; normal favorite and migration payloads continue to pass.
+<a id="r09"></a>
+- [x] **R09: Enforce the request byte limit while streaming**
+
+  **Priority:** Medium  
+  **Category:** Security  
+  **Confidence:** High  
+  **Area:** Favorites API request parsing  
+  **Affected files:** [worker/favorites-api/index.js](worker/favorites-api/index.js#L509), [tests/unit/worker-favorites-api.test.mjs](tests/unit/worker-favorites-api.test.mjs)  
+  **Evidence:** CONFIRMED September 7. An 80,048-byte UTF-8 JSON request containing 40,048 JavaScript characters returned 200. Unknown-length bodies are fully materialized by `request.text()` before checking `text.length`.  
+  **Problem:** The July fix limits neither bytes nor peak body allocation; reopened against the original acceptance criteria.  
+  **Impact:** An authenticated caller can consume excessive memory in the shared leaderboard object. Exploitation requires a valid app token; likelihood is moderate.  
+  **Recommended solution:** Count streamed bytes, cancel immediately above 64 KiB, then decode and validate a non-null JSON object. Keep early Content-Length rejection.  
+  **Regression considerations:** Preserve normal favorite/migration payloads and CORS error responses.  
+  **Acceptance criteria:** Declared and undeclared oversized bodies return 413 without reading the remainder; malformed shapes return 400.  
+  **Validation:** Multibyte, chunked, dishonest-length, exact-boundary, null, and malformed JSON cases in the Worker runtime.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** Medium
 
 - [x] [Priority: Medium] — RESOLVED July 27, 2026
   **Area:** Bug / Deployment
@@ -197,7 +242,7 @@
   **Suggested fix:** Enable sampled logs and traces in both configs, emit structured JSON for errors and route/status metadata, and define an operational retention/sampling policy.
   **Acceptance criteria:** Both Workers appear in Cloudflare Observability with searchable structured errors and sampled traces; no tokens or personal data are logged.
 
-- [ ] [Priority: Medium] — MERGED July 27, 2026 into "`app.js` remains a 5,000-line monolith" below
+- **Merged reference:** Client module extraction; tracked by [R14](#r14), not a separate open item.
   **Area:** Refactor / Maintainability
   **File(s):** [app.js](app.js), [toolbar.js](toolbar.js)
   **Issue:** The May 29 monolith item is marked resolved, but `app.js` remains 5,063 lines/211 KB and still owns navigation, rendering, favorites, settings, sharing, shuffle, rotation, offline state, and leaderboard behavior. Its acceptance criteria were not met.
@@ -205,7 +250,7 @@
   **Suggested fix:** Reopen the incremental extraction. Before: optional features share mutable globals in `app.js`. After: move leaderboard, favorites, sharing, and rotation into focused modules with explicit state inputs, one module at a time, preserving behavior.
   **Acceptance criteria:** `app.js` is materially reduced, extracted modules have focused unit tests, global `window.*` dependencies decrease, and the full predeploy gate stays green after each extraction.
 
-- [ ] [Priority: Low]
+- **Carried-forward reference:** Development dependency advisories; current evidence and acceptance criteria are in [R16](#r16).
   **Area:** Security / Cleanup
   **File(s):** [package-lock.json](package-lock.json), [package.json](package.json)
   **Issue:** `npm audit` reports 22 development-only vulnerabilities (17 moderate, 5 high) through Lighthouse/Wrangler tooling; `npm audit --omit=dev` reports zero production vulnerabilities.
@@ -334,18 +379,24 @@ Scope: complete repository review (product, architecture, code, performance, sec
 
 ### Open items
 
-- [ ] `app.js` remains a 5,000-line monolith with module-scoped mutable state — STILL OPEN (July 28, 2026: dead code, duplicated icon markup, and the toolbar timer ladder were removed, but no module extraction has happened yet)
-  Priority: High
-  Category: Architecture
-  Area: Client application
-  Affected files: [app.js](app.js)
-  Problem: Beyond raw size, the file relies on module-scoped mutable globals (`year`, `month`, `day`, `formattedDate`, `formattedComicDate`, `currentComicUrl`, `nextComicUrl`, `_top10Entries`, `_isTop10Mode`) that are written by one function and read by unrelated ones. `formatDate()` mutates three module globals as its real return value; the four-line block that calls it and re-derives `formattedComicDate`/`formattedDate`/`DatePicker.value` is repeated six times inside `showComic()` alone. `isShuffleEnabled()` reads `aria-pressed` off the DOM as the source of truth.
-  Impact: Every feature can corrupt every other feature's state. The Safari duplicate-favorite defect resolved on July 22 was a direct symptom. Regression risk and merge-conflict rate stay high indefinitely.
-  Recommended solution: Incrementally extract cohesive modules with explicit inputs/outputs. Start where coupling is weakest: `leaderboard.js` (Top-10 modal, indicator, browse mode), then `favorites.js`, `share.js`, `rotation.js`. Replace `formatDate()` with a pure function returning `{ year, month, day, iso, slash }`. Replace DOM-as-state reads with a single `appState` object that renders to the DOM rather than reading from it.
-  Acceptance criteria: `app.js` drops below 3,000 lines; each extracted module has its own unit tests; the number of module-scoped `let` bindings decreases measurably; `npm run test:predeploy` stays green after each extraction.
-  Estimated effort: Large
-  Business value: Medium
-  Technical debt reduction: High
+<a id="r14"></a>
+- [ ] **R14: Extract client features behind explicit state contracts**
+
+  **Priority:** High  
+  **Category:** Architecture  
+  **Confidence:** High  
+  **Area:** Client application  
+  **Affected files:** [app.js](app.js#L1854), [serviceworker.js](serviceworker.js), [tools/verify-assets.cjs](tools/verify-assets.cjs)  
+  **Evidence:** CONFIRMED September 7: 5,174 lines / 212,174 bytes. Date, image, prefetch, favorites, shuffle, and leaderboard state remain module-scoped; R01 demonstrates an actual cross-feature state defect.  
+  **Problem:** July cleanup removed dead code, duplicated icons, and timers, but did not perform the planned module extraction. `formatDate()` mutates globals and date commits remain duplicated.  
+  **Impact:** Broad regression risk and expensive feature maintenance, beyond file size alone.  
+  **Recommended solution:** Fix R01/R05 first; extract a canonical displayed-comic state contract and pure date formatting, then leaderboard, favorites, sharing, and rotation one at a time. No framework rewrite.  
+  **Regression considerations:** Preserve navigation, native message contracts, translations, and offline module loading; register all new required assets.  
+  **Acceptance criteria:** Retain the original target of fewer than 3,000 app lines, fewer shared mutable bindings, focused module tests, and a passing release gate after each extraction.  
+  **Validation:** Behavioral unit tests, visual baselines, browser journeys, asset guard, and offline update scenarios.  
+  **Estimated effort:** Large  
+  **Business value:** Medium  
+  **Technical debt reduction:** High
 
 - [x] Unit tests assert on source text instead of behaviour — RESOLVED July 28, 2026
   Priority: High
@@ -360,18 +411,24 @@ Scope: complete repository review (product, architecture, code, performance, sec
   Business value: Medium
   Technical debt reduction: High
 
-- [ ] Mobile LCP is 4.64 s; 211 KB of unminified, largely unused JavaScript blocks first paint — PARTIALLY RESOLVED July 28, 2026 (Google Identity Services is no longer an eager page dependency and the CORS proxy origin is now preconnected; module splitting and minification remain)
-  Priority: High
-  Category: Performance
-  Area: Startup
-  Affected files: [app.js](app.js), [index.html](index.html), [main.css](main.css)
-  Problem: Carried forward from July 22 and still open. The single `app.js` bundle contains settings, sharing, Google sync, rotation, install prompt, and the leaderboard, none of which are needed to display the first comic. Lighthouse reports 181 KB unused JS, 93 KB minification headroom, and 34 KB unused CSS.
-  Impact: The core product — seeing today's strip — is delayed on mobile and weak networks.
-  Recommended solution: This is unlocked by the `app.js` extraction item above. Once optional features are separate modules, load them with dynamic `import()` on first use (settings panel open, share click, leaderboard open, sign-in). Add a minification step for deploy only, keeping the no-build local workflow.
-  Acceptance criteria: Mobile Lighthouse LCP below 3.0 s, Speed Index below 5.8 s, performance score at least 0.80 on three consecutive audits.
-  Estimated effort: Large
-  Business value: High
-  Technical debt reduction: Medium
+<a id="r15"></a>
+- [ ] **R15: Reduce measured time to the first usable comic**
+
+  **Priority:** High  
+  **Category:** Performance  
+  **Confidence:** High  
+  **Area:** Startup and source discovery  
+  **Affected files:** [app.js](app.js), [comicExtractor.js](comicExtractor.js), [index.html](index.html), [main.css](main.css), [tests/support/lighthouse-audit.cjs](tests/support/lighthouse-audit.cjs)  
+  **Evidence:** CONFIRMED single local audit September 7: performance 0.72, LCP 4.25 s, Speed Index 14.95 s, TBT 0 ms, CLS 0.073. The comic was the LCP element; 3.78 s was load delay. Estimated savings: 107 KiB unused JS, 97 KiB minification, 35 KiB unused CSS; these overlap and must not be summed.  
+  **Problem:** Earlier 4.64 s evidence is historical, not current. GIS lazy loading and preconnects are already implemented, but the user-visible latency target remains unmet.  
+  **Impact:** Readers on constrained networks wait too long for the core content.  
+  **Recommended solution:** Measure source discovery and fallback timing first, then lazy-load optional extracted features and assess deploy-only minification. Do not assume zero-TBT startup is primarily CPU-bound.  
+  **Regression considerations:** Preserve no-build local development, source/date correctness, and offline availability of optional modules.  
+  **Acceptance criteria:** Original target remains LCP below 3.0 s, Speed Index below 5.8 s, performance at least 0.80 on three consecutive comparable audits with a decoded comic.  
+  **Validation:** Repeat cold mobile audits; separate deterministic source fixtures from live-provider measurements; add a time-to-decoded-comic assertion.  
+  **Estimated effort:** Large  
+  **Business value:** High  
+  **Technical debt reduction:** Medium
 
 - [x] Escape-key handler leaks on every non-Escape rotation exit — RESOLVED July 28, 2026
   Priority: Medium
@@ -490,18 +547,24 @@ Scope: complete repository review (product, architecture, code, performance, sec
   Business value: Medium
   Technical debt reduction: Medium
 
-- [x] Leaderboard is a single Durable Object rewriting the full counts map per vote — RESOLVED July 28, 2026
-  Priority: Medium
-  Category: Scalability
-  Area: Favorites API
-  Affected files: [worker/favorites-api/index.js](worker/favorites-api/index.js)
-  Problem: Every write reads and rewrites the entire `counts` and `updated-at` maps and recomputes the top list — O(n) storage traffic per vote against one globally serialized object. `rate:<identity>` keys are written but never deleted.
-  Impact: Write latency grows linearly with the number of distinct favorited dates (~17,000 possible), and rate-limit records accumulate without bound. Fine at current traffic; a hard ceiling if the feature succeeds.
-  Recommended solution: Use the Durable Object's SQLite storage with a `counts(date, count, updated_at)` table and an index on `count DESC`, replacing whole-map serialization with row updates and a `LIMIT 50` query. Give rate-limit keys a TTL or sweep them from the existing alarm.
-  Acceptance criteria: Write latency is independent of the number of tracked dates; rate-limit storage is bounded; existing counts are migrated without loss.
-  Estimated effort: Medium
-  Business value: Low
-  Technical debt reduction: Medium
+<a id="r10"></a>
+- [x] **R10: Finish paginated rate-record cleanup**
+
+  **Priority:** Medium  
+  **Category:** Reliability  
+  **Confidence:** High  
+  **Area:** Favorites Durable Object alarm  
+  **Affected files:** [worker/favorites-api/index.js](worker/favorites-api/index.js#L367), [tests/unit/worker-favorites-api.test.mjs](tests/unit/worker-favorites-api.test.mjs)  
+  **Evidence:** CONFIRMED September 7: seeding 1,001 expired records and invoking `alarm()` left one record and no next alarm. Only the first 1,000 keys are read.  
+  **Problem:** Reopens the unfinished bounded-retention portion of the July scalability item. Per-date count storage was implemented and should be retained; decrement/full-window scans still exist, so constant write latency was not established.  
+  **Impact:** Expired identity records persist beyond the intended window; repeated traffic can accumulate cleanup debt. This is also unnecessary retention of account-linked identifiers.  
+  **Recommended solution:** Page with a cursor or process bounded batches with a continuation alarm, including when all records on a full page expired.  
+  **Regression considerations:** Preserve active rate windows, per-date counts, and legacy migration. Do not shard or replace storage merely to fix this alarm.  
+  **Acceptance criteria:** Every expired record is eventually removed across multiple pages and restarts; idle cleanup stops only when no work remains.  
+  **Validation:** 1,001 and multi-page records, mixed expiry, restart, and actual Worker alarm tests.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** Medium
 
 - [x] Toolbar initialization depends on layered timers rather than layout events — RESOLVED July 28, 2026
   Priority: Medium
@@ -633,18 +696,24 @@ Scope: complete repository review (product, architecture, code, performance, sec
   Business value: Low
   Technical debt reduction: Low
 
-- [ ] 22 development-only dependency advisories — STILL OPEN (accepted risk; `npm audit --omit=dev` is clean and CI enforces it)
-  Priority: Low
-  Category: Security
-  Area: Tooling
-  Affected files: [package.json](package.json), [package-lock.json](package-lock.json)
-  Problem: Carried forward from July 22. `npm audit` reports 17 moderate and 5 high advisories through Lighthouse and Wrangler transitives; `npm audit --omit=dev` is clean.
-  Impact: Shipped code is unaffected, but local and CI tooling processes network data with vulnerable transitive packages.
-  Recommended solution: Track upstream Lighthouse/Wrangler releases and apply non-breaking updates. Do not accept the suggested Wrangler downgrade. CI now enforces `npm audit --omit=dev --audit-level=high` so production regressions are caught.
-  Acceptance criteria: `npm audit` is clean, or remaining dev-only advisories are documented with compensating controls.
-  Estimated effort: Small
-  Business value: Low
-  Technical debt reduction: Low
+<a id="r16"></a>
+- [x] **R16: Refresh and remediate development-tool advisories**
+
+  **Priority:** Low  
+  **Category:** Dependency  
+  **Confidence:** High  
+  **Area:** Local and CI tooling  
+  **Affected files:** [package.json](package.json), [package-lock.json](package-lock.json), [.github/workflows/ci.yml](.github/workflows/ci.yml)  
+  **Evidence:** CONFIRMED September 7: `npm audit` reports 23 affected packages, 16 moderate / 7 high / 0 critical; `npm audit --omit=dev --audit-level=high` reports zero. High chains include Lighthouse, puppeteer-core, @puppeteer/browsers, extract-zip, brace-expansion, ip-address, and ws; npm reports fixes available.  
+  **Problem:** The old 22-package accepted-risk statement is stale. Developer tools still process repository and network input with vulnerable transitives.  
+  **Impact:** Tooling exposure, not a demonstrated vulnerability in shipped browser code.  
+  **Recommended solution:** Review non-breaking lockfile updates in isolation, validate the browser/audit toolchain, and document any residual advisory-specific compensating controls. No forced downgrade.  
+  **Regression considerations:** Preserve pinned Playwright compatibility and the production audit gate.  
+  **Acceptance criteria:** Audit is clean or every remaining relevant dev-only advisory has an explicit disposition; production remains clean.  
+  **Validation:** `npm ci` in a clean environment, full audits, unit/browser tests, and Lighthouse after upgrades.  
+  **Estimated effort:** Small  
+  **Business value:** Low  
+  **Technical debt reduction:** Low
 
 - [x] `MODULE_TYPELESS_PACKAGE_JSON` warning during unit tests — RESOLVED July 28, 2026
   Priority: Low
@@ -713,9 +782,9 @@ Notable implementation details:
 
 ### Still open
 
-- [ ] `app.js` module extraction (see the July 27 item) — the largest remaining architectural debt.
-- [ ] Mobile LCP target of 3.0 s — unblocked by the extraction above plus a deploy-only minification step.
-- [ ] 22 development-only `npm audit` advisories — accepted; `npm audit --omit=dev` is clean and enforced in CI.
+- Module extraction: [R14](#r14), still open.
+- Mobile startup target: [R15](#r15), still open; source latency must also be measured.
+- Development advisories: [R16](#r16), still open; the historical count below is not current.
 
 ### July 28, 2026 Backlog Summary
 
@@ -805,22 +874,30 @@ Scope: finish remaining production defects without extracting the `app.js` monol
 
 ### Still open (carried forward — not duplicated as new work)
 
-- [ ] `app.js` remains a ~5,000-line monolith — see July 27 item. Not extracted this pass.
-- [ ] Mobile LCP target of 3.0 s — comic `fetchpriority` helps first paint of the strip, but unused JS/CSS and lack of minification remain.
-- [ ] Development-only `npm audit` advisories — accepted; `npm audit --omit=dev` is clean and enforced in CI.
+- Client monolith: [R14](#r14), still open; not extracted in this pass.
+- Mobile LCP target: [R15](#r15), still open; comic priority alone did not satisfy the target.
+- Development advisories: [R16](#r16), still open; production audit remains clean.
 
 ### New items found, not fixed this pass
 
-- [ ] Share, paywall, and load-error copy is English-only
-  Priority: Low
-  Category: Internationalization
-  Area: UX
-  Affected files: [app.js](app.js)
-  Problem: `Share()` notifications (`No comic to share`, `Failed to share...`) and `showPaywallMessage()` / `showErrorMessage()` titles/bodies are string literals, while toolbar labels go through `translations`.
-  Impact: Spanish UI still surfaces English failure and share text.
-  Suggested fix: Add keys to both dictionaries and read them through the existing language lookup.
-  Acceptance criteria: Spanish mode shows Spanish share/paywall/error copy; no new user-facing English literals in those paths.
-  Estimated effort: Small
+<a id="r17"></a>
+- [x] **R17: Localize failure, sharing, and update messages**
+
+  **Priority:** Low  
+  **Category:** UX  
+  **Confidence:** High  
+  **Area:** English / Spanish parity  
+  **Affected files:** [app.js](app.js#L3067), [init.js](init.js#L69)  
+  **Evidence:** CONFIRMED September 7. Share, load/paywall errors, and the update banner still contain English literals outside the translation dictionaries.  
+  **Problem:** The August localization item remains open; the update banner is the same missing-translation class of issue.  
+  **Impact:** Spanish users receive mixed-language failure and recovery instructions.  
+  **Recommended solution:** Add equivalent dictionary keys and a bootstrap-compatible translation lookup for updates.  
+  **Regression considerations:** Keep English fallback and the existing update acceptance model.  
+  **Acceptance criteria:** These paths render Spanish when Spanish is selected and English otherwise.  
+  **Validation:** Exercise sharing, provider failure, and an actual waiting-worker banner in both languages.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** Low
 
 ### August 27, 2026 Backlog Summary
 
@@ -833,5 +910,217 @@ Scope: finish remaining production defects without extracting the `app.js` monol
 | **Total** | **8** | **4** |
 
 *Carried-forward open items: monolith, mobile LCP, dev-only audit advisories. New: share/paywall/error i18n.*
+
+## September 7, 2026 - Principal Engineering Review
+
+Original review inventory: **17 unique findings: 0 Critical, 9 High, 5 Medium, 3 Low**. After the repair pass: **13 closed, 4 open (all High)**. See the repair status at the top of this file.
+The dated tables above are historical snapshots, not current totals. Full scope, validation, limitations, and assessment: [REVIEW-2026-09-07.md](REVIEW-2026-09-07.md).
+
+This documentation-only review adds 10 items, reopens 3 incomplete fixes ([R09](#r09), [R10](#r10), [R11](#r11)), and updates 4 existing open items ([R14](#r14), [R15](#r15), [R16](#r16), [R17](#r17)). Nine historical checkbox references were converted into references to their canonical unresolved items. No implementation was marked complete and no application code or deploy version was changed.
+
+Recommended order: verify deployed proxy identity and restore its health gate; correct favorite dates and image commits; repair Drive convergence and transactional votes; repair offline persistence and accessibility; then remaining contract/recovery work. Extraction and performance work should follow regression coverage, not replace defect fixes.
+
+<a id="r01"></a>
+- [x] **R01: Favorite the canonical displayed date without subtracting again**
+
+  **Priority:** High  
+  **Category:** Business Logic  
+  **Confidence:** High  
+  **Area:** Favorites / publication fallback  
+  **Affected files:** [app.js](app.js#L2103), [app.js](app.js#L3502)  
+  **Evidence:** CONFIRMED. Executing `Addfav()` with displayed date `2024/01/02` and next-image URL equal to current-image URL saved `2024/01/01`. `showComic()` already reconciles canonical dates, while adjacent prefetch can return the same current strip for the unpublished next day.  
+  **Problem:** Image equality is incorrectly interpreted as proof that the displayed date itself is one day too late. The earlier timezone parsing fix did not remove this double correction.  
+  **Impact:** Users save and vote for the wrong strip; the heart state can disagree with the saved favorite.  
+  **Recommended solution:** Commit a canonical displayed-comic date once after successful loading and use it for favorites, sharing, and votes; never infer it by subtracting from prefetch state.  
+  **Regression considerations:** Preserve genuine upstream date redirects, English/Spanish boundaries, and offline dates.  
+  **Acceptance criteria:** A next-day redirect or duplicate prefetch cannot change the date added/removed; selected date, displayed strip, heart, export, and vote agree.  
+  **Validation:** Browser test with canonical-date metadata and a next-day redirect, delayed prefetch, repeated add/remove, and eastern/western time zones.  
+  **Estimated effort:** Small  
+  **Business value:** High  
+  **Technical debt reduction:** Medium
+
+<a id="r02"></a>
+- [ ] **R02: Make Drive favorites converge without lost changes or resurrection**
+
+  **Priority:** High  
+  **Category:** Data  
+  **Confidence:** High  
+  **Area:** Google Drive synchronization  
+  **Affected files:** [googleDriveSync.js](googleDriveSync.js#L516), [googleDriveSync.js](googleDriveSync.js#L575), [tests/unit/google-sync.test.mjs](tests/unit/google-sync.test.mjs)  
+  **Evidence:** CONFIRMED with real sync functions and controlled responses: finishing an older PATCH last reduced cloud favorites from two dates to one; pulling an empty cloud file on a stale device re-uploaded a deleted favorite.  
+  **Problem:** Independent full-snapshot writes have no ordering/conflict contract; union-only pull cannot represent deletion. Simultaneous first-file creation also has no local serialization.  
+  **Impact:** Favorites can disappear from cloud storage or reappear after deletion across devices.  
+  **Recommended solution:** Serialize/coalesce local uploads and define a versioned, conflict-aware merge format that represents removals. Reconcile remote state and handle concurrent creation; retain legacy readers during migration.  
+  **Regression considerations:** Preserve existing plain-array and version-2 data, local-first browsing, explicit opt-in, and preferences. Do not solve conflicts by blindly replacing local data.  
+  **Acceptance criteria:** Reversed completion order preserves the latest intent; independent device additions converge; deletions survive a stale-device reconnect; first sync creates one canonical file.  
+  **Validation:** Two-device add/remove round trips, reordered requests, concurrent initial creation, interrupted sync, and legacy-file fixtures.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** High
+
+<a id="r03"></a>
+- [x] **R03: Commit vote membership, counts, and ranking atomically**
+
+  **Priority:** High  
+  **Category:** Data  
+  **Confidence:** High  
+  **Area:** Favorites Durable Object persistence  
+  **Affected files:** [worker/favorites-api/index.js](worker/favorites-api/index.js#L148), [worker/favorites-api/index.js](worker/favorites-api/index.js#L191), [tests/unit/worker-favorites-api.test.mjs](tests/unit/worker-favorites-api.test.mjs)  
+  **Evidence:** CONFIRMED in a structured-clone storage harness: throwing on the user-membership write after a count write, then retrying the same add, produced count 2 for one user. Related writes have intervening awaits and no transaction. This is fault injection, not a production crash experiment.  
+  **Problem:** Idempotency depends on membership being committed with the count; partial writes break that invariant. Bulk migration and cached top updates have the same boundary risk.  
+  **Impact:** Permanent overcounts, missing votes, or stale rankings after partial failure.  
+  **Recommended solution:** Use an explicit storage transaction for membership, affected counts, and ranking consistency; keep network authentication outside it. Make legacy expansion restart-safe as well.  
+  **Regression considerations:** Preserve duplicate-add/remove idempotence, rate limiting, ranking order, existing keys, and migration totals.  
+  **Acceptance criteria:** Failure at any intermediate write leaves either all or none of the vote committed; retries never change counts twice.  
+  **Validation:** Fault injection at each write plus Workerd/Miniflare restart, concurrent add/remove, and migration rollback tests. Current Map-based tests do not prove platform transaction semantics.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** High
+
+<a id="r04"></a>
+- [x] **R04: Keep the offline comic index consistent with cached images**
+
+  **Priority:** High  
+  **Category:** Reliability  
+  **Confidence:** High  
+  **Area:** Service-worker caching / offline navigation  
+  **Affected files:** [serviceworker.js](serviceworker.js#L84), [serviceworker.js](serviceworker.js#L158), [app.js](app.js#L254), [tests/e2e/pwa-offline.spec.cjs](tests/e2e/pwa-offline.spec.cjs)  
+  **Evidence:** CONFIRMED activation probe deletes an older saved-image cache. `offlineComics` remains in localStorage and is consulted without checking CacheStorage. Prefetch and displayed images share a 50-entry image cache, while the independent index records up to 50 displayed comics.  
+  **Problem:** Upgrades, eviction, failed caching, or storage pressure leave advertised offline dates with no image bytes. A nonempty stale index prevents the bundled-first-strip fallback.  
+  **Impact:** Previously viewed comics fail offline despite the saved-comics indicator and populated navigation.  
+  **Recommended solution:** Preserve compatible comic-image data across shell upgrades and reconcile the offline index with actual resident image entries; remove stale references and fall back to available content.  
+  **Regression considerations:** Keep required shell assets version-isolated, image storage bounded, and English/Spanish indexes distinct.  
+  **Acceptance criteria:** Offline navigation offers only loadable images after an upgrade, eviction, or cache loss; an empty resident set displays the bundled fallback.  
+  **Validation:** Real browser v1-to-v2 update, more than 50 cached images including prefetch, cache deletion, and offline decode assertions using `naturalWidth > 0`, not just `src`.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** High
+
+<a id="r05"></a>
+- [x] **R05: Commit a comic only after a successful image load**
+
+  **Priority:** High  
+  **Category:** Bug  
+  **Confidence:** High  
+  **Area:** Image loading / transitions / caching failures  
+  **Affected files:** [app.js](app.js#L2760), [serviceworker.js](serviceworker.js#L163)  
+  **Evidence:** CONFIRMED browser probe: valid metadata plus image HTTP 404 left `naturalWidth=0`, no error message, and a share URL/favorite for the missing image. Separately, injecting cache.put QuotaExceededError transformed a network 200 image into a service-worker 503.  
+  **Problem:** Metadata success and decode success are conflated. `waitForImageReady()` resolves on error/timeout; morph code waits only for load in one branch. Cache persistence failure is also treated as network failure.  
+  **Impact:** Broken images can become committed comic state, with no usable recovery; a later transition can remain unsettled. The latter branch is code-supported, not separately reproduced.  
+  **Recommended solution:** Distinguish loaded/error/timeout outcomes, commit image/date/share state together after decode, preserve the previous strip on failure, and settle/clean up every animation path. Return usable network responses even if optional runtime caching fails.  
+  **Regression considerations:** Retain stale-generation guards, transitions, rotated views, and fatal required-precache installation behavior.  
+  **Acceptance criteria:** Missing, corrupt, or stalled images produce bounded localized recovery without committing the wrong strip; cache quota cannot hide a successfully fetched image.  
+  **Validation:** Browser 404/decode-error/stalled-image and rapid-navigation tests; cache-quota unit test; assert displayed bytes, date, favorite, and share consistency.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** High
+
+<a id="r06"></a>
+- [ ] **R06: Verify Spanish proxy parity and make live health checks representative**
+
+  **Priority:** High  
+  **Category:** Deployment  
+  **Confidence:** High  
+  **Area:** Production CORS proxy / release verification  
+  **Affected files:** [worker/index.js](worker/index.js#L209), [worker/wrangler.toml](worker/wrangler.toml), [tests/support/live-worker-health.cjs](tests/support/live-worker-health.cjs)  
+  **Evidence:** CONFIRMED September 7 follow-up: clean Chromium production navigation with service workers blocked fetched September 7 English via the shared proxy with HTTP 200 and decoded a 900x258 GoComics image, without public-proxy fallback. Same-date April 29 comparisons returned English HTTP 200 and decoded the same image through both proxies; Spanish returned 403 through both. Node comparisons using identical targets/Origin returned April English 403 with the custom health user-agent and 200 with a browser-style agent on both. Account inspection confirmed the original Worker was intentionally shared, not misrouted.  
+  **Additional evidence:** CONFIRMED follow-up through the live settings checkbox: September 7 Spanish fetched through the shared proxy with HTTP 200 and decoded a distinct 900x258 image without public fallback, with normal CSP and service workers blocked. A same-browser comparison returned September 7 Spanish 200/decoded on the shared proxy and 403 on the dedicated proxy; April 29 remained 403 on both.  
+  **Problem:** The custom-user-agent probe does not represent the successful browser workflow and only accepts one CDN marker rather than proving a decoded comic. The dedicated endpoint has not demonstrated parity for a Spanish date that works on production. Cache state, deployed implementation differences, and upstream challenge variability remain unisolated possible causes.  
+  **Impact:** Publishing the current endpoint migration may regress working Spanish reads. A misleading health probe can also block working releases or prompt unnecessary infrastructure changes. These observations do not establish a general Spanish outage.  
+  **Recommended solution:** Hold endpoint publication while comparing deployed request/redirect behavior and cache state, then verify the same working Spanish dates through the dedicated endpoint. Exercise real browser fetch/extraction/image decoding for both languages and keep proxy identity/CORS checks separate. Do not weaken origin/host rules or bypass upstream challenges.  
+  **Regression considerations:** No unapproved deployment, security-policy relaxation, or assumptions that CORS changes fix upstream bot challenges.  
+  **Acceptance criteria:** Deployed code/revision matches the intended artifact and origin/redirect contracts; live provider checks pass or a documented degraded mode is explicitly accepted.  
+  **Validation:** Add health-check regressions for challenge responses and invalid images; run English/Spanish decoded-comic checks and `npm run test:workers`. The diagnostic comparison bypassed only the old production page's CSP to permit the new hostname; normal production navigation did not bypass CSP. No deployment or code change was made during this follow-up.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** Medium
+
+<a id="r07"></a>
+- [x] **R07: Validate persisted and imported favorite dates consistently**
+
+  **Priority:** Medium  
+  **Category:** Data  
+  **Confidence:** High  
+  **Area:** LocalStorage / import / Drive ingestion  
+  **Affected files:** [app.js](app.js#L250), [app.js](app.js#L3820), [googleDriveSync.js](googleDriveSync.js#L600)  
+  **Evidence:** CONFIRMED helper probes: stored `{}` makes `getFavorites()` return a non-array, contrary to its contract; `2024/02/31` normalizes to March 2 and passes the current import's non-NaN check. Drive pull accepts strings without date validation and legacy object dates without a type check.  
+  **Problem:** JSON parsing is treated as schema validation at persistence boundaries.  
+  **Impact:** Corrupt or obsolete data can break array consumers or navigate to a different date; invalid records propagate through sync and exports.  
+  **Recommended solution:** Use one strict calendar/date-range validator and normalized favorite-array reader for storage, file imports, and Drive merge. Preserve recoverable valid records and report rejected imports.  
+  **Regression considerations:** Keep local-noon timezone handling, valid leap dates, duplicate removal, legacy formats, and original data recoverability.  
+  **Acceptance criteria:** Helpers always return valid arrays; impossible, wrong-type, and out-of-range dates never become favorites or navigation inputs.  
+  **Validation:** Null/object/string roots, mixed arrays, leap days, overflow dates, future/pre-launch dates, corrupt Drive files, and reload after recovery.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** High
+
+<a id="r08"></a>
+- [x] **R08: Bound Drive operations and expose recoverable sync failures**
+
+  **Priority:** Medium  
+  **Category:** Reliability  
+  **Confidence:** High  
+  **Area:** Google Identity loading / Drive network lifecycle  
+  **Affected files:** [googleDriveSync.js](googleDriveSync.js#L272), [googleDriveSync.js](googleDriveSync.js#L299), [googleDriveSync.js](googleDriveSync.js#L535)  
+  **Evidence:** CONFIRMED local probe: PATCH 503 caused `syncFavoritesToDrive()` to resolve with no notification or logged error. POST/PATCH responses are not checked; fetches have no deadline; the GIS load promise remains cached after resolving false.  
+  **Problem:** HTTP failures and stalled requests have no reliable completion/retry state, and a failed identity-script load is not retried on a later click.  
+  **Impact:** Users believe sync is working while cloud data remains stale, or cannot recover sign-in without reload.  
+  **Recommended solution:** Check response status, add bounded abortable requests, retain pending changes and show a localized retryable sync state; clear failed GIS loads before retry. Coordinate retries with R02's idempotent write design.  
+  **Regression considerations:** Do not prompt for sign-in without opt-in or turn background failures into repeated toasts; preserve one 401 refresh retry.  
+  **Acceptance criteria:** 429/5xx, offline, timeout, and failed GIS loads end in a visible recoverable state and later succeed without lost favorites.  
+  **Validation:** Mock HTTP failures, body stalls, GIS error-then-success, and retry completion; use sessionStorage in browser-like auth tests.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** Medium
+
+<a id="r12"></a>
+- [x] **R12: Scope favorite migration acknowledgments to the account and batch limit**
+
+  **Priority:** Medium  
+  **Category:** Compatibility  
+  **Confidence:** High  
+  **Area:** Frontend / favorites API migration contract  
+  **Affected files:** [app.js](app.js#L4674), [app.js](app.js#L4755), [worker/favorites-api/index.js](worker/favorites-api/index.js#L172)  
+  **Evidence:** CONFIRMED client probe sent one 501-date request although the server rejects more than 500. After an acknowledged migration, changing the token to another account caused zero requests because migration markers are browser-global.  
+  **Problem:** The client neither chunks to the public API limit nor distinguishes whose dates were acknowledged. Errors are silently ignored.  
+  **Impact:** Large favorite libraries do not migrate, and a second signed-in account can silently skip all community contributions.  
+  **Recommended solution:** Batch at most 500 valid dates, scope durable acknowledgment state to authenticated subject/version, and mark only successfully acknowledged dates. Expose recoverable partial failure without losing local favorites.  
+  **Regression considerations:** Keep server duplicate idempotence, account privacy, signed-out local use, and legacy marker migration.  
+  **Acceptance criteria:** 501+ dates migrate in bounded batches; failures resume safely; a second account does not inherit the first account's acknowledgments.  
+  **Validation:** 0/1/500/501/1,001 dates, partial failure/retry, account A to B to A, and legacy flags.  
+  **Estimated effort:** Medium  
+  **Business value:** Medium  
+  **Technical debt reduction:** Medium
+
+<a id="r13"></a>
+- [x] **R13: Update the main comic's accessible loading state**
+
+  **Priority:** Low  
+  **Category:** Accessibility  
+  **Confidence:** High  
+  **Area:** Comic accessible name / loading feedback  
+  **Affected files:** [index.html](index.html#L204), [app.js](app.js#L2760)  
+  **Evidence:** CONFIRMED Playwright rendering of a decoded 1,200-pixel-wide comic still reported alt text `Loading comic...`; the main image label is never replaced.  
+  **Problem:** Successful loading and subsequent navigation leave an inaccurate accessible name.  
+  **Impact:** Screen-reader users receive permanently misleading loading feedback. This fix alone cannot make the visual comic's dialogue accessible.  
+  **Recommended solution:** Set a localized comic/date label only after successful image commit and expose genuine loading/error state separately.  
+  **Regression considerations:** Synchronize the rotated image label and canonical date; do not invent comic transcripts.  
+  **Acceptance criteria:** A loaded image is never named as loading, and navigation updates its localized date/name.  
+  **Validation:** Accessibility-tree assertions for initial load, navigation, rotation, failure, and both languages.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** Low
+
+### Current Backlog Summary
+
+| Priority | Open |
+|---|---:|
+| Critical | 0 |
+| High | 9 |
+| Medium | 5 |
+| Low | 3 |
+| **Total** | **17** |
+
+No items were resolved by this review. Existing completed work is preserved except for the three explicitly reopened acceptance-criteria gaps above.
 
 

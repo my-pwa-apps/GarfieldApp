@@ -9,7 +9,12 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `index.html` - static app shell and metadata, including the `<symbol>` SVG icon sprite used by the toolbar.
 - `main.css` - app styling and responsive/mobile layout.
 - `init.js` - pre-DOM bootstrap: fullscreen state, service worker registration, update banner.
-- `app.js` - main UI, navigation, favorites, sharing, settings, shuffle, and modals.
+- `app.js` - main UI, navigation, favorites, settings, shuffle, and modals.
+- [favorites.js](favorites.js) - canonical favorite schema and published-date validation for every client ingestion path.
+- [comicPresentation.js](comicPresentation.js) - bounded image load/decode contract, required before committing a comic.
+- [sharing.js](sharing.js) - Web Share, clipboard, and native-host sharing from an explicit committed comic snapshot.
+- [translations.js](translations.js) - matching English and Spanish message dictionaries.
+- [driveSyncState.js](driveSyncState.js) and [driveFavorites.js](driveFavorites.js) - favorite tombstones/merge and the serialized account-scoped Drive coordinator.
 - `toolbar.js` - shared draggable-element helper used by the toolbar and settings panel.
 - `comicExtractor.js` - comic-source and CORS-proxy fallback logic.
 - `googleDriveSync.js` - Google Drive app-data sync for favorites/settings; injects Google Identity Services on demand.
@@ -19,6 +24,8 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `tools/verify-assets.cjs` - deploy guard: every manifest/precache/tile reference must exist, and no image may be orphaned.
 
 ## Local Development
+
+Use Node.js 22.19 or newer for the test and audit tools. The shipped browser app still has no runtime npm dependencies or build step.
 
 ```powershell
 npm install
@@ -35,6 +42,7 @@ The app has no build step. It is deployed as static files plus the two Cloudflar
 
 ```powershell
 npm run test:syntax
+npm run test:lint
 npm run test:assets
 npm run test:unit
 npm run test:e2e
@@ -51,7 +59,9 @@ npm run test:predeploy
 
 `test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy.
 
-Every push and pull request to `main` also runs syntax, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
+Every push and pull request to `main` also runs syntax, lint, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
+
+New client feature modules must stay below 800 lines; the existing app has a temporary no-growth cap while the remaining extraction is tracked in [BACKLOG.md](BACKLOG.md#r14). Put favorite validation, presentation readiness, sharing, translations, and Drive state in their owning modules above, not back into the bootstrap/UI file. Keep browser globals enabled in the test lint environment because Playwright `page.evaluate` callbacks execute in the browser.
 
 ## Deployment Notes
 
@@ -74,7 +84,25 @@ A new worker does **not** call `skipWaiting()` on install. It parks in `waiting`
 
 Any new statically imported ES module must be added to both `PRECACHE_ASSETS` and `REQUIRED_PRECACHE_ASSETS` in `serviceworker.js`, or the app breaks on an offline first launch. `npm run test:assets` and the unit suite enforce this.
 
+Comic bytes use a stable, bounded image cache across shell versions. A displayed comic enters the offline index only after a worker cache acknowledgment; entries without resident image bytes are removed before offline navigation.
+
+## Drive Sync Release Check
+
+The sync coordinator stores versioned add/remove records and keeps failed operations pending locally. Conditional updates require a server-provided ETag; it intentionally refuses an unguarded overwrite when no validator is available. Before releasing this protocol, verify Google Drive's real ETag/If-Match contract with two signed-in devices, including concurrent additions, deletion followed by stale-device reconnect, and first-file creation races. Automated conflict fixtures do not prove that external contract. Account changes during a request must never commit to the other account.
+
 ## Worker Configuration
+
+Garfield's dedicated proxy is **garfieldapp-corsproxy**, deployed at https://garfieldapp-corsproxy.garfieldapp.workers.dev. Its deployment configuration pins the Garfield account and enables its workers.dev endpoint.
+
+Deploy only this proxy with:
+
+```powershell
+npx wrangler deploy --config worker/wrangler.toml
+```
+
+The older `corsproxy` Worker at https://corsproxy.garfieldapp.workers.dev is shared with other apps and remains untouched for their clients and older installed Garfield versions. Do not rename this repository's Worker back to `corsproxy` or deploy over that shared service. New fetches and sharing use the dedicated endpoint; the image CSP retains the legacy origin for cached comics, and sharing translates legacy proxy URLs to the dedicated endpoint.
+
+The dedicated Worker was deployed on September 7, 2026. The Pages frontend was not published as part of that operation. Live verification confirmed origin/host restrictions and that the shared Worker's version remained unchanged. Real Chromium checks confirmed English works through both proxies, and the live Spanish switch successfully loads September 7 through the shared proxy. However, the same September 7 Spanish request returned 403 through the dedicated proxy; April 29 Spanish returned 403 on both. Hold frontend endpoint migration until this parity gap is resolved or explicitly accepted. Cache state and upstream variability have not been isolated as causes. The custom-user-agent health probe is also not representative of successful browser reads. See R06 in [BACKLOG.md](BACKLOG.md#r06) for evidence and validation requirements.
 
 The CORS proxy allowlist is configured through `worker/wrangler.toml` via `ALLOWED_HOSTS`.
 

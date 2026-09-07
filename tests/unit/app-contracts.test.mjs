@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import vm from 'node:vm';
+import { normalizeFavorites } from '../../favorites.js';
 
 /**
  * These tests exercise app.js for real instead of pattern-matching its source.
@@ -73,6 +75,25 @@ function installDomStub() {
 }
 
 const storage = installDomStub();
+test('favoriting the displayed date is independent of duplicate prefetch URLs', async () => {
+    const source = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
+    const favoriteFunction = source.slice(source.indexOf('function Addfav()'), source.indexOf('function showFavoriteOverlay('));
+    const saved = new Map();
+    const context = {
+        formattedComicDate: '2024/01/02', currentComicUrl: 'same.gif', nextComicUrl: 'same.gif',
+        displayedComic: { date: '2024/01/02' },
+        isRotatedMode: false, CONFIG: { STORAGE_KEYS: { FAVS: 'favs' } },
+        window: {},
+        UTILS: { getFavorites: () => JSON.parse(saved.get('favs') || '[]'), updateHeartIcon() {} },
+        localStorage: { setItem: (key, value) => saved.set(key, value) },
+        document: { getElementById: () => null }, updateExportButtonState() {}, CompareDates() {},
+        reportFavoriteToggle() {}
+    };
+    vm.runInNewContext(favoriteFunction + '\nAddfav();', context);
+    assert.deepEqual(JSON.parse(saved.get('favs')), ['2024/01/02']);
+    vm.runInNewContext(favoriteFunction + '\nAddfav();', context);
+    assert.deepEqual(JSON.parse(saved.get('favs')), []);
+});
 await import('../../app.js');
 
 const { UTILS, CONFIG, translations, getSyncPreferences } = globalThis;
@@ -90,6 +111,10 @@ test('the module exposes its shared helpers without booting the UI', () => {
 
 test('translation dictionaries expose the same application keys in English and Spanish', () => {
     assert.deepEqual(Object.keys(translations.es).sort(), Object.keys(translations.en).sort());
+    for (const key of ['shareText', 'shareEmpty', 'shareCopied', 'shareUnsupported', 'shareFailed', 'loadTitle', 'loadFailed', 'loadHint', 'updateAvailable', 'updateRefresh', 'googleSyncPending']) {
+        assert.ok(translations.es[key]);
+        assert.notEqual(translations.es[key], translations.en[key]);
+    }
 });
 
 test('ISO and favorite date strings parse as local calendar days, never UTC midnight', () => {
@@ -164,6 +189,18 @@ test('offline comics are indexed per language and stay bounded', () => {
     assert.equal(UTILS.getOfflineComics().length, 50, 'offline index must stay bounded');
 });
 
+test('favorite ingestion rejects malformed schemas and impossible dates', () => {
+    for (const value of [{}, 42, 'date', null]) {
+        storage.set(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(value));
+        assert.deepEqual(UTILS.getFavorites(), []);
+    }
+    storage.set(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify([
+        '2024/02/31', '2023/02/29', '1978/06/18', '9999/01/01', null,
+        '2024/02/29', '2024-02-29', { date: '2024/03/01' }, '__proto__'
+    ]));
+    assert.deepEqual(UTILS.getFavorites(), ['2024/02/29', '2024/03/01']);
+});
+
 test('offline navigation walks to the nearest cached neighbour in the requested direction', () => {
     UTILS.rememberOfflineComic('2024-01-01', 'en', 'https://example.test/a.gif');
     UTILS.rememberOfflineComic('2024-01-05', 'en', 'https://example.test/b.gif');
@@ -180,6 +217,19 @@ test('an empty offline index still serves the bundled first strip', () => {
     assert.equal(result.imageUrl, './garfield-first.gif');
     assert.equal(UTILS.dateToISODateString(result.actualDate), CONFIG.GARFIELD_START_EN);
     assert.equal(result.isOffline, true);
+});
+
+test('offline reconciliation removes dates whose image bytes were evicted', async () => {
+    UTILS.rememberOfflineComic('2024-01-01', 'en', 'https://example.test/evicted.gif');
+    UTILS.rememberOfflineComic('2024-01-02', 'en', 'https://example.test/resident.gif');
+    const previous = globalThis.caches;
+    globalThis.caches = { match: async url => url.endsWith('/resident.gif') ? {} : undefined };
+    try {
+        await UTILS.reconcileOfflineComics();
+        assert.deepEqual(UTILS.getOfflineComics().map(comic => comic.date), ['2024-01-02']);
+    } finally {
+        globalThis.caches = previous;
+    }
 });
 
 test('sync preferences report the persisted user configuration', () => {
@@ -216,4 +266,27 @@ test('community favorite writes are authenticated by bearer token only', async (
     assert.doesNotMatch(appSource, /favoriteSignInRequired/);
     assert.match(appSource, /favoriteVoteFailed/);
     assert.doesNotMatch(appSource, /Silently ignore network errors/);
+});
+
+test('migration batches and acknowledgements are scoped to each verified account', async () => {
+    const source = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
+    const helpers = source.slice(source.indexOf('function getValidFavoriteDates('), source.indexOf('function refreshFavoritesDependentUI('));
+    const migrate = source.slice(source.indexOf('function migrateExistingFavorites('), source.indexOf("window.addEventListener('google-auth-changed'"));
+    let accountId = 'first';
+    const requests = [];
+    const favorites = Array.from({ length: 501 }, (_, index) => UTILS.dateToISODateString(new Date(2000, 0, index + 1, 12)).replaceAll('-', '/'));
+    const context = { CONFIG, UTILS, localStorage, normalizeFavorites, _favoritesMigrationQueue: Promise.resolve(),
+        window: { getFavoritesApiIdentity: async () => ({ accountId, accessToken: accountId }) },
+        favoritesApiFetch: async (path, options) => { requests.push({ token: options.headers.Authorization, dates: JSON.parse(options.body).dates }); return { ok: true, json: async () => ({ ok: true }) }; }
+    };
+    vm.createContext(context);
+    vm.runInContext(helpers + migrate, context);
+    await context.migrateExistingFavorites(favorites);
+    assert.deepEqual(requests.map(request => request.dates.length), [500, 1]);
+    await context.migrateExistingFavorites(favorites);
+    assert.equal(requests.length, 2);
+    accountId = 'second';
+    await context.migrateExistingFavorites(favorites);
+    assert.deepEqual(requests.map(request => request.dates.length), [500, 1, 500, 1]);
+    assert.equal(requests[2].token, 'Bearer second');
 });

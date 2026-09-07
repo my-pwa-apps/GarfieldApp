@@ -77,10 +77,16 @@ function showUpdateNotification(onAccept) {
     updateBanner.className = 'update-banner';
 
     const message = document.createElement('p');
-    message.textContent = 'A new version is available.';
+    const localize = () => {
+        const spanish = document.documentElement.lang === 'es';
+        const text = window.translations?.[spanish ? 'es' : 'en'];
+        message.textContent = text?.updateAvailable || (spanish ? 'Hay una nueva version disponible.' : 'A new version is available.');
+        updateButton.textContent = text?.updateRefresh || (spanish ? 'Actualizar' : 'Refresh');
+    };
 
     const updateButton = document.createElement('button');
-    updateButton.textContent = 'Refresh';
+    localize();
+    window.addEventListener('language-changed', localize);
     updateButton.className = 'button update-banner-button';
     updateButton.addEventListener('click', () => {
         updateButton.disabled = true;

@@ -13,7 +13,7 @@
     <meta name="msvalidate.01" content="1AD8AA038A1CB0451DA439EEF48107D2">
 
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; manifest-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://static.cloudflareinsights.com; img-src 'self' https://featureassets.gocomics.com https://assets.amuniversal.com https://static.wikia.nocookie.net https://garfieldapp-corsproxy.garfieldapp.workers.dev https://corsproxy.garfieldapp.workers.dev https://resources.arcamax.com data: blob:; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self' data:; connect-src 'self' https://www.gocomics.com https://garfield.fandom.com https://garfieldapp-corsproxy.garfieldapp.workers.dev https://favorites-api.garfieldapp.workers.dev https://api.codetabs.com https://api.allorigins.win https://cloudflareinsights.com https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; manifest-src 'self';">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
@@ -30,7 +30,7 @@
     <title>Daily Garfield Comics - English & Spanish</title>
 
     <!-- Preconnect to external origins for faster loading -->
-    <link rel="preconnect" href="https://corsproxy.garfieldapp.workers.dev" crossorigin>
+    <link rel="preconnect" href="https://garfieldapp-corsproxy.garfieldapp.workers.dev" crossorigin>
     <link rel="preconnect" href="https://featureassets.gocomics.com" crossorigin>
     <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
     <link rel="preconnect" href="https://static.wikia.nocookie.net" crossorigin>
@@ -84,7 +84,7 @@
     <script src="./init.js" defer></script>
     <!-- Google Identity Services is injected on demand by googleDriveSync.js so
          visitors who never sync do not download it. -->
-    <script src="./googleDriveSync.js" defer></script>
+    <script src="./googleDriveSync.js" type="module"></script>
     <script src="./app.js" type="module"></script>
 </head>
 
@@ -196,7 +196,7 @@
         </button>
     </div>
 
-    <div id="comic-container">
+    <div id="comic-container" role="main">
         <div id="offline-indicator" role="status" aria-live="polite" hidden>
             Offline: showing saved comics
         </div>

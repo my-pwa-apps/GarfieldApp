@@ -1,9 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
 
-const transparentPng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l8WU3wAAAABJRU5ErkJggg==',
-  'base64'
-);
+const transparentPng = readFileSync(path.resolve(__dirname, '../../favicon-32x32.png'));
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,7 +28,7 @@ async function mockExternalServices(page) {
     body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } }),
     headers: corsHeaders
   }));
-  await context.route('https://corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
   await context.route('https://api.codetabs.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
   await context.route('https://api.allorigins.win/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
 }
@@ -43,7 +42,7 @@ async function openApp(page) {
   });
   page.on('console', message => {
     const text = message.text();
-    if (message.type() === 'error' && !text.startsWith('Failed to load resource:') && !text.includes('Image corrupt or truncated') && !text.includes('Access-Control-Allow-Origin')) {
+    if (message.type() === 'error' && !text.startsWith('Failed to load resource:') && !text.includes('Access-Control-Allow-Origin')) {
       errors.push(text);
     }
   });
@@ -51,6 +50,8 @@ async function openApp(page) {
   await mockExternalServices(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  await expect.poll(() => page.locator('#comic').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('#favheart')).toBeEnabled();
   return errors;
 }
 

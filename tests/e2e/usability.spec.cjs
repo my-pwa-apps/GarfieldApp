@@ -59,7 +59,7 @@ async function mockExternalServices(page, options = {}) {
       body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
-  await context.route('https://corsproxy.garfieldapp.workers.dev/**', route => {
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
     const requestUrl = new URL(route.request().url());
     proxyFulfill(route, decodeURIComponent(requestUrl.search.slice(1)));
   });
@@ -81,6 +81,8 @@ async function openApp(page) {
   await mockExternalServices(page);
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
+  await expect.poll(() => page.locator('#comic').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator('#favheart')).toBeEnabled();
 }
 
 async function setUsableMidRangeDate(page) {
@@ -88,6 +90,7 @@ async function setUsableMidRangeDate(page) {
   await page.locator('#DatePicker').dispatchEvent('change');
   await expect(page.locator('#Previous')).toBeEnabled();
   await expect(page.locator('#Next')).toBeEnabled();
+  await expect(page.locator('#favheart')).toBeEnabled();
   await page.evaluate(() => document.activeElement?.blur());
 }
 

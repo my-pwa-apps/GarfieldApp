@@ -1,11 +1,12 @@
 const checks = [
   {
     name: 'CORS proxy GoComics fetch',
-    url: 'https://corsproxy.garfieldapp.workers.dev/?https%3A%2F%2Fwww.gocomics.com%2Fgarfield%2F2026%2F04%2F29',
+    url: 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?https%3A%2F%2Fwww.gocomics.com%2Fgarfield%2F2026%2F04%2F29',
     validate: async response => {
       const body = await response.text();
       return response.ok &&
         response.headers.get('access-control-allow-origin') === 'https://garfieldapp.pages.dev' &&
+        response.headers.get('x-proxy-by') === 'garfieldapp-corsproxy' &&
         body.includes('featureassets.gocomics.com');
     }
   },
@@ -31,7 +32,7 @@ async function runCheck(check) {
     const response = await fetch(check.url, { headers, signal: controller.signal });
     const ok = await check.validate(response);
     if (!ok) {
-      throw new Error(`${check.name} failed with HTTP ${response.status}`);
+      throw new Error(`${check.name} failed with HTTP ${response.status}; proxy identity: ${response.headers.get('x-proxy-by') || 'not supplied'}`);
     }
     console.log(`${check.name}: OK`);
   } finally {
@@ -39,7 +40,11 @@ async function runCheck(check) {
   }
 }
 
-Promise.all(checks.map(runCheck)).catch(error => {
-  console.error(error.message || error);
-  process.exit(1);
+Promise.allSettled(checks.map(runCheck)).then(results => {
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      console.error(result.reason.message || result.reason);
+      process.exitCode = 1;
+    }
+  }
 });

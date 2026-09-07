@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
+import { normalizeFavorites } from '../../favorites.js';
+import { createDriveFavoritesSync } from '../../driveFavorites.js';
 
 const source = await readFile(new URL('../../googleDriveSync.js', import.meta.url), 'utf8');
 
@@ -12,10 +14,15 @@ function createContext(origin = 'https://garfieldapp.pages.dev') {
 
   const context = {
     console,
+    normalizeFavorites,
+    createDriveFavoritesSync,
     setInterval,
     clearInterval,
     Date,
     Headers,
+    AbortSignal,
+    setTimeout,
+    clearTimeout,
     CustomEvent: class CustomEvent { constructor(type) { this.type = type; } },
     localStorage: {
       getItem: key => store.has(key) ? store.get(key) : null,
@@ -34,6 +41,7 @@ function createContext(origin = 'https://garfieldapp.pages.dev') {
         return { origin: url.origin, protocol: url.protocol, hostname: url.hostname };
       })(),
       dispatchEvent() {},
+      addEventListener() {},
       showNotification: message => notifications.push(message),
       UTILS: {
         isSpanishMode: () => false,
@@ -57,7 +65,7 @@ function createContext(origin = 'https://garfieldapp.pages.dev') {
   context.notifications = notifications;
   context.store = store;
   vm.createContext(context);
-  vm.runInContext(`${source}\nthis.__api = { initGoogleSync, googleSignIn, googleSignOut, handleTokenResponse, googleApiFetch, syncFavoritesToDrive, pullFavoritesFromDrive };`, context);
+  vm.runInContext(`${source.replace(/^import .*;\r?\n/gm, '')}\nthis.__api = { initGoogleSync, googleSignIn, googleSignOut, handleTokenResponse, googleApiFetch, syncFavoritesToDrive, pullFavoritesFromDrive };`, context);
   return context;
 }
 
@@ -255,4 +263,71 @@ test('corrupt stored token is removed during initialization', () => {
   context.__api.initGoogleSync();
 
   assert.equal(context.store.has('gDriveToken'), false);
+});
+
+test('failed Drive writes remain pending and notify instead of succeeding silently', async () => {
+  const context = createContext();
+  context.console = { ...console, error() {} };
+  context.store.set('gDriveSyncEnabled', 'true');
+  context.store.set('gDriveToken', JSON.stringify({ token: 'valid', expiry: Date.now() + 3600000 }));
+  context.fetch = async (url, options) => {
+    assert.ok(options.signal, 'every Google fetch must have a deadline');
+    if (url.includes('userinfo')) return Response.json({ sub: 'account' });
+    if (url.includes('alt=media')) return Response.json({ favorites: [] }, { headers: { ETag: 'revision' } });
+    return url.includes('upload/') ? new Response('', { status: 503 }) : Response.json({ files: [{ id: 'file' }] });
+  };
+  await context.__api.syncFavoritesToDrive();
+  assert.equal(context.store.get('gDriveSyncPending'), 'true');
+  assert.match(context.notifications.at(-1), /Sync pending/);
+});
+
+test('failed identity script loads can be retried in the same session', async () => {
+  const context = createContext();
+  const scripts = [];
+  context.document.createElement = () => ({ remove() {} });
+  context.document.head = { appendChild: script => scripts.push(script) };
+  context.__api.googleSignIn();
+  scripts[0].onerror();
+  await new Promise(resolve => setImmediate(resolve));
+  context.__api.googleSignIn();
+  assert.equal(scripts.length, 2);
+  scripts[1].onerror();
+});
+
+test('token timeout releases coalesced callers and ignores a late response from the old client', async () => {
+  const context = createContext();
+  const clients = [];
+  let expire;
+  context.setTimeout = callback => { expire = callback; return { unref() {} }; };
+  context.clearTimeout = () => {};
+  context.google = { accounts: { oauth2: { initTokenClient(config) {
+    clients.push(config);
+    return { requestAccessToken() {} };
+  } } } };
+  vm.runInContext('_ensureTokenClient()', context);
+  const request = vm.runInContext('_requestAccessToken()', context);
+  const rejected = assert.rejects(request, /timed out/);
+  expire();
+  await rejected;
+  vm.runInContext('_ensureTokenClient()', context);
+  clients[0].callback({ access_token: 'late-token', expires_in: 3600 });
+  assert.equal(context.store.has('gDriveToken'), false);
+  const retry = vm.runInContext('_requestAccessToken()', context);
+  clients[1].callback({ access_token: 'new-token', expires_in: 3600 });
+  assert.equal(await retry, 'new-token');
+});
+
+test('normal token storage uses sessionStorage without persisting the bearer locally', () => {
+  const context = createContext();
+  const session = new Map();
+  context.sessionStorage = {
+    getItem: key => session.get(key) || null,
+    setItem: (key, value) => session.set(key, value),
+    removeItem: key => session.delete(key)
+  };
+  context.__api.handleTokenResponse({ access_token: 'session-token', expires_in: 3600 });
+  assert.match(session.get('gDriveToken'), /session-token/);
+  assert.equal(context.store.has('gDriveToken'), false);
+  context.__api.googleSignOut();
+  assert.equal(session.has('gDriveToken'), false);
 });

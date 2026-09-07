@@ -1,4 +1,6 @@
-name = "corsproxy"
+name = "garfieldapp-corsproxy"
+account_id = "bb3893fab785508c512caa687c340bda"
+workers_dev = true
 main = "index.js"
 compatibility_date = "2026-08-27"
 

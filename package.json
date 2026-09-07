@@ -1,10 +1,14 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.12",
+  "version": "1.0.14",
   "private": true,
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "type": "module",
   "description": "Daily Garfield Comics — a vanilla-JavaScript Progressive Web App with English/Spanish strips, offline caching, favorites sync and a community leaderboard.",
   "scripts": {
+    "test:lint": "eslint . --quiet",
     "serve": "node tests/support/static-server.cjs --host 127.0.0.1 --port 8000",
     "test": "npm run test:unit && playwright test",
     "test:cross-browser": "playwright test --config=playwright.cross-browser.config.cjs",
@@ -14,18 +18,21 @@
     "test:workers": "node tests/support/live-worker-health.cjs",
     "bump:version": "node tools/bump-version.cjs",
     "test:assets": "node tools/verify-assets.cjs",
-    "test:predeploy": "npm run test:syntax && npm run test:assets && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
+    "test:predeploy": "npm run test:lint && npm run test:syntax && npm run test:assets && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
     "test:pwa": "playwright test tests/e2e/pwa-offline.spec.cjs --project=chromium",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "test:usability": "playwright test tests/e2e/usability.spec.cjs",
     "test:production": "playwright test tests/e2e/production-smoke.spec.cjs",
     "test:headed": "playwright test --headed",
-    "test:syntax": "node --check app.js && node --check comicExtractor.js && node --check toolbar.js && node --check init.js && node --check googleDriveSync.js && node --check serviceworker.js && node --check worker/index.js && node --check worker/favorites-api/index.js && node --check tools/bump-version.cjs && node --check tools/verify-assets.cjs && node --check playwright.config.cjs && node --check playwright.cross-browser.config.cjs && node --check playwright.native.config.cjs && node --check tests/native/native-webview.spec.cjs && node --check tests/support/static-server.cjs && node --check tests/support/lighthouse-audit.cjs && node --check tests/support/live-worker-health.cjs"
+    "test:syntax": "node tools/check-syntax.cjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
     "@playwright/test": "1.59.1",
-    "lighthouse": "^12.6.1",
+    "eslint": "^10.9.1",
+    "globals": "^17.11.0",
+    "lighthouse": "^13.4.1",
+    "miniflare": "5.20260811.1-alpha",
     "wrangler": "^4.123.0"
   }
 }

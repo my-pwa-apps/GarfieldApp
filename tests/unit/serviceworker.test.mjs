@@ -251,7 +251,8 @@ test('an unknown message never replies on the port', async () => {
 test('activation removes stale Garfield caches, preserves the current set and claims clients', async () => {
     const sw = loadServiceWorker();
     await sw.caches.open('garfield-v0.9.0');
-    await sw.caches.open('garfield-images-v0.9.0');
+    const oldImages = await sw.caches.open('garfield-images-v0.9.0');
+    await oldImages.put('https://example.test/old.gif', new SWResponse('saved image'));
     await sw.caches.open('some-other-app-cache');
     await sw.install();
 
@@ -260,6 +261,7 @@ test('activation removes stale Garfield caches, preserves the current set and cl
     const remaining = await sw.caches.keys();
     assert.equal(remaining.includes('garfield-v0.9.0'), false);
     assert.equal(remaining.includes('garfield-images-v0.9.0'), false);
+    assert.equal(await (await sw.caches.match('https://example.test/old.gif')).text(), 'saved image');
     assert.ok(remaining.includes('some-other-app-cache'), 'caches belonging to other apps are left alone');
     assert.ok(remaining.includes(`garfield-${VERSION}`), 'the current cache survives');
     assert.equal(sw.calls.claim, 1);
@@ -327,7 +329,7 @@ test('images are cached across origins and evicted least-recently-added first', 
         await sw.request(`https://assets.amuniversal.com/strip-${String(i).padStart(3, '0')}.jpg`, { destination: 'image' });
     }
 
-    const cache = await sw.caches.open(`garfield-images-${VERSION}`);
+    const cache = await sw.caches.open('garfield-images-v1');
     assert.equal((await cache.keys()).length, 50, 'the image cache is bounded');
     assert.equal(await cache.match('https://assets.amuniversal.com/strip-000.jpg'), undefined, 'the oldest entry is evicted');
     assert.ok(await cache.match('https://assets.amuniversal.com/strip-054.jpg'), 'the newest entry is retained');
@@ -380,4 +382,17 @@ test('support is standardized on the Stripe payment link', async () => {
     assert.match(html, /https:\/\/buy\.stripe\.com\/9B63cubyG45ldITfim1VK00/);
     assert.doesNotMatch(html, /buymeacoffee|ko-fi/i);
     assert.doesNotMatch(html, /donationModal|donationFrame/);
+});
+
+test('optional cache quota failures preserve successful network responses', async () => {
+    const sw = loadServiceWorker({ fetchImpl: async () => new SWResponse('network bytes') });
+    for (const name of ['garfield-images-v1', `garfield-${VERSION}`, `garfield-runtime-${VERSION}`]) {
+        const cache = await sw.caches.open(name);
+        cache.put = async () => { throw new Error('QuotaExceededError'); };
+    }
+    for (const [url, destination] of [['./new.gif', 'image'], ['./new.js', 'script'], ['./data', '']]) {
+        const response = await sw.request(url, { destination });
+        assert.equal(response.status, 200);
+        assert.equal(await response.text(), 'network bytes');
+    }
 });

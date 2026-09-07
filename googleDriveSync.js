@@ -1,3 +1,6 @@
+import { normalizeFavorites } from './favorites.js';
+import { createDriveFavoritesSync } from './driveFavorites.js';
+
 // ========================================
 // GOOGLE DRIVE SYNC MODULE
 // ========================================
@@ -5,9 +8,10 @@
 const GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/drive.appdata profile email';
 const GOOGLE_IDENTITY_SCRIPT_URL = 'https://accounts.google.com/gsi/client';
-const FAVORITES_FILENAME = 'garfield-favorites.json';
 const SILENT_REFRESH_COOLDOWN_MS = 30000;
 const GOOGLE_DRIVE_SYNC_ENABLED_KEY = 'gDriveSyncEnabled';
+const GOOGLE_REQUEST_TIMEOUT_MS = 20000;
+const GOOGLE_SYNC_PENDING_KEY = 'gDriveSyncPending';
 /**
  * Origins on which Google sign-in may be attempted.
  *
@@ -30,7 +34,9 @@ let pendingTokenRequest = null;
 let pendingTokenRequestResolve = null;
 let pendingTokenRequestReject = null;
 let pendingTokenInteractive = false;
+let pendingTokenTimer = null;
 let lastSilentRefreshAttempt = 0;
+let accountIdentity = null;
 
 function _storage() {
     return typeof sessionStorage !== 'undefined' ? sessionStorage : localStorage;
@@ -38,7 +44,13 @@ function _storage() {
 
 // Safe access to app.js globals (module-scoped, exposed via window.*)
 function _notify(msg) { if (typeof window.showNotification === 'function') window.showNotification(msg); }
-function _getFavorites() { return typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem('favs') || '[]'); }
+function _getFavorites() {
+    try {
+        return normalizeFavorites(typeof window.UTILS !== 'undefined' ? window.UTILS.getFavorites() : JSON.parse(localStorage.getItem(_getFavsKey()) || '[]'));
+    } catch (_) {
+        return [];
+    }
+}
 function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
 function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
 function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
@@ -140,6 +152,8 @@ function _storeToken(token, expiresInSeconds) {
 }
 
 function _clearTokenState(clearUser = false) {
+    _rejectPendingTokenRequest(new Error('Google token state cleared'));
+    accountIdentity = null;
     accessToken = null;
     accessTokenExpiry = 0;
     pendingTokenRequest = null;
@@ -153,6 +167,8 @@ function _clearTokenState(clearUser = false) {
 }
 
 function _resetPendingTokenRequest() {
+    clearTimeout(pendingTokenTimer);
+    pendingTokenTimer = null;
     pendingTokenRequest = null;
     pendingTokenRequestResolve = null;
     pendingTokenRequestReject = null;
@@ -195,6 +211,11 @@ function _requestAccessToken(options = {}, { interactive = false } = {}) {
     pendingTokenRequest = new Promise((resolve, reject) => {
         pendingTokenRequestResolve = resolve;
         pendingTokenRequestReject = reject;
+        pendingTokenTimer = setTimeout(() => {
+            tokenClient = null;
+            _rejectPendingTokenRequest(new Error('Google token request timed out'));
+        }, GOOGLE_REQUEST_TIMEOUT_MS);
+        pendingTokenTimer.unref?.();
 
         try {
             tokenClient.requestAccessToken(options);
@@ -282,7 +303,7 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
     const headers = new Headers(options.headers || {});
     headers.set('Authorization', `Bearer ${token}`);
 
-    let response = await fetch(url, { ...options, headers });
+    let response = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) });
 
     if (response.status === 401 && retryOnAuthFailure) {
         _clearTokenState();
@@ -290,7 +311,7 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
         const refreshedToken = await ensureValidAccessToken({ interactive: false });
         const retryHeaders = new Headers(options.headers || {});
         retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
-        response = await fetch(url, { ...options, headers: retryHeaders });
+        response = await fetch(url, { ...options, headers: retryHeaders, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) });
     }
 
     return response;
@@ -311,12 +332,23 @@ function _loadGoogleIdentityServices() {
 
     _gisLoadPromise = new Promise(resolve => {
         const script = document.createElement('script');
+        const finish = success => {
+            clearTimeout(timer);
+            script.onload = null;
+            script.onerror = null;
+            if (!success) script.remove();
+            resolve(success);
+        };
+        const timer = setTimeout(() => finish(false), GOOGLE_REQUEST_TIMEOUT_MS);
         script.src = GOOGLE_IDENTITY_SCRIPT_URL;
         script.async = true;
         script.defer = true;
-        script.onload = () => resolve(typeof google !== 'undefined' && !!google.accounts);
-        script.onerror = () => resolve(false);
+        script.onload = () => finish(typeof google !== 'undefined' && !!google.accounts);
+        script.onerror = () => finish(false);
         document.head.appendChild(script);
+    }).then(success => {
+        if (!success) _gisLoadPromise = null;
+        return success;
     });
 
     return _gisLoadPromise;
@@ -368,12 +400,13 @@ function initGoogleSync() {
 }
 
 function _initTokenClient() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
+    const client = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: GOOGLE_SCOPES,
-        callback: handleTokenResponse,
-        error_callback: handleTokenClientError
+        callback: response => { if (tokenClient === client) handleTokenResponse(response); },
+        error_callback: error => { if (tokenClient === client) handleTokenClientError(error); }
     });
+    tokenClient = client;
 
     window.dispatchEvent(new CustomEvent('google-sync-ready'));
     _getStoredTokenData();
@@ -479,6 +512,7 @@ function googleSignOut() {
         google.accounts.oauth2.revoke(accessToken);
     }
     _clearTokenState(true);
+    tokenClient = null;
     _setSyncEnabled(false);
     updateGoogleUI(false, 'signout');
 }
@@ -501,152 +535,55 @@ async function fetchGoogleUserInfo() {
     } catch (_) { /* non-critical */ }
 }
 
-/**
- * Find the favorites file in Drive appData folder.
- * Returns the file ID or null.
- */
-async function findFavoritesFile() {
-    const res = await googleApiFetch(
-        `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${FAVORITES_FILENAME}'&fields=files(id)`,
-        undefined,
-        { interactive: false }
-    );
-    if (!res.ok) throw new Error('Failed to search Drive');
-    const data = await res.json();
-    return data.files?.length > 0 ? data.files[0].id : null;
+const synchronizeDriveFavorites = createDriveFavoritesSync({
+    storage: localStorage,
+    identify: () => window.getFavoritesApiIdentity(),
+    request: (url, options = {}) => fetch(url, { ...options, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) }),
+    getFavorites: _getFavorites,
+    getPreferences: _getSyncPreferences,
+    applyPreferences: _applySyncedPreferences,
+    commitFavorites(favorites) {
+        if (JSON.stringify(_getFavorites()) === JSON.stringify(favorites)) return;
+        localStorage.setItem(_getFavsKey(), JSON.stringify(favorites));
+        window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { favorites, source: 'google-drive' } }));
+    },
+    onStatus(pending) {
+        const message = _t('googleSyncPending') || (_isSpanish() ? 'Cambios guardados en este dispositivo. Sincronizacion pendiente.' : 'Changes saved on this device. Sync pending.');
+        if (pending) {
+            if (!localStorage.getItem(GOOGLE_SYNC_PENDING_KEY)) _notify(message);
+            localStorage.setItem(GOOGLE_SYNC_PENDING_KEY, 'true');
+        } else {
+            localStorage.removeItem(GOOGLE_SYNC_PENDING_KEY);
+        }
+        renderSyncDescription();
+    }
+});
+
+function syncFavoritesToDrive() {
+    if (!_isSyncEnabled() || !_isGoogleAuthAllowedOrigin()) return Promise.resolve(false);
+    return synchronizeDriveFavorites();
 }
 
-/**
- * Push current favorites to Google Drive (auto-sync, silent).
- * Called automatically when favorites change.
- */
-async function syncFavoritesToDrive() {
-    if (!_canAutoSync()) return;
-
-    try {
-        await ensureValidAccessToken({ interactive: false });
-    } catch (_) {
-        return;
-    }
-
-    const favs = _getFavorites();
-    const preferences = _getSyncPreferences();
-
-    try {
-        const fileId = await findFavoritesFile();
-        const content = JSON.stringify({
-            version: 2,
-            favorites: favs,
-            preferences
-        });
-
-        if (fileId) {
-            await googleApiFetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: content
-            });
-        } else {
-            const metadata = { name: FAVORITES_FILENAME, parents: ['appDataFolder'] };
-            const boundary = 'garfield_sync_boundary';
-            const body =
-                `--${boundary}\r\n` +
-                `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-                `${JSON.stringify(metadata)}\r\n` +
-                `--${boundary}\r\n` +
-                `Content-Type: application/json\r\n\r\n` +
-                `${content}\r\n` +
-                `--${boundary}--`;
-
-            await googleApiFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': `multipart/related; boundary=${boundary}`
-                },
-                body
-            });
-        }
-    } catch (err) {
-        console.error('Auto-sync to Drive failed:', err);
-    }
+function pullFavoritesFromDrive() {
+    if (!_isSyncEnabled() || !_isGoogleAuthAllowedOrigin()) return Promise.resolve(false);
+    return synchronizeDriveFavorites(true);
 }
 
-/**
- * Pull favorites from Google Drive and merge with local.
- * Called on sign-in and session restore.
- */
-async function pullFavoritesFromDrive() {
-    try {
-        await ensureValidAccessToken({ interactive: false });
-    } catch (_) {
-        return;
-    }
+function renderSyncDescription(signedIn = _hasUsableToken()) {
+    const description = document.getElementById('googleSyncDesc');
+    if (!description) return;
+    const pending = _isSyncEnabled() && !!localStorage.getItem(GOOGLE_SYNC_PENDING_KEY);
+    description.style.display = pending || !signedIn ? '' : 'none';
+    if (pending) description.textContent = _t('googleSyncPending') || (_isSpanish() ? 'Sincronizacion pendiente.' : 'Sync pending.');
+    else description.textContent = _t('googleSyncDesc') || '';
+}
 
-    try {
-        const fileId = await findFavoritesFile();
-        if (!fileId) return;
+window.addEventListener('language-changed', () => renderSyncDescription());
 
-        const res = await googleApiFetch(
-            `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-            undefined,
-            { interactive: false }
-        );
-        if (!res.ok) return;
-
-        const cloudData = await res.json();
-
-        let cloudDates = [];
-        let cloudPreferences = null;
-
-        if (Array.isArray(cloudData)) {
-            // Legacy formats: plain ["date"] and older [{date}]
-            cloudData.forEach(item => {
-                if (typeof item === 'string') {
-                    cloudDates.push(item);
-                } else if (item && typeof item === 'object' && item.date) {
-                    cloudDates.push(item.date);
-                }
-            });
-        } else if (cloudData && typeof cloudData === 'object') {
-            if (Array.isArray(cloudData.favorites)) {
-                cloudDates = cloudData.favorites.filter(item => typeof item === 'string');
-            }
-            if (cloudData.preferences && typeof cloudData.preferences === 'object') {
-                cloudPreferences = cloudData.preferences;
-            }
-        } else {
-            return;
-        }
-
-        const localFavs = _getFavorites();
-        const merged = [...new Set([...localFavs, ...cloudDates])].sort();
-        const newCount = merged.length - localFavs.length;
-
-        if (cloudPreferences) {
-            _applySyncedPreferences(cloudPreferences);
-        }
-
-        if (newCount > 0) {
-            localStorage.setItem(_getFavsKey(), JSON.stringify(merged));
-            window.dispatchEvent(new CustomEvent('favorites-changed', {
-                detail: { favorites: merged, source: 'google-drive' }
-            }));
-            _notify((_t('googleDownloadSuccess') || 'Synced {count} new favorites from Google Drive.').replace('{count}', newCount).replace('{total}', merged.length));
-        }
-
-        const localPreferences = _getSyncPreferences();
-        const cloudPreferencesRaw = JSON.stringify(cloudPreferences || {});
-        const localPreferencesRaw = JSON.stringify(localPreferences || {});
-
-        // If local has items not in cloud, or the cloud file is legacy/missing preferences, push back
-        if (merged.length > cloudDates.length || cloudPreferencesRaw !== localPreferencesRaw) {
-            syncFavoritesToDrive();
-        }
-    } catch (err) {
-        console.error('Pull from Drive failed:', err);
-    }
+for (const event of ['online', 'focus']) {
+    window.addEventListener(event, () => {
+        if (localStorage.getItem(GOOGLE_SYNC_PENDING_KEY)) void syncFavoritesToDrive();
+    });
 }
 
 /**
@@ -656,11 +593,10 @@ function updateGoogleUI(signedIn, reason = 'state') {
     const signInBtn = document.getElementById('googleSignInBtn');
     const signOutBtn = document.getElementById('googleSignOutBtn');
     const nameEl = document.getElementById('googleUserName');
-    const descEl = document.getElementById('googleSyncDesc');
 
     if (signInBtn) signInBtn.style.display = signedIn ? 'none' : 'flex';
     if (signOutBtn) signOutBtn.style.display = signedIn ? 'flex' : 'none';
-    if (descEl) descEl.style.display = signedIn ? 'none' : '';
+    renderSyncDescription(signedIn);
 
     if (signedIn && nameEl) {
         const stored = localStorage.getItem('gDriveUser');
@@ -677,6 +613,23 @@ window.initGoogleSync = initGoogleSync;
 window.googleSignIn = googleSignIn;
 window.googleSignOut = googleSignOut;
 window.syncFavoritesToDrive = syncFavoritesToDrive;
+window.getFavoritesApiIdentity = async function getFavoritesApiIdentity() {
+    try {
+        const token = await ensureValidAccessToken({ interactive: false });
+        if (accountIdentity?.accessToken === token) return accountIdentity;
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS)
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (!data?.sub || accessToken !== token || !_isSyncEnabled()) return null;
+        accountIdentity = { accountId: String(data.sub), accessToken: token };
+        return accountIdentity;
+    } catch (_) {
+        return null;
+    }
+};
 window.getFavoritesApiAccessToken = async function getFavoritesApiAccessToken() {
     try {
         return await ensureValidAccessToken({ interactive: false });

@@ -60,6 +60,7 @@ async function mockExternalServices(page, options = {}) {
   });
 
   await context.route('https://featureassets.gocomics.com/**', route => {
+    if (options.failImages) return route.fulfill({ status: 404, body: 'missing' });
     const imageUrl = route.request().url();
     if (options.heldImagePattern && imageUrl.includes(options.heldImagePattern)) {
       options.onHeldImageRequest?.(imageUrl);
@@ -97,7 +98,7 @@ async function mockExternalServices(page, options = {}) {
     });
   });
 
-  await context.route('https://corsproxy.garfieldapp.workers.dev/**', route => {
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
     if (failComics) {
       route.fulfill({ status: 500, contentType: 'text/plain; charset=utf-8', body: 'Comic source unavailable' });
       return;
@@ -202,7 +203,7 @@ async function openApp(page, url = '/', options = {}) {
 
   await mockExternalServices(page, options);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  if (options.failComics) {
+  if (options.failComics || options.failImages) {
     await expect(page.locator('#comic-message')).toBeVisible();
   } else {
     await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
@@ -291,6 +292,46 @@ async function dispatchTouchGesture(page, selector, points) {
     element.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [endTouch] }));
   }, points);
 }
+
+test('keyboard focus remains visible on every input-device profile', async ({ page }) => {
+  await openApp(page);
+  await page.locator('#settingsBtn').focus();
+  await page.keyboard.press('Tab');
+  const focus = await page.evaluate(() => {
+    const element = document.activeElement;
+    const style = getComputedStyle(element);
+    return { visible: element.matches(':focus-visible'), shadow: style.boxShadow, outline: style.outlineStyle };
+  });
+  expect(focus.visible).toBe(true);
+  expect(focus.shadow !== 'none' || focus.outline !== 'none').toBe(true);
+});
+
+test('image failures preserve the committed comic and its favorite date', async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('#favheart')).toBeEnabled();
+  const oldSource = await page.locator('#comic').getAttribute('src');
+  const oldAlt = await page.locator('#comic').getAttribute('alt');
+  const oldDate = await page.locator('#DatePicker').inputValue();
+  await page.context().route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 404, body: 'missing' }));
+  await page.evaluate(() => {
+    const picker = document.getElementById('DatePicker');
+    picker.value = '2024-01-02';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await expect(page.locator('#comic-message')).toBeVisible();
+  await expect(page.locator('#comic')).toHaveAttribute('src', oldSource);
+  await expect(page.locator('#comic')).toHaveAttribute('alt', oldAlt);
+  await expect(page.locator('#DatePicker')).toHaveValue(oldDate);
+  await page.locator('#favheart').click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('favs')))).toEqual([oldDate.replaceAll('-', '/')]);
+});
+
+test('initial image failure never enables favorites or sharing data', async ({ page }) => {
+  await openApp(page, '/', { failImages: true });
+  await expect(page.locator('#comic-message')).toBeVisible();
+  await expect(page.locator('#favheart')).toBeDisabled();
+  expect(await page.evaluate(() => window.pictureUrl || null)).toBeNull();
+});
 
 test('boots and loads the current comic without runtime errors', async ({ page }) => {
   const errors = await openApp(page);

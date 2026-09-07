@@ -35,7 +35,7 @@ async function mockExternalServices(page, options = {}) {
       body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
-  await context.route('https://corsproxy.garfieldapp.workers.dev/**', route => {
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
     comicRequests.push(route.request().url());
     if (proxyFailuresRemaining.count > 0) {
       proxyFailuresRemaining.count -= 1;

@@ -83,13 +83,13 @@ export class FavoritesLeaderboard {
 
         try {
             if (url.pathname === '/top' && request.method === 'GET') {
-                return this.handleGetTop();
+                return await this.handleGetTop();
             }
             if (url.pathname === '/favorite' && request.method === 'POST') {
-                return this.handlePostFavorite(request);
+                return await this.handlePostFavorite(request);
             }
             if (url.pathname === '/migrate' && request.method === 'POST') {
-                return this.handleMigrate(request);
+                return await this.handleMigrate(request);
             }
             return jsonResponse({ error: 'Not found' }, 404);
         } catch (error) {
@@ -128,9 +128,10 @@ export class FavoritesLeaderboard {
 
         await this.migrateLegacyCounts();
 
+        return this.state.storage.transaction(async storage => {
         const userStorageKey = getUserStorageKey(identity.key);
-        const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
-        const current = await this.getCountEntry(date);
+        const favorites = new Set((await storage.get(userStorageKey)) || []);
+        const current = await this.getCountEntry(date, storage);
 
         if (action === 'add' ? favorites.has(date) : !favorites.has(date)) {
             return jsonResponse({
@@ -149,11 +150,12 @@ export class FavoritesLeaderboard {
         else favorites.delete(date);
 
         const updatedAt = new Date().toISOString();
-        await this.writeCountEntry(date, nextCount, updatedAt);
-        await this.saveUserFavorites(userStorageKey, favorites);
-        await this.refreshTop([{ date, previousCount: current.count, count: nextCount, updatedAt }]);
+        await this.writeCountEntry(date, nextCount, updatedAt, storage);
+        await this.saveUserFavorites(userStorageKey, favorites, storage);
+        await this.refreshTop([{ date, previousCount: current.count, count: nextCount, updatedAt }], storage);
 
         return jsonResponse({ ok: true, count: nextCount, updatedAt });
+        });
     }
 
     async handleMigrate(request) {
@@ -181,17 +183,18 @@ export class FavoritesLeaderboard {
 
         await this.migrateLegacyCounts();
 
+        return this.state.storage.transaction(async storage => {
         const userStorageKey = getUserStorageKey(identity.key);
-        const favorites = new Set((await this.state.storage.get(userStorageKey)) || []);
+        const favorites = new Set((await storage.get(userStorageKey)) || []);
         const updatedAt = new Date().toISOString();
         const changes = [];
 
         for (const date of validDates) {
             if (favorites.has(date)) continue;
             favorites.add(date);
-            const current = await this.getCountEntry(date);
+            const current = await this.getCountEntry(date, storage);
             const nextCount = current.count + 1;
-            await this.writeCountEntry(date, nextCount, updatedAt);
+            await this.writeCountEntry(date, nextCount, updatedAt, storage);
             changes.push({ date, previousCount: current.count, count: nextCount, updatedAt });
         }
 
@@ -199,37 +202,38 @@ export class FavoritesLeaderboard {
             return jsonResponse({ ok: true, migrated: 0, unchanged: true });
         }
 
-        await this.saveUserFavorites(userStorageKey, favorites);
-        await this.refreshTop(changes);
+        await this.saveUserFavorites(userStorageKey, favorites, storage);
+        await this.refreshTop(changes, storage);
 
         return jsonResponse({ ok: true, migrated: changes.length, updatedAt });
+        });
     }
 
     /**
      * Read the per-date count shard.
      * @returns {Promise<{count: number, updatedAt: string|null}>}
      */
-    async getCountEntry(date) {
-        const stored = await this.state.storage.get(COUNT_PREFIX + date);
+    async getCountEntry(date, storage = this.state.storage) {
+        const stored = await storage.get(COUNT_PREFIX + date);
         return {
             count: Number(stored?.count) || 0,
             updatedAt: stored?.updatedAt || null
         };
     }
 
-    async writeCountEntry(date, count, updatedAt) {
+    async writeCountEntry(date, count, updatedAt, storage = this.state.storage) {
         if (count > 0) {
-            await this.state.storage.put(COUNT_PREFIX + date, { count, updatedAt });
+            await storage.put(COUNT_PREFIX + date, { count, updatedAt });
         } else {
-            await this.state.storage.delete(COUNT_PREFIX + date);
+            await storage.delete(COUNT_PREFIX + date);
         }
     }
 
-    async saveUserFavorites(userStorageKey, favorites) {
+    async saveUserFavorites(userStorageKey, favorites, storage = this.state.storage) {
         if (favorites.size > 0) {
-            await this.state.storage.put(userStorageKey, [...favorites].sort());
+            await storage.put(userStorageKey, [...favorites].sort());
         } else {
-            await this.state.storage.delete(userStorageKey);
+            await storage.delete(userStorageKey);
         }
     }
 
@@ -243,8 +247,8 @@ export class FavoritesLeaderboard {
      * full scan of the count shards.
      * @param {{date: string, previousCount: number, count: number, updatedAt: string}[]} changes
      */
-    async refreshTop(changes) {
-        let top = (await this.state.storage.get(TOP_KEY)) || [];
+    async refreshTop(changes, storage = this.state.storage) {
+        let top = (await storage.get(TOP_KEY)) || [];
         let needsFullScan = false;
 
         for (const change of changes) {
@@ -263,22 +267,22 @@ export class FavoritesLeaderboard {
         }
 
         top = needsFullScan
-            ? await this.scanTopEntries()
+            ? await this.scanTopEntries(storage)
             : sortTopEntries(top).slice(0, TOP_N);
 
-        await this.state.storage.put(TOP_KEY, top);
+        await storage.put(TOP_KEY, top);
     }
 
     /**
      * Rebuild the top-N list by paging through every count shard.
      * @returns {Promise<{date: string, count: number, updatedAt: string|null}[]>}
      */
-    async scanTopEntries() {
+    async scanTopEntries(storage = this.state.storage) {
         const entries = [];
         let startAfter;
 
         for (;;) {
-            const page = await this.state.storage.list({
+            const page = await storage.list({
                 prefix: COUNT_PREFIX,
                 limit: LIST_PAGE_SIZE,
                 ...(startAfter ? { startAfter } : {})
@@ -311,23 +315,25 @@ export class FavoritesLeaderboard {
     async migrateLegacyCounts() {
         if (this.legacyCountsMigrated) return;
 
-        const counts = await this.state.storage.get(COUNTS_KEY);
+        await this.state.storage.transaction(async storage => {
+        const counts = await storage.get(COUNTS_KEY);
         if (counts && typeof counts === 'object') {
-            const updatedAtByDate = (await this.state.storage.get(UPDATED_AT_KEY)) || {};
+            const updatedAtByDate = (await storage.get(UPDATED_AT_KEY)) || {};
             for (const [date, count] of Object.entries(counts)) {
                 if (Number(count) > 0) {
-                    await this.state.storage.put(COUNT_PREFIX + date, {
+                    await storage.put(COUNT_PREFIX + date, {
                         count: Number(count),
                         updatedAt: updatedAtByDate[date] || null
                     });
                 }
             }
-            await this.state.storage.delete(COUNTS_KEY);
-            await this.state.storage.delete(UPDATED_AT_KEY);
+            await storage.delete(COUNTS_KEY);
+            await storage.delete(UPDATED_AT_KEY);
             // Rebuild the cached window from the new shards so it reflects the
             // migrated data even if the old TOP_KEY was stale or absent.
-            await this.state.storage.put(TOP_KEY, await this.scanTopEntries());
+            await storage.put(TOP_KEY, await this.scanTopEntries(storage));
         }
+        });
 
         this.legacyCountsMigrated = true;
     }
@@ -368,13 +374,18 @@ export class FavoritesLeaderboard {
         const now = Date.now();
         let remaining = 0;
 
-        const page = await this.state.storage.list({ prefix: RATE_PREFIX, limit: LIST_PAGE_SIZE });
-        for (const [key, value] of page || []) {
-            if (!value || value.resetAt <= now) {
-                await this.state.storage.delete(key);
-            } else {
-                remaining += 1;
+        let startAfter;
+        for (;;) {
+            const page = await this.state.storage.list({ prefix: RATE_PREFIX, limit: LIST_PAGE_SIZE, ...(startAfter ? { startAfter } : {}) });
+            for (const [key, value] of page) {
+                startAfter = key;
+                if (!value || value.resetAt <= now) {
+                    await this.state.storage.delete(key);
+                } else {
+                    remaining += 1;
+                }
             }
+            if (page.size < LIST_PAGE_SIZE) break;
         }
 
         if (remaining > 0 && typeof this.state.storage.setAlarm === 'function') {
@@ -508,21 +519,33 @@ async function parseJson(request) {
         return { ok: false, response: jsonResponse({ error: 'Payload too large' }, 413) };
     }
 
-    let text;
+    let text = '';
+    const reader = request.body?.getReader();
     try {
-        text = await request.text();
+        const decoder = new TextDecoder('utf-8', { fatal: true });
+        let bytes = 0;
+        while (reader) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            bytes += value.byteLength;
+            if (bytes > MAX_BODY_BYTES) {
+                await reader.cancel().catch(() => {});
+                return { ok: false, response: jsonResponse({ error: 'Payload too large' }, 413) };
+            }
+            text += decoder.decode(value, { stream: true });
+        }
+        text += decoder.decode();
     } catch {
+        await reader?.cancel().catch(() => {});
         return { ok: false, response: jsonResponse({ error: 'Invalid JSON' }, 400) };
-    }
-
-    // Chunked/unknown-length bodies bypass the Content-Length check above, so
-    // enforce the same bound on the materialized payload before parsing it.
-    if (text.length > MAX_BODY_BYTES) {
-        return { ok: false, response: jsonResponse({ error: 'Payload too large' }, 413) };
+    } finally {
+        reader?.releaseLock();
     }
 
     try {
-        return { ok: true, value: JSON.parse(text) };
+        const value = JSON.parse(text);
+        if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected object');
+        return { ok: true, value };
     } catch {
         return { ok: false, response: jsonResponse({ error: 'Invalid JSON' }, 400) };
     }

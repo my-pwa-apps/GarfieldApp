@@ -8,7 +8,7 @@
  *   4. ArcaMax (last fallback) — last ~30 days, EN only
  */
 const CORS_PROXIES = [
-    'https://corsproxy.garfieldapp.workers.dev/?',
+    'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?',
     'https://api.codetabs.com/v1/proxy?quest=',
     'https://api.allorigins.win/raw?url='
 ];

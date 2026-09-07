@@ -29,7 +29,7 @@ function stubNetwork(responder) {
 }
 
 function proxyRequest(target, init = {}) {
-  return new Request(`https://corsproxy.garfieldapp.workers.dev/?${target}`, init);
+  return new Request(`https://garfieldapp-corsproxy.garfieldapp.workers.dev/?${target}`, init);
 }
 
 test.afterEach(() => mock.restoreAll());
@@ -55,7 +55,7 @@ test('non-allowlisted hosts and unsupported protocols are refused', async () => 
   response = await worker.fetch(proxyRequest('file:///etc/passwd'), env, ctx);
   assert.equal(response.status, 400);
 
-  response = await worker.fetch(new Request('https://corsproxy.garfieldapp.workers.dev/'), env, ctx);
+  response = await worker.fetch(new Request('https://garfieldapp-corsproxy.garfieldapp.workers.dev/'), env, ctx);
   assert.equal(response.status, 400);
 });
 

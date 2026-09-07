@@ -1,5 +1,9 @@
+import { translations } from './translations.js';
+import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
 import { makeDraggable } from './toolbar.js';
+import { normalizeFavorites } from './favorites.js';
+import { loadComicImage } from './comicPresentation.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -25,6 +29,7 @@ const CONFIG = Object.freeze({
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
     FAVORITES_API_TIMEOUT_MS: 12000,
     FAVORITES_MIGRATION_VERSION: 'google-only-v1',
+    FAVORITES_MIGRATION_BATCH_SIZE: 500,
 
     PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
     PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
@@ -237,7 +242,7 @@ const UTILS = {
      * @returns {Array} Array of favorite dates or empty array
      */
     getFavorites() {
-        return this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
+        return normalizeFavorites(this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []));
     },
 
     getOfflineComics(language) {
@@ -255,6 +260,33 @@ const UTILS = {
         remaining.push({ date: dateString, language, imageUrl, cachedAt: Date.now() });
         remaining.sort((a, b) => b.cachedAt - a.cachedAt);
         localStorage.setItem(CONFIG.STORAGE_KEYS.OFFLINE_COMICS, JSON.stringify(remaining.slice(0, 50)));
+    },
+
+    async reconcileOfflineComics() {
+        if (typeof caches === 'undefined') return;
+        const comics = this.getOfflineComics();
+        const resident = await Promise.all(comics.map(async comic => {
+            try { return await caches.match(comic.imageUrl) ? comic : null; }
+            catch (_) { return null; }
+        }));
+        localStorage.setItem(CONFIG.STORAGE_KEYS.OFFLINE_COMICS, JSON.stringify(resident.filter(Boolean)));
+    },
+
+    async cacheDisplayedComic(imageUrl) {
+        if (!navigator.serviceWorker || typeof MessageChannel !== 'function') return false;
+        return new Promise(resolve => {
+            const channel = new MessageChannel();
+            const finish = cached => {
+                clearTimeout(timer);
+                channel.port1.close();
+                resolve(cached);
+            };
+            const timer = setTimeout(() => finish(false), 8000);
+            channel.port1.onmessage = event => finish(event.data?.cached === true);
+            navigator.serviceWorker.ready.then(registration => {
+                registration.active?.postMessage({ type: 'CACHE_COMIC', url: imageUrl }, [channel.port2]);
+            }).catch(() => finish(false));
+        });
     },
 
     getOfflineComic(date, language, direction = null) {
@@ -1427,10 +1459,10 @@ function initGoogleSyncUI() {
     const signOutBtn = document.getElementById('googleSignOutBtn');
 
     signInBtn?.addEventListener('click', () => {
-        if (typeof googleSignIn === 'function') googleSignIn();
+        window.googleSignIn?.();
     });
     signOutBtn?.addEventListener('click', () => {
-        if (typeof googleSignOut === 'function') googleSignOut();
+        window.googleSignOut?.();
     });
 }
 
@@ -1511,7 +1543,7 @@ if (document.readyState === 'loading') {
         initializeMobileButtonStates();
         initGoogleSyncUI();
         initTop10Modal();
-        if (typeof initGoogleSync === 'function') initGoogleSync();
+        window.initGoogleSync?.();
         // Add touch event listeners
         document.addEventListener('touchstart', handleTouchStart, { passive: false });
         document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1523,7 +1555,7 @@ if (document.readyState === 'loading') {
     initializeMobileButtonStates();
     initGoogleSyncUI();
     initTop10Modal();
-    if (typeof initGoogleSync === 'function') initGoogleSync();
+    window.initGoogleSync?.();
     // Add touch event listeners
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
@@ -1548,126 +1580,7 @@ document.addEventListener('keydown', function(e) {
 });
 
 // Translation dictionaries
-const translations = {
-    en: {
-        previous: 'Previous',
-        random: 'Random',
-        next: 'Next',
-        first: 'First',
-        today: 'Today',
-        last: 'Last',
-        shuffle: 'Shuffle',
-        shuffleFirst: 'First in shuffle history',
-        shufflePrevious: 'Previous shuffle comic',
-        shuffleNextRandom: 'Next random shuffle comic',
-        shuffleNextHistory: 'Next shuffle comic',
-        shuffleLast: 'Last in shuffle history',
-        randomDisabledInShuffle: 'Random is handled by Shuffle mode',
-        swipeEnabled: 'Swipe enabled',
-        showFavorites: 'Show only my favorites',
-        rememberComic: 'Remember last comic on exit/refresh',
-        darkMode: 'Dark mode',
-        comicSource: 'Comic source',
-        spanish: 'Spanish / Español',
-        loadingComic: 'Loading comic...',
-        settings: 'Settings',
-        favorites: 'Add to favorites',
-        removeFromFavorites: 'Remove from favorites',
-        viewFullSize: 'Click to view full size',
-        share: 'Share',
-        selectDate: 'Select comic date',
-        installApp: 'Install App',
-        supportApp: 'Support this App',
-        notifyNewComics: 'Notify me of new comics',
-        sundayNotAvailable: 'Sunday comics are not always available in Spanish. The comic for this date does not exist.',
-        spanishNotAvailable: 'This comic is not available in Spanish. The date may be before the Spanish edition started (December 6, 1999), or the comic for this date does not exist.',
-        exportFavorites: 'Export Favorites',
-        importFavorites: 'Import Favorites',
-        noFavoritesToExport: 'No favorites to export.',
-        exportedFavorites: 'Exported {count} favorite{plural}.',
-        importedFavorites: 'Imported {count} new favorite{plural}. Total: {total}',
-        allFavoritesExist: 'All favorites already exist.',
-        invalidFavoritesFile: 'Invalid favorites file format.',
-        errorReadingFile: 'Error reading favorites file.',
-        googleDriveSync: 'Google Drive Sync',
-        googleSignIn: 'Sign in with Google',
-        googleSignOut: 'Sign out',
-        googleSyncDesc: 'Sign in to sync your favorites across devices with Google Drive',
-        googleDownloadSuccess: 'Synced {count} new favorites from Google Drive.',
-        googleUnavailableOnThisUrl: 'Google sign-in is not available on this test URL.',
-        donationMessage: 'Help keep this app free and ad-free. Your support funds ongoing development and new features.',
-        retry: 'Retry',
-        top10Title: 'Top Favorites',
-        top10Loading: 'Loading…',
-        top10Empty: 'No favorites yet. Be the first!',
-        top10Error: 'Could not load leaderboard. Try again later.',
-        top10CommunityFavorites: 'Community Favorites',
-        top10ExitLabel: 'Exit community favorites',
-        top10ViewComic: 'View comic from {date}',
-        top10ComicAlt: 'Comic from {date}',
-        top10Updated: 'Updated {date}',
-        favoriteVoteFailed: 'Favorite saved locally, but Top Favorites could not be updated.'
-    },
-    es: {
-        previous: 'Anterior',
-        random: 'Aleatorio',
-        next: 'Siguiente',
-        first: 'Primero',
-        today: 'Hoy',
-        last: 'Último',
-        shuffle: 'Aleatorio',
-        shuffleFirst: 'Primero del historial aleatorio',
-        shufflePrevious: 'Cómic aleatorio anterior',
-        shuffleNextRandom: 'Siguiente cómic aleatorio',
-        shuffleNextHistory: 'Siguiente cómic del historial aleatorio',
-        shuffleLast: 'Último del historial aleatorio',
-        randomDisabledInShuffle: 'El modo aleatorio controla la navegación',
-        swipeEnabled: 'Deslizar habilitado',
-        showFavorites: 'Mostrar solo mis favoritos',
-        rememberComic: 'Recordar último cómic al salir/actualizar',
-        darkMode: 'Modo oscuro',
-        comicSource: 'Fuente de cómics',
-        spanish: 'Spanish / Español',
-        loadingComic: 'Cargando cómic...',
-        settings: 'Configuración',
-        favorites: 'Agregar a favoritos',
-        removeFromFavorites: 'Quitar de favoritos',
-        viewFullSize: 'Haz clic para ver a tamaño completo',
-        share: 'Compartir',
-        selectDate: 'Seleccionar fecha del cómic',
-        installApp: 'Instalar App',
-        supportApp: 'Apoyar esta App',
-        notifyNewComics: 'Notificar nuevos cómics',
-        sundayNotAvailable: 'Los cómics dominicales no siempre están disponibles en español. El cómic para esta fecha no existe.',
-        spanishNotAvailable: 'Este cómic no está disponible en español. La fecha puede ser anterior al inicio de la edición en español (6 de diciembre de 1999), o el cómic para esta fecha no existe.',
-        exportFavorites: 'Exportar Favoritos',
-        importFavorites: 'Importar Favoritos',
-        noFavoritesToExport: 'No hay favoritos para exportar.',
-        exportedFavorites: '{count} favorito{plural} exportado{plural}.',
-        importedFavorites: '{count} favorito{plural} nuevo{plural} importado{plural}. Total: {total}',
-        allFavoritesExist: 'Todos los favoritos ya existen.',
-        invalidFavoritesFile: 'Formato de archivo de favoritos no válido.',
-        errorReadingFile: 'Error al leer el archivo de favoritos.',
-        googleDriveSync: 'Sincronización Google Drive',
-        googleSignIn: 'Iniciar sesión con Google',
-        googleSignOut: 'Cerrar sesión',
-        googleSyncDesc: 'Inicia sesión para sincronizar tus favoritos entre dispositivos con Google Drive',
-        googleDownloadSuccess: '{count} favoritos nuevos sincronizados desde Google Drive.',
-        googleUnavailableOnThisUrl: 'El inicio de sesión con Google no está disponible en esta URL de prueba.',
-        donationMessage: 'Ayuda a mantener esta app gratuita y sin anuncios. Tu apoyo financia el desarrollo continuo y nuevas funciones.',
-        retry: 'Reintentar',
-        top10Title: 'Favoritos Destacados',
-        top10Loading: 'Cargando…',
-        top10Empty: '¡Aún no hay favoritos. Sé el primero!',
-        top10Error: 'No se pudo cargar la tabla de clasificación. Intenta de nuevo más tarde.',
-        top10CommunityFavorites: 'Favoritos de la Comunidad',
-        top10ExitLabel: 'Salir de favoritos de la comunidad',
-        top10ViewComic: 'Ver cómic del {date}',
-        top10ComicAlt: 'Cómic del {date}',
-        top10Updated: 'Actualizado {date}',
-        favoriteVoteFailed: 'Favorito guardado localmente, pero no se pudo actualizar Favoritos Destacados.'
-    }
-};
+
 
 // Expose globals needed by googleDriveSync.js (non-module script)
 window.showNotification = showNotification;
@@ -1847,6 +1760,8 @@ function translateInterface(lang) {
     if (comic && comic.alt === 'Loading comic...') {
         comic.alt = t.loadingComic;
     }
+    document.documentElement.lang = lang === 'es' ? 'es' : 'en';
+    window.dispatchEvent(new CustomEvent('language-changed'));
 }
 
 // Global variables for app functionality
@@ -1888,256 +1803,33 @@ const TOOLBAR_ICONS = Object.freeze({
  * Share comic via Web Share API
  */
 async function Share() {
-    const imageUrl = window.pictureUrl || previousUrl;
-    const appUrl = new URL('.', window.location.href).href;
-    const shareText = `Shared from GarfieldApp - Garfield comic for ${formattedComicDate}`;
-    let shareBlob = null;
-
-    if (!imageUrl) {
-        showNotification("No comic to share. Please load a comic first.", 3000);
-        return;
-    }
-
-    try {
-        // Fetch the image to get a Blob.
-        // If the URL already routes through our proxy (e.g. Fandom), safely use it directly.
-        // Otherwise, wrap it in our Cloudflare CORS worker to avoid canvas tainting
-        // and bypass opaque-response restrictions.
-        let fetchUrl = imageUrl;
-        if (!imageUrl.startsWith('https://corsproxy.garfieldapp.workers.dev/')) {
-            fetchUrl = `https://corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(imageUrl)}`;
-        }
-
-        const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(10000) });
-        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-        const rawBlob = await response.blob();
-
-        // Convert to JPEG via canvas so the Windows share dialog always shows a
-        // thumbnail. The blob URL is same-origin so there is no canvas taint, even
-        // though the original image came from a third-party CDN.
-        const blobUrl = URL.createObjectURL(rawBlob);
-        shareBlob = rawBlob;
-        try {
-            const img = await new Promise((resolve, reject) => {
-                const i = new Image();
-                i.onload = () => resolve(i);
-                i.onerror = reject;
-                i.src = blobUrl;
-            });
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            // Fill with white background to prevent transparent GIFs/PNGs from becoming black JPEGs
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            shareBlob = await new Promise((resolve, reject) => {
-                canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
-            });
-        } finally {
-            URL.revokeObjectURL(blobUrl);
-        }
-
-        const file = new File([shareBlob], 'garfield.jpg', { type: 'image/jpeg', lastModified: Date.now() });
-
-        if (isNativeWebView()) {
-            const openedNativeShare = await shareThroughNativeHost({
-                title: `Garfield ${formattedComicDate}`,
-                text: `${shareText}\n${appUrl}`,
-                file
-            });
-            if (openedNativeShare) return;
-        }
-
-        if (!navigator.share) {
-            if (await copyShareFallbackToClipboard(shareBlob, `${shareText}\n${appUrl}`)) {
-                showNotification("Copied comic to clipboard so you can paste it into another app.", 3000);
-            } else {
-                showNotification("Sharing is not supported on this device.", 3000);
-            }
-            return;
-        }
-
-        // When sharing a file, if you also provide text and a URL, many apps (WhatsApp, Messages)
-        // will drop the file to create a link preview. To ensure the file is sent as an image attachment,
-        // we omit the 'url' parameter and just append the link to the 'text'.
-        await navigator.share({
-            title: `Garfield ${formattedComicDate}`,
-            text: `${shareText}\n${appUrl}`,
-            files: [file]
-        });
-    } catch (error) {
-        // Fallback to text-only sharing on any error (proxy failure, unsupported files, etc.)
-        if (error.name !== 'AbortError') {
-            if (isNativeWebView() && await copyShareFallbackToClipboard(shareBlob, `${shareText}\n${appUrl}`)) {
-                showNotification("Copied comic to clipboard so you can paste it into another app.", 3000);
-                return;
-            }
-
-            try {
-                await navigator.share({
-                    url: appUrl,
-                    text: shareText
-                });
-            } catch (fallbackError) {
-                if (fallbackError.name !== 'AbortError') {
-                    if (await copyShareFallbackToClipboard(shareBlob, `${shareText}\n${appUrl}`)) {
-                        showNotification("Copied comic to clipboard so you can paste it into another app.", 3000);
-                    } else {
-                        showNotification("Failed to share the comic. Please try again.", 3000);
-                    }
-                }
-            }
-        }
-    }
+    return shareComic({ comic: displayedComic, t: translations[UTILS.isSpanishMode() ? 'es' : 'en'], showNotification });
 }
 
-function isNativeWebView() {
-    return Boolean(window.chrome?.webview);
-}
 
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = String(reader.result || '');
-            resolve(result.includes(',') ? result.split(',')[1] : result);
-        };
-        reader.onerror = () => reject(reader.error || new Error('Failed to read blob'));
-        reader.readAsDataURL(blob);
-    });
-}
 
-async function shareThroughNativeHost({ title, text, file }) {
-    if (!isNativeWebView() || !file) return false;
 
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const base64 = await blobToBase64(file);
 
-    return await new Promise(resolve => {
-        const timeout = setTimeout(() => {
-            window.chrome.webview.removeEventListener('message', handleMessage);
-            resolve(false);
-        }, 5000);
 
-        const handleMessage = event => {
-            const message = event.data || {};
-            if (message.type !== 'garfield-share-result' || message.id !== id) return;
 
-            clearTimeout(timeout);
-            window.chrome.webview.removeEventListener('message', handleMessage);
-            resolve(Boolean(message.ok));
-        };
 
-        window.chrome.webview.addEventListener('message', handleMessage);
-        window.chrome.webview.postMessage({
-            type: 'garfield-share',
-            id,
-            title,
-            text,
-            fileName: file.name || 'garfield.jpg',
-            contentType: file.type || 'image/jpeg',
-            base64
-        });
-    });
-}
 
-async function copyShareFallbackToClipboard(imageBlob, text) {
-    if (!navigator.clipboard) return false;
 
-    if (imageBlob && window.ClipboardItem && navigator.clipboard.write) {
-        try {
-            const pngBlob = await convertBlobToPng(imageBlob);
-            await navigator.clipboard.write([new ClipboardItem({
-                [pngBlob.type]: pngBlob,
-                'text/plain': new Blob([text], { type: 'text/plain' })
-            })]);
-            return true;
-        } catch {
-            // Fall back to text only below.
-        }
-    }
-
-    if (navigator.clipboard.writeText) {
-        try {
-            await navigator.clipboard.writeText(text);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    return false;
-}
-
-async function convertBlobToPng(blob) {
-    if (blob.type === 'image/png') return blob;
-
-    const blobUrl = URL.createObjectURL(blob);
-    try {
-        const img = await new Promise((resolve, reject) => {
-            const i = new Image();
-            i.onload = () => resolve(i);
-            i.onerror = reject;
-            i.src = blobUrl;
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        return await new Promise((resolve, reject) => {
-            canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
-        });
-    } finally {
-        URL.revokeObjectURL(blobUrl);
-    }
-}
 
 /**
  * Add or remove comic from favorites
  */
+let displayedComic = null;
+
 function Addfav() {
     // Use formattedComicDate which is in YYYY/MM/DD format (consistent with rest of app)
-    if (!formattedComicDate) {
+    if (!displayedComic) {
         console.error('formattedComicDate is not set');
         return;
     }
 
-    // Determine the actual date to use for favorites
-    // In timezone edge case (Europe ahead of US), the displayed date may not have a comic yet
-    // The current comic is actually from the previous day, so use that date instead
-    let dateToFavorite = formattedComicDate;
-
-    // Detect timezone edge case:
-    // Next comic URL is same as current (detected by prefetch same-comic detection).
-    // This happens when the user's local time is ahead of Eastern Time and today's
-    // comic hasn't been released yet — the "next" comic is actually the same image.
-    const isTimezoneEdgeCase = currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl;
-
-    if (isTimezoneEdgeCase) {
-        // Timezone edge case: we're showing yesterday's comic on today's date
-        // Calculate the previous day's date
-        // Calculate the previous day's date.
-        // `new Date('YYYY-MM-DD')` would parse as UTC midnight and then be read
-        // back with local getters, shifting the result by a day west of UTC.
-        const currentDate = UTILS.dateFromFavoriteDateString(formattedComicDate);
-        currentDate.setDate(currentDate.getDate() - 1);
-        const prevYear = currentDate.getFullYear();
-        const prevMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const prevDay = String(currentDate.getDate()).padStart(2, '0');
-        dateToFavorite = `${prevYear}/${prevMonth}/${prevDay}`;
-    }
-
-    let favs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-
-    // Ensure favs is always an array
-    if (!Array.isArray(favs)) {
-        favs = [];
-    }
+    const dateToFavorite = displayedComic.date;
+    const favs = UTILS.getFavorites();
 
     const showFavsCheckbox = document.getElementById("showfavs");
 
@@ -2160,7 +1852,7 @@ function Addfav() {
     favs.sort();
     localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS, JSON.stringify(favs));
     // Auto-sync to Google Drive if signed in
-    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+    window.syncFavoritesToDrive?.();
     const wasAdded = favIndex === -1;
     UTILS.updateHeartIcon();
     updateExportButtonState();
@@ -2759,10 +2451,14 @@ function updateDateDisplay() {
  */
 async function loadComic(date, silentMode = false, direction = null) {
     const generation = ++_loadComicGeneration;
+    const favoriteButton = document.getElementById('favheart');
+    if (favoriteButton) favoriteButton.disabled = true;
     try {
         const useSpanish = UTILS.isSpanishMode();
         const language = useSpanish ? 'es' : 'en';
         const source = UTILS.getPreferredSource();
+
+        if (!navigator.onLine) await UTILS.reconcileOfflineComics();
 
         const result = navigator.onLine
             ? await getAuthenticatedComic(date, language, source)
@@ -2786,27 +2482,6 @@ async function loadComic(date, silentMode = false, direction = null) {
                 scheduleRotatedComicResize(imgElement);
             };
             const hasExistingComicImage = () => comicImg.src && comicImg.src !== window.location.href;
-            const waitForImageReady = (imageUrl) => new Promise((resolve) => {
-                const image = new Image();
-                let settled = false;
-                const finish = () => {
-                    if (settled) return;
-                    settled = true;
-                    resolve();
-                };
-                const decodeThenFinish = () => {
-                    if (typeof image.decode === 'function') {
-                        image.decode().catch(() => {}).finally(finish);
-                    } else {
-                        finish();
-                    }
-                };
-                image.onload = decodeThenFinish;
-                image.onerror = finish;
-                image.src = imageUrl;
-                if (image.complete) decodeThenFinish();
-                setTimeout(finish, 8000);
-            });
 
             // Animate transition - slide for next/previous, crossfade for other navigation
             const animateTransition = () => {
@@ -2878,13 +2553,7 @@ async function loadComic(date, silentMode = false, direction = null) {
 
                             // Use requestAnimationFrame to ensure browser has processed the src change
                             // This fixes the race condition where complete is still true from old image
-                            requestAnimationFrame(() => {
-                                if (comicImg.complete) {
-                                    startMorph();
-                                } else {
-                                    comicImg.addEventListener('load', startMorph, { once: true });
-                                }
-                            });
+                            startMorph();
                         }
                     } else {
                         // First load - no animation needed
@@ -2894,9 +2563,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                 });
             };
 
-            if (hasExistingComicImage()) {
-                await waitForImageReady(result.imageUrl);
-            }
+            await loadComicImage(result.imageUrl);
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
             }
@@ -2908,11 +2575,21 @@ async function loadComic(date, silentMode = false, direction = null) {
 
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;
+            displayedComic = Object.freeze({
+                date: UTILS.dateToISODateString(result.actualDate || date).replaceAll('-', '/'),
+                language,
+                imageUrl: result.imageUrl
+            });
+            const dateLabel = (result.actualDate || date).toLocaleDateString(useSpanish ? 'es-ES' : 'en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+            comicImg.alt = useSpanish ? `Garfield del ${dateLabel} (español)` : `Garfield for ${dateLabel} (English)`;
 
             if (!result.isOffline) {
-                const rememberComic = () => {
-                    if (comicImg.naturalWidth > 0) {
+                const rememberComic = async () => {
+                    if (comicImg.naturalWidth > 0 && await UTILS.cacheDisplayedComic(result.imageUrl)) {
                         UTILS.rememberOfflineComic(result.actualDate || date, language, result.imageUrl);
+                        await UTILS.reconcileOfflineComics();
                     }
                 };
                 if (comicImg.complete) rememberComic();
@@ -2933,6 +2610,7 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Also update the rotated comic if it exists (with animation)
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) {
+                rotatedComic.alt = comicImg.alt;
                 // Animate the rotated comic too
                 const animateRotatedComic = () => {
                     return new Promise((resolve) => {
@@ -3011,13 +2689,7 @@ async function loadComic(date, silentMode = false, direction = null) {
 
                             // Use requestAnimationFrame to ensure browser has processed the src change
                             // This fixes the race condition where complete is still true from old image
-                            requestAnimationFrame(() => {
-                                if (rotatedComic.complete) {
-                                    startMorph();
-                                } else {
-                                    rotatedComic.addEventListener('load', startMorph, { once: true });
-                                }
-                            });
+                            startMorph();
                         }
                     });
                 };
@@ -3055,9 +2727,13 @@ async function loadComic(date, silentMode = false, direction = null) {
             return { success: false, isSameComic: false, stale: true };
         }
         if (!silentMode) {
-            showErrorMessage('Failed to load comic. Please try again.');
+            showErrorMessage(translations[UTILS.isSpanishMode() ? 'es' : 'en'].loadFailed);
         }
         return { success: false, isSameComic: false };
+    } finally {
+        if (generation === _loadComicGeneration && favoriteButton) {
+            favoriteButton.disabled = !displayedComic;
+        }
     }
 }
 
@@ -3065,6 +2741,7 @@ async function loadComic(date, silentMode = false, direction = null) {
  * Show paywall message for unavailable comics
  */
 function showPaywallMessage() {
+    const t = translations[UTILS.isSpanishMode() ? 'es' : 'en'];
     const messageContainer = UTILS.getOrCreateMessageContainer('paywall-message');
     const daysDiff = Math.floor((new Date() - currentselectedDate) / (1000 * 60 * 60 * 24));
     messageContainer.textContent = '';
@@ -3075,13 +2752,13 @@ function showPaywallMessage() {
     const hint = document.createElement('p');
 
     if (daysDiff > 30) {
-        strong.textContent = 'Unable to load this archive comic';
-        body.textContent = `This comic is from ${daysDiff} day${daysDiff !== 1 ? 's' : ''} ago. GoComics normally requires a paid subscription to access comics older than 30 days.`;
-        hint.textContent = 'Try viewing more recent comics (last 30 days), which are free!';
+        strong.textContent = t.archiveTitle;
+        body.textContent = t.archiveBody.replace('{days}', daysDiff);
+        hint.textContent = t.archiveHint;
     } else {
-        strong.textContent = 'Unable to load this comic';
-        body.textContent = 'This recent comic should normally be free, but we\'re having trouble loading it.';
-        hint.textContent = 'Please try again later or try a different date.';
+        strong.textContent = t.loadTitle;
+        body.textContent = t.recentBody;
+        hint.textContent = t.loadHint;
     }
 
     title.appendChild(strong);
@@ -3093,19 +2770,20 @@ function showPaywallMessage() {
  * @param {string} message - Error message to display
  */
 function showErrorMessage(message) {
+    const t = translations[UTILS.isSpanishMode() ? 'es' : 'en'];
     const messageContainer = UTILS.getOrCreateMessageContainer('error-message');
     messageContainer.textContent = '';
 
     const title = document.createElement('p');
     const strong = document.createElement('strong');
-    strong.textContent = 'Unable to Load Comic';
+    strong.textContent = t.loadTitle;
     title.appendChild(strong);
 
     const body = document.createElement('p');
     body.textContent = message;
 
     const hint = document.createElement('p');
-    hint.textContent = 'Please try again later or select a different date.';
+    hint.textContent = t.loadHint;
 
     messageContainer.append(title, body, hint);
 }
@@ -3197,7 +2875,8 @@ async function displayServiceWorkerVersion() {
     }
 
     const version = await requestServiceWorkerVersion();
-    swDisplay.textContent = version ? `Version: ${version}` : 'Version: Unknown';
+    const t = translations[UTILS.isSpanishMode() ? 'es' : 'en'];
+    swDisplay.textContent = t.versionLabel.replace('{version}', version || t.versionUnknown);
 }
 
 function initApp() {
@@ -3294,7 +2973,7 @@ function initApp() {
             resetShuffleSession();
         }
         CompareDates();
-        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+        window.syncFavoritesToDrive?.();
     });
     document.getElementById('DatePicker').addEventListener('input', DateChange);
     document.getElementById('settingsBtn').addEventListener('click', HideSettings);
@@ -3610,11 +3289,11 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 
             // Check if we've reached the boundaries
             if (document.getElementById("Next")?.disabled && direction === 'next') {
-                showErrorMessage('No more comics available in this direction.');
+                showErrorMessage(translations[UTILS.isSpanishMode() ? 'es' : 'en'].noMoreComics);
                 break;
             }
             if (document.getElementById("Previous")?.disabled && direction === 'previous') {
-                showErrorMessage('No more comics available in this direction.');
+                showErrorMessage(translations[UTILS.isSpanishMode() ? 'es' : 'en'].noMoreComics);
                 break;
             }
 
@@ -3634,7 +3313,20 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         }
 
         if (attempts >= maxAttempts) {
-            showErrorMessage('Unable to find an available comic after multiple attempts.');
+            showErrorMessage(translations[UTILS.isSpanishMode() ? 'es' : 'en'].noAvailableComic);
+        }
+    }
+    if (!success && displayedComic) {
+        currentselectedDate = UTILS.dateFromFavoriteDateString(displayedComic.date);
+        formattedComicDate = displayedComic.date;
+        formattedDate = UTILS.dateToISODateString(currentselectedDate);
+        formatDate(currentselectedDate);
+        document.getElementById('DatePicker').value = formattedDate;
+        updateDateDisplay();
+        CompareDates();
+        UTILS.updateHeartIcon();
+        if (document.getElementById('lastdate').checked) {
+            localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, formattedDate);
         }
     }
 }
@@ -3813,12 +3505,8 @@ function importFavorites() {
                     return;
                 }
 
-                const currentFavs = UTILS.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []);
-                // Validate that every entry is a valid date string (YYYY/MM/DD)
-                const datePattern = /^\d{4}\/\d{2}\/\d{2}$/;
-                const importedFavs = data.favorites.filter(entry =>
-                    typeof entry === 'string' && datePattern.test(entry) && !Number.isNaN(UTILS.dateFromFavoriteDateString(entry).getTime())
-                );
+                const currentFavs = UTILS.getFavorites();
+                const importedFavs = normalizeFavorites(data.favorites);
 
                 if (importedFavs.length === 0) {
                     showNotification(t.invalidFavoritesFile, 4000);
@@ -3843,9 +3531,7 @@ function importFavorites() {
                         detail: { favorites: mergedFavs, source: 'import' }
                     }));
 
-                    if (typeof syncFavoritesToDrive === 'function') {
-                        syncFavoritesToDrive();
-                    }
+                    window.syncFavoritesToDrive?.();
                 } else {
                     showNotification(t.allFavoritesExist, 3000);
                 }
@@ -4281,7 +3967,7 @@ document.getElementById('swipe')?.addEventListener('change', function() {
         CompareDates();
         showComic();
     }
-    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+    window.syncFavoritesToDrive?.();
 });
 
 document.getElementById('lastdate')?.addEventListener('change', function() {
@@ -4293,7 +3979,7 @@ document.getElementById('darkmode')?.addEventListener('click', function() {
     setDarkModeControlState(this, useDarkMode);
     localStorage.setItem(CONFIG.STORAGE_KEYS.DARK_MODE, useDarkMode ? 'true' : 'false');
     applyDarkMode(useDarkMode);
-    if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+    window.syncFavoritesToDrive?.();
 });
 
 document.getElementById('showfavs')?.addEventListener('change', function() {
@@ -4352,7 +4038,7 @@ if (spanishCheckbox) {
             showComic();
         }
 
-        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+        window.syncFavoritesToDrive?.();
     });
 }
 
@@ -4396,7 +4082,7 @@ if (sourceSelect) {
         _applySourceSetting(source);
         CompareDates();
         showComic();
-        if (typeof syncFavoritesToDrive === 'function') syncFavoritesToDrive();
+        window.syncFavoritesToDrive?.();
     });
 }
 
@@ -4638,8 +4324,8 @@ async function favoritesApiFetch(path, init = {}, { includeAuth = true, requireA
         headers.set('Content-Type', 'application/json');
     }
 
-    if (includeAuth && typeof getFavoritesApiAccessToken === 'function') {
-        const accessToken = await getFavoritesApiAccessToken();
+    if (includeAuth && typeof window.getFavoritesApiAccessToken === 'function') {
+        const accessToken = await window.getFavoritesApiAccessToken();
         if (accessToken) {
             headers.set('Authorization', `Bearer ${accessToken}`);
         }
@@ -4687,48 +4373,20 @@ async function reportFavoriteToggle(date, action) {
 }
 
 function getValidFavoriteDates(favorites) {
-    if (!Array.isArray(favorites)) return [];
-
-    return [...new Set(favorites.filter(date => typeof date === 'string' && /^\d{4}\/\d{2}\/\d{2}$/.test(date)))].sort();
+    return normalizeFavorites(favorites).sort();
 }
 
-function ensureFavoritesMigrationVersion() {
-    const storedVersion = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATION_VERSION);
-    if (storedVersion === CONFIG.FAVORITES_MIGRATION_VERSION) return;
-
-    localStorage.removeItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED);
-    localStorage.removeItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES);
-    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATION_VERSION, CONFIG.FAVORITES_MIGRATION_VERSION);
+function favoritesMigrationKey(accountId) {
+    return `${CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES}:${CONFIG.FAVORITES_MIGRATION_VERSION}:${encodeURIComponent(accountId)}`;
 }
 
-function getMigratedFavoriteDates(favorites = UTILS.getFavorites()) {
-    ensureFavoritesMigrationVersion();
-
-    const migratedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES);
-    const migratedDates = getValidFavoriteDates(UTILS.safeJSONParse(migratedRaw, []));
-    if (migratedDates.length > 0) {
-        return migratedDates;
-    }
-
-    if (localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED)) {
-        const legacyDates = getValidFavoriteDates(favorites);
-        if (legacyDates.length > 0) {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES, JSON.stringify(legacyDates));
-        }
-        return legacyDates;
-    }
-
-    return [];
+function getMigratedFavoriteDates(accountId) {
+    return getValidFavoriteDates(UTILS.safeJSONParse(localStorage.getItem(favoritesMigrationKey(accountId)), []));
 }
 
-function markFavoritesAsMigrated(dates) {
-    ensureFavoritesMigrationVersion();
-
-    const merged = [...new Set([...getMigratedFavoriteDates(), ...getValidFavoriteDates(dates)])].sort();
-    localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES, JSON.stringify(merged));
-    if (merged.length > 0) {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.FAVS_MIGRATED, '1');
-    }
+function markFavoritesAsMigrated(dates, accountId) {
+    const merged = [...new Set([...getMigratedFavoriteDates(accountId), ...getValidFavoriteDates(dates)])].sort();
+    localStorage.setItem(favoritesMigrationKey(accountId), JSON.stringify(merged));
 }
 
 function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
@@ -4758,20 +4416,21 @@ function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
         .catch(() => {})
         .then(async () => {
             try {
-                const migratedDates = new Set(getMigratedFavoriteDates(validFavorites));
+                const identity = await window.getFavoritesApiIdentity?.();
+                if (!identity) return;
+                const migratedDates = new Set(getMigratedFavoriteDates(identity.accountId));
                 const pendingDates = validFavorites.filter(date => !migratedDates.has(date));
-                if (!pendingDates.length) return;
-
-                const response = await favoritesApiFetch('/migrate', {
-                    method: 'POST',
-                    cache: 'no-store',
-                    body: JSON.stringify({ dates: pendingDates })
-                }, { requireAuth: true });
-                if (!response.ok) return;
-
-                const data = await response.json().catch(() => null);
-                if (data?.ok) {
-                    markFavoritesAsMigrated(pendingDates);
+                for (let offset = 0; offset < pendingDates.length; offset += CONFIG.FAVORITES_MIGRATION_BATCH_SIZE) {
+                    const dates = pendingDates.slice(offset, offset + CONFIG.FAVORITES_MIGRATION_BATCH_SIZE);
+                    const response = await favoritesApiFetch('/migrate', {
+                        method: 'POST', cache: 'no-store',
+                        headers: { Authorization: `Bearer ${identity.accessToken}` },
+                        body: JSON.stringify({ dates })
+                    }, { includeAuth: false, requireAuth: true });
+                    if (!response.ok) return;
+                    const data = await response.json().catch(() => null);
+                    if (!data?.ok) return;
+                    markFavoritesAsMigrated(dates, identity.accountId);
                 }
             } catch { /* noop */ }
         });
