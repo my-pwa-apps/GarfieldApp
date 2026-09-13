@@ -2451,6 +2451,7 @@ function updateDateDisplay() {
  */
 async function loadComic(date, silentMode = false, direction = null) {
     const generation = ++_loadComicGeneration;
+    if (generation === 1) globalThis.performance?.mark?.('comic:discovery-start');
     const favoriteButton = document.getElementById('favheart');
     if (favoriteButton) favoriteButton.disabled = true;
     try {
@@ -2463,6 +2464,7 @@ async function loadComic(date, silentMode = false, direction = null) {
         const result = navigator.onLine
             ? await getAuthenticatedComic(date, language, source)
             : UTILS.getOfflineComic(date, language, direction);
+        if (generation === 1) globalThis.performance?.mark?.('comic:discovery-end');
 
         if (generation !== _loadComicGeneration) {
             return { success: false, isSameComic: false, stale: true };
@@ -2563,7 +2565,9 @@ async function loadComic(date, silentMode = false, direction = null) {
                 });
             };
 
+            if (generation === 1) globalThis.performance?.mark?.('comic:decode-start');
             await loadComicImage(result.imageUrl);
+            if (generation === 1) globalThis.performance?.mark?.('comic:decoded');
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
             }
@@ -2572,6 +2576,9 @@ async function loadComic(date, silentMode = false, direction = null) {
                 return { success: false, isSameComic: false, stale: true };
             }
             comicImg.style.display = 'block';
+            if (generation === 1) requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (generation === _loadComicGeneration) globalThis.performance?.mark?.('comic:first-display');
+            }));
 
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;

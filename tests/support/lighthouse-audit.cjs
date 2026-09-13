@@ -11,8 +11,34 @@ const outputPath = path.resolve(__dirname, '../lighthouse-report.json');
 const thresholds = {
   performance: 0.6,
   accessibility: 0.9,
-  'best-practices': 0.85
+  'best-practices': 0.85,
+  seo: 0.9
 };
+
+async function readFirstVisit(page) {
+  await page.waitForFunction(() => {
+    const image = document.getElementById('comic');
+    return image?.complete && image.naturalWidth > 0 && performance.getEntriesByName('comic:first-display').length > 0;
+  }, null, { timeout: 45000 });
+  return page.evaluate(async () => {
+    const image = document.getElementById('comic');
+    await image.decode();
+    const timing = name => {
+      const entry = performance.getEntriesByName(`comic:${name}`)[0];
+      if (!entry) throw new Error(`Missing first-visit timing: ${name}`);
+      return entry.startTime;
+    };
+    return {
+      bootMs: timing('discovery-start'),
+      discoveryMs: timing('discovery-end') - timing('discovery-start'),
+      imageLoadAndDecodeMs: timing('decoded') - timing('decode-start'),
+      displayAfterDecodeMs: timing('first-display') - timing('decoded'),
+      navigationToFirstDisplayMs: timing('first-display'),
+      imageWidth: image.naturalWidth,
+      imageUrl: image.currentSrc
+    };
+  });
+}
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -57,7 +83,7 @@ async function main() {
       url,
       '--quiet',
       `--port=${chromeDebugPort}`,
-      '--only-categories=performance,accessibility,best-practices',
+      '--only-categories=performance,accessibility,best-practices,seo',
       '--output=json',
       `--output-path=${outputPath}`
     ]);
@@ -66,6 +92,29 @@ async function main() {
     const scores = Object.fromEntries(
       Object.entries(thresholds).map(([category]) => [category, report.categories[category].score])
     );
+
+    const lcpMs = report.audits['largest-contentful-paint'].numericValue;
+    const speedIndexMs = report.audits['speed-index'].numericValue;
+    const comicMarks = Object.fromEntries((report.audits['user-timings']?.details?.items || [])
+      .filter(item => item.name.startsWith('comic:')).map(item => [item.name, item.startTime]));
+    const decodedComicObserved = Object.hasOwn(comicMarks, 'comic:first-display');
+    const targetsMet = decodedComicObserved && lcpMs < 3000 && speedIndexMs < 5800 && scores.performance >= 0.8;
+    console.log(`Live-provider Lighthouse: ${JSON.stringify({ scores, lcpMs, speedIndexMs, decodedComicObserved, comicMarks, targetsMet })}`);
+    if (!decodedComicObserved) throw new Error('Live-provider audit did not observe a decoded first comic; do not treat logo-only scores as a passing visit');
+
+    const { devices } = require('playwright');
+    const context = await browser.newContext({ ...devices['Pixel 5'], serviceWorkers: 'block', locale: 'en-US' });
+    try {
+      const page = await context.newPage();
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      console.log(`Separate live-provider first visit (unthrottled mobile emulation): ${JSON.stringify(await readFirstVisit(page))}`);
+    } finally {
+      await context.close();
+    }
+
+    if (process.argv.includes('--strict-performance') && !targetsMet) {
+      throw new Error('R15 performance targets were not met; require three comparable passing cold runs before closing R15');
+    }
 
     for (const [category, minimum] of Object.entries(thresholds)) {
       const score = scores[category];
@@ -81,7 +130,10 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error(error.message);
-  process.exit(1);
-});
+module.exports = { readFirstVisit };
+if (require.main === module) {
+  main().catch(error => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}

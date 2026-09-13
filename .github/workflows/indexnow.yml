@@ -1,0 +1,54 @@
+name: Notify IndexNow after publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full main-branch commit SHA already published to production
+        required: true
+        type: string
+      submit:
+        description: Submit the homepage after production file verification (otherwise dry run)
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: indexnow-production
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select an explicitly published main revision
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          git merge-base --is-ancestor "$REVISION" origin/main
+          git checkout --detach "$REVISION"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test submission safeguards without network
+        run: node --test tests/unit/indexnow.test.mjs
+      - name: Preview or submit
+        env:
+          SUBMIT: ${{ inputs.submit }}
+        run: |
+          if [ "$SUBMIT" = "true" ]; then
+            npm run indexnow -- --submit
+          else
+            npm run indexnow -- --dry-run
+          fi

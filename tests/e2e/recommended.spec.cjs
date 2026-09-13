@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { readFirstVisit } = require('../support/lighthouse-audit.cjs');
 
 const transparentPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l8WU3wAAAABJRU5ErkJggg==',
@@ -85,6 +86,22 @@ async function openSettings(page) {
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
 }
+
+test('first visit reports separate startup, discovery, decode and display timings with fixtures', async ({ page }) => {
+  const result = await openApp(page);
+  const timings = await readFirstVisit(page);
+  for (const field of ['bootMs', 'discoveryMs', 'imageLoadAndDecodeMs', 'displayAfterDecodeMs']) {
+    expect(Number.isFinite(timings[field])).toBe(true);
+    expect(timings[field]).toBeGreaterThanOrEqual(0);
+  }
+  expect(timings.navigationToFirstDisplayMs).toBeLessThan(10000);
+  expect(timings.imageWidth).toBeGreaterThan(0);
+  await expect(page.locator('#comic')).toBeVisible();
+  await expect(page.locator('#favheart')).toBeEnabled();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://garfieldapp.pages.dev/');
+  await expect(page.locator('link[hreflang]')).toHaveCount(0);
+  expect(result.errors).toEqual([]);
+});
 
 test('comic source fallback recovers when the preferred proxy fails', async ({ page }) => {
   const result = await openApp(page, { proxyFailures: 1 });

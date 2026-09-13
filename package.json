@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
@@ -15,8 +15,10 @@
     "test:e2e": "playwright test",
     "test:native": "playwright test --config=playwright.native.config.cjs",
     "test:lighthouse": "node tests/support/lighthouse-audit.cjs",
+    "test:first-visit": "playwright test tests/e2e/recommended.spec.cjs --grep \"first visit\"",
     "test:workers": "node tests/support/live-worker-health.cjs",
     "bump:version": "node tools/bump-version.cjs",
+    "indexnow": "node tools/indexnow.cjs",
     "test:assets": "node tools/verify-assets.cjs",
     "test:predeploy": "npm run test:lint && npm run test:syntax && npm run test:assets && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
     "test:pwa": "playwright test tests/e2e/pwa-offline.spec.cjs --project=chromium",

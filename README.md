@@ -48,6 +48,7 @@ npm run test:unit
 npm run test:e2e
 npm run test:cross-browser
 npm run test:lighthouse
+npm run test:first-visit
 npm run test:workers
 ```
 
@@ -58,6 +59,12 @@ npm run test:predeploy
 ```
 
 `test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy.
+
+`test:first-visit` uses deterministic provider fixtures on desktop and mobile Chromium. It checks a decoded, visible comic and records separate startup, discovery, image load/decode, and first-display milestones. The first-display mark runs after two animation frames; it is a render-readiness approximation, not a browser paint metric. No timing data is sent to an analytics service.
+
+`test:lighthouse` audits live providers and reports performance, accessibility, best practices, SEO, LCP, Speed Index, and captured first-comic marks. It fails if the trace never observes a decoded comic, even when the logo gives the page a good LCP score. A successful trace is followed by a separate cold, unthrottled mobile-emulation timing probe; those timings are not Lighthouse's modeled mobile timings. Provider errors remain failures, not fixture results.
+
+Run `npm run test:lighthouse -- --strict-performance` to additionally enforce R15's LCP <3 seconds, Speed Index <5.8 seconds, and performance >=0.80 targets. Require three comparable cold passes before closing R15; a single fast run is not sufficient.
 
 Every push and pull request to `main` also runs syntax, lint, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
 
@@ -75,6 +82,32 @@ Before deploying to another origin, update these environment-specific surfaces:
 - Any shared URLs intentionally shown to users.
 
 The manifest uses relative `id`, `start_url`, and `scope` so PWA install/open behavior works at either a domain root or a subpath.
+
+## Search and IndexNow
+
+The homepage is the only canonical indexable page currently listed in the sitemaps. Its language adapts to browser and saved preferences; do not add `hreflang` alternatives until distinct language URLs with appropriate initial HTML exist. Comic-date pages and their content permissions remain a separate publishing decision.
+
+Verify the production URL-prefix property in Google Search Console and the site in Bing Webmaster Tools, then submit the existing sitemap. Repository verification tokens alone do not establish current account ownership. Preserve both Google verification methods until ownership has been checked.
+
+[IndexNow](https://www.indexnow.org/documentation) notifies participating search engines about changed URLs; it is not advertising or a ranking guarantee. The verification file is [indexnow-key.txt](indexnow-key.txt). It is publicly served by design, not a Google, Bing, or Cloudflare account credential. Google does not currently participate in IndexNow.
+
+Preview the homepage notification without making any network requests:
+
+```powershell
+npm run indexnow
+```
+
+After a meaningful homepage change has been deployed, use the **Notify IndexNow after publication** workflow from `main`. Enter the full published main-branch commit SHA. Leave `submit` unchecked to preview; explicitly enable it to notify. The workflow does not deploy anything or need account secrets, and does not run automatically on pushes or pull requests.
+
+The submission command compares production bytes with the selected checkout's service worker, all precached app files, both sitemaps, robots file, and IndexNow key. Redirects, missing files, mismatches, or request failures prevent submission. This verifies the app payload, not a Cloudflare deployment ID; commits with identical deployed app files are indistinguishable. Prefer the Linux workflow to avoid local line-ending differences. Once those checks pass, only `https://garfieldapp.pages.dev/` is submitted. HTTP 202 means key validation is pending; neither 200 nor 202 guarantees indexing. Repeated retries on 429 are intentionally not automatic.
+
+For an equivalent explicit submission from a clean checkout of the published revision:
+
+```powershell
+npm run indexnow -- --submit
+```
+
+Do not notify for documentation-only commits, assets, query-string settings, or unchanged URLs. A Pages deployment-success trigger can be added later once its production environment and revision signal are verified. The local implementation and dry-run checks do not publish the key or send notifications.
 
 ## Service Worker Versioning
 
@@ -102,7 +135,7 @@ npx wrangler deploy --config worker/wrangler.toml
 
 The older `corsproxy` Worker at https://corsproxy.garfieldapp.workers.dev is shared with other apps and remains untouched for their clients and older installed Garfield versions. Do not rename this repository's Worker back to `corsproxy` or deploy over that shared service. New fetches and sharing use the dedicated endpoint; the image CSP retains the legacy origin for cached comics, and sharing translates legacy proxy URLs to the dedicated endpoint.
 
-The dedicated Worker was deployed on September 7, 2026. The Pages frontend was not published as part of that operation. Live verification confirmed origin/host restrictions and that the shared Worker's version remained unchanged. Real Chromium checks confirmed English works through both proxies, and the live Spanish switch successfully loads September 7 through the shared proxy. However, the same September 7 Spanish request returned 403 through the dedicated proxy; April 29 Spanish returned 403 on both. Hold frontend endpoint migration until this parity gap is resolved or explicitly accepted. Cache state and upstream variability have not been isolated as causes. The custom-user-agent health probe is also not representative of successful browser reads. See R06 in [BACKLOG.md](BACKLOG.md#r06) for evidence and validation requirements.
+The dedicated Worker was deployed on September 7, 2026; Pages was not published as part of that operation. A September 13 production-browser check now confirms the homepage uses the dedicated proxy and decodes the English comic, so the endpoint migration is already live. Earlier comparisons found September 7 Spanish worked through the shared proxy but returned 403 through the dedicated proxy; April 29 Spanish returned 403 on both. Recheck Spanish parity on the current deployment and resolve any regression or explicitly accept it. Cache state and upstream variability have not been isolated as causes. The custom-user-agent health probe is not representative of successful browser reads. See R06 in [BACKLOG.md](BACKLOG.md#r06) for remaining validation requirements.
 
 The CORS proxy allowlist is configured through `worker/wrangler.toml` via `ALLOWED_HOSTS`.
 
