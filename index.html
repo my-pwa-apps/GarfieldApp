@@ -37,10 +37,9 @@
 
     <!-- Preconnect to external origins for faster loading -->
     <link rel="preconnect" href="https://garfieldapp-corsproxy.garfieldapp.workers.dev" crossorigin>
-    <link rel="preconnect" href="https://featureassets.gocomics.com" crossorigin>
-    <link rel="preconnect" href="https://assets.amuniversal.com" crossorigin>
-    <link rel="preconnect" href="https://static.wikia.nocookie.net" crossorigin>
-    <link rel="preconnect" href="https://resources.arcamax.com" crossorigin>
+    <link rel="preconnect" href="https://garfield.fandom.com" crossorigin>
+    <link rel="preconnect" href="https://featureassets.gocomics.com">
+    <link rel="preconnect" href="https://resources.arcamax.com">
 
 
     <!-- Icons and manifest -->
@@ -104,7 +103,7 @@
 
     <!-- Styles and scripts -->
     <link rel="stylesheet" href="./main.css">
-    <link rel="preload" as="image" href="./garlogo.webp">
+    <link rel="preload" as="image" href="./garlogo.webp" imagesrcset="./garlogo-420.webp 420w, ./garlogo-700.webp 700w, ./garlogo.webp 835w" imagesizes="(max-width: 904px) 84vw, 760px">
     <script src="./init.js" defer></script>
     <!-- Google Identity Services is injected on demand by googleDriveSync.js so
          visitors who never sync do not download it. -->
@@ -178,7 +177,7 @@
 
     <h1 class="visually-hidden">Daily Garfield Comics - Browse Comic Strips in English &amp; Spanish</h1>
     <div class="logo">
-        <img src="./garlogo.webp" alt="Daily Garfield Comics" loading="eager">
+        <img src="./garlogo.webp" srcset="./garlogo-420.webp 420w, ./garlogo-700.webp 700w, ./garlogo.webp 835w" sizes="(max-width: 904px) 84vw, 760px" width="835" height="201" alt="Daily Garfield Comics" loading="eager">
     </div>
 
     <!-- Notification Toast -->
@@ -225,7 +224,7 @@
             Offline: showing saved comics
         </div>
         <div id="comic-wrapper">
-            <img id="comic" class="normal" alt="Loading comic..." decoding="async" fetchpriority="high">
+            <img id="comic" class="normal" width="900" height="270" alt="Loading comic..." decoding="async" fetchpriority="high">
         </div>
     </div>
 

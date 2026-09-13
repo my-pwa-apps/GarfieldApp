@@ -565,6 +565,7 @@ input {
 
 .logo img {
     max-width: min(84vw, 760px);
+    height: auto;
     margin: 12px auto 0;
     display: block;
 }
@@ -575,7 +576,7 @@ input {
     justify-content: center;
     align-items: center;
     width: 100%;
-    margin: 58px auto 0;
+    margin: 108px auto 0;
     padding: 12px 0 10px;
     box-sizing: border-box;
     position: relative;

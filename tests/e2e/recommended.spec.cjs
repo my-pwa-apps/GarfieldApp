@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const { readFirstVisit } = require('../support/lighthouse-audit.cjs');
+const sharp = require('sharp');
 
 const transparentPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l8WU3wAAAABJRU5ErkJggg==',
@@ -90,6 +91,66 @@ async function openSettings(page) {
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
 }
+
+for (const [date, height] of [['2026-09-12', 270], ['2026-09-13', 633]]) {
+  test(`first load reserves comic space for ${date}`, async ({ page }) => {
+    await page.clock.setFixedTime(new Date(`${date}T16:00:00Z`));
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true });
+      window.startupLayoutShift = 0;
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) window.startupLayoutShift += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    });
+    await mockExternalServices(page);
+    const image = await sharp({ create: { width: 900, height, channels: 3, background: '#ffffff' } }).png().toBuffer();
+    await page.context().route('https://featureassets.gocomics.com/**', route => route.fulfill({ contentType: 'image/png', body: image }));
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.context().route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', async route => {
+      await gate;
+      await route.fallback();
+    });
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('#comic')).toHaveAttribute('height', String(height));
+      const before = await page.locator('.settings-icons-container').boundingBox();
+      const reserved = await page.locator('#comic').boundingBox();
+      expect(reserved.height).toBeGreaterThan(50);
+      release();
+      await expect(page.locator('#favheart')).toBeEnabled();
+      await expect(page.locator('#comic')).toHaveJSProperty('naturalWidth', 900);
+      await expect(page.locator('#comic')).toHaveAttribute('width', '900');
+      await expect(page.locator('#comic')).toHaveAttribute('height', String(height));
+      const after = await page.locator('.settings-icons-container').boundingBox();
+      expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      expect(await page.evaluate(() => window.startupLayoutShift)).toBeLessThan(0.05);
+    } finally {
+      release();
+    }
+  });
+}
+
+test('responsive logo preload matches the mobile image without duplicate transfers', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 412, height: 823 }, deviceScaleFactor: 1, serviceWorkers: 'block' });
+  try {
+    const page = await context.newPage();
+    await openApp(page);
+    await expect(page.locator('.logo img')).toHaveJSProperty('complete', true);
+    const logo = await page.locator('.logo img').evaluate(image => ({
+      src: image.currentSrc, width: image.width, height: image.height,
+      requests: performance.getEntriesByType('resource').filter(entry => /garlogo[^/]*\.webp/.test(entry.name)).map(entry => entry.name)
+    }));
+    expect(logo.src).toMatch(/garlogo-420\.webp$/);
+    expect(logo.requests).toEqual([logo.src]);
+    expect(logo.width / logo.height).toBeCloseTo(835 / 201, 1);
+  } finally {
+    await context.close();
+  }
+});
 
 test('first visit reports separate startup, discovery, decode and display timings with fixtures', async ({ page }) => {
   const result = await openApp(page);

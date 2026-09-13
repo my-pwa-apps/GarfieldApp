@@ -341,6 +341,20 @@ test('an image that cannot be fetched offline degrades to a 503 instead of throw
     assert.equal(response.status, 503);
 });
 
+test('responsive logos use the original offline without precaching unused variants', async () => {
+    assert.ok(!source.includes("'./garlogo-420.webp'"));
+    assert.ok(!source.includes("'./garlogo-700.webp'"));
+    const sw = loadServiceWorker({ fetchImpl: async () => { throw new Error('offline'); } });
+    const cache = await sw.caches.open(`garfield-${VERSION}`);
+    await cache.put('./garlogo.webp', new SWResponse('original logo'));
+    for (const width of [420, 700]) {
+        const response = await sw.request(`./garlogo-${width}.webp`, { destination: 'image' });
+        assert.equal(await response.text(), 'original logo');
+    }
+    const response = await sw.request('https://example.com/garlogo-420.webp', { destination: 'image' });
+    assert.equal(response.status, 503);
+});
+
 test('the runtime cache is bounded and falls back to cache when the network fails', async () => {
     const sw = loadServiceWorker({ fetchImpl: async () => new SWResponse('data') });
     for (let i = 0; i < 35; i++) {

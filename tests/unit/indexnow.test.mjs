@@ -96,6 +96,14 @@ test('search, social and structured metadata consistently describe the canonical
   assert.equal(metadata.get('og:url'), canonical);
   assert.equal(metadata.get('twitter:url'), canonical);
   assert.equal(metadata.get('twitter:card'), 'summary_large_image');
+  const preconnects = [...html.matchAll(/<link rel="preconnect"[^>]+>/g)].map(match => match[0]);
+  assert.equal(preconnects.length, 4);
+  for (const origin of ['featureassets.gocomics.com', 'resources.arcamax.com']) {
+    assert.ok(preconnects.some(link => link.includes(origin) && !link.includes('crossorigin')));
+  }
+  for (const origin of ['garfieldapp-corsproxy.garfieldapp.workers.dev', 'garfield.fandom.com']) {
+    assert.ok(preconnects.some(link => link.includes(origin) && link.includes('crossorigin')));
+  }
   assert.equal(metadata.get('og:image'), metadata.get('twitter:image'));
   assert.equal(metadata.get('og:image:alt'), metadata.get('twitter:image:alt'));
   assert.ok(metadata.get('og:image:alt'));

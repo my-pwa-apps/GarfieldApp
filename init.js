@@ -1,3 +1,8 @@
+const initialComic = document.getElementById('comic');
+if (initialComic && new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' }).format(new Date()) === 'Sun') {
+    initialComic.height = 633;
+}
+
 /**
  * Fullscreen detection and state management
  */

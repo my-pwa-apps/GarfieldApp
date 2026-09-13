@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadComicImage, loadComicWithFallback } from '../../comicPresentation.js';
+import { loadComicImage, loadComicWithFallback, reserveComicSpace, setComicImage } from '../../comicPresentation.js';
+
+test('first comic reserves a daily or Sunday ratio and commits actual decoded dimensions', () => {
+    const image = { getAttribute: () => image.src };
+    reserveComicSpace(image, new Date(2026, 8, 12));
+    assert.deepEqual([image.width, image.height], [900, 270]);
+    reserveComicSpace(image, new Date(2026, 8, 13));
+    assert.deepEqual([image.width, image.height], [900, 633]);
+    setComicImage(image, { imageUrl: 'comic.webp', imageWidth: 1200, imageHeight: 850 });
+    assert.deepEqual([image.width, image.height, image.src], [1200, 850, 'comic.webp']);
+    reserveComicSpace(image, new Date(2026, 8, 14));
+    assert.deepEqual([image.width, image.height], [1200, 850]);
+});
 
 test('comic presentation rejects failed, empty, undecodable and stalled images', async () => {
     const previous = globalThis.Image;
@@ -50,7 +62,7 @@ test('successful online image avoids fallback and cancellation never selects a f
         date: new Date(), language: 'en', source: 'gocomics', timeoutMs: 100, imageTimeoutMs: 10,
         signal: controller.signal,
         getFallbacks: async () => { fallbackCalls++; return []; },
-        loadImage: async () => {},
+        loadImage: async () => ({ naturalWidth: 900, naturalHeight: 633 }),
         fetchComic: async (date, language, source, request) => {
             await request.validateImage('good.gif');
             return { success: true, imageUrl: 'good.gif' };
@@ -58,6 +70,7 @@ test('successful online image avoids fallback and cancellation never selects a f
     };
     const result = await loadComicWithFallback(options);
     assert.equal(result.imageUrl, 'good.gif');
+    assert.deepEqual([result.imageWidth, result.imageHeight], [900, 633]);
     assert.equal(result.imageReady, true);
     controller.abort();
     await assert.rejects(loadComicWithFallback(options), { name: 'AbortError' });

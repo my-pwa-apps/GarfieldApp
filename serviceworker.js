@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.21';
+const VERSION = 'v1.0.22';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = 'garfield-images-v1';
@@ -222,6 +222,11 @@ async function cacheFirstWithLimit(request, cacheName, maxSize) {
     }
     return networkResponse;
   } catch (error) {
+    const url = new URL(request.url);
+    if (url.origin === location.origin && /\/garlogo-(420|700)\.webp$/.test(url.pathname)) {
+      const logo = await caches.match('./garlogo.webp');
+      if (logo) return logo;
+    }
     return new Response('Image not available offline', {
       status: 503,
       statusText: 'Service Unavailable'

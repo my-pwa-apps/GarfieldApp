@@ -1,5 +1,24 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
 
+export function reserveComicSpace(image, date) {
+    if (image.getAttribute('src')) return;
+    image.width = 900;
+    image.height = date.getDay() === 0 ? 633 : 270;
+}
+
+export function setComicImage(image, result) {
+    if (result.imageWidth > 0 && result.imageHeight > 0) {
+        image.width = result.imageWidth;
+        image.height = result.imageHeight;
+    }
+    image.src = result.imageUrl;
+}
+
+export async function decodeComicResult(result, timeoutMs, signal) {
+    const image = await loadComicImage(result.imageUrl, timeoutMs, signal);
+    Object.assign(result, { imageWidth: image.naturalWidth, imageHeight: image.naturalHeight });
+}
+
 export function selectOfflineComic(dateString, comics, direction, parseDate, firstDate) {
     let comic = comics.find(entry => entry.date === dateString);
     if (!comic && direction === 'previous') {
@@ -70,6 +89,7 @@ export async function loadComicWithFallback({
     timer = setTimeout(() => controller.abort(new Error('Comic loading deadline exceeded')), timeoutMs);
     let decodeStart;
     let decoded;
+    let readyImage;
     try {
         const result = await Promise.race([
             fetchComic(date, language, source, {
@@ -77,13 +97,13 @@ export async function loadComicWithFallback({
                 validateImage: async imageUrl => {
                     controller.signal.throwIfAborted();
                     decodeStart = performance.now();
-                    await loadImage(imageUrl, imageTimeoutMs, controller.signal);
+                    readyImage = await loadImage(imageUrl, imageTimeoutMs, controller.signal);
                     decoded = performance.now();
                 }
             }),
             aborted
         ]);
-        if (result.success) return { ...result, imageReady: true, decodeStart, decoded };
+        if (result.success) return { ...result, imageReady: true, imageWidth: readyImage?.naturalWidth, imageHeight: readyImage?.naturalHeight, decodeStart, decoded };
     } catch (error) {
         if (signal?.aborted) throw error;
     } finally {
@@ -98,8 +118,8 @@ export async function loadComicWithFallback({
         signal?.throwIfAborted();
         try {
             decodeStart = performance.now();
-            await loadImage(fallback.imageUrl, imageTimeoutMs, signal);
-            return { ...fallback, success: true, imageReady: true, isFallback: true, decodeStart, decoded: performance.now() };
+            readyImage = await loadImage(fallback.imageUrl, imageTimeoutMs, signal);
+            return { ...fallback, success: true, imageReady: true, imageWidth: readyImage?.naturalWidth, imageHeight: readyImage?.naturalHeight, isFallback: true, decodeStart, decoded: performance.now() };
         } catch (error) {
             if (signal?.aborted) throw error;
         }

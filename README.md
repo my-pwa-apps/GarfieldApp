@@ -109,6 +109,14 @@ npm run indexnow -- --submit
 
 Do not notify for documentation-only commits, assets, query-string settings, or unchanged URLs. A Pages deployment-success trigger can be added later once its production environment and revision signal are verified. The local implementation and dry-run checks do not publish the key or send notifications.
 
+## First-Load Images
+
+The logo uses 420px and 700px responsive WebP variants with a matching responsive preload; the original 835px image remains available for larger/high-density displays. The resized variants use WebP quality 90 because lossless resized output was larger than the original. Variants are cached on demand and fall back to the precached original offline, avoiding installation downloads of unused sizes. The separate install screenshots remain lossless.
+
+Comic loading reserves a 900x270 daily-strip estimate or 900x633 Sunday estimate (Eastern Time on initial bootstrap), then applies the decoded image's actual width and height before display. Existing comics retain their dimensions until their replacements are ready. Historical, translated, redirected or differently cropped strips may differ from the estimate, so this reduces rather than guarantees elimination of layout shifts. Desktop toolbar clearance is reserved in CSS from the start.
+
+Connection hints are limited to four likely origins. The proxy and Fandom API use anonymous CORS hints; direct GoComics and ArcaMax image hosts use non-CORS hints. Provider ordering and deadlines are unchanged.
+
 ## Screenshot Assets
 
 Current captures in [screenshots/](screenshots/) show the September 12, 2026 comic in the updated interface. The install manifest provides a labeled lossless WebP for desktop (1280x800) and mobile (780x1688). Open Graph, large Twitter cards, and structured data reference a separate 1200x630 PNG social preview for broad sharing compatibility. The comic and its copyright notices remain visible; these are app captures, not promotional mockups.

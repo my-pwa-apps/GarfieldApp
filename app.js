@@ -3,7 +3,7 @@ import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
 import { makeDraggable } from './toolbar.js';
 import { normalizeFavorites } from './favorites.js';
-import { loadComicImage, loadComicWithFallback, selectOfflineComic } from './comicPresentation.js';
+import { decodeComicResult, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage } from './comicPresentation.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -2444,6 +2444,7 @@ function updateDateDisplay() {
  * @returns {Promise<{success: boolean, isSameComic: boolean, actualDate?: Date|null}>} Load result
  */
 async function loadComic(date, silentMode = false, direction = null) {
+    reserveComicSpace(document.getElementById('comic'), date);
     const generation = ++_loadComicGeneration;
     comicLoadController?.abort();
     const controller = comicLoadController = new AbortController();
@@ -2505,7 +2506,7 @@ async function loadComic(date, silentMode = false, direction = null) {
 
                             // Set new image source on original (it will slide in)
                             comicImg.classList.add('no-transition');
-                            comicImg.src = result.imageUrl;
+                            setComicImage(comicImg, result);
                             comicImg.classList.add(slideInClass);
 
                             // Force reflow
@@ -2538,7 +2539,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                             wrapper.appendChild(outgoingClone);
 
                             // Load new image underneath (hidden by clone until loaded)
-                            comicImg.src = result.imageUrl;
+                            setComicImage(comicImg, result);
 
                             // Wait for new image to load, THEN blur out clone
                             const startMorph = () => {
@@ -2559,14 +2560,14 @@ async function loadComic(date, silentMode = false, direction = null) {
                         }
                     } else {
                         // First load - no animation needed
-                        comicImg.src = result.imageUrl;
+                        setComicImage(comicImg, result);
                         resolve();
                     }
                 });
             };
 
             if (generation === 1) globalThis.performance?.mark?.('comic:decode-start', result.imageReady ? { startTime: result.decodeStart } : undefined);
-            if (!result.imageReady) await loadComicImage(result.imageUrl, CONFIG.COMIC_IMAGE_TIMEOUT_MS, controller.signal);
+            if (!result.imageReady) await decodeComicResult(result, CONFIG.COMIC_IMAGE_TIMEOUT_MS, controller.signal);
             if (generation === 1) globalThis.performance?.mark?.('comic:decoded', result.imageReady ? { startTime: result.decoded } : undefined);
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
