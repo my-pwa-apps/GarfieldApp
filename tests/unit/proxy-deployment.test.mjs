@@ -20,6 +20,11 @@ test('the Garfield deployment and active clients cannot target the shared proxy'
     const connections = html.match(/connect-src ([^;]+)/)[1].split(' ');
     assert.ok(connections.includes(origin));
     assert.ok(!connections.includes('https://corsproxy.garfieldapp.workers.dev'));
+    for (const publicProxy of ['api.codetabs.com', 'api.allorigins.win']) {
+        assert.ok(!connections.some(origin => origin.includes(publicProxy)));
+        const extractor = await readFile(new URL('../../comicExtractor.js', import.meta.url), 'utf8');
+        assert.ok(!extractor.includes(publicProxy));
+    }
     assert.ok(html.includes(`rel="preconnect" href="${origin}"`));
 });
 

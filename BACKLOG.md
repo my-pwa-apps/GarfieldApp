@@ -94,11 +94,11 @@ First-visit timing marks, deterministic desktop/mobile checks, SEO auditing, and
 
 **Priority:** Low
 **Category:** Cleanup
-**Affected files:** [screenshot1.webp](screenshot1.webp), [android/maskable_icon_x682.png](android/maskable_icon_x682.png)
+**Affected files:** [android/maskable_icon_x682.png](android/maskable_icon_x682.png)
 
-Neither image is referenced by the manifest, HTML, CSS, JavaScript, service worker, browser configuration, tests, or documentation as a live asset. Together they add 242,522 bytes to the repository and static deployment.
+The unused legacy screenshot was removed during the September 13, 2026 screenshot refresh. The remaining icon is not referenced by the manifest, HTML, CSS, JavaScript, service worker, browser configuration, tests, or documentation as a live asset.
 
-**Acceptance criteria:** Remove both files after confirming no separately deployed sibling application consumes their repository URLs, then run the asset guard and browser smoke tests.
+**Acceptance criteria:** Remove the remaining icon after confirming no separately deployed sibling application consumes its repository URL, then run the asset guard and browser smoke tests.
 
 ### C02: Remove dead application bindings
 
@@ -116,7 +116,7 @@ Neither image is referenced by the manifest, HTML, CSS, JavaScript, service work
 **Category:** Tooling
 **Affected files:** [tools/verify-assets.cjs](tools/verify-assets.cjs), [tests/unit/app-contracts.test.mjs](tests/unit/app-contracts.test.mjs)
 
-The current reverse check uses substring matching, so `screenshot1.webp` is falsely considered referenced by `garscreenshot1.webp`. It also skips the complete `android` and `ios` directories, which hides `android/maskable_icon_x682.png`.
+The current reverse check uses substring matching, so an asset whose basename is contained in another asset's name can be falsely considered referenced. The legacy screenshot pair that exposed this was removed in the screenshot refresh. The check also skips the complete `android` and `ios` directories, which hides `android/maskable_icon_x682.png`.
 
 **Implementation:** Compare normalized asset references exactly and include platform asset directories in orphan detection. Preserve exclusions only for generated or external-project content with a documented reason.
 

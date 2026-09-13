@@ -109,6 +109,24 @@ npm run indexnow -- --submit
 
 Do not notify for documentation-only commits, assets, query-string settings, or unchanged URLs. A Pages deployment-success trigger can be added later once its production environment and revision signal are verified. The local implementation and dry-run checks do not publish the key or send notifications.
 
+## Screenshot Assets
+
+Current captures in [screenshots/](screenshots/) show the September 12, 2026 comic in the updated interface. The install manifest provides a labeled lossless WebP for desktop (1280x800) and mobile (780x1688). Open Graph, large Twitter cards, and structured data reference a separate 1200x630 PNG social preview for broad sharing compatibility. The comic and its copyright notices remain visible; these are app captures, not promotional mockups.
+
+To refresh them, start the local server, install Playwright Chromium if needed, then run:
+
+```powershell
+npx playwright install chromium
+npm run screenshots -- http://127.0.0.1:8000/ 2026-09-12
+npm run test:assets
+```
+
+[tools/capture-screenshots.cjs](tools/capture-screenshots.cjs) uses clean sessions and live providers, waits for the selected dated comic to decode, rejects fallback/error states, checks viewport fit, and enforces a 600 KiB limit per image. Desktop and mobile are captured at device scale factors 1 and 2; the social preview uses a 1600x840 desktop viewport at scale 0.75 without stretching or cropping. Review all captures after regeneration and keep manifest dimensions and labels accurate.
+
+Sharp is a development-only dependency used to encode lossless WebP captures and read image metadata. The capture command rejects WebP output that is not smaller than its PNG source. The converted desktop and mobile captures were verified pixel-for-pixel against their PNG originals; their combined size fell from 583,341 to 427,616 bytes (about 27%).
+
+Screenshot PNG/WebP dimensions, MIME types, labels, form factors, aspect ratios and file sizes are checked by the asset guard. Browser tests verify that the previews decode and are not requested during normal app-shell loading. They are not preloaded or precached, avoiding extra first-load transfer and offline install weight. Browsers may fetch them when presenting installation UI. Screenshots improve install and link previews, not search-ranking guarantees; Lighthouse scores still depend on the actual app and live-provider behavior.
+
 ## Service Worker Versioning
 
 Run `npm run bump:version` for every production change so users receive a fresh app shell; it keeps `package.json` and the `VERSION` constant in `serviceworker.js` in sync. The service worker treats the core shell as required and logs optional precache failures instead of silently leaving the update unexplained.
@@ -126,6 +144,10 @@ The sync coordinator stores versioned add/remove records and keeps failed operat
 ## Worker Configuration
 
 Garfield's dedicated proxy is **garfieldapp-corsproxy**, deployed at https://garfieldapp-corsproxy.garfieldapp.workers.dev. Its deployment configuration pins the Garfield account and enables its workers.dev endpoint.
+
+New requests use only this dedicated proxy; CodeTabs and AllOrigins are no longer fallbacks. Comic-source fallback remains GoComics, Fandom, uClick, then ArcaMax (reordered for the preferred source; Spanish uses GoComics only). Foreground loads accept a source only after its image decodes. Individual discovery requests time out after 4 seconds, image decoding after 3 seconds, and the online attempt is cancelled after 12 seconds. A newer navigation cancels the previous foreground load.
+
+If online loading fails, an already displayed comic is preserved. On a first visit, the app tries a saved comic, then the bundled first English strip, each with a 3-second image deadline. The fallback has its actual date and language, a persistent notice, and correct favorite/share data. If those images also fail, the app shows the error state. A bundled fallback does not demonstrate live-provider health or prove that today's comic was available to PageSpeed.
 
 Deploy only this proxy with:
 

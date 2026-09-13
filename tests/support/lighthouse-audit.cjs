@@ -35,6 +35,7 @@ async function readFirstVisit(page) {
       displayAfterDecodeMs: timing('first-display') - timing('decoded'),
       navigationToFirstDisplayMs: timing('first-display'),
       imageWidth: image.naturalWidth,
+      isFallback: performance.getEntriesByName('comic:fallback-display').length > 0,
       imageUrl: image.currentSrc
     };
   });
@@ -98,16 +99,20 @@ async function main() {
     const comicMarks = Object.fromEntries((report.audits['user-timings']?.details?.items || [])
       .filter(item => item.name.startsWith('comic:')).map(item => [item.name, item.startTime]));
     const decodedComicObserved = Object.hasOwn(comicMarks, 'comic:first-display');
-    const targetsMet = decodedComicObserved && lcpMs < 3000 && speedIndexMs < 5800 && scores.performance >= 0.8;
+    const fallbackObserved = Object.hasOwn(comicMarks, 'comic:fallback-display');
+    const targetsMet = decodedComicObserved && !fallbackObserved && lcpMs < 3000 && speedIndexMs < 5800 && scores.performance >= 0.8;
     console.log(`Live-provider Lighthouse: ${JSON.stringify({ scores, lcpMs, speedIndexMs, decodedComicObserved, comicMarks, targetsMet })}`);
     if (!decodedComicObserved) throw new Error('Live-provider audit did not observe a decoded first comic; do not treat logo-only scores as a passing visit');
+    if (fallbackObserved) throw new Error('A fallback comic displayed; live-provider loading remains unverified');
 
     const { devices } = require('playwright');
     const context = await browser.newContext({ ...devices['Pixel 5'], serviceWorkers: 'block', locale: 'en-US' });
     try {
       const page = await context.newPage();
       await page.goto(url, { waitUntil: 'domcontentloaded' });
-      console.log(`Separate live-provider first visit (unthrottled mobile emulation): ${JSON.stringify(await readFirstVisit(page))}`);
+      const visit = await readFirstVisit(page);
+      console.log(`Separate live-provider first visit (unthrottled mobile emulation): ${JSON.stringify(visit)}`);
+      if (visit.isFallback) throw new Error('Mobile first visit displayed a fallback rather than a live-provider comic');
     } finally {
       await context.close();
     }

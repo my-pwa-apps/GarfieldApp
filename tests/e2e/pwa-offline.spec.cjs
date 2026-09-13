@@ -27,6 +27,40 @@ async function mockExternalServices(page) {
   }));
 }
 
+test('install and social screenshots decode without being downloaded by the app shell', async ({ page }) => {
+  await mockExternalServices(page);
+  const screenshotRequests = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/screenshots/')) screenshotRequests.push(request.url());
+  });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#favheart')).toBeEnabled();
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  expect(screenshotRequests).toEqual([]);
+
+  const previews = await page.evaluate(async () => {
+    const manifest = await (await fetch(document.querySelector('link[rel="manifest"]').href)).json();
+    const images = [...manifest.screenshots, {
+      src: document.querySelector('meta[property="og:image"]').content,
+      sizes: '1200x630', type: 'image/png'
+    }];
+    return Promise.all(images.map(async preview => {
+      const pathname = new URL(preview.src, location.href).pathname;
+      const response = await fetch(pathname);
+      const bitmap = await createImageBitmap(await response.blob());
+      const actual = `${bitmap.width}x${bitmap.height}`;
+      bitmap.close();
+      return { status: response.status, type: response.headers.get('content-type'), expectedType: preview.type, expected: preview.sizes, actual };
+    }));
+  });
+  expect(previews).toHaveLength(3);
+  for (const preview of previews) {
+    expect(preview.status).toBe(200);
+    expect(preview.type.split(';')[0]).toBe(preview.expectedType);
+    expect(preview.actual).toBe(preview.expected);
+  }
+});
+
 test('service worker precaches the app shell and serves it while offline', async ({ page, context, browserName }, testInfo) => {
   test.skip(browserName !== 'chromium' || testInfo.project.name !== 'chromium', 'Offline service worker lifecycle is covered in the desktop Chromium project.');
 

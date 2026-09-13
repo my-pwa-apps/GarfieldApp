@@ -3,7 +3,7 @@ import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
 import { makeDraggable } from './toolbar.js';
 import { normalizeFavorites } from './favorites.js';
-import { loadComicImage } from './comicPresentation.js';
+import { loadComicImage, loadComicWithFallback, selectOfflineComic } from './comicPresentation.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -32,6 +32,8 @@ const CONFIG = Object.freeze({
     FAVORITES_MIGRATION_BATCH_SIZE: 500,
 
     PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
+    COMIC_LOAD_TIMEOUT_MS: 12000,
+    COMIC_IMAGE_TIMEOUT_MS: 3000,
     PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
     PREFETCH_STAGGER_MS: 150,              // Delay between background prefetch requests
     SHUFFLE_HISTORY_MAX: 200,              // Bound on shuffle back/forward history depth
@@ -289,38 +291,20 @@ const UTILS = {
         });
     },
 
+    getComicFallbacks(date, language) {
+        const cached = this.getOfflineComic(date, language);
+        const bundled = {
+            success: true, imageUrl: './garfield-first.gif', language: 'en', isOffline: true,
+            actualDate: this.dateFromISODateString(CONFIG.GARFIELD_START_EN)
+        };
+        return cached.success && cached.imageUrl !== bundled.imageUrl
+            ? [{ ...cached, language }, bundled] : [bundled];
+    },
+
     getOfflineComic(date, language, direction = null) {
         const dateString = typeof date === 'string' ? date : this.dateToISODateString(date);
-        const comics = this.getOfflineComics(language);
-        let comic = comics.find(entry => entry.date === dateString);
-
-        if (!comic && direction === 'previous') {
-            comic = [...comics].reverse().find(entry => entry.date < dateString);
-        } else if (!comic && direction === 'next') {
-            comic = comics.find(entry => entry.date > dateString);
-        } else if (!comic && !direction) {
-            comic = comics.at(-1);
-        }
-
-        if (comic) {
-            return {
-                success: true,
-                imageUrl: comic.imageUrl,
-                actualDate: this.dateFromISODateString(comic.date),
-                isOffline: true
-            };
-        }
-
-        if (comics.length === 0) {
-            return {
-                success: true,
-                imageUrl: './garfield-first.gif',
-                actualDate: this.dateFromISODateString(CONFIG.GARFIELD_START_EN),
-                isOffline: true
-            };
-        }
-
-        return { success: false, imageUrl: null, isOffline: true };
+        return selectOfflineComic(dateString, this.getOfflineComics(language), direction,
+            value => this.dateFromISODateString(value), CONFIG.GARFIELD_START_EN);
     },
 
     /**
@@ -439,11 +423,11 @@ const UTILS = {
      * @param {string} className - CSS class for the container
      * @returns {HTMLElement} The message container element
      */
-    getOrCreateMessageContainer(className) {
+    getOrCreateMessageContainer(className, hideComic = true) {
         const comicContainer = document.getElementById('comic-container');
         const comic = document.getElementById('comic');
 
-        comic.style.display = 'none';
+        if (hideComic) comic.style.display = 'none';
 
         let messageContainer = document.getElementById('comic-message');
         if (!messageContainer) {
@@ -1787,6 +1771,7 @@ let formattedDate;
 let _shuffleNextDate = null;
 let _shuffleCandidateGeneration = 0;
 let _loadComicGeneration = 0;
+let comicLoadController = null;
 const _shuffleCandidateQueue = [];
 const _shuffleBackStack = [];
 const _shuffleForwardStack = [];
@@ -2460,6 +2445,8 @@ function updateDateDisplay() {
  */
 async function loadComic(date, silentMode = false, direction = null) {
     const generation = ++_loadComicGeneration;
+    comicLoadController?.abort();
+    const controller = comicLoadController = new AbortController();
     if (generation === 1) globalThis.performance?.mark?.('comic:discovery-start');
     const favoriteButton = document.getElementById('favheart');
     if (favoriteButton) favoriteButton.disabled = true;
@@ -2471,9 +2458,13 @@ async function loadComic(date, silentMode = false, direction = null) {
         if (!navigator.onLine) await UTILS.reconcileOfflineComics();
 
         const result = navigator.onLine
-            ? await getAuthenticatedComic(date, language, source)
+            ? await loadComicWithFallback({
+                date, language, source, signal: controller.signal,
+                timeoutMs: CONFIG.COMIC_LOAD_TIMEOUT_MS, imageTimeoutMs: CONFIG.COMIC_IMAGE_TIMEOUT_MS,
+                getFallbacks: () => displayedComic ? [] : UTILS.getComicFallbacks(date, language)
+            })
             : UTILS.getOfflineComic(date, language, direction);
-        if (generation === 1) globalThis.performance?.mark?.('comic:discovery-end');
+        if (generation === 1) globalThis.performance?.mark?.('comic:discovery-end', result.imageReady ? { startTime: result.decodeStart } : undefined);
 
         if (generation !== _loadComicGeneration) {
             return { success: false, isSameComic: false, stale: true };
@@ -2574,9 +2565,9 @@ async function loadComic(date, silentMode = false, direction = null) {
                 });
             };
 
-            if (generation === 1) globalThis.performance?.mark?.('comic:decode-start');
-            await loadComicImage(result.imageUrl);
-            if (generation === 1) globalThis.performance?.mark?.('comic:decoded');
+            if (generation === 1) globalThis.performance?.mark?.('comic:decode-start', result.imageReady ? { startTime: result.decodeStart } : undefined);
+            if (!result.imageReady) await loadComicImage(result.imageUrl, CONFIG.COMIC_IMAGE_TIMEOUT_MS, controller.signal);
+            if (generation === 1) globalThis.performance?.mark?.('comic:decoded', result.imageReady ? { startTime: result.decoded } : undefined);
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
             }
@@ -2587,19 +2578,20 @@ async function loadComic(date, silentMode = false, direction = null) {
             comicImg.style.display = 'block';
             if (generation === 1) requestAnimationFrame(() => requestAnimationFrame(() => {
                 if (generation === _loadComicGeneration) globalThis.performance?.mark?.('comic:first-display');
+                if (generation === _loadComicGeneration && result.isFallback) globalThis.performance?.mark?.('comic:fallback-display');
             }));
 
             // Update current comic URL after successful load
             currentComicUrl = result.imageUrl;
             displayedComic = Object.freeze({
                 date: UTILS.dateToISODateString(result.actualDate || date).replaceAll('-', '/'),
-                language,
+                language: result.language || language,
                 imageUrl: result.imageUrl
             });
             const dateLabel = (result.actualDate || date).toLocaleDateString(useSpanish ? 'es-ES' : 'en-US', {
                 year: 'numeric', month: 'long', day: 'numeric'
             });
-            comicImg.alt = useSpanish ? `Garfield del ${dateLabel} (español)` : `Garfield for ${dateLabel} (English)`;
+            comicImg.alt = displayedComic.language === 'es' ? `Garfield del ${dateLabel} (español)` : `Garfield for ${dateLabel} (English)`;
 
             if (!result.isOffline) {
                 const rememberComic = async () => {
@@ -2721,6 +2713,10 @@ async function loadComic(date, silentMode = false, direction = null) {
             // Hide error messages
             const messageContainer = document.getElementById('comic-message');
             if (messageContainer) messageContainer.style.display = 'none';
+            if (result.isFallback) {
+                const notice = UTILS.getOrCreateMessageContainer('fallback-notice', false);
+                notice.textContent = translations[language].fallbackComic.replace('{comic}', comicImg.alt);
+            }
 
             // Preload adjacent comics for faster navigation.
             // Use actualDate when GoComics detected a date redirect so that
@@ -2729,7 +2725,7 @@ async function loadComic(date, silentMode = false, direction = null) {
 
             updateOfflineNavigationControls(result.actualDate || date, language);
 
-            return { success: true, isSameComic: false, actualDate: result.actualDate || null };
+            return { success: true, isSameComic: false, actualDate: result.actualDate || null, isFallback: result.isFallback };
         }
 
         if (result.isPaywalled && !silentMode) {
@@ -3203,6 +3199,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     formattedDate = year + "-" + month + "-" + day;
 
     document.getElementById("DatePicker").value = formattedDate;
+    document.getElementById('DatePicker').min = UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN;
     updateDateDisplay();
 
     // Check if date is in favorites
@@ -3227,6 +3224,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         formatDate(currentselectedDate);
         formattedComicDate = year + "/" + month + "/" + day;
         formattedDate = year + "-" + month + "-" + day;
+        if (result.isFallback) document.getElementById('DatePicker').min = CONFIG.GARFIELD_START_EN;
         document.getElementById("DatePicker").value = formattedDate;
         updateDateDisplay();
         CompareDates();
@@ -3234,7 +3232,9 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         // But we know today's comic isn't published yet (that's why the redirect happened),
         // so disable linear forward navigation immediately. Shuffle keeps Next usable
         // when there is another comic in the active pool.
-        if (isShuffleEnabled()) {
+        if (result.isFallback) {
+            updateToolbarModeControls();
+        } else if (isShuffleEnabled()) {
             document.getElementById('First').disabled = !UTILS.canShuffleNavigate('first');
             document.getElementById('Previous').disabled = !UTILS.canShuffleNavigate('previous');
             document.getElementById('Random').disabled = true;

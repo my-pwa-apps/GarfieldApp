@@ -571,6 +571,7 @@ input {
 
 #comic-container {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
     width: 100%;
@@ -579,6 +580,15 @@ input {
     box-sizing: border-box;
     position: relative;
     overflow: hidden;
+}
+
+.fallback-notice {
+    flex: 0 0 100%;
+    justify-content: center;
+    padding: 10px 16px;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 0.875rem;
 }
 
 #comic-container.fullscreen {

@@ -188,16 +188,18 @@
   ],
   "screenshots": [
     {
-      "src": "./garscreenshot1.webp",
-      "sizes": "1226x1290",
+      "src": "./screenshots/garfield-desktop.webp",
+      "sizes": "1280x800",
       "type": "image/webp",
-      "form_factor": "narrow"
+      "form_factor": "wide",
+      "label": "GarfieldApp on desktop showing a comic strip with date navigation, favorites and sharing controls"
     },
     {
-      "src": "./screenshot2.webp",
-      "sizes": "1222x1778",
+      "src": "./screenshots/garfield-mobile.webp",
+      "sizes": "780x1688",
       "type": "image/webp",
-      "form_factor": "narrow"
+      "form_factor": "narrow",
+      "label": "GarfieldApp on mobile showing a comic strip with touch-friendly navigation and reading controls"
     }
   ],
   "dir": "ltr",

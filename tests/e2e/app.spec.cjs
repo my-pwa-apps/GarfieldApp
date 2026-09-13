@@ -326,11 +326,16 @@ test('image failures preserve the committed comic and its favorite date', async 
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('favs')))).toEqual([oldDate.replaceAll('-', '/')]);
 });
 
-test('initial image failure never enables favorites or sharing data', async ({ page }) => {
+test('initial image failure shows the bundled comic with its real date and sharing data', async ({ page }) => {
   await openApp(page, '/', { failImages: true });
   await expect(page.locator('#comic-message')).toBeVisible();
-  await expect(page.locator('#favheart')).toBeDisabled();
-  expect(await page.evaluate(() => window.pictureUrl || null)).toBeNull();
+  await expect(page.locator('#comic-message')).toContainText('fallback comic');
+  await expect(page.locator('#favheart')).toBeEnabled();
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  await expect(page.locator('#comic')).toHaveAttribute('src', './garfield-first.gif');
+  expect(await page.evaluate(() => window.pictureUrl)).toBe('./garfield-first.gif');
+  await page.locator('#favheart').click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('favs')))).toEqual(['1978/06/19']);
 });
 
 test('boots and loads the current comic without runtime errors', async ({ page }) => {
@@ -800,14 +805,63 @@ test('never auto-starts Google sign-in, even with stored user context', async ({
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('comic fetch failures show a user-facing error without runtime failures', async ({ page }) => {
+test('comic fetch failures show a labeled fallback without runtime failures', async ({ page }) => {
   const errors = await openApp(page, '/', { failComics: true });
 
   await expect(page.locator('#comic-message')).toBeVisible();
-  await expect(page.locator('#comic-message')).toContainText('Failed to load comic. Please try again.');
+  await expect(page.locator('#comic-message')).toContainText('fallback comic');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  await expect(page.locator('#Next')).toBeEnabled();
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors.length).toBeGreaterThan(0);
+});
+
+test('unavailable bundled fallback leaves favorites and sharing disabled', async ({ page }) => {
+  await page.context().route('**/garfield-first.gif', route => route.fulfill({ status: 404, body: 'missing' }));
+  await openApp(page, '/', { failComics: true });
+  await expect(page.locator('#comic-message')).toContainText('Failed to load comic. Please try again.');
+  await expect(page.locator('#favheart')).toBeDisabled();
+  expect(await page.evaluate(() => window.pictureUrl || null)).toBeNull();
+});
+
+test('initial source failure prefers a saved comic and restores its actual date', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('offlineComics', JSON.stringify([
+      { date: '2024-01-02', language: 'en', imageUrl: 'https://featureassets.gocomics.com/assets/saved' }
+    ]));
+  });
+  await openApp(page, '/', { failComics: true });
+  await expect(page.locator('#comic')).toHaveAttribute('src', 'https://featureassets.gocomics.com/assets/saved');
+  await expect(page.locator('#DatePicker')).toHaveValue('2024-01-02');
+  await expect(page.locator('#comic-message')).toContainText('fallback comic');
+  await expect(page.locator('#Next')).toBeEnabled();
+});
+
+test('Spanish first-visit failure labels the bundled comic as English without changing language preference', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('spanish', 'true'));
+  await openApp(page, '/', { failComics: true });
+  await expect(page.locator('#comic')).toHaveAttribute('alt', /English/);
+  await expect(page.locator('#comic-message')).toContainText('cómic de reserva');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  expect(await page.locator('#DatePicker').evaluate(input => input.validity.rangeUnderflow)).toBe(false);
+  expect(await page.evaluate(() => localStorage.getItem('spanish'))).toBe('true');
+});
+
+test('stalled sources reach a displayed fallback within the loading budget', async ({ page }) => {
+  await mockExternalServices(page);
+  await page.context().route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', () => {});
+  await page.context().route('https://garfield.fandom.com/**', () => {});
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#comic')).toHaveAttribute('src', './garfield-first.gif', { timeout: 18000 });
+  await expect(page.locator('#comic')).toBeVisible();
+  const imageBounds = await page.locator('#comic').boundingBox();
+  const noticeBounds = await page.locator('#comic-message').boundingBox();
+  expect(noticeBounds.y).toBeGreaterThanOrEqual(imageBounds.y + imageBounds.height);
+  await expect(page.locator('#favheart')).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => performance.getEntriesByName('comic:first-display').length)).toBe(1);
+  expect(await page.evaluate(() => performance.getEntriesByName('comic:fallback-display').length)).toBe(1);
+  expect(await page.evaluate(() => performance.getEntriesByName('comic:first-display')[0].startTime)).toBeLessThan(18000);
 });
 
 test('uses Eastern calendar date across far-ahead time zones', async ({ browser }) => {

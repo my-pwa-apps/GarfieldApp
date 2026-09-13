@@ -30,10 +30,11 @@ async function mockExternalServices(page, options = {}) {
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://garfield.fandom.com/**', route => {
     comicRequests.push(route.request().url());
+    const title = new URL(route.request().url()).searchParams.get('titles').split('|')[0];
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
+      body: JSON.stringify({ query: { pages: [{ pageid: 1, title, imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
   await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
@@ -44,6 +45,9 @@ async function mockExternalServices(page, options = {}) {
       return;
     }
     const targetUrl = decodeURIComponent(new URL(route.request().url()).search.slice(1));
+    if (['static.wikia.nocookie.net', 'picayune.uclick.com'].includes(new URL(targetUrl).hostname)) {
+      return route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
+    }
     route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(targetUrl, 'worker') });
   });
   await context.route('https://api.codetabs.com/**', route => {
@@ -96,6 +100,7 @@ test('first visit reports separate startup, discovery, decode and display timing
   }
   expect(timings.navigationToFirstDisplayMs).toBeLessThan(10000);
   expect(timings.imageWidth).toBeGreaterThan(0);
+  expect(timings.isFallback).toBe(false);
   await expect(page.locator('#comic')).toBeVisible();
   await expect(page.locator('#favheart')).toBeEnabled();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://garfieldapp.pages.dev/');
@@ -106,6 +111,7 @@ test('first visit reports separate startup, discovery, decode and display timing
 test('comic source fallback recovers when the preferred proxy fails', async ({ page }) => {
   const result = await openApp(page, { proxyFailures: 1 });
 
+  await expect(page.locator('#comic')).toHaveAttribute('src', /static\.wikia\.nocookie\.net/);
   await expect(page.locator('#comic-message')).toHaveCount(0);
   await expect(page.locator('#comic')).not.toHaveAttribute('src', /^$/);
   expect(result.comicRequests.length).toBeGreaterThanOrEqual(2);
@@ -118,9 +124,10 @@ test('explicit comic source choices route to their expected providers', async ({
   await openSettings(page);
   await page.locator('#comicSource').selectOption('fandom');
   await expect.poll(() => result.comicRequests.some(url => url.includes('garfield.fandom.com'))).toBe(true);
+  await expect(page.locator('#comic')).toHaveAttribute('src', /static\.wikia\.nocookie\.net/);
 
   await page.locator('#comicSource').selectOption('uclick');
-  await expect.poll(() => result.comicRequests.some(url => url.includes('picayune.uclick.com') || url.includes('allorigins') || url.includes('codetabs'))).toBe(true);
+  await expect(page.locator('#comic')).toHaveAttribute('src', /picayune\.uclick\.com/);
   expect(result.errors).toEqual([]);
 });
 

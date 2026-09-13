@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.18",
+  "version": "1.0.21",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
@@ -18,6 +18,7 @@
     "test:first-visit": "playwright test tests/e2e/recommended.spec.cjs --grep \"first visit\"",
     "test:workers": "node tests/support/live-worker-health.cjs",
     "bump:version": "node tools/bump-version.cjs",
+    "screenshots": "node tools/capture-screenshots.cjs",
     "indexnow": "node tools/indexnow.cjs",
     "test:assets": "node tools/verify-assets.cjs",
     "test:predeploy": "npm run test:lint && npm run test:syntax && npm run test:assets && npm run test:unit && playwright test --project=chromium --workers=1 && playwright test --project=mobile-chrome --workers=1 && npm run test:cross-browser -- --workers=1 && npm run test:lighthouse && npm run test:workers",
@@ -35,6 +36,7 @@
     "globals": "^17.11.0",
     "lighthouse": "^13.4.1",
     "miniflare": "5.20260811.1-alpha",
+    "sharp": "^0.35.4",
     "wrangler": "^4.123.0"
   }
 }

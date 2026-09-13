@@ -21,6 +21,25 @@ function makeFandomResponse(filename) {
   };
 }
 
+test('a blocked dedicated proxy advances to another source without public proxies', async () => {
+  const originalFetch = global.fetch;
+  const requests = [];
+  global.fetch = async url => {
+    requests.push(String(url));
+    if (String(url).includes('garfield.fandom.com/api.php')) return makeFandomResponse('2026-06-08.gif');
+    return { ok: false, status: 403 };
+  };
+  try {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 8, 12), 'en', 'gocomics', { silent: true });
+    assert.equal(result.success, true);
+    assert.equal(requests.length, 2);
+    assert.equal(new URL(requests[0]).host, 'garfieldapp-corsproxy.garfieldapp.workers.dev');
+    assert.equal(new URL(requests[1]).host, 'garfield.fandom.com');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('GoComics prefers the page comic metadata over unrelated featured assets', async () => {
   const firstStripUrl = 'https://featureassets.gocomics.com/assets/239495d0fa06013ebddf005056a9545d';
   const requestedStripUrl = 'https://featureassets.gocomics.com/assets/e707a5202f95013fc0c4005056a9545d';
@@ -152,6 +171,31 @@ test('preferredSource defaults to GoComics when omitted', async () => {
     assert.equal(result.success, true);
     assert.equal(result.imageUrl, requestedStripUrl);
     assert.ok(urls.some(url => url.includes('gocomics.com')), 'Default source must query GoComics');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('an undecodable image advances to the next source', async () => {
+  const originalFetch = global.fetch;
+  const validated = [];
+  global.fetch = async url => String(url).includes('garfield.fandom.com/api.php')
+    ? makeFandomResponse('2026-06-09.gif')
+    : { ok: true, text: async () => '<meta property="og:image" content="https://featureassets.gocomics.com/assets/broken">' };
+  try {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 9, 12), 'en', 'gocomics', {
+      silent: true,
+      validateImage: async url => {
+        validated.push(url);
+        if (url.endsWith('/broken')) throw new Error('decode failed');
+      }
+    });
+    assert.equal(result.success, true);
+    assert.equal(validated.length, 2);
+    assert.equal(result.imageUrl, validated[1]);
+    const controller = new AbortController();
+    controller.abort();
+    await assert.rejects(getAuthenticatedComic(new Date(), 'en', 'gocomics', { signal: controller.signal }), { name: 'AbortError' });
   } finally {
     global.fetch = originalFetch;
   }

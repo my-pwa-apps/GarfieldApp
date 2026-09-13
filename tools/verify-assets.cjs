@@ -9,6 +9,7 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
+const sharp = require('sharp');
 
 const repoRoot = path.resolve(__dirname, '..');
 const problems = [];
@@ -28,7 +29,32 @@ function checkReference(reference, source) {
 // --- Web app manifest -------------------------------------------------------
 const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'manifest.webmanifest'), 'utf8'));
 for (const icon of manifest.icons || []) checkReference(icon.src, 'manifest.icons');
-for (const shot of manifest.screenshots || []) checkReference(shot.src, 'manifest.screenshots');
+const screenshotRatios = new Map();
+const screenshotChecks = (manifest.screenshots || []).map(async shot => {
+  checkReference(shot.src, 'manifest.screenshots');
+  const filename = toRepoPath(shot.src);
+  if (!fs.existsSync(filename)) return;
+  const image = fs.readFileSync(filename);
+  const { format, width, height } = await sharp(image).metadata();
+  if (!['png', 'webp'].includes(format) || shot.type !== `image/${format}`) {
+    problems.push(`manifest.screenshots: "${shot.src}" must be a PNG or WebP capture with a matching MIME type`);
+    return;
+  }
+  if (shot.sizes !== `${width}x${height}` || Math.min(width, height) < 320 ||
+      Math.max(width, height) > 3840 || Math.max(width, height) / Math.min(width, height) > 2.3) {
+    problems.push(`manifest.screenshots: "${shot.src}" has incorrect sizes or unsupported dimensions`);
+  }
+  if (!shot.label?.trim() || !['wide', 'narrow'].includes(shot.form_factor) ||
+      (shot.form_factor === 'wide' ? width <= height : width >= height)) {
+    problems.push(`manifest.screenshots: "${shot.src}" needs a label and matching form factor`);
+  }
+  if (image.length > 600 * 1024) problems.push(`manifest.screenshots: "${shot.src}" exceeds 600 KiB`);
+  const ratio = width / height;
+  if (screenshotRatios.has(shot.form_factor) && screenshotRatios.get(shot.form_factor) !== ratio) {
+    problems.push(`manifest.screenshots: use the same aspect ratio within each form factor`);
+  }
+  screenshotRatios.set(shot.form_factor, ratio);
+});
 for (const shortcut of manifest.shortcuts || []) {
   for (const icon of shortcut.icons || []) checkReference(icon.src, 'manifest.shortcuts');
   if (shortcut.url?.startsWith('/')) {
@@ -93,10 +119,18 @@ for (const image of collectFiles(repoRoot, name => IMAGE_EXTENSIONS.has(path.ext
   }
 }
 
-if (problems.length) {
-  console.error(`Asset verification failed (${problems.length} problem(s)):`);
-  for (const problem of problems) console.error(`  - ${problem}`);
-  process.exit(1);
-}
-
-console.log('Asset verification passed: all manifest, precache and tile references exist, and no image is orphaned.');
+Promise.all(screenshotChecks).then(() => {
+  for (const formFactor of ['wide', 'narrow']) {
+    if (!screenshotRatios.has(formFactor)) problems.push(`manifest.screenshots: missing ${formFactor} capture`);
+  }
+  if (problems.length) {
+    console.error(`Asset verification failed (${problems.length} problem(s)):`);
+    for (const problem of problems) console.error(`  - ${problem}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log('Asset verification passed: all manifest, precache and tile references exist, and no image is orphaned.');
+}).catch(error => {
+  console.error(`Asset verification failed: ${error.message}`);
+  process.exitCode = 1;
+});

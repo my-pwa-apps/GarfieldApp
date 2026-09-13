@@ -1,5 +1,5 @@
 /**
- * CORS proxy configuration and performance tracking
+ * Dedicated CORS proxy and comic source discovery
  *
  * Comic source fallback chain (runtime default in the app: GoComics first):
  *   1. GoComics (default UI source) — all dates from 1978, supports EN + ES
@@ -7,142 +7,44 @@
  *   3. uClick / picayune (fallback) — all dates from 1978, EN only
  *   4. ArcaMax (last fallback) — last ~30 days, EN only
  */
-const CORS_PROXIES = [
-    'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?',
-    'https://api.codetabs.com/v1/proxy?quest=',
-    'https://api.allorigins.win/raw?url='
-];
+const CORS_PROXY = 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?';
+const FETCH_TIMEOUT = 4000;
 
-const FETCH_TIMEOUT = 15000;
-
-// Performance tracking
-const proxyFailureCount = new Array(CORS_PROXIES.length).fill(0);
-const proxyResponseTimes = new Array(CORS_PROXIES.length).fill(0);
-
-/**
- * Scores a proxy based on success rate and response time.
- * @param {number} proxyIndex - Proxy index to score
- * @returns {number} Higher score means a better proxy
- */
-function getProxyScore(proxyIndex) {
-    const failurePenalty = proxyFailureCount[proxyIndex] * 2000;
-    const avgTime = proxyResponseTimes[proxyIndex] || 1500;
-    return 10000 / (avgTime + failurePenalty + 1);
+function requestSignal(options) {
+    options.signal?.throwIfAborted();
+    const timeout = AbortSignal.timeout(FETCH_TIMEOUT);
+    return options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
 }
 
-/**
- * Gets public fallback proxies ordered by score.
- * @returns {number[]} Proxy indexes, excluding the Garfield Cloudflare proxy
- */
-function getPublicProxyOrder() {
-    return CORS_PROXIES
-        .map((_, index) => index)
-        .filter(index => index !== 0)
-        .sort((a, b) => getProxyScore(b) - getProxyScore(a));
+async function fetchViaProxy(url, options = {}) {
+    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, {
+        signal: requestSignal(options),
+        mode: 'cors',
+        credentials: 'omit'
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.text();
 }
-
-/**
- * Updates proxy performance statistics
- * @param {number} proxyIndex - Proxy index
- * @param {boolean} success - Whether request succeeded
- * @param {number} responseTime - Response time in ms
- */
-function updateProxyStats(proxyIndex, success, responseTime) {
-    if (!success) {
-        proxyFailureCount[proxyIndex]++;
-    } else {
-        // Update average response time
-        const currentAvg = proxyResponseTimes[proxyIndex] || responseTime;
-        proxyResponseTimes[proxyIndex] = (currentAvg + responseTime) / 2;
-        // Reset failure count on success
-        proxyFailureCount[proxyIndex] = Math.max(0, proxyFailureCount[proxyIndex] - 1);
-    }
-}
-
-/**
- * Attempts to fetch via a specific proxy
- * @param {string} url - URL to fetch
- * @param {number} proxyIndex - Proxy index to use
- * @param {number} startTime - Start time for tracking
- * @returns {Promise<string>} HTML content
- */
-async function tryProxy(url, proxyIndex, startTime) {
-    const proxyUrl = CORS_PROXIES[proxyIndex];
-
-    try {
-        const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
-        // Default cache mode (not 'no-cache') so the Cloudflare Worker can
-        // serve a HIT for previously fetched GoComics/ArcaMax HTML.
-        const response = await fetch(fullUrl, {
-            signal: AbortSignal.timeout(FETCH_TIMEOUT),
-            mode: 'cors',
-            credentials: 'omit'
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const responseTime = Date.now() - startTime;
-        updateProxyStats(proxyIndex, true, responseTime);
-
-        return await response.text();
-    } catch (error) {
-        updateProxyStats(proxyIndex, false, 0);
-        throw error;
-    }
-}
-
-/**
- * Fetches through the Garfield Cloudflare proxy first, then public fallbacks.
- * @param {string} url - URL to fetch
- * @returns {Promise<string>} HTML content
- */
-async function fetchWithProxyFallback(url) {
-    try {
-        return await tryProxy(url, 0, Date.now());
-    } catch {
-        for (const proxyIndex of getPublicProxyOrder()) {
-            try {
-                return await tryProxy(url, proxyIndex, Date.now());
-            } catch {
-                continue;
-            }
-        }
-
-        throw new Error('All proxies failed');
-    }
-}
-
-// ============================================================
-// SHARED UTILITIES
-// ============================================================
 
 function _dateToISO(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 function _isRequestedDateTodayInET(date) {
     const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const etToday = new Date(etNow);
     etToday.setHours(0, 0, 0, 0);
-
     const requestedDay = new Date(date);
     requestedDay.setHours(0, 0, 0, 0);
-
     return requestedDay.getTime() === etToday.getTime();
 }
 
 function _getPreviousDayAtNoon(date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12, 0, 0);
 }
-
-// ============================================================
-// SOURCE 1: GOCOMICS (PRIMARY) — EN + ES
-// ============================================================
 
 /**
  * Extracts comic image URL from GoComics HTML
@@ -195,7 +97,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
     const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
 
-    const html = await fetchWithProxyFallback(url);
+    const html = await fetchViaProxy(url, options);
 
     if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
         return { success: false, imageUrl: null, notFound: true };
@@ -283,7 +185,7 @@ async function _getComicFromFandom(date, options = {}) {
     const apiUrl = `https://garfield.fandom.com/api.php?action=query&titles=${encodeURIComponent(titles.join('|'))}&prop=imageinfo&iiprop=url&format=json&origin=*`;
 
     try {
-        const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+        const resp = await fetch(apiUrl, { signal: requestSignal(options) });
         if (resp.ok) {
             const data = await resp.json();
             const pages = Object.values(data?.query?.pages || {});
@@ -303,7 +205,7 @@ async function _getComicFromFandom(date, options = {}) {
                 if (!imageUrl) continue;
                 // Route through the CORS proxy so the browser loads via
                 // Cloudflare — independent of client VPN routing or CDN edge.
-                const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+                const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
                 const result = { success: true, imageUrl: proxiedUrl };
                 _fandomLookupCache.set(cacheKey, result);
                 return result;
@@ -329,8 +231,7 @@ async function _getComicFromFandom(date, options = {}) {
 // SOURCE 3: UCLICK / PICAYUNE — EN only, full archive from 1978
 // Direct image URLs of the form:
 //   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.gif
-// We verify existence with a GET request through the user's CORS proxy
-// (only the first proxy is used because picayune does not send CORS headers).
+// We verify existence with a HEAD request through the dedicated CORS proxy.
 // The returned image URL is wrapped in the same proxy so the <img> tag loads
 // via Cloudflare — independent of the client's VPN routing.
 // ============================================================
@@ -341,7 +242,7 @@ async function _getComicFromUClick(date, options = {}) {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     const imageUrl = `https://picayune.uclick.com/comics/ga/${yyyy}/ga${yy}${mm}${dd}.gif`;
-    const proxiedUrl = `${CORS_PROXIES[0]}${encodeURIComponent(imageUrl)}`;
+    const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
 
     try {
         // HEAD, not GET: this call only probes for existence. A GET downloaded
@@ -349,7 +250,7 @@ async function _getComicFromUClick(date, options = {}) {
         // transferred twice (once here, once by the <img> tag).
         const resp = await fetch(proxiedUrl, {
             method: 'HEAD',
-            signal: AbortSignal.timeout(FETCH_TIMEOUT),
+            signal: requestSignal(options),
             mode: 'cors',
             credentials: 'omit',
             cache: 'no-cache'
@@ -429,7 +330,7 @@ function _extractArcaMaxStripDate(html) {
     return null;
 }
 
-async function _getComicFromArcaMax(date) {
+async function _getComicFromArcaMax(date, options = {}) {
     // ArcaMax only holds ~30 days; skip immediately for older requests
     const daysAgo = Math.floor((Date.now() - date.getTime()) / 86400000);
     if (daysAgo > 31) return { success: false, imageUrl: null };
@@ -440,7 +341,7 @@ async function _getComicFromArcaMax(date) {
     if (_arcamaxDateCache.has(targetDateStr)) {
         const cachedId = _arcamaxDateCache.get(targetDateStr);
         try {
-            const html = await fetchWithProxyFallback(`https://www.arcamax.com/thefunnies/garfield/${cachedId}`);
+            const html = await fetchViaProxy(`https://www.arcamax.com/thefunnies/garfield/${cachedId}`, options);
             const imageUrl = _extractArcaMaxImage(html);
             if (imageUrl) return { success: true, imageUrl };
         } catch { /* fall through to traversal */ }
@@ -454,7 +355,7 @@ async function _getComicFromArcaMax(date) {
     for (let step = 0; step < MAX_STEPS; step++) {
         let html;
         try {
-            html = await fetchWithProxyFallback(url);
+            html = await fetchViaProxy(url, options);
         } catch {
             break;
         }
@@ -519,6 +420,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
     const sourceOrder = maxSources ? order.slice(0, maxSources) : order;
 
     for (const source of sourceOrder) {
+        options.signal?.throwIfAborted();
         // Spanish is only available on GoComics
         if (language === 'es' && source !== 'gocomics') {
             if (source === 'arcamax') break; // No point trying further
@@ -534,10 +436,14 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             } else if (source === 'uclick') {
                 result = await _getComicFromUClick(date, options);
             } else {
-                result = await _getComicFromArcaMax(date);
+                result = await _getComicFromArcaMax(date, options);
             }
 
-            if (result.success) return result;
+            if (result.success) {
+                if (options.validateImage) await options.validateImage(result.imageUrl);
+                options.signal?.throwIfAborted();
+                return result;
+            }
 
             // If today's strip is missing, first treat it as a source-local
             // timezone/publication delay and retry yesterday within that same
@@ -554,6 +460,8 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 }
 
                 if (yesterdayResult && yesterdayResult.success) {
+                    if (options.validateImage) await options.validateImage(yesterdayResult.imageUrl);
+                    options.signal?.throwIfAborted();
                     return { ...yesterdayResult, actualDate: yesterday };
                 }
             }
