@@ -661,7 +661,7 @@ function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
     const hasGeometry = toolbarRect && toolbarRect.height > 0 && !Number.isNaN(toolbarRect.top);
     const metadataLocked = isToolbarPersistenceSuspended || !hasGeometry;
 
-    const positionData = { ...saved, top, left };
+    const positionData = { ...saved, top: top + window.scrollY, left };
     const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
     const applyOverride = (key) => {
         if (!hasOverride(key)) return false;
@@ -1181,7 +1181,7 @@ function clampToolbarInView() {
             const settingsPanel = document.getElementById('settingsDIV');
             const logo = document.querySelector('.logo');
 
-            let newTop = savedPos.top;
+            let newTop = savedPos.top - window.scrollY;
             const centerLeft = (viewportWidth - toolbarWidth) / 2;
             let newLeft = Math.max(0, Math.min(
                 centerLeft + (savedPos.leftOffsetFromCenter || 0),
@@ -1285,7 +1285,7 @@ function initializeToolbar() {
     const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
 
     if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        mainToolbar.style.top = savedPos.top + 'px';
+        mainToolbar.style.top = (savedPos.top - window.scrollY) + 'px';
         mainToolbar.style.left = savedPos.left + 'px';
         mainToolbar.style.transform = 'none';
 
@@ -1332,6 +1332,15 @@ function initializeToolbar() {
             moveToolbarBetweenLogoAndComic(element);
         }
     });
+
+    let toolbarScrollY = window.scrollY;
+    window.addEventListener('scroll', () => {
+        const scrollDelta = window.scrollY - toolbarScrollY;
+        toolbarScrollY = window.scrollY;
+        if (isToolbarPersistenceSuspended || isRotatedMode) return;
+        const top = parseFloat(mainToolbar.style.top);
+        if (Number.isFinite(top)) mainToolbar.style.top = `${top - scrollDelta}px`;
+    }, { passive: true });
 
     // Only clamp on resize, not on orientation change to prevent toolbar movement
     // Debounce resize handler to avoid excessive calculations

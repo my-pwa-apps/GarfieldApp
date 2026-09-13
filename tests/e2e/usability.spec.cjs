@@ -334,3 +334,54 @@ test('mobile layout keeps important touch targets large enough and readable', as
   expect(footerMetrics.links).toBe(0);
   expect(footerMetrics.height).toBeLessThanOrEqual(footerMetrics.lineHeight + 10);
 });
+
+test('scrolling a tall comic keeps navigation clear without changing its saved position', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await openApp(page);
+  await page.addStyleTag({ content: '#comic { width: 900px; height: 633px; max-width: 100%; }' });
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => page.evaluate(() => {
+    const toolbar = document.querySelector('#mainToolbar').getBoundingClientRect();
+    return toolbar.bottom < document.querySelector('#comic').getBoundingClientRect().top;
+  })).toBe(true);
+
+  const initial = await page.locator('#mainToolbar').boundingBox();
+  const savedPosition = await page.evaluate(() => localStorage.getItem(window.CONFIG.STORAGE_KEYS.TOOLBAR_POS));
+
+  for (const scrollTop of [120, 10000, 0]) {
+    await page.evaluate(top => window.scrollTo(0, top), scrollTop);
+    await expect.poll(() => page.evaluate(initialTop => {
+      const toolbar = document.querySelector('#mainToolbar').getBoundingClientRect();
+      const comic = document.querySelector('#comic').getBoundingClientRect();
+      return Math.abs(toolbar.top + window.scrollY - initialTop) < 2 && toolbar.bottom < comic.top;
+    }, initial.y)).toBe(true);
+  }
+
+  await expect(page.locator('#mainToolbar')).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => localStorage.getItem(window.CONFIG.STORAGE_KEYS.TOOLBAR_POS))).toBe(savedPosition);
+});
+
+test('settings stay fully inside the viewport across desktop and phone sizes', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'Settings' }).click();
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
+    { width: 844, height: 390 }
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect.poll(() => page.locator('#settingsDIV').evaluate(panel => {
+      const rect = panel.getBoundingClientRect();
+      return rect.top >= 8 && rect.left >= 8 &&
+        rect.bottom <= window.innerHeight - 8 &&
+        rect.right <= document.documentElement.clientWidth - 8;
+    }), { message: `Settings must fit at ${viewport.width}x${viewport.height}` }).toBe(true);
+    await expect(page.locator('#settingsCloseBtn')).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('.settings-footer')).toBeInViewport({ ratio: 1 });
+    await clickSettingsControl(page, '#top10Btn');
+    await expect(page.locator('#top10Modal')).toHaveClass(/visible/);
+    await page.locator('#top10CloseBtn').click();
+  }
+});
