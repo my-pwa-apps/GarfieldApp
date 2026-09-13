@@ -72,3 +72,44 @@ test('local deployment covers the app shell, key and sitemap; metadata agrees', 
   assert.ok(files.get('sitemap.xml').toString().includes(`<loc>${payload.urlList[0]}</loc>`));
   assert.equal((await readFile(new URL('../../sitemap.txt', import.meta.url), 'utf8')).trim(), payload.urlList[0]);
 });
+
+test('offline fallback is excluded from search while the homepage stays indexable', async () => {
+  const files = await readDeployment();
+  assert.match(files.get('offline.html').toString(), /<meta name="robots" content="noindex, follow">/);
+  assert.doesNotMatch(files.get('index.html').toString(), /noindex/i);
+  assert.doesNotMatch(files.get('sitemap.xml').toString(), /offline/);
+  assert.doesNotMatch(files.get('sitemap.txt').toString(), /offline/);
+});
+
+test('search, social and structured metadata consistently describe the canonical app', async () => {
+  const files = await readDeployment();
+  const html = files.get('index.html').toString();
+  const metadata = new Map([...html.matchAll(/<meta (?:name|property)="([^"]+)" content="([^"]*)"/g)]
+    .map(([, name, content]) => [name, content]));
+  const schema = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const canonical = createPayload(files).urlList[0];
+  assert.ok(metadata.get('description').length <= 160);
+  assert.equal(metadata.get('og:description'), metadata.get('description'));
+  assert.equal(metadata.get('twitter:description'), metadata.get('description'));
+  assert.equal(schema.description, metadata.get('description'));
+  assert.equal(metadata.has('keywords'), false);
+  assert.equal(metadata.get('og:url'), canonical);
+  assert.equal(metadata.get('twitter:url'), canonical);
+  assert.equal(metadata.get('twitter:card'), 'summary');
+  assert.equal(metadata.get('og:image'), metadata.get('twitter:image'));
+  assert.equal(metadata.get('og:image:alt'), metadata.get('twitter:image:alt'));
+  assert.ok(metadata.get('og:image:alt'));
+  const imagePath = new URL(metadata.get('og:image')).pathname.slice(1);
+  const image = await readFile(new URL(`../../${imagePath}`, import.meta.url));
+  assert.equal(image.readUInt32BE(16), Number(metadata.get('og:image:width')));
+  assert.equal(image.readUInt32BE(20), Number(metadata.get('og:image:height')));
+  assert.equal(schema['@type'], 'WebApplication');
+  assert.equal(schema.url, canonical);
+  assert.equal(schema.image, metadata.get('og:image'));
+  assert.equal(schema.applicationCategory, 'EntertainmentApplication');
+  assert.deepEqual(schema.inLanguage, ['en', 'es']);
+  assert.equal(schema.mainEntityOfPage.url, canonical);
+  assert.equal(schema.mainEntityOfPage.isPartOf.url, canonical);
+  assert.equal(schema.mainEntityOfPage.isPartOf.name, metadata.get('og:site_name'));
+  assert.equal(schema.mainEntityOfPage.name, html.match(/<title>(.*?)<\/title>/)[1]);
+});

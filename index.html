@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!">
-    <meta name="keywords" content="garfield comics, jim davis, daily comic strip, garfield app, comic viewer, garfield english, garfield spanish, garfield pwa, garfield español, tiras cómicas de garfield">
+    <meta name="description" content="Read daily Garfield comic strips in English and Spanish. Browse the archive by date, save favorites, and revisit cached comics offline with GarfieldApp.">
     <meta name="author" content="GarfieldApp">
     <meta name="theme-color" content="#fff7bd">
     <meta name="msapplication-TileColor" content="#fff7bd">
@@ -17,15 +16,22 @@
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GarfieldApp">
+    <meta property="og:locale" content="en_US">
     <meta property="og:url" content="https://garfieldapp.pages.dev/">
     <meta property="og:title" content="Daily Garfield Comics - English & Spanish">
-    <meta property="og:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta property="og:description" content="Read daily Garfield comic strips in English and Spanish. Browse the archive by date, save favorites, and revisit cached comics offline with GarfieldApp.">
     <meta property="og:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
-    <meta name="twitter:card" content="summary_large_image">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="GarfieldApp icon">
+    <meta name="twitter:card" content="summary">
     <meta name="twitter:url" content="https://garfieldapp.pages.dev/">
     <meta name="twitter:title" content="Daily Garfield Comics - English & Spanish">
-    <meta name="twitter:description" content="Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics!">
+    <meta name="twitter:description" content="Read daily Garfield comic strips in English and Spanish. Browse the archive by date, save favorites, and revisit cached comics offline with GarfieldApp.">
     <meta name="twitter:image" content="https://garfieldapp.pages.dev/android/android-launchericon-512-512.png">
+    <meta name="twitter:image:alt" content="GarfieldApp icon">
 
     <title>Daily Garfield Comics - English & Spanish</title>
 
@@ -49,12 +55,29 @@
     {
         "@context": "https://schema.org",
         "@type": "WebApplication",
+        "@id": "https://garfieldapp.pages.dev/#app",
         "name": "Daily Garfield Comics",
         "url": "https://garfieldapp.pages.dev/",
-        "description": "Browse daily Garfield comic strips in English and Spanish. Navigate through decades of comics, save your favorites, and enjoy Jim Davis's classic cat Garfield!",
-        "applicationCategory": "Entertainment",
+        "description": "Read daily Garfield comic strips in English and Spanish. Browse the archive by date, save favorites, and revisit cached comics offline with GarfieldApp.",
+        "applicationCategory": "EntertainmentApplication",
         "operatingSystem": "Any",
         "inLanguage": ["en", "es"],
+        "image": "https://garfieldapp.pages.dev/android/android-launchericon-512-512.png",
+        "isAccessibleForFree": true,
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "https://garfieldapp.pages.dev/#webpage",
+            "url": "https://garfieldapp.pages.dev/",
+            "name": "Daily Garfield Comics - English & Spanish",
+            "inLanguage": "en",
+            "isPartOf": {
+                "@type": "WebSite",
+                "@id": "https://garfieldapp.pages.dev/#website",
+                "url": "https://garfieldapp.pages.dev/",
+                "name": "GarfieldApp",
+                "alternateName": "Daily Garfield Comics"
+            }
+        },
         "offers": {
             "@type": "Offer",
             "price": "0",
