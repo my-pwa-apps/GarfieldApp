@@ -1,6 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { loadComicImage, loadComicWithFallback, reserveComicSpace, setComicImage } from '../../comicPresentation.js';
+import {
+    getAdjacentComicDirection,
+    loadComicImage,
+    loadComicWithFallback,
+    reserveComicSpace,
+    setComicImage
+} from '../../comicPresentation.js';
+
+test('comic transitions slide only between adjacent calendar dates', () => {
+    const current = new Date(2026, 2, 8);
+
+    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 9)), 'next');
+    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 7)), 'previous');
+    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 10)), null);
+    assert.equal(getAdjacentComicDirection(current, new Date(2025, 11, 31)), null);
+
+    assert.equal(
+        getAdjacentComicDirection(new Date(2026, 2, 31), new Date(2026, 3, 1)),
+        'next'
+    );
+});
 
 test('first comic reserves a daily or Sunday ratio and commits actual decoded dimensions', () => {
     const image = { getAttribute: () => image.src };

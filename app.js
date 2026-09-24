@@ -3,7 +3,7 @@ import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
 import { makeDraggable } from './toolbar.js';
 import { normalizeFavorites } from './favorites.js';
-import { decodeComicResult, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage } from './comicPresentation.js';
+import { decodeComicResult, getAdjacentComicDirection, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage } from './comicPresentation.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -2485,17 +2485,18 @@ async function loadComic(date, silentMode = false, direction = null) {
                 scheduleRotatedComicResize(imgElement);
             };
             const hasExistingComicImage = () => comicImg.src && comicImg.src !== window.location.href;
+            const transitionDirection = displayedComic ? getAdjacentComicDirection(UTILS.dateFromFavoriteDateString(displayedComic.date), result.actualDate || date) : null;
 
-            // Animate transition - slide for next/previous, crossfade for other navigation
+            // Adjacent comics slide; jumps across multiple dates morph.
             const animateTransition = () => {
                 return new Promise((resolve) => {
                     // Only animate if there's an existing image
                     if (hasExistingComicImage()) {
 
-                        if (direction === 'next' || direction === 'previous') {
+                        if (transitionDirection) {
                             // FILMSTRIP SLIDE animation - both comics visible during transition
-                            const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
-                            const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
+                            const slideOutClass = transitionDirection === 'previous' ? 'slide-out-right' : 'slide-out-left';
+                            const slideInClass = transitionDirection === 'previous' ? 'slide-in-right' : 'slide-in-left';
 
                             // Create a clone of current comic to slide out
                             const outgoingClone = comicImg.cloneNode(true);
@@ -2623,10 +2624,10 @@ async function loadComic(date, silentMode = false, direction = null) {
                 // Animate the rotated comic too
                 const animateRotatedComic = () => {
                     return new Promise((resolve) => {
-                        if (direction === 'next' || direction === 'previous') {
+                        if (transitionDirection) {
                             // FILMSTRIP SLIDE animation for rotated comic
-                            const slideOutClass = direction === 'previous' ? 'slide-out-right' : 'slide-out-left';
-                            const slideInClass = direction === 'previous' ? 'slide-in-right' : 'slide-in-left';
+                            const slideOutClass = transitionDirection === 'previous' ? 'slide-out-right' : 'slide-out-left';
+                            const slideInClass = transitionDirection === 'previous' ? 'slide-in-right' : 'slide-in-left';
 
                             // Create a clone of current rotated comic to slide out
                             const outgoingClone = rotatedComic.cloneNode(true);
@@ -4846,4 +4847,3 @@ function closeTop10Modal() {
 window.showTop10Modal = showTop10Modal;
 window.closeTop10Modal = closeTop10Modal;
 window.exitTop10Mode = exitTop10Mode;
-

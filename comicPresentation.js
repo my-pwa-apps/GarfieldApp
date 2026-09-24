@@ -1,5 +1,15 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
 
+export function getAdjacentComicDirection(currentDate, targetDate) {
+    const currentDay = Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const targetDay = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    const dayDifference = (targetDay - currentDay) / 86400000;
+
+    if (dayDifference === 1) return 'next';
+    if (dayDifference === -1) return 'previous';
+    return null;
+}
+
 export function reserveComicSpace(image, date) {
     if (image.getAttribute('src')) return;
     image.width = 900;
