@@ -3,7 +3,7 @@ import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
 import { makeDraggable } from './toolbar.js';
 import { normalizeFavorites } from './favorites.js';
-import { decodeComicResult, getAdjacentComicDirection, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage } from './comicPresentation.js';
+import { decodeComicResult, getAdjacentComicDirection, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage, startComicMorph } from './comicPresentation.js';
 
 // ========================================
 // CONFIGURATION & CONSTANTS
@@ -2544,9 +2544,7 @@ async function loadComic(date, silentMode = false, direction = null) {
 
                             // Wait for new image to load, THEN blur out clone
                             const startMorph = () => {
-                                requestAnimationFrame(() => {
-                                    outgoingClone.classList.add('morph-out');
-                                });
+                                startComicMorph(outgoingClone);
 
                                 // Cleanup after animation
                                 setTimeout(() => {
@@ -2686,9 +2684,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                                 resizeRotatedComicWhenReady(rotatedComic);
 
                                 // Blur out the old image (clone)
-                                requestAnimationFrame(() => {
-                                    outgoingClone.classList.add('morph-out');
-                                });
+                                startComicMorph(outgoingClone);
 
                                 // Cleanup after animation
                                 setTimeout(() => {

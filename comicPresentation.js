@@ -10,6 +10,12 @@ export function getAdjacentComicDirection(currentDate, targetDate) {
     return null;
 }
 
+export function startComicMorph(element) {
+    // Commit the clone's initial styles before applying the transition endpoint.
+    element.offsetHeight;
+    requestAnimationFrame(() => element.classList.add('morph-out'));
+}
+
 export function reserveComicSpace(image, date) {
     if (image.getAttribute('src')) return;
     image.width = 900;

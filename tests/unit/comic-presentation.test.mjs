@@ -5,7 +5,8 @@ import {
     loadComicImage,
     loadComicWithFallback,
     reserveComicSpace,
-    setComicImage
+    setComicImage,
+    startComicMorph
 } from '../../comicPresentation.js';
 
 test('comic transitions slide only between adjacent calendar dates', () => {
@@ -20,6 +21,33 @@ test('comic transitions slide only between adjacent calendar dates', () => {
         getAdjacentComicDirection(new Date(2026, 2, 31), new Date(2026, 3, 1)),
         'next'
     );
+});
+
+test('comic morph commits the initial clone before starting its transition', () => {
+    const events = [];
+    const previousAnimationFrame = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = callback => {
+        events.push('animation-frame');
+        callback();
+    };
+    const element = {
+        get offsetHeight() {
+            events.push('layout');
+            return 270;
+        },
+        classList: {
+            add(className) {
+                events.push(`add:${className}`);
+            }
+        }
+    };
+
+    try {
+        startComicMorph(element);
+        assert.deepEqual(events, ['layout', 'animation-frame', 'add:morph-out']);
+    } finally {
+        globalThis.requestAnimationFrame = previousAnimationFrame;
+    }
 });
 
 test('first comic reserves a daily or Sunday ratio and commits actual decoded dimensions', () => {
