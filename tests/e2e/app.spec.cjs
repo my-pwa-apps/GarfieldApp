@@ -293,6 +293,30 @@ async function dispatchTouchGesture(page, selector, points) {
   }, points);
 }
 
+const TRANSITION_CLONE_SELECTOR = '.comic-outgoing, .comic-pixelate-outgoing, .rotated-comic-outgoing, .rotated-comic-morph-outgoing';
+
+async function observeTransitionClones(page) {
+  await page.evaluate(selector => {
+    window.__transitionClones = [];
+    new MutationObserver(records => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node instanceof HTMLImageElement && node.matches(selector)) {
+            window.__transitionClones.push({ ariaHidden: node.getAttribute('aria-hidden'), alt: node.alt, id: node.id });
+          }
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  }, TRANSITION_CLONE_SELECTOR);
+}
+
+async function expectTransitionClonesHiddenAndRemoved(page) {
+  await expect.poll(() => page.evaluate(() => window.__transitionClones.length)).toBeGreaterThan(0);
+  const clones = await page.evaluate(() => window.__transitionClones);
+  expect(clones).toEqual(clones.map(() => ({ ariaHidden: 'true', alt: '', id: '' })));
+  await expect(page.locator(TRANSITION_CLONE_SELECTOR)).toHaveCount(0);
+}
+
 test('keyboard focus remains visible on every input-device profile', async ({ page }) => {
   await openApp(page);
   await page.locator('#settingsBtn').focus();
@@ -841,7 +865,8 @@ test('initial source failure prefers a saved comic and restores its actual date'
 test('Spanish first-visit failure labels the bundled comic as English without changing language preference', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('spanish', 'true'));
   await openApp(page, '/', { failComics: true });
-  await expect(page.locator('#comic')).toHaveAttribute('alt', /English/);
+  // The strip is English, but its description follows the Spanish interface.
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield del 19 de junio de 1978 (inglés)');
   await expect(page.locator('#comic-message')).toContainText('cómic de reserva');
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
   expect(await page.locator('#DatePicker').evaluate(input => input.validity.rangeUnderflow)).toBe(false);
@@ -1062,12 +1087,18 @@ test('mobile landscape viewing opens rotated comic, supports swipe navigation, a
   await expect(page.locator('#comic-overlay')).toBeVisible();
   await expect(page.locator('#rotated-comic')).toHaveClass(/rotate/);
   await expect(page.locator('#settingsBtn')).not.toBeVisible();
+  await observeTransitionClones(page);
 
   await dispatchTouchGesture(page, '#rotated-comic', [{ x: 200, y: 650 }, { x: 200, y: 250 }]);
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-21');
+  // The picker updates when navigation starts; wait for the commit so the next swipe is a real change.
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for June 21, 1978 (English)');
 
   await dispatchTouchGesture(page, '#rotated-comic', [{ x: 200, y: 250 }, { x: 200, y: 650 }]);
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for June 20, 1978 (English)');
+  await expectTransitionClonesHiddenAndRemoved(page);
+  await expect(page.locator('#rotated-comic')).not.toHaveClass(/slide-/);
 
   await page.waitForTimeout(400);
   await page.locator('#comic-overlay').click({ force: true });
@@ -1156,6 +1187,49 @@ test('favorites export, import, duplicate, invalid, and notification close paths
   await expect(page.locator('#notificationContent')).toHaveText('Invalid favorites file format.');
   await page.locator('#notificationClose').click();
   await expect(page.locator('#notificationToast')).not.toHaveClass(/show/);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('comic transitions hide decorative clones and clean up after rapid navigation', async ({ page }) => {
+  const errors = await openApp(page);
+  await setComicDate(page, '1978-06-19');
+  await observeTransitionClones(page);
+
+  await page.locator('#Next').click();
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
+  await page.locator('#Next').evaluate(element => { element.click(); element.click(); });
+  await setComicDate(page, '1978-07-04');
+
+  await expectTransitionClonesHiddenAndRemoved(page);
+  await expect(page.locator('#comic')).not.toHaveClass(/slide-|morph-/);
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for July 4, 1978 (English)');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('reduced motion swaps comics immediately without transition clones', async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors = await openApp(page);
+  await setComicDate(page, '1978-06-19');
+  await observeTransitionClones(page);
+
+  await page.locator('#Next').click();
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for June 20, 1978 (English)');
+  await setComicDate(page, '1978-07-04');
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for July 4, 1978 (English)');
+
+  if (testInfo.project.name === 'mobile-chrome') {
+    await page.locator('#comic').tap();
+    await expect(page.locator('#rotated-comic')).toHaveClass(/rotate/);
+    await dispatchTouchGesture(page, '#rotated-comic', [{ x: 200, y: 650 }, { x: 200, y: 250 }]);
+    await expect(page.locator('#DatePicker')).toHaveValue('1978-07-05');
+    await expect(page.locator('#rotated-comic')).toHaveAttribute('src', /19780705/);
+  }
+
+  expect(await page.evaluate(() => window.__transitionClones)).toEqual([]);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

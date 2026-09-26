@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
@@ -16,6 +16,7 @@
     "test:native": "playwright test --config=playwright.native.config.cjs",
     "test:lighthouse": "node tests/support/lighthouse-audit.cjs",
     "test:first-visit": "playwright test tests/e2e/recommended.spec.cjs --grep \"first visit\"",
+    "test:first-visit:throttled": "node tests/support/throttled-first-visit.cjs",
     "test:workers": "node tests/support/live-worker-health.cjs",
     "bump:version": "node tools/bump-version.cjs",
     "screenshots": "node tools/capture-screenshots.cjs",

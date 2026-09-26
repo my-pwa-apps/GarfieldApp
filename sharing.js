@@ -31,29 +31,9 @@ export async function shareComic({ comic, t, showNotification }) {
         // Convert to JPEG via canvas so the Windows share dialog always shows a
         // thumbnail. The blob URL is same-origin so there is no canvas taint, even
         // though the original image came from a third-party CDN.
-        const blobUrl = URL.createObjectURL(rawBlob);
+        // If conversion fails, the error path still has the original image for the clipboard fallback.
         shareBlob = rawBlob;
-        try {
-            const img = await new Promise((resolve, reject) => {
-                const i = new Image();
-                i.onload = () => resolve(i);
-                i.onerror = reject;
-                i.src = blobUrl;
-            });
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            // Fill with white background to prevent transparent GIFs/PNGs from becoming black JPEGs
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            shareBlob = await new Promise((resolve, reject) => {
-                canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.92);
-            });
-        } finally {
-            URL.revokeObjectURL(blobUrl);
-        }
+        shareBlob = await convertImageBlob(rawBlob, 'image/jpeg', 0.92);
 
         const file = new File([shareBlob], 'garfield.jpg', { type: 'image/jpeg', lastModified: Date.now() });
 
@@ -189,7 +169,11 @@ async function copyShareFallbackToClipboard(imageBlob, text) {
 
 async function convertBlobToPng(blob) {
     if (blob.type === 'image/png') return blob;
+    return convertImageBlob(blob, 'image/png');
+}
 
+// Re-encode an image blob on a white canvas so transparent GIFs/PNGs never turn black.
+async function convertImageBlob(blob, type, quality) {
     const blobUrl = URL.createObjectURL(blob);
     try {
         const img = await new Promise((resolve, reject) => {
@@ -206,7 +190,7 @@ async function convertBlobToPng(blob) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
         return await new Promise((resolve, reject) => {
-            canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png');
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), type, quality);
         });
     } finally {
         URL.revokeObjectURL(blobUrl);

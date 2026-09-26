@@ -375,19 +375,25 @@ test('non-GET and cross-origin non-image requests are left to the network', asyn
     assert.equal(await sw.request('https://favorites-api.garfieldapp.workers.dev/top', { destination: '' }), undefined);
 });
 
-test('every module statically imported by app.js is precached and required', async () => {
-    const appSource = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
+test('every module in the static module graph is precached and required', async () => {
+    const { createRequire } = await import('node:module');
+    const { fileURLToPath } = await import('node:url');
+    const { collectModuleGraph } = createRequire(import.meta.url)('../../tools/verify-assets.cjs');
+    const html = await readFile(new URL('../../index.html', import.meta.url), 'utf8');
     const precacheList = source.match(/const PRECACHE_ASSETS = \[([\s\S]*?)\];/)?.[1];
     const requiredList = source.match(/const REQUIRED_PRECACHE_ASSETS = new Set\(\[([\s\S]*?)\]\)/)?.[1];
     assert.ok(precacheList, 'PRECACHE_ASSETS should be discoverable');
     assert.ok(requiredList, 'REQUIRED_PRECACHE_ASSETS should be discoverable');
 
-    const imports = [...appSource.matchAll(/^\s*import[^'"]*['"](\.\/[^'"]+)['"]/gm)].map(match => match[1]);
-    assert.ok(imports.length > 0, 'app.js should statically import at least one module');
+    const { staticModules, dynamicModules } = collectModuleGraph(fileURLToPath(new URL('../../', import.meta.url)), html);
+    assert.ok(staticModules.has('app.js') && staticModules.size > 5, 'the graph should include app.js and its imports');
 
-    for (const specifier of imports) {
-        assert.ok(precacheList.includes(`'${specifier}'`), `${specifier} must be precached`);
-        assert.ok(requiredList.includes(`'${specifier}'`), `${specifier} must be a required precache asset`);
+    for (const file of staticModules) {
+        assert.ok(precacheList.includes(`'./${file}'`), `${file} must be precached`);
+        assert.ok(requiredList.includes(`'./${file}'`), `${file} must be a required precache asset`);
+    }
+    for (const file of dynamicModules) {
+        assert.ok(precacheList.includes(`'./${file}'`), `lazily imported ${file} must be precached`);
     }
 });
 

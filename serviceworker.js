@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.24';
+const VERSION = 'v1.0.25';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = 'garfield-images-v1';
@@ -22,6 +22,13 @@ const PRECACHE_ASSETS = [
   './favorites.js',
   './translations.js',
   './sharing.js',
+  './config.js',
+  './favoritesApi.js',
+  './focusTrap.js',
+  './toolbarLayout.js',
+  './gestures.js',
+  './verticalComic.js',
+  './top10.js',
   './comicPresentation.js',
   './driveFavorites.js',
   './driveSyncState.js',
@@ -44,6 +51,12 @@ const REQUIRED_PRECACHE_ASSETS = new Set([
   './favorites.js',
   './translations.js',
   './sharing.js',
+  './config.js',
+  './favoritesApi.js',
+  './focusTrap.js',
+  './toolbarLayout.js',
+  './gestures.js',
+  './verticalComic.js',
   './comicPresentation.js',
   './driveFavorites.js',
   './driveSyncState.js'

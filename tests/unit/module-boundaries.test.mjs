@@ -8,7 +8,7 @@ test('client feature modules stay bounded and the legacy app cannot grow', async
     const root = new URL('../../', import.meta.url);
     for (const file of (await readdir(root)).filter(name => name.endsWith('.js'))) {
         const lines = (await readFile(new URL(file, root), 'utf8')).split(/\r?\n/).length;
-        const limit = file === 'app.js' ? 4850 : 800;
+        const limit = file === 'app.js' ? 2750 : 800;
         assert.ok(lines <= limit, `${file}: ${lines} lines exceeds ${limit}; extract a focused feature module`);
     }
 });

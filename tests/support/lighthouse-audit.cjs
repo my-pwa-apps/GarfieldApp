@@ -1,4 +1,5 @@
 const { spawn } = require('node:child_process');
+const { startMeasurementServer } = require('./measurement-server.cjs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('playwright');
@@ -6,7 +7,14 @@ const { chromium } = require('playwright');
 const host = '127.0.0.1';
 const port = '8020';
 const chromeDebugPort = 9223;
-const url = `http://${host}:${port}/`;
+// The local app is served over HTTP/1.1 because the production proxy only accepts
+// plain-http loopback origins. Lighthouse then models six connections per host,
+// which overstates the cost of the app's multi-module graph compared with
+// production HTTP/2; pass --url https://garfieldapp.pages.dev/ to audit a
+// deployed revision over its real protocol instead.
+const urlArgIndex = process.argv.indexOf('--url');
+const deployedUrl = urlArgIndex === -1 ? null : process.argv[urlArgIndex + 1];
+let url;
 const outputPath = path.resolve(__dirname, '../lighthouse-report.json');
 const thresholds = {
   performance: 0.6,
@@ -55,29 +63,12 @@ function run(command, args, options = {}) {
   });
 }
 
-async function waitForServer() {
-  const deadline = Date.now() + 10_000;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch {
-      // Server is still starting.
-    }
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-  throw new Error(`Server did not start at ${url}`);
-}
-
 async function main() {
-  const server = spawn(process.execPath, ['tests/support/static-server.cjs', '--host', host, '--port', port], {
-    stdio: 'ignore',
-    shell: false
-  });
+  const server = deployedUrl ? null : await startMeasurementServer({ host, port: Number(port), protocol: 'http1' });
+  url = deployedUrl || server.url;
   let browser;
 
   try {
-    await waitForServer();
     browser = await chromium.launch({ args: [`--remote-debugging-port=${chromeDebugPort}`] });
     await run(process.execPath, [
       require.resolve('lighthouse/cli/index.js'),
@@ -131,7 +122,7 @@ async function main() {
     console.log(`Lighthouse passed: ${JSON.stringify(scores)}`);
   } finally {
     if (browser) await browser.close();
-    server.kill('SIGTERM');
+    await server?.close();
   }
 }
 

@@ -109,6 +109,21 @@
          visitors who never sync do not download it. -->
     <script src="./googleDriveSync.js" type="module"></script>
     <script src="./app.js" type="module"></script>
+    <!-- Fetch the whole static module graph in parallel instead of one import level per round trip. Kept in sync by tools/verify-assets.cjs. -->
+    <link rel="modulepreload" href="./config.js">
+    <link rel="modulepreload" href="./translations.js">
+    <link rel="modulepreload" href="./favorites.js">
+    <link rel="modulepreload" href="./comicExtractor.js">
+    <link rel="modulepreload" href="./comicPresentation.js">
+    <link rel="modulepreload" href="./toolbar.js">
+    <link rel="modulepreload" href="./toolbarLayout.js">
+    <link rel="modulepreload" href="./gestures.js">
+    <link rel="modulepreload" href="./verticalComic.js">
+    <link rel="modulepreload" href="./favoritesApi.js">
+    <link rel="modulepreload" href="./focusTrap.js">
+    <link rel="modulepreload" href="./sharing.js">
+    <link rel="modulepreload" href="./driveFavorites.js">
+    <link rel="modulepreload" href="./driveSyncState.js">
 </head>
 
 <body id="app-body">

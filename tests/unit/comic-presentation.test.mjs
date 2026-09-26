@@ -1,13 +1,128 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import {
+    createTransitionClone,
+    describeComic,
     getAdjacentComicDirection,
     loadComicImage,
     loadComicWithFallback,
+    prefersReducedMotion,
     reserveComicSpace,
     setComicImage,
-    startComicMorph
+    startComicMorph,
+    transitionComicImage
 } from '../../comicPresentation.js';
+
+function fakeImage(events, name) {
+    const classes = new Set();
+    const element = {
+        alt: `${name} alt`,
+        attributes: new Map([['id', name]]),
+        style: {},
+        classList: {
+            add: (...names) => names.forEach(n => { classes.add(n); events.push(`${name}+${n}`); }),
+            remove: (...names) => names.forEach(n => classes.delete(n)),
+            contains: n => classes.has(n)
+        },
+        get offsetHeight() { events.push(`${name}:layout`); return 1; },
+        removeAttribute: attribute => element.attributes.delete(attribute),
+        setAttribute: (attribute, value) => element.attributes.set(attribute, value),
+        remove: () => events.push(`${name}:removed`),
+        cloneNode: () => {
+            const clone = fakeImage(events, 'clone');
+            clone.classList.add('slide-in-left', 'no-transition');
+            events.length = 0;
+            return clone;
+        }
+    };
+    return element;
+}
+
+test('comic transitions share one sequence for slide, morph and reduced motion', async () => {
+    const previousFrame = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = callback => callback();
+    mock.timers.enable({ apis: ['setTimeout'] });
+    try {
+        const run = (options) => {
+            const events = [];
+            const image = fakeImage(events, 'comic');
+            const appended = [];
+            const done = transitionComicImage(image, {
+                container: { appendChild: clone => { appended.push(clone); events.push('appended'); } },
+                cloneClass: { slide: 'slide-clone', morph: 'morph-clone' },
+                setImage: () => events.push('setImage'),
+                setTransitionsEnabled: enabled => events.push(`transitions:${enabled}`),
+                onSwapped: () => events.push('swapped'),
+                ...options
+            });
+            return { events, appended, done };
+        };
+
+        const still = run({ animate: false, direction: 'next' });
+        await still.done;
+        assert.deepEqual(still.events, ['setImage', 'swapped']);
+        assert.equal(still.appended.length, 0);
+
+        const morph = run({ animate: true, direction: null });
+        mock.timers.tick(600);
+        await morph.done;
+        assert.deepEqual(morph.events, ['clone+morph-clone', 'appended', 'setImage', 'swapped', 'clone:layout', 'clone+morph-out', 'clone:removed']);
+        assert.equal(morph.appended[0].classList.contains('no-transition'), false, 'a morph clone must not inherit a paused slide');
+        assert.equal(morph.appended[0].attributes.get('aria-hidden'), 'true');
+
+        const slide = run({ animate: true, direction: 'previous' });
+        mock.timers.tick(500);
+        await slide.done;
+        assert.deepEqual(slide.events, [
+            'clone+slide-clone', 'appended', 'transitions:false', 'setImage', 'comic+slide-in-right',
+            'comic:layout', 'clone:layout', 'transitions:true', 'clone+slide-out-right', 'swapped', 'clone:removed'
+        ]);
+        assert.equal(slide.appended[0].classList.contains('slide-in-left'), false);
+    } finally {
+        mock.timers.reset();
+        globalThis.requestAnimationFrame = previousFrame;
+    }
+});
+
+test('transition clones are hidden from assistive technology without touching the original', () => {
+    const attributes = new Map([['id', 'comic']]);
+    const clone = {
+        alt: 'Garfield for June 19, 1978 (English)',
+        removeAttribute: name => attributes.delete(name),
+        setAttribute: (name, value) => attributes.set(name, value)
+    };
+    const original = { alt: clone.alt, cloneNode: deep => { assert.equal(deep, true); return clone; } };
+
+    assert.equal(createTransitionClone(original), clone);
+    assert.equal(attributes.has('id'), false);
+    assert.equal(attributes.get('aria-hidden'), 'true');
+    assert.equal(clone.alt, '');
+    assert.equal(original.alt, 'Garfield for June 19, 1978 (English)');
+});
+
+test('comic descriptions never mix the interface language with the strip language', () => {
+    const date = new Date(1978, 5, 19);
+    assert.equal(describeComic(date, 'en', 'en'), 'Garfield for June 19, 1978 (English)');
+    assert.equal(describeComic(date, 'es', 'es'), 'Garfield del 19 de junio de 1978 (español)');
+    // Spanish interface showing the bundled English fallback strip.
+    assert.equal(describeComic(date, 'es', 'en'), 'Garfield del 19 de junio de 1978 (inglés)');
+    assert.equal(describeComic(date, 'en', 'es'), 'Garfield for June 19, 1978 (Spanish)');
+});
+
+test('reduced motion follows the user preference and defaults to animating', () => {
+    const previous = globalThis.matchMedia;
+    try {
+        delete globalThis.matchMedia;
+        assert.equal(prefersReducedMotion(), false);
+        globalThis.matchMedia = query => ({ matches: query === '(prefers-reduced-motion: reduce)' });
+        assert.equal(prefersReducedMotion(), true);
+        globalThis.matchMedia = () => ({ matches: false });
+        assert.equal(prefersReducedMotion(), false);
+    } finally {
+        if (previous) globalThis.matchMedia = previous;
+        else delete globalThis.matchMedia;
+    }
+});
 
 test('comic transitions slide only between adjacent calendar dates', () => {
     const current = new Date(2026, 2, 8);

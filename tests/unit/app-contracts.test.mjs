@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
-import { normalizeFavorites } from '../../favorites.js';
 
 /**
  * These tests exercise app.js for real instead of pattern-matching its source.
@@ -82,7 +81,7 @@ test('favoriting the displayed date is independent of duplicate prefetch URLs', 
     const context = {
         formattedComicDate: '2024/01/02', currentComicUrl: 'same.gif', nextComicUrl: 'same.gif',
         displayedComic: { date: '2024/01/02' },
-        isRotatedMode: false, CONFIG: { STORAGE_KEYS: { FAVS: 'favs' } },
+        isRotated: () => false, CONFIG: { STORAGE_KEYS: { FAVS: 'favs' } },
         window: {},
         UTILS: { getFavorites: () => JSON.parse(saved.get('favs') || '[]'), updateHeartIcon() {} },
         localStorage: { setItem: (key, value) => saved.set(key, value) },
@@ -255,7 +254,7 @@ test('sync preferences report the persisted user configuration', () => {
 });
 
 test('community favorite writes are authenticated by bearer token only', async () => {
-    const appSource = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
+    const appSource = (await Promise.all(['app.js', 'favoritesApi.js'].map(file => readFile(new URL(`../../${file}`, import.meta.url), 'utf8')))).join('\n');
     // Static invariant: a spoofable client-supplied identity header must never
     // reappear as an alternative to the verified Google ID token.
     assert.doesNotMatch(appSource, /X-Client-Id/);
@@ -269,24 +268,28 @@ test('community favorite writes are authenticated by bearer token only', async (
 });
 
 test('migration batches and acknowledgements are scoped to each verified account', async () => {
-    const source = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
-    const helpers = source.slice(source.indexOf('function getValidFavoriteDates('), source.indexOf('function refreshFavoritesDependentUI('));
-    const migrate = source.slice(source.indexOf('function migrateExistingFavorites('), source.indexOf("window.addEventListener('google-auth-changed'"));
+    const { migrateExistingFavorites } = await import('../../favoritesApi.js');
     let accountId = 'first';
     const requests = [];
     const favorites = Array.from({ length: 501 }, (_, index) => UTILS.dateToISODateString(new Date(2000, 0, index + 1, 12)).replaceAll('-', '/'));
-    const context = { CONFIG, UTILS, localStorage, normalizeFavorites, _favoritesMigrationQueue: Promise.resolve(),
-        window: { getFavoritesApiIdentity: async () => ({ accountId, accessToken: accountId }) },
-        favoritesApiFetch: async (path, options) => { requests.push({ token: options.headers.Authorization, dates: JSON.parse(options.body).dates }); return { ok: true, json: async () => ({ ok: true }) }; }
+    const previousFetch = globalThis.fetch;
+    globalThis.getFavoritesApiIdentity = async () => ({ accountId, accessToken: accountId });
+    globalThis.fetch = async (url, options) => {
+        assert.match(String(url), /\/migrate$/);
+        requests.push({ token: options.headers.get('Authorization'), dates: JSON.parse(options.body).dates });
+        return { ok: true, json: async () => ({ ok: true }) };
     };
-    vm.createContext(context);
-    vm.runInContext(helpers + migrate, context);
-    await context.migrateExistingFavorites(favorites);
-    assert.deepEqual(requests.map(request => request.dates.length), [500, 1]);
-    await context.migrateExistingFavorites(favorites);
-    assert.equal(requests.length, 2);
-    accountId = 'second';
-    await context.migrateExistingFavorites(favorites);
-    assert.deepEqual(requests.map(request => request.dates.length), [500, 1, 500, 1]);
-    assert.equal(requests[2].token, 'Bearer second');
+    try {
+        await migrateExistingFavorites(favorites);
+        assert.deepEqual(requests.map(request => request.dates.length), [500, 1]);
+        await migrateExistingFavorites(favorites);
+        assert.equal(requests.length, 2);
+        accountId = 'second';
+        await migrateExistingFavorites(favorites);
+        assert.deepEqual(requests.map(request => request.dates.length), [500, 1, 500, 1]);
+        assert.equal(requests[2].token, 'Bearer second');
+    } finally {
+        globalThis.fetch = previousFetch;
+        delete globalThis.getFavoritesApiIdentity;
+    }
 });

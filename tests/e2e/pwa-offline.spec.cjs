@@ -88,7 +88,7 @@ test('service worker precaches the app shell and serves it while offline', async
   })).toBeGreaterThan(0);
 
   await page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.ready;
+    await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
       await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
     }

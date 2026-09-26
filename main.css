@@ -284,10 +284,6 @@ input {
     transform-origin: center center;
 }
 
-#comic.dissolve {
-    opacity: 0;
-}
-
 #comic.no-transition {
     transition: none !important;
 }
@@ -311,18 +307,6 @@ input {
 .comic-pixelate-outgoing.morph-out {
     filter: blur(20px);
     opacity: 0;
-}
-
-/* Incoming comic starts blurred, then sharpens */
-#comic.morph-in {
-    filter: blur(20px);
-    opacity: 0.5;
-}
-
-#comic.morph-resolve {
-    transition: filter 0.6s ease-in-out, opacity 0.6s ease-in-out;
-    filter: blur(0px);
-    opacity: 1;
 }
 
 /* Outgoing comic clone for filmstrip effect */
@@ -444,10 +428,6 @@ input {
     opacity: 1;
 }
 
-#rotated-comic.dissolve {
-    opacity: 0;
-}
-
 /* Slide animations for rotated comics (with 90deg rotation) */
 #rotated-comic.rotate.slide-out-left,
 .rotated-comic-outgoing.rotate.slide-out-left {
@@ -525,26 +505,6 @@ input {
 }
 
 .fullscreen-toolbar:not(.rotated) .toolbar-svg {
-    transform: none;
-}
-
-/* Landscape toolbar (device rotated to landscape) */
-.fullscreen-toolbar.landscape-toolbar {
-    flex-direction: row;
-    padding: 10px 15px;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    top: auto;
-    max-width: 90vw;
-    gap: 8px;
-}
-
-.fullscreen-toolbar.landscape-toolbar .toolbar-button {
-    margin: 0;
-}
-
-.fullscreen-toolbar.landscape-toolbar .toolbar-svg {
     transform: none;
 }
 
@@ -1561,8 +1521,7 @@ input {
         padding: 6px 8px;
     }
 
-    .toolbar-button,
-    .toolbar-datepicker-btn {
+    .toolbar-button {
         width: 44px;
         height: 44px;
         min-width: 44px;

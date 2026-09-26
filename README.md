@@ -9,7 +9,14 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `index.html` - static app shell and metadata, including the `<symbol>` SVG icon sprite used by the toolbar.
 - `main.css` - app styling and responsive/mobile layout.
 - `init.js` - pre-DOM bootstrap: fullscreen state, service worker registration, update banner.
-- `app.js` - main UI, navigation, favorites, settings, shuffle, and modals.
+- `app.js` - app bootstrap and the remaining UI glue: comic loading/navigation, favorites, settings, shuffle, import/export and install prompt. It wires the feature modules below to the app-owned date and comic state.
+- [config.js](config.js) - frozen `CONFIG` (timeouts, start dates, storage keys) and the shared `safeJSONParse` helper.
+- [toolbarLayout.js](toolbarLayout.js) - main toolbar and settings panel placement, persisted drag positions, viewport clamping, and the snapshot kept while fullscreen rotation moves the toolbar. Uses `toolbar.js`.
+- [gestures.js](gestures.js) - comic tap/double-tap, swipe navigation (remapped while rotated), and the rotated/landscape fullscreen view.
+- [verticalComic.js](verticalComic.js) - thumbnail and fullscreen view for tall strips.
+- [favoritesApi.js](favoritesApi.js) - community leaderboard API: authenticated votes, per-account migration of existing favorites, and the top list.
+- [top10.js](top10.js) - Top Favorites modal and browse mode. Loaded with a dynamic `import()` on first use, so it is not on the startup path.
+- [focusTrap.js](focusTrap.js) - dialog focus helpers shared by the settings panel and the Top Favorites modal.
 - [favorites.js](favorites.js) - canonical favorite schema and published-date validation for every client ingestion path.
 - [comicPresentation.js](comicPresentation.js) - bounded image load/decode contract, required before committing a comic.
 - [sharing.js](sharing.js) - Web Share, clipboard, and native-host sharing from an explicit committed comic snapshot.
@@ -21,7 +28,7 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `serviceworker.js` - PWA app-shell, runtime, and image caching.
 - `worker/index.js` - Cloudflare CORS proxy worker.
 - `worker/favorites-api/index.js` - community favorites API worker.
-- `tools/verify-assets.cjs` - deploy guard: every manifest/precache/tile reference must exist, and no image may be orphaned.
+- `tools/verify-assets.cjs` - deploy guard: every manifest/precache/tile reference must exist; every module in the static ES module graph (walked from the module scripts in `index.html`) must have a `<link rel="modulepreload">` and be in both service-worker precache lists; lazily imported modules must be precached; and no image (including `android/` and `ios/` icons) may be orphaned. References are matched by exact path; an intentionally unreferenced image needs a documented entry in `RETAINED_UNREFERENCED_IMAGES`.
 
 ## Local Development
 
@@ -49,6 +56,7 @@ npm run test:e2e
 npm run test:cross-browser
 npm run test:lighthouse
 npm run test:first-visit
+npm run test:first-visit:throttled
 npm run test:workers
 ```
 
@@ -58,17 +66,25 @@ For the full pre-deployment gate, run:
 npm run test:predeploy
 ```
 
-`test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy.
+`test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy. For English and Spanish comics it fetches the GoComics page and the comic image bytes through the proxy, retrying twice. A GoComics bot-challenge page is reported as an upstream issue, separately from proxy faults such as missing proxy identity or CORS headers, which fail immediately. The challenge depends on the forwarded `User-Agent`: headless browsers (`HeadlessChrome`) and self-identifying probes can be challenged while normal browsers are not, so a challenge here does not mean real users are affected. See [BACKLOG.md](BACKLOG.md#r06).
 
 `test:first-visit` uses deterministic provider fixtures on desktop and mobile Chromium. It checks a decoded, visible comic and records separate startup, discovery, image load/decode, and first-display milestones. The first-display mark runs after two animation frames; it is a render-readiness approximation, not a browser paint metric. No timing data is sent to an analytics service.
 
-`test:lighthouse` audits live providers and reports performance, accessibility, best practices, SEO, LCP, Speed Index, and captured first-comic marks. It fails if the trace never observes a decoded comic, even when the logo gives the page a good LCP score. A successful trace is followed by a separate cold, unthrottled mobile-emulation timing probe; those timings are not Lighthouse's modeled mobile timings. Provider errors remain failures, not fixture results.
+`test:first-visit:throttled` measures the client's own path to the first comic under Lighthouse's mobile throttling profile. It reports medians of first comic display, LCP, discovery start, DOMContentLoaded, script requests and transfer size. App files are served compressed over HTTP/2 with a throwaway self-signed certificate (needs `openssl`), matching Cloudflare Pages; comic providers are instant local fixtures. Add `--protocol http1` to compare against a six-connection HTTP/1.1 server, and `--json <file>` to keep the samples. It reports measurements and does not enforce thresholds.
 
-Run `npm run test:lighthouse -- --strict-performance` to additionally enforce R15's LCP <3 seconds, Speed Index <5.8 seconds, and performance >=0.80 targets. Require three comparable cold passes before closing R15; a single fast run is not sufficient.
+`test:lighthouse` audits live providers and reports performance, accessibility, best practices, SEO, LCP, Speed Index, and captured first-comic marks. It fails if the trace never observes a decoded comic, even when the logo gives the page a good LCP score. A successful trace is followed by a separate cold, unthrottled mobile-emulation timing probe; those timings are not Lighthouse's modeled mobile timings. Provider errors remain failures, not fixture results. The local app is served over HTTP/1.1 because the production proxy only accepts plain-http loopback origins. Lighthouse then models six connections per host, which overstates the cost of the multi-module graph compared with production. Use `npm run test:lighthouse -- --url https://garfieldapp.pages.dev/` to audit a deployed revision over its real protocol.
+
+Run `npm run test:lighthouse -- --strict-performance` to additionally enforce R15's LCP <3 seconds, Speed Index <5.8 seconds, and performance >=0.80 targets. Require three comparable cold passes; a single fast run is not sufficient. Results depend on GoComics' bot protection at the time: a challenged request pushes the app onto slower fallback sources.
 
 Every push and pull request to `main` also runs syntax, lint, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
 
-New client feature modules must stay below 800 lines; the existing app has a temporary no-growth cap while the remaining extraction is tracked in [BACKLOG.md](BACKLOG.md#r14). Put favorite validation, presentation readiness, sharing, translations, and Drive state in their owning modules above, not back into the bootstrap/UI file. Keep browser globals enabled in the test lint environment because Playwright `page.evaluate` callbacks execute in the browser.
+Client modules must stay below 800 lines, and `app.js` has a no-growth cap of 2,750 lines (`tests/unit/module-boundaries.test.mjs`). Put new cohesive features in their own module and wire them to app state with a `configure…()` call, as the modules above do, rather than growing the bootstrap file. Keep browser globals enabled in the test lint environment because Playwright `page.evaluate` callbacks execute in the browser.
+
+## Performance Notes
+
+Measured with `test:first-visit:throttled` (median of 7, HTTP/2, mobile throttling), the first comic appears about 2.2 s after navigation, down from about 2.9 s before the September 26 module split. The gain comes from `<link rel="modulepreload">` for the whole static module graph, which lets the browser fetch every module in parallel rather than one import level per round trip. Without the preloads, the split alone was about 0.5 s slower than the old single file.
+
+Minification was measured and not adopted. A minified copy cut script transfer from about 68 KiB to 40 KiB (compressed), but improved first comic display by only about 55 ms (2.5%) in the same harness. It would also need a build step and a Cloudflare Pages build configuration. Revisit it if the shipped JavaScript grows substantially.
 
 ## Deployment Notes
 
@@ -141,7 +157,7 @@ Run `npm run bump:version` for every production change so users receive a fresh 
 
 A new worker does **not** call `skipWaiting()` on install. It parks in `waiting` until the user accepts the in-app update banner, which posts `SKIP_WAITING`; `init.js` then reloads once on `controllerchange`. The settings footer reads the active worker's version by posting `GET_VERSION` over a `MessageChannel`.
 
-Any new statically imported ES module must be added to both `PRECACHE_ASSETS` and `REQUIRED_PRECACHE_ASSETS` in `serviceworker.js`, or the app breaks on an offline first launch. `npm run test:assets` and the unit suite enforce this.
+Every module in the static import graph must be listed in both `PRECACHE_ASSETS` and `REQUIRED_PRECACHE_ASSETS` in `serviceworker.js`, or the app breaks on an offline first launch. It also needs a `<link rel="modulepreload">` in `index.html`, or the first comic loads a round trip later per import level. Modules loaded with `import()` (currently `top10.js`) belong only in `PRECACHE_ASSETS`. `npm run test:assets` and the unit suite enforce all of this.
 
 Comic bytes use a stable, bounded image cache across shell versions. A displayed comic enters the offline index only after a worker cache acknowledgment; entries without resident image bytes are removed before offline navigation.
 
@@ -165,7 +181,7 @@ npx wrangler deploy --config worker/wrangler.toml
 
 The older `corsproxy` Worker at https://corsproxy.garfieldapp.workers.dev is shared with other apps and remains untouched for their clients and older installed Garfield versions. Do not rename this repository's Worker back to `corsproxy` or deploy over that shared service. New fetches and sharing use the dedicated endpoint; the image CSP retains the legacy origin for cached comics, and sharing translates legacy proxy URLs to the dedicated endpoint.
 
-The dedicated Worker was deployed on September 7, 2026; Pages was not published as part of that operation. A September 13 production-browser check now confirms the homepage uses the dedicated proxy and decodes the English comic, so the endpoint migration is already live. Earlier comparisons found September 7 Spanish worked through the shared proxy but returned 403 through the dedicated proxy; April 29 Spanish returned 403 on both. Recheck Spanish parity on the current deployment and resolve any regression or explicitly accept it. Cache state and upstream variability have not been isolated as causes. The custom-user-agent health probe is not representative of successful browser reads. See R06 in [BACKLOG.md](BACKLOG.md#r06) for remaining validation requirements.
+The dedicated Worker was deployed on September 7, 2026; Pages was not published as part of that operation. A September 13 production-browser check confirmed the homepage uses the dedicated proxy and decodes the English comic. On September 26, English and Spanish pages and image bytes (including the previously failing September 7 and April 29 Spanish strips) were verified through the dedicated proxy. The intermittent 403s were traced to GoComics' `User-Agent`-dependent bot challenge, not to the proxy's origin checks. See R06 in [BACKLOG.md](BACKLOG.md#r06) for the remaining health-check decision.
 
 The CORS proxy allowlist is configured through `worker/wrangler.toml` via `ALLOWED_HOSTS`.
 

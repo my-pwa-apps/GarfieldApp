@@ -126,12 +126,6 @@ function _hasUsableToken() {
     return !!(accessToken && accessTokenExpiry > (Date.now() + 60000));
 }
 
-function _canAutoSync() {
-    if (!_isGoogleAuthAllowedOrigin()) return false;
-    if (!_isSyncEnabled()) return false;
-    return _hasUsableToken() || _restoreStoredToken();
-}
-
 function _restoreStoredToken() {
     const parsed = _getStoredTokenData();
     if (!parsed) return false;

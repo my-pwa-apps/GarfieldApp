@@ -1,63 +1,19 @@
 import { translations } from './translations.js';
 import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
-import { makeDraggable } from './toolbar.js';
+import { configureToolbarLayout, initializeDraggableSettings, initializeToolbar, refreshToolbarDefaultPosition } from './toolbarLayout.js';
+import { configureGestures, handleTouchEnd, handleTouchMove, handleTouchStart, initializeRotationGestures, isRotated, scheduleRotatedComicResize } from './gestures.js';
+import { checkImageOrientation, configureVerticalComic, isVerticalComicActive, isVerticalFullscreen } from './verticalComic.js';
 import { normalizeFavorites } from './favorites.js';
-import { decodeComicResult, getAdjacentComicDirection, loadComicWithFallback, selectOfflineComic, reserveComicSpace, setComicImage, startComicMorph } from './comicPresentation.js';
+import { CONFIG, safeJSONParse } from './config.js';
+import { configureFavoritesApi, getValidFavoriteDates, migrateExistingFavorites, reportFavoriteToggle } from './favoritesApi.js';
+import { getFocusableElements, trapFocusWithin } from './focusTrap.js';
+import { decodeComicResult, describeComic, getAdjacentComicDirection, loadComicWithFallback, prefersReducedMotion, selectOfflineComic, reserveComicSpace, setComicImage, transitionComicImage } from './comicPresentation.js';
+
 
 // ========================================
 // CONFIGURATION & CONSTANTS
 // ========================================
-
-/**
- * Application Configuration
- * Central location for all magic numbers and configuration values
- */
-const CONFIG = Object.freeze({
-    // Swipe & touch detection
-    SWIPE_MIN_DISTANCE: 50,               // Minimum swipe distance in px
-    SWIPE_MAX_TIME: 500,                  // Maximum swipe time in ms
-    SWIPE_CLICK_DEBOUNCE_MS: 300,         // Ignore clicks for this long after a swipe
-    TAP_MAX_MOVEMENT: 10,                 // Maximum movement for tap detection in px
-    TAP_MAX_TIME: 300,                    // Maximum time for tap detection in ms
-
-    // Comic dates
-    GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
-    GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
-
-    // Favorites leaderboard API
-    FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
-    FAVORITES_API_TIMEOUT_MS: 12000,
-    FAVORITES_MIGRATION_VERSION: 'google-only-v1',
-    FAVORITES_MIGRATION_BATCH_SIZE: 500,
-
-    PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
-    COMIC_LOAD_TIMEOUT_MS: 12000,
-    COMIC_IMAGE_TIMEOUT_MS: 3000,
-    PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
-    PREFETCH_STAGGER_MS: 150,              // Delay between background prefetch requests
-    SHUFFLE_HISTORY_MAX: 200,              // Bound on shuffle back/forward history depth
-
-    // Storage keys
-    STORAGE_KEYS: Object.freeze({
-        FAVS: 'favs',
-        LAST_COMIC: 'lastcomic',
-        SWIPE: 'stat',
-        SHUFFLE: 'shuffle',
-        SHOW_FAVS: 'showfavs',
-        LAST_DATE: 'lastdate',
-        SPANISH: 'spanish',
-        SOURCE: 'comicSource',
-        DARK_MODE: 'darkmode',
-        SETTINGS: 'settings',
-        TOOLBAR_POS: 'toolbarPosition',
-        TOOLBAR_OPTIMAL: 'toolbarOptimal',
-        FAVS_MIGRATED: 'favsMigrated',
-        FAVS_MIGRATED_DATES: 'favsMigratedDates',
-        FAVS_MIGRATION_VERSION: 'favsMigrationVersion',
-        OFFLINE_COMICS: 'offlineComics'
-    })
-});
 
 const THEME_COLORS = Object.freeze({
     LIGHT: '#fff7bd',
@@ -207,15 +163,7 @@ const UTILS = {
      * @returns {*} Parsed value or fallback
      */
     safeJSONParse(str, fallback) {
-        if (str === null || str === undefined) {
-            return fallback;
-        }
-        try {
-            const parsed = JSON.parse(str);
-            return parsed !== null ? parsed : fallback;
-        } catch (e) {
-            return fallback;
-        }
+        return safeJSONParse(str, fallback);
     },
 
     /**
@@ -470,7 +418,7 @@ const UTILS = {
      */
     preloadAdjacentComics(currentDate) {
         if (!this.shouldPrefetch()) return;
-        if (_isTop10Mode) return;
+        if (isTop10Mode()) return;
 
         // Shuffle mode: pre-pick and warm-cache random candidates instead of
         // strict ±1 day adjacents.
@@ -583,794 +531,26 @@ const UTILS = {
     }
 };
 
-function getPrimaryComicElement() {
-    return document.getElementById('comic') || document.getElementById('comic-wrapper') || document.getElementById('comic-container');
-}
-
-function getToolbarBoundaryComicElement() {
-    return document.getElementById('comic-wrapper') || document.getElementById('comic-container') || document.getElementById('comic');
-}
-
-// ========================================
-// TOUCH & SWIPE TRACKING VARIABLES
-// ========================================
-
-// Touch tracking variables for swipe detection
-let touchStartX = 0;
-let touchStartY = 0;
-let touchEndX = 0;
-let touchEndY = 0;
-let touchStartTime = 0;
-let lastSwipeTime = 0;
-let lastComicTapTime = 0;
-let lastComicTapX = 0;
-let lastComicTapY = 0;
-let pendingComicSingleTapTimer = null;
-let suppressComicClickUntil = 0;
-
-// Rotation state tracking
-let isRotatedMode = false;
-let isToolbarPersistenceSuspended = false;
-let isVerticalComicActive = false;
-let isVerticalFullscreen = false;
-let toolbarStateBeforeRotate = null;
-let suppressToolbarClampUntil = 0;
-
-const COMIC_DOUBLE_TAP_DELAY = 300;
-const COMIC_TAP_MAX_MOVEMENT = 24;
-
-
-// ========================================
-// DRAGGABLE ELEMENT FUNCTIONALITY
-// ========================================
-
-const TOOLBAR_MIN_VERTICAL_GAP = 20;
-const TOOLBAR_COMIC_CLEARANCE = 18;
-const TOOLBAR_VISUAL_SHADOW_CLEARANCE = 14;
-const TOOLBAR_EFFECTIVE_COMIC_CLEARANCE = TOOLBAR_COMIC_CLEARANCE + TOOLBAR_VISUAL_SHADOW_CLEARANCE;
-const TOOLBAR_CENTER_BIAS = 6;
-
-/**
- * Persist the main toolbar position together with relative metadata (DirkJan pattern)
- * @param {number} top - Toolbar top position in px
- * @param {number} left - Toolbar left position in px
- * @param {HTMLElement} toolbarEl - Optional toolbar element reference
- * @param {Object} overrides - Optional overrides for metadata
- */
-function storeToolbarPosition(top, left, toolbarEl, overrides = {}) {
-    const toolbar = toolbarEl || document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    const savedRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const saved = UTILS.safeJSONParse(savedRaw, {});
-    const toolbarRect = toolbar ? toolbar.getBoundingClientRect() : null;
-    const hasGeometry = toolbarRect && toolbarRect.height > 0 && !Number.isNaN(toolbarRect.top);
-    const metadataLocked = isToolbarPersistenceSuspended || !hasGeometry;
-
-    const positionData = { ...saved, top: top + window.scrollY, left };
-    const hasOverride = (key) => Object.prototype.hasOwnProperty.call(overrides, key);
-    const applyOverride = (key) => {
-        if (!hasOverride(key)) return false;
-        const value = overrides[key];
-        if (value === null || value === undefined) {
-            delete positionData[key];
-        } else {
-            positionData[key] = value;
-        }
-        return true;
-    };
-
-    if (metadataLocked) {
-        try {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
-        } catch (_) {}
-        return;
-    }
-
-    const belowComicOverridden = applyOverride('belowComic');
-    const offsetComicOverridden = applyOverride('offsetFromComic');
-    const belowSettingsOverridden = applyOverride('belowSettings');
-    const offsetSettingsOverridden = applyOverride('offsetFromSettings');
-    const belowControlsOverridden = applyOverride('belowControls');
-    const offsetControlsOverridden = applyOverride('offsetFromControls');
-
-    const comicElement = getToolbarBoundaryComicElement();
-    if (comicElement && toolbarRect && !belowComicOverridden) {
-        const comicRect = comicElement.getBoundingClientRect();
-        const belowComic = toolbarRect.top >= comicRect.bottom + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
-        positionData.belowComic = belowComic;
-        if (!offsetComicOverridden) {
-            if (belowComic) {
-                positionData.offsetFromComic = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - comicRect.bottom);
-            } else {
-                delete positionData.offsetFromComic;
-            }
-        }
-    } else if (belowComicOverridden && !offsetComicOverridden && positionData.belowComic === false) {
-        delete positionData.offsetFromComic;
-    }
-
-    // Track position relative to controls container (action buttons)
-    const controlsContainer = document.getElementById('controls-container');
-    if (controlsContainer && toolbarRect && !belowControlsOverridden) {
-        const controlsRect = controlsContainer.getBoundingClientRect();
-        const belowControls = toolbarRect.top >= controlsRect.bottom - 5;
-        positionData.belowControls = belowControls;
-        if (!offsetControlsOverridden) {
-            if (belowControls) {
-                positionData.offsetFromControls = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - controlsRect.bottom);
-            } else {
-                delete positionData.offsetFromControls;
-            }
-        }
-    } else if (belowControlsOverridden && !offsetControlsOverridden && positionData.belowControls === false) {
-        delete positionData.offsetFromControls;
-    }
-
-    const settingsPanel = document.getElementById('settingsDIV');
-    if (settingsPanel && settingsPanel.classList.contains('visible') && toolbarRect) {
-        const settingsRect = settingsPanel.getBoundingClientRect();
-        if (!belowSettingsOverridden) {
-            const belowSettings = toolbarRect.top >= settingsRect.bottom + 5;
-            positionData.belowSettings = belowSettings;
-            if (!offsetSettingsOverridden) {
-                if (belowSettings) {
-                    positionData.offsetFromSettings = Math.max(TOOLBAR_MIN_VERTICAL_GAP, toolbarRect.top - settingsRect.bottom);
-                } else {
-                    delete positionData.offsetFromSettings;
-                }
-            }
-        } else if (!offsetSettingsOverridden && positionData.belowSettings === false) {
-            delete positionData.offsetFromSettings;
-        }
-    }
-
-    // Track position as ratio within logo-to-comic gap for resize stability
-    const logoEl = document.querySelector('.logo');
-    if (logoEl && comicElement && toolbarRect && !positionData.belowComic && !positionData.belowControls) {
-        const logoRect = logoEl.getBoundingClientRect();
-        const comicRect = comicElement.getBoundingClientRect();
-        const gapTotal = comicRect.top - logoRect.bottom;
-        if (gapTotal > 0) {
-            positionData.gapRatio = (toolbarRect.top - logoRect.bottom) / gapTotal;
-        }
-    }
-
-    try {
-        localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, JSON.stringify(positionData));
-    } catch (_) {}
-}
-
-/**
- * Resolve once the page layout can be measured reliably.
- *
- * Replaces a ladder of arbitrary setTimeout delays with the actual signals that
- * change layout: web fonts finishing (which resizes the toolbar) and the window
- * load event (which sizes the logo and comic images). A final animation frame
- * guarantees the resulting style recalculation has been flushed.
- *
- * @returns {Promise<void>}
- */
-function whenLayoutSettled() {
-    const fontsReady = document.fonts?.ready?.catch?.(() => {}) || Promise.resolve();
-    const windowLoaded = document.readyState === 'complete'
-        ? Promise.resolve()
-        : new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
-
-    return Promise.all([fontsReady, windowLoaded])
-        .then(() => new Promise(resolve => requestAnimationFrame(() => resolve())));
-}
-
-/**
- * Calculate optimal centered toolbar position between logo and comic (DirkJan pattern).
- *
- * Pure: this only reads layout. When the gap between the logo and the comic is
- * too small the caller must apply `extraComicMarginTop` to the comic container
- * before the returned position becomes accurate.
- *
- * @param {HTMLElement} toolbar - Toolbar element
- * @returns {{top: number, left: number, extraComicMarginTop: number}|null} Optimal position or null if not calculable
- */
-function calculateOptimalToolbarPosition(toolbar) {
-    const logo = document.querySelector('.logo');
-    const comic = getToolbarBoundaryComicElement();
-    if (!logo || !comic) return null;
-
-    const logoRect = logo.getBoundingClientRect();
-    const comicRect = comic.getBoundingClientRect();
-    const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-    const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-
-    if (!toolbarHeight || !toolbarWidth) return null;
-
-    const logoBottom = logoRect.bottom;
-    const comicTop = comicRect.top;
-    const availableSpace = comicTop - logoBottom;
-    const left = (viewportWidth - toolbarWidth) / 2;
-
-    // Adaptive spacing: if the default CSS spacing cannot fit the toolbar with its
-    // required clearances, report the deficit so the caller can push the comic down.
-    const requiredSpace = toolbarHeight + TOOLBAR_MIN_VERTICAL_GAP + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
-    if (availableSpace < requiredSpace && document.getElementById('comic-container')) {
-        return {
-            top: logoBottom + TOOLBAR_MIN_VERTICAL_GAP,
-            left,
-            extraComicMarginTop: requiredSpace - availableSpace
-        };
-    }
-
-    // Calculate centered position (DirkJan pattern)
-    const top = logoBottom + Math.max(TOOLBAR_MIN_VERTICAL_GAP, ((availableSpace - toolbarHeight) / 2) - TOOLBAR_CENTER_BIAS);
-
-    // Final safety: ensure we're not overlapping comic
-    if (top + toolbarHeight > comicTop - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
-        // Clamp to just above comic
-        return {
-            top: Math.max(logoBottom + TOOLBAR_MIN_VERTICAL_GAP, comicTop - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE),
-            left,
-            extraComicMarginTop: 0
-        };
-    }
-
-    return { top, left, extraComicMarginTop: 0 };
-}
-
-/**
- * Apply the comic-container margin growth requested by calculateOptimalToolbarPosition().
- * @param {{extraComicMarginTop: number}|null} optimal
- */
-function applyComicContainerSpacing(optimal) {
-    if (!optimal?.extraComicMarginTop) return;
-    const comicContainer = document.getElementById('comic-container');
-    if (!comicContainer) return;
-    const currentMargin = parseInt(window.getComputedStyle(comicContainer).marginTop, 10) || 80;
-    comicContainer.style.marginTop = `${currentMargin + optimal.extraComicMarginTop}px`;
-}
-
-function rectsOverlap(firstRect, secondRect, padding = 0) {
-    return firstRect.left < secondRect.right + padding &&
-        firstRect.right > secondRect.left - padding &&
-        firstRect.top < secondRect.bottom + padding &&
-        firstRect.bottom > secondRect.top - padding;
-}
-
-function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
-    if (!toolbar) return false;
-
-    const logo = document.querySelector('.logo');
-    const comic = getToolbarBoundaryComicElement();
-    if (!logo || !comic) return false;
-
-    const toolbarRect = toolbar.getBoundingClientRect();
-    const logoRect = logo.getBoundingClientRect();
-    const comicRect = comic.getBoundingClientRect();
-    const toolbarHeight = toolbar.offsetHeight || toolbarRect.height;
-    const toolbarWidth = toolbar.offsetWidth || toolbarRect.width;
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-
-    if (!toolbarHeight || !toolbarWidth) return false;
-
-    const overlapsLogo = rectsOverlap(toolbarRect, logoRect, TOOLBAR_MIN_VERTICAL_GAP);
-    const overlapsComic = rectsOverlap(toolbarRect, comicRect, TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
-    if (!overlapsLogo && !overlapsComic) {
-        return false;
-    }
-
-    const minimumTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-    const maximumTop = comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE;
-    const centeredLeft = Math.max(0, (viewportWidth - toolbarWidth) / 2);
-    let nextLeft = parseFloat(toolbar.style.left);
-    if (Number.isNaN(nextLeft)) {
-        nextLeft = toolbarRect.left;
-    }
-    nextLeft = Math.max(0, Math.min(nextLeft, viewportWidth - toolbarWidth));
-
-    let nextTop;
-    if (maximumTop >= minimumTop) {
-        nextTop = overlapsLogo ? minimumTop : maximumTop;
-    } else {
-        const optimal = calculateOptimalToolbarPosition(toolbar);
-        applyComicContainerSpacing(optimal);
-        nextTop = optimal ? optimal.top : minimumTop;
-        nextLeft = optimal ? optimal.left : centeredLeft;
-    }
-
-    toolbar.style.top = nextTop + 'px';
-    toolbar.style.left = nextLeft + 'px';
-    toolbar.style.transform = 'none';
-
-    if (savePosition) {
-        storeToolbarPosition(nextTop, nextLeft, toolbar, {
-            belowComic: false,
-            offsetFromComic: null,
-            belowControls: false,
-            offsetFromControls: null,
-            belowSettings: false,
-            offsetFromSettings: null,
-            leftOffsetFromCenter: nextLeft - centeredLeft
-        });
-    }
-
-    return true;
-}
-
-function clampSettingsPanelPosition(left, top, width, height) {
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-    const minVisibleWidth = 64;
-    const minVisibleHeaderHeight = 48;
-    const minVisiblePanelHeight = 64;
-
-    return {
-        left: Math.max(minVisibleWidth - width, Math.min(left, viewportWidth - minVisibleWidth)),
-        top: Math.max(minVisiblePanelHeight - height, Math.min(top, window.innerHeight - minVisibleHeaderHeight))
-    };
-}
-
-
-/**
- * Positions toolbar centered below logo
- * @param {HTMLElement} toolbar - The toolbar element to position
- */
-function positionToolbarCentered(toolbar, savePosition = false) {
-    if (!toolbar || toolbar.offsetHeight === 0) return;
-
-    const optimal = calculateOptimalToolbarPosition(toolbar);
-    applyComicContainerSpacing(optimal);
-    if (!optimal) {
-        // Fallback: place below logo if we can't compute optimal
-        const logo = document.querySelector('.logo');
-        if (!logo) return;
-        const logoRect = logo.getBoundingClientRect();
-        const toolbarWidth = toolbar.offsetWidth || toolbar.getBoundingClientRect().width;
-        const toolbarHeight = toolbar.offsetHeight || toolbar.getBoundingClientRect().height;
-        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-        const left = (viewportWidth - toolbarWidth) / 2;
-        const top = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-        toolbar.style.left = left + 'px';
-        toolbar.style.top = top + 'px';
-        toolbar.style.transform = 'none';
-        if (savePosition) {
-            storeToolbarPosition(top, left, toolbar, {
-                belowComic: false,
-                offsetFromComic: null,
-                belowSettings: false,
-                offsetFromSettings: null
-            });
-        }
-        return;
-    }
-
-    toolbar.style.left = optimal.left + 'px';
-    toolbar.style.top = optimal.top + 'px';
-    toolbar.style.transform = 'none';
-
-    if (savePosition) {
-        storeToolbarPosition(optimal.top, optimal.left, toolbar, {
-            belowComic: false,
-            offsetFromComic: null,
-            belowSettings: false,
-            offsetFromSettings: null,
-            leftOffsetFromCenter: 0
-        });
-        try {
-            localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-        } catch (_) {}
-    }
-}
-
-function snapshotToolbarStateBeforeRotate() {
-    const toolbar = document.getElementById('mainToolbar');
-    toolbarStateBeforeRotate = {
-        savedRaw: localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS),
-        optimalRaw: localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL),
-        top: toolbar?.style.top || '',
-        left: toolbar?.style.left || '',
-        transform: toolbar?.style.transform || ''
-    };
-}
-
-function restoreToolbarStateAfterRotate() {
-    const toolbar = document.getElementById('mainToolbar');
-    const snapshot = toolbarStateBeforeRotate;
-    toolbarStateBeforeRotate = null;
-
-    if (!toolbar || !snapshot) {
-        clampToolbarInView();
-        return;
-    }
-
-    suppressToolbarClampUntil = Date.now() + 400;
-
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            try {
-                if (snapshot.savedRaw && snapshot.savedRaw !== 'null') {
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS, snapshot.savedRaw);
-                } else {
-                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-                }
-
-                if (snapshot.optimalRaw === 'true') {
-                    localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-                } else {
-                    localStorage.removeItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL);
-                }
-            } catch (_) {}
-
-            if (snapshot.top) {
-                toolbar.style.top = snapshot.top;
-            }
-            if (snapshot.left) {
-                toolbar.style.left = snapshot.left;
-            }
-            toolbar.style.transform = snapshot.transform || 'none';
-        });
-    });
-}
-
-/**
- * Initializes draggable settings panel
- */
-function initializeDraggableSettings() {
-    const panel = document.getElementById("settingsDIV");
-    const header = document.getElementById("settingsHeader");
-    const settingsStorageKey = CONFIG.STORAGE_KEYS.SETTINGS + '_pos';
-
-    if (!panel || !header) return;
-
-    function keepPanelReachable() {
-        const width = panel.offsetWidth;
-        const height = panel.offsetHeight;
-        const top = parseFloat(panel.style.top);
-        const left = parseFloat(panel.style.left);
-
-        if (!width || !height || Number.isNaN(top) || Number.isNaN(left) || panel.style.transform !== 'none') {
-            return;
-        }
-
-        const clamped = clampSettingsPanelPosition(left, top, width, height);
-        if (clamped.top === top && clamped.left === left) return;
-
-        panel.style.top = clamped.top + 'px';
-        panel.style.left = clamped.left + 'px';
-
-        try {
-            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
-        } catch (_) {}
-    }
-
-    // Load and apply saved position immediately without animation
-    const savedPosRaw = localStorage.getItem(settingsStorageKey);
-    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        const clamped = clampSettingsPanelPosition(savedPos.left, savedPos.top, panel.offsetWidth || 320, panel.offsetHeight || 0);
-        panel.style.top = clamped.top + 'px';
-        panel.style.left = clamped.left + 'px';
-        panel.style.transform = 'none';
-
-        try {
-            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
-        } catch (_) {}
-    }
-
-    // Make draggable
-    makeDraggable(panel, header, settingsStorageKey, {
-        clampPosition: clampSettingsPanelPosition
-    });
-    window.addEventListener('resize', keepPanelReachable);
-}
-
-function refreshToolbarDefaultPosition() {
-    const toolbar = document.getElementById('mainToolbar');
-    if (!toolbar || isToolbarPersistenceSuspended) return;
-
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const hasSavedPosition = !!(savedPosRaw && savedPosRaw !== 'null');
-
-    if (!hasSavedPosition) {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                positionToolbarCentered(toolbar, true);
-            });
-        });
-    }
-
-    // Always enforce overlap correction after comic dimensions settle
-    requestAnimationFrame(() => {
-        moveToolbarBetweenLogoAndComic(toolbar);
-    });
-}
-
-/**
- * Keeps main toolbar within viewport bounds on resize/orientation changes
- * Repositions if no saved position exists to keep it centered (DirkJan pattern)
- */
-function clampToolbarInView() {
-    const toolbar = document.querySelector('.toolbar:not(.fullscreen-toolbar)');
-    if (!toolbar || isToolbarPersistenceSuspended || isRotatedMode || Date.now() < suppressToolbarClampUntil) return;
-
-    // Check if toolbar is in optimal position mode
-    const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
-
-    if (isOptimalMode) {
-        // Use double RAF to ensure layout is stable before calculating position
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                // Toolbar is in optimal mode - recalculate centered position on resize
-                const optimalPos = calculateOptimalToolbarPosition(toolbar);
-                applyComicContainerSpacing(optimalPos);
-                if (optimalPos) {
-                    // Additional safety: ensure we're not placing toolbar over logo or comic
-                    const logo = document.querySelector('.logo');
-                    const comic = getToolbarBoundaryComicElement();
-
-                    if (logo && comic) {
-                        const logoRect = logo.getBoundingClientRect();
-                        const comicRect = comic.getBoundingClientRect();
-                        const toolbarHeight = toolbar.offsetHeight;
-
-                        let safeTop = optimalPos.top;
-
-                        // Ensure not overlapping logo
-                        if (safeTop < logoRect.bottom + 10) {
-                            safeTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-                        }
-
-                        // Ensure not overlapping comic
-                        if (safeTop + toolbarHeight > comicRect.top - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
-                            safeTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
-                        }
-
-                        toolbar.style.top = safeTop + 'px';
-                        toolbar.style.left = optimalPos.left + 'px';
-                        toolbar.style.transform = 'none';
-                        // Update saved position to maintain optimal state
-                        storeToolbarPosition(safeTop, optimalPos.left, toolbar);
-                        moveToolbarBetweenLogoAndComic(toolbar);
-                    } else {
-                        toolbar.style.top = optimalPos.top + 'px';
-                        toolbar.style.left = optimalPos.left + 'px';
-                        toolbar.style.transform = 'none';
-                        storeToolbarPosition(optimalPos.top, optimalPos.left, toolbar);
-                        moveToolbarBetweenLogoAndComic(toolbar);
-                    }
-                }
-            });
-        });
-        return;
-    }
-
-    // Check if user has saved a custom position
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-    const hasSavedPosition = savedPosRaw && savedPosRaw !== 'null' && savedPos;
-
-    if (!hasSavedPosition) {
-        // No saved position - recenter between logo and comic on resize
-        positionToolbarCentered(toolbar);
-        return;
-    }
-
-    // User has saved custom position - use relative positioning metadata
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-            const rect = toolbar.getBoundingClientRect();
-            const toolbarHeight = rect.height;
-            const toolbarWidth = toolbar.offsetWidth;
-            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-            const viewportHeight = window.innerHeight;
-
-            // Get element references
-            const comic = getToolbarBoundaryComicElement();
-            const controlsContainer = document.getElementById('controls-container');
-            const settingsPanel = document.getElementById('settingsDIV');
-            const logo = document.querySelector('.logo');
-
-            let newTop = savedPos.top - window.scrollY;
-            const centerLeft = (viewportWidth - toolbarWidth) / 2;
-            let newLeft = Math.max(0, Math.min(
-                centerLeft + (savedPos.leftOffsetFromCenter || 0),
-                viewportWidth - toolbarWidth
-            ));
-
-            // Restore relative position based on saved metadata (priority order)
-            // 1. If below controls (action buttons), maintain that relationship
-            if (savedPos.belowControls && controlsContainer) {
-                const controlsRect = controlsContainer.getBoundingClientRect();
-                const storedGap = Math.max(savedPos.offsetFromControls || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                newTop = controlsRect.bottom + storedGap;
-            }
-            // 2. If below settings panel, maintain that relationship
-            else if (savedPos.belowSettings && settingsPanel && settingsPanel.classList.contains('visible')) {
-                const settingsRect = settingsPanel.getBoundingClientRect();
-                const storedGap = Math.max(savedPos.offsetFromSettings || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                newTop = settingsRect.bottom + storedGap;
-            }
-            // 3. If below comic, maintain that relationship
-            else if (savedPos.belowComic && comic) {
-                const comicRect = comic.getBoundingClientRect();
-                const storedGap = Math.max(savedPos.offsetFromComic || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                newTop = comicRect.bottom + storedGap;
-            }
-            // 4. Between logo and comic: use saved ratio within the gap
-            else if (typeof savedPos.gapRatio === 'number' && logo && comic) {
-                const logoRect = logo.getBoundingClientRect();
-                const comicRect = comic.getBoundingClientRect();
-                const gapTotal = comicRect.top - logoRect.bottom;
-                if (gapTotal > toolbarHeight + TOOLBAR_EFFECTIVE_COMIC_CLEARANCE) {
-                    newTop = logoRect.bottom + (gapTotal * savedPos.gapRatio);
-                    // Clamp within the gap
-                    newTop = Math.max(logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP, newTop);
-                    newTop = Math.min(newTop, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
-                }
-            }
-
-            // Viewport boundary clamping
-            const maxTop = viewportHeight - toolbarHeight - 10;
-            if (newTop < 0) newTop = 0;
-            if (newTop > maxTop) newTop = maxTop;
-
-            // Ensure we don't overlap logo
-            if (logo) {
-                const logoRect = logo.getBoundingClientRect();
-                if (newTop < logoRect.bottom + 10) {
-                    newTop = logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP;
-                }
-            }
-
-            // Ensure we don't overlap comic (unless intentionally below it)
-            if (comic && !savedPos.belowComic && !savedPos.belowControls) {
-                const comicRect = comic.getBoundingClientRect();
-                if (newTop + toolbarHeight > comicRect.top - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE && newTop < comicRect.bottom) {
-                    // Toolbar would overlap comic - push it above
-                    newTop = Math.max(logo ? logo.getBoundingClientRect().bottom + TOOLBAR_MIN_VERTICAL_GAP : 0, comicRect.top - toolbarHeight - TOOLBAR_EFFECTIVE_COMIC_CLEARANCE);
-                }
-            }
-
-            // Apply position if changed
-            const currentTop = parseFloat(toolbar.style.top) || 0;
-            const currentLeft = parseFloat(toolbar.style.left) || 0;
-
-            if (Math.abs(currentTop - newTop) > 1 || Math.abs(currentLeft - newLeft) > 1) {
-                toolbar.style.top = newTop + 'px';
-                toolbar.style.left = newLeft + 'px';
-                toolbar.style.transform = 'none';
-
-                // Preserve the relative positioning metadata when updating position
-                const overrides = {};
-                if (savedPos.belowControls) {
-                    overrides.belowControls = true;
-                    overrides.offsetFromControls = Math.max(savedPos.offsetFromControls || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                }
-                if (savedPos.belowComic) {
-                    overrides.belowComic = true;
-                    overrides.offsetFromComic = Math.max(savedPos.offsetFromComic || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                }
-                if (savedPos.belowSettings) {
-                    overrides.belowSettings = true;
-                    overrides.offsetFromSettings = Math.max(savedPos.offsetFromSettings || 0, TOOLBAR_MIN_VERTICAL_GAP);
-                }
-                storeToolbarPosition(newTop, newLeft, toolbar, overrides);
-            }
-
-            moveToolbarBetweenLogoAndComic(toolbar);
-        });
-    });
-}
-
-/**
- * Initialize toolbar positioning and dragging
- */
-function initializeToolbar() {
-    const mainToolbar = document.getElementById('mainToolbar');
-    if (!mainToolbar) return;
-
-    // Check for saved position
-    const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-    const savedPos = UTILS.safeJSONParse(savedPosRaw, null);
-
-    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        mainToolbar.style.top = (savedPos.top - window.scrollY) + 'px';
-        mainToolbar.style.left = savedPos.left + 'px';
-        mainToolbar.style.transform = 'none';
-
-        const enforceSafeStartupPosition = () => {
-            moveToolbarBetweenLogoAndComic(mainToolbar);
-        };
-
-        enforceSafeStartupPosition();
-        whenLayoutSettled().then(enforceSafeStartupPosition);
-    } else {
-        // No saved position - calculate centered position
-        // Set a safe default first to avoid showing over comic
-        const logo = document.querySelector('.logo');
-        if (logo) {
-            const logoRect = logo.getBoundingClientRect();
-            mainToolbar.style.top = (logoRect.bottom + TOOLBAR_MIN_VERTICAL_GAP) + 'px';
-            mainToolbar.style.left = '50%';
-            mainToolbar.style.transform = 'translateX(-50%)';
-        }
-
-        const position = (savePosition) => {
-            mainToolbar.style.transform = 'none'; // Clear transform before positioning
-            positionToolbarCentered(mainToolbar, savePosition);
-        };
-
-        // One provisional pass so the toolbar is never drawn over the comic, then a
-        // single authoritative pass once fonts and the window load event have settled.
-        position(false);
-        whenLayoutSettled().then(() => {
-            position(true);
-            try {
-                localStorage.setItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL, 'true');
-            } catch (_) {}
-        });
-    }
-
-    // Make toolbar draggable (vertical only)
-    makeDraggable(mainToolbar, mainToolbar, CONFIG.STORAGE_KEYS.TOOLBAR_POS, {
-        isToolbar: true,
-        onDrop: ({ element, left, top }) => {
-            const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-            const centerLeft = (viewportWidth - (element.offsetWidth || 0)) / 2;
-            storeToolbarPosition(top, left, element, { leftOffsetFromCenter: left - centerLeft });
-            moveToolbarBetweenLogoAndComic(element);
-        }
-    });
-
-    let toolbarScrollY = window.scrollY;
-    window.addEventListener('scroll', () => {
-        const scrollDelta = window.scrollY - toolbarScrollY;
-        toolbarScrollY = window.scrollY;
-        if (isToolbarPersistenceSuspended || isRotatedMode) return;
-        const top = parseFloat(mainToolbar.style.top);
-        if (Number.isFinite(top)) mainToolbar.style.top = `${top - scrollDelta}px`;
-    }, { passive: true });
-
-    // Only clamp on resize, not on orientation change to prevent toolbar movement
-    // Debounce resize handler to avoid excessive calculations
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            clampToolbarInView();
-        }, 100);
-    });
-
-    // Use ResizeObserver to detect when toolbar dimensions change due to CSS
-    if (typeof ResizeObserver !== 'undefined') {
-        const toolbarResizeObserver = new ResizeObserver(() => {
-            const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_POS);
-            const hasSavedPosition = !!(savedPosRaw && savedPosRaw !== 'null');
-            const isOptimalMode = localStorage.getItem(CONFIG.STORAGE_KEYS.TOOLBAR_OPTIMAL) === 'true';
-
-            // For a custom saved toolbar position, preserve the exact saved state during
-            // startup/layout settling. Only real window resize events should reposition it.
-            if (hasSavedPosition && !isOptimalMode) {
-                return;
-            }
-
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                clampToolbarInView();
-            }, 50);
-        });
-        toolbarResizeObserver.observe(mainToolbar);
-
-        // Watch comic container for size changes (e.g. image reflow after window resize)
-        const comicContainer = document.getElementById('comic-container');
-        if (comicContainer) {
-            let comicResizeTimeout;
-            const comicResizeObserver = new ResizeObserver(() => {
-                if (isToolbarPersistenceSuspended || isRotatedMode) return;
-                clearTimeout(comicResizeTimeout);
-                comicResizeTimeout = setTimeout(() => {
-                    moveToolbarBetweenLogoAndComic(mainToolbar);
-                }, 80);
-            });
-            comicResizeObserver.observe(comicContainer);
-        }
-    }
-}
+// Wire extracted feature modules to app-owned state after UTILS exists and before any boot code runs.
+// The callbacks read module-scoped bindings lazily, so their later declarations are fine.
+configureToolbarLayout({ isRotated });
+configureGestures({
+    UTILS,
+    isShuffleEnabled: () => isShuffleEnabled(),
+    next: () => NextClick(),
+    previous: () => PreviousClick(),
+    random: () => RandomClick(),
+    randomNewer: () => RandomNewerClick(),
+    randomOlder: () => RandomOlderClick(),
+    favorite: () => Addfav(),
+    isVerticalActive: isVerticalComicActive,
+    isVerticalFullscreen
+});
+configureVerticalComic({ isSpanishMode: () => UTILS.isSpanishMode() });
+configureFavoritesApi({
+    onEntryCount: (date, count, updatedAt) => top10?.setEntryCount(date, count, updatedAt),
+    onVoteFailed: () => showNotification(translations[UTILS.isSpanishMode() ? 'es' : 'en'].favoriteVoteFailed, 6000)
+});
 
 // ========================================
 // MOBILE BUTTON STATE MANAGEMENT
@@ -1384,7 +564,7 @@ function initializeMobileButtonStates() {
     // Only run on mobile/touch devices
     if (!UTILS.isMobileOrTouch()) return;
 
-    const toolbarButtons = document.querySelectorAll('.toolbar-button, .toolbar-datepicker-btn, .icon-button');
+    const toolbarButtons = document.querySelectorAll('.toolbar-button, .icon-button');
 
     toolbarButtons.forEach(button => {
         let touchTimeout = null;
@@ -1459,25 +639,46 @@ function initGoogleSyncUI() {
     });
 }
 
+// Top Favorites is loaded on first use; until then browse mode is simply inactive.
+let top10 = null;
+let top10Loading = null;
+
+function isTop10Mode() {
+    return top10?.isActive() === true;
+}
+
+function getTop10() {
+    top10Loading ??= import('./top10.js').then(({ createTop10 }) => {
+        top10 = createTop10({
+            UTILS,
+            setCurrentDate: date => { currentselectedDate = date; },
+            showComic: () => showComic(),
+            compareDates: () => CompareDates()
+        });
+        return top10;
+    });
+    return top10Loading;
+}
+
 function initTop10Modal() {
     const top10Btn = document.getElementById('top10Btn');
     const closeBtn = document.getElementById('top10CloseBtn');
     const backdrop = document.getElementById('top10Backdrop');
 
-    if (top10Btn) top10Btn.addEventListener('click', showTop10Modal);
-    if (closeBtn) closeBtn.addEventListener('click', closeTop10Modal);
-    if (backdrop) backdrop.addEventListener('click', closeTop10Modal);
+    if (top10Btn) top10Btn.addEventListener('click', () => getTop10().then(module => module.open()));
+    if (closeBtn) closeBtn.addEventListener('click', () => top10?.close());
+    if (backdrop) backdrop.addEventListener('click', () => top10?.close());
 
     document.addEventListener('keydown', (e) => {
         const modal = document.getElementById('top10Modal');
         if (e.key === 'Tab' && modal?.classList.contains('visible')) {
-            trapTop10ModalFocus(e);
+            top10?.trapFocus(e);
             return;
         }
 
         if (e.key === 'Escape') {
-            if (modal?.classList.contains('visible')) { closeTop10Modal(); return; }
-            if (_isTop10Mode) { exitTop10Mode(); }
+            if (modal?.classList.contains('visible')) { top10?.close(); return; }
+            if (isTop10Mode()) { top10.exit(); }
         }
     });
 }
@@ -1529,20 +730,7 @@ function hideNotification() {
 }
 
 // Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeToolbar();
-        initializeDraggableSettings();
-        initializeMobileButtonStates();
-        initGoogleSyncUI();
-        initTop10Modal();
-        window.initGoogleSync?.();
-        // Add touch event listeners
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        document.addEventListener('touchmove', handleTouchMove, { passive: false });
-        document.addEventListener('touchend', handleTouchEnd, { passive: true });
-    });
-} else {
+function initializeUiShell() {
     initializeToolbar();
     initializeDraggableSettings();
     initializeMobileButtonStates();
@@ -1553,6 +741,12 @@ if (document.readyState === 'loading') {
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
     document.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.addEventListener('touchend', handleTouchEnd, { passive: true });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeUiShell);
+} else {
+    initializeUiShell();
 }
 
 // Keyboard navigation (arrow keys for prev/next)
@@ -1758,17 +952,17 @@ function translateInterface(lang) {
 }
 
 // Global variables for app functionality
-let previousUrl = "";
 let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
 let nextComicUrl = ""; // Track preloaded next comic URL to detect timezone edge cases
-let _favoritesMigrationQueue = Promise.resolve();
-let _top10LastFocusedElement = null;
 let currentselectedDate;
-let day, month, year;
-let pictureUrl;
 let formattedComicDate;
 let formattedDate;
-let _shuffleNextDate = null;
+
+// Derive the ISO (YYYY-MM-DD) and favorite-style (YYYY/MM/DD) strings for the selected date.
+function commitSelectedDate() {
+    formattedDate = UTILS.dateToISODateString(currentselectedDate);
+    formattedComicDate = formattedDate.replaceAll('-', '/');
+}
 let _shuffleCandidateGeneration = 0;
 let _loadComicGeneration = 0;
 let comicLoadController = null;
@@ -1856,7 +1050,7 @@ function Addfav() {
     const favoriteAction = wasAdded ? 'add' : 'remove';
     reportFavoriteToggle(dateToFavorite, favoriteAction);
 
-    if (isRotatedMode) {
+    if (isRotated()) {
         showFavoriteOverlay(wasAdded);
     }
 }
@@ -1874,92 +1068,6 @@ function showFavoriteOverlay(added) {
     container.addEventListener('animationend', () => container.remove());
 }
 
-function clearPendingComicSingleTap() {
-    if (pendingComicSingleTapTimer) {
-        clearTimeout(pendingComicSingleTapTimer);
-        pendingComicSingleTapTimer = null;
-    }
-}
-
-function resetComicTapTracking() {
-    clearPendingComicSingleTap();
-    lastComicTapTime = 0;
-    lastComicTapX = 0;
-    lastComicTapY = 0;
-}
-
-function queueComicSingleTap(singleTapAction) {
-    clearPendingComicSingleTap();
-    if (typeof singleTapAction !== 'function') {
-        return;
-    }
-
-    pendingComicSingleTapTimer = window.setTimeout(() => {
-        pendingComicSingleTapTimer = null;
-        lastComicTapTime = 0;
-        singleTapAction();
-    }, COMIC_DOUBLE_TAP_DELAY);
-}
-
-function bindComicTapGestures(target, singleTapAction = null) {
-    if (!target || target.dataset.doubleTapInitialized === 'true') return;
-
-    target.dataset.doubleTapInitialized = 'true';
-
-    target.addEventListener('touchend', (e) => {
-        if (isVerticalFullscreen) return;
-        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) {
-            resetComicTapTracking();
-            return;
-        }
-
-        const touch = e.changedTouches?.[0];
-        if (!touch) return;
-
-        const deltaX = Math.abs(touch.clientX - touchStartX);
-        const deltaY = Math.abs(touch.clientY - touchStartY);
-        const deltaTime = Date.now() - touchStartTime;
-
-        if (deltaX > COMIC_TAP_MAX_MOVEMENT || deltaY > COMIC_TAP_MAX_MOVEMENT || deltaTime > CONFIG.SWIPE_MAX_TIME) {
-            resetComicTapTracking();
-            return;
-        }
-
-        const now = Date.now();
-        const isDoubleTap = lastComicTapTime > 0 &&
-            now - lastComicTapTime <= COMIC_DOUBLE_TAP_DELAY &&
-            Math.abs(touch.clientX - lastComicTapX) <= COMIC_TAP_MAX_MOVEMENT &&
-            Math.abs(touch.clientY - lastComicTapY) <= COMIC_TAP_MAX_MOVEMENT;
-
-        if (isDoubleTap) {
-            e.preventDefault();
-            suppressComicClickUntil = now + 400;
-            resetComicTapTracking();
-            Addfav();
-            return;
-        }
-
-        lastComicTapTime = now;
-        lastComicTapX = touch.clientX;
-        lastComicTapY = touch.clientY;
-        queueComicSingleTap(singleTapAction);
-    }, { passive: false });
-
-    target.addEventListener('dblclick', (e) => {
-        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) return;
-        e.preventDefault();
-        suppressComicClickUntil = Date.now() + 400;
-        resetComicTapTracking();
-        Addfav();
-    });
-}
-
-function initializeComicTapGestures(singleTapAction = null) {
-    bindComicTapGestures(document.getElementById('comic'), singleTapAction);
-}
-
-
-/** Element that had focus before the settings dialog was opened. */
 let _settingsLastFocusedElement = null;
 
 /**
@@ -2024,395 +1132,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ========================================
-// TOUCH & SWIPE HANDLING
-// ========================================
-
-/**
- * Handles touch start event
- * Records initial touch position and time for swipe/tap detection
- * @param {TouchEvent} e - Touch event
- */
-function handleTouchStart(e) {
-    const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    touchStartTime = Date.now();
-    // Tap detection always tracks; the swipe preference is honoured in
-    // handleTouchMove/handleTouchEnd, which decide whether to navigate.
-}
-
-/**
- * Handles touch move event
- * Prevents default scrolling during horizontal swipes
- * @param {TouchEvent} e - Touch event
- */
-function handleTouchMove(e) {
-    // Always allow swipes in rotated mode
-    const rotatedComic = document.getElementById('rotated-comic');
-    if (!rotatedComic && !document.getElementById('swipe')?.checked) return;
-
-    // Prevent default scrolling behavior during swipe
-    const touch = e.touches[0];
-    const deltaX = Math.abs(touch.clientX - touchStartX);
-    const deltaY = Math.abs(touch.clientY - touchStartY);
-
-    // If a handled swipe is underway, prevent native scrolling from fighting it.
-    if (((deltaX > deltaY && deltaX > 20) || (deltaY > deltaX && touch.clientY < touchStartY && deltaY > 20)) && e.cancelable) {
-        e.preventDefault();
-    }
-}
-
-/**
- * Handles touch end event
- * Detects taps (for rotation) and swipes (for navigation)
- * In rotated mode, swipe directions are mapped differently to match visual orientation
- * @param {TouchEvent} e - Touch event
- */
-function handleTouchEnd(e) {
-    // Disable swiping when viewing maximized vertical comic
-    if (isVerticalFullscreen) {
-        return;
-    }
-
-    const touch = e.changedTouches[0];
-    touchEndX = touch.clientX;
-    touchEndY = touch.clientY;
-
-    const deltaX = touchEndX - touchStartX;
-    const deltaY = touchEndY - touchStartY;
-    const deltaTime = Date.now() - touchStartTime;
-
-    // Check swipe distance
-    const absX = Math.abs(deltaX);
-    const absY = Math.abs(deltaY);
-
-    // For swipe navigation - always enabled in rotated mode
-    const rotatedComic = document.getElementById('rotated-comic');
-    if (!rotatedComic && !document.getElementById('swipe')?.checked) return;
-
-    // Check if the swipe is valid (meets distance and time requirements)
-    if (deltaTime > CONFIG.SWIPE_MAX_TIME) return;
-
-    let swipeDetected = false;
-
-    // Check if we're in rotated fullscreen mode (reuse rotatedComic from above)
-    const isInRotatedMode = rotatedComic && rotatedComic.className.includes('rotate');
-    const isInLandscapeMode = rotatedComic && rotatedComic.className.includes('fullscreen-landscape');
-
-    // Shuffle mode routes either direction to a random comic from the active pool.
-    const randomSwipe = isShuffleEnabled();
-    const goNext = randomSwipe ? RandomNewerClick : NextClick;
-    const goPrev = randomSwipe ? RandomOlderClick : PreviousClick;
-    const canSwipeNavigate = (direction) => randomSwipe
-        ? UTILS.canShuffleNavigate(direction)
-        : UTILS.canNavigate(direction);
-    const canSwipeRandom = () => !document.getElementById('Random')?.disabled;
-    const triggerRandomSwipe = () => {
-        swipeDetected = true;
-        lastSwipeTime = Date.now();
-        RandomClick();
-    };
-
-    // Determine swipe direction based on mode
-    if (isInRotatedMode) {
-        // Rotated mode (90° clockwise): Only support logical left/right navigation
-        if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE) {
-            const direction = deltaY < 0 ? 'next' : 'previous';
-            // Only trigger swipe if navigation is possible in that direction
-            if (canSwipeNavigate(direction)) {
-                swipeDetected = true;
-                lastSwipeTime = Date.now();
-                if (deltaY < 0) {
-                    goNext();
-                } else {
-                    goPrev();
-                }
-            }
-        }
-    } else if (isInLandscapeMode) {
-        // Landscape fullscreen (no rotation): Normal horizontal/vertical mapping
-        if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
-            const direction = deltaX < 0 ? 'next' : 'previous';
-            // Only trigger swipe if navigation is possible in that direction
-            if (canSwipeNavigate(direction)) {
-                // Horizontal swipe
-                swipeDetected = true;
-                lastSwipeTime = Date.now();
-                if (deltaX < 0) {
-                    // Swipe Left -> Next
-                    goNext();
-                } else {
-                    // Swipe Right -> Previous
-                    goPrev();
-                }
-            }
-        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE && deltaY < 0 && canSwipeRandom()) {
-            triggerRandomSwipe();
-        }
-    } else {
-        // Normal portrait mode: Horizontal only for Next/Prev
-        if (absX > absY && absX > CONFIG.SWIPE_MIN_DISTANCE) {
-            const direction = deltaX > 0 ? 'previous' : 'next';
-            // Only trigger swipe if navigation is possible in that direction
-            if (canSwipeNavigate(direction)) {
-                // Horizontal swipe
-                swipeDetected = true;
-                lastSwipeTime = Date.now(); // Mark swipe occurred to prevent click
-                if (deltaX > 0) {
-                    // Swipe right -> Previous
-                    goPrev();
-                } else {
-                    // Swipe left -> Next
-                    goNext();
-                }
-            }
-        } else if (absY > absX && absY > CONFIG.SWIPE_MIN_DISTANCE && deltaY < 0 && canSwipeRandom()) {
-            triggerRandomSwipe();
-        }
-    }
-}
-
-// ========================================
-// COMIC ROTATION & FULLSCREEN
-// ========================================
-
-/**
- * Toggles comic rotation to fullscreen mode (DirkJan pattern)
- * Shows only the comic rotated 90 degrees, no toolbar
- * @param {boolean} applyRotation - Whether to apply 90-degree rotation (default: true)
- * @param {boolean} clickToExit - Whether clicking exits fullscreen (default: true, false for PWA physical rotation)
- */
-/**
- * Escape handler for the rotated/fullscreen view.
- *
- * Held at module scope so every exit path can remove it. Previously the
- * listener was only removed inside its own Escape branch, so exiting by click,
- * overlay tap, or device rotation leaked one listener per cycle.
- * @type {((event: KeyboardEvent) => void)|null}
- */
-let _rotatedEscapeHandler = null;
-
-/**
- * Tear down the rotated/fullscreen comic view and restore the normal layout.
- *
- * Single teardown path for every exit route (Escape, comic click, overlay
- * click, device rotation, toggling the toolbar button).
- * @param {{respectGestureDebounce?: boolean}} [options]
- */
-function exitRotatedView({ respectGestureDebounce = false } = {}) {
-    if (respectGestureDebounce) {
-        // Ignore clicks immediately after a swipe or a suppressed tap.
-        if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS) return;
-        if (Date.now() < suppressComicClickUntil) return;
-    }
-
-    document.getElementById('comic-overlay')?.remove();
-    document.getElementById('rotated-comic')?.remove();
-
-    document.querySelectorAll('[data-was-hidden]').forEach(el => {
-        // Remove the inline display style completely - let CSS classes take over
-        el.style.removeProperty('display');
-        // If there was an original inline display value, restore it
-        if (el.dataset.originalDisplayInline) {
-            el.style.display = el.dataset.originalDisplayInline;
-        }
-        delete el.dataset.wasHidden;
-        delete el.dataset.originalDisplay;
-        delete el.dataset.originalDisplayInline;
-    });
-
-    const comic = document.getElementById('comic');
-    if (comic) comic.className = 'normal';
-
-    document.body.style.overflow = '';
-    window.removeEventListener('resize', handleRotatedViewResize);
-
-    if (_rotatedEscapeHandler) {
-        document.removeEventListener('keydown', _rotatedEscapeHandler);
-        _rotatedEscapeHandler = null;
-    }
-
-    isRotatedMode = false;
-    restoreToolbarStateAfterRotate();
-}
-
-function Rotate(applyRotation = true, clickToExit = true) {
-    const element = document.getElementById('comic');
-    if (!element) return;
-
-    // Already in fullscreen mode: exit it immediately.
-    if (document.getElementById('comic-overlay')) {
-        exitRotatedView();
-        return;
-    }
-
-    if (element.className === "normal" || element.className.includes("normal")) {
-        snapshotToolbarStateBeforeRotate();
-        isRotatedMode = true;
-
-        // Create an overlay without any layout constraints
-        const overlay = document.createElement('div');
-        overlay.id = 'comic-overlay';
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100vw';
-        overlay.style.height = '100vh';
-        overlay.style.backgroundColor = 'rgba(0,0,0,0.3)';
-        overlay.style.zIndex = '10000';
-
-        // Clone the comic image
-        const clonedComic = element.cloneNode(true);
-        clonedComic.id = 'rotated-comic';
-        clonedComic.className = applyRotation ? "rotate" : "fullscreen-landscape";
-        delete clonedComic.dataset.doubleTapInitialized;
-
-        // Immediately add to body (not to overlay)
-        document.body.appendChild(overlay);
-        document.body.appendChild(clonedComic);
-
-        // Prevent background scrolling while overlay is active
-        document.body.style.overflow = 'hidden';
-
-        // Apply sizing when image is loaded
-        scheduleRotatedComicResize(clonedComic);
-
-        // Hide all other elements
-        const elementsToHide = document.querySelectorAll('body > *:not(#comic-overlay):not(#rotated-comic)');
-        elementsToHide.forEach(el => {
-            el.dataset.originalDisplay = window.getComputedStyle(el).display;
-            el.dataset.originalDisplayInline = el.style.display || ''; // Store inline style separately
-            el.dataset.wasHidden = "true";
-            el.style.setProperty('display', 'none', 'important');
-        });
-
-        // Handler function to exit fullscreen
-        const exitFullscreen = () => exitRotatedView({ respectGestureDebounce: true });
-
-        // Escape key to exit fullscreen
-        _rotatedEscapeHandler = function(e) {
-            if (e.key === 'Escape') exitRotatedView();
-        };
-        document.addEventListener('keydown', _rotatedEscapeHandler);
-
-        // Add click handlers only if clickToExit is enabled (not for PWA physical rotation)
-        if (clickToExit) {
-            clonedComic.addEventListener('click', exitFullscreen);
-            overlay.addEventListener('click', exitFullscreen);
-        }
-
-        bindComicTapGestures(clonedComic, clickToExit ? exitFullscreen : null);
-
-        // Add resize listener
-        window.addEventListener('resize', handleRotatedViewResize);
-
-        // Add swipe support in rotated view
-        overlay.addEventListener('touchstart', handleTouchStart, { passive: false });
-        overlay.addEventListener('touchmove', handleTouchMove, { passive: false });
-        overlay.addEventListener('touchend', function(e) {
-            handleTouchEnd(e);
-            e.stopPropagation();
-        }, { passive: true });
-
-        clonedComic.addEventListener('touchstart', handleTouchStart, { passive: false });
-        clonedComic.addEventListener('touchmove', handleTouchMove, { passive: false });
-        clonedComic.addEventListener('touchend', function(e) {
-            handleTouchEnd(e);
-            e.stopPropagation();
-        }, { passive: true });
-    }
-}
-
-/**
- * Maximizes the rotated image to fit viewport
- * @param {HTMLImageElement} imgElement - Image element to resize
- */
-function maximizeRotatedImage(imgElement) {
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-
-    const naturalWidth = imgElement.naturalWidth;
-    const naturalHeight = imgElement.naturalHeight;
-
-    if (!naturalWidth || !naturalHeight) {
-        return;
-    }
-
-    const isLandscapeFullscreen = imgElement.className.includes('fullscreen-landscape');
-    const shouldRotate = !isLandscapeFullscreen;
-
-    // When rotated 90deg, visual width/height swap.
-    const visualWidth = shouldRotate ? naturalHeight : naturalWidth;
-    const visualHeight = shouldRotate ? naturalWidth : naturalHeight;
-
-    // Calculate scale factor to fit within viewport (pick smaller of width/height fits)
-    const scaleByWidth = viewportWidth / visualWidth;
-    const scaleByHeight = viewportHeight / visualHeight;
-    let scale = Math.min(scaleByWidth, scaleByHeight);
-
-    // Scale to nearly fill the viewport (with some padding)
-    scale = scale * 0.95;
-
-    imgElement.style.width = `${naturalWidth * scale}px`;
-    imgElement.style.height = `${naturalHeight * scale}px`;
-
-    imgElement.style.position = 'fixed';
-    imgElement.style.top = '50%';
-    imgElement.style.left = '50%';
-    imgElement.style.transformOrigin = 'center center';
-    imgElement.style.transform = shouldRotate
-        ? 'translate(-50%, -50%) rotate(90deg)'
-        : 'translate(-50%, -50%)';
-    imgElement.style.maxWidth = 'none';
-    imgElement.style.maxHeight = 'none';
-    imgElement.style.zIndex = '10001';
-    imgElement.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-}
-
-function scheduleRotatedComicResize(imgElement) {
-    if (!imgElement) {
-        return;
-    }
-
-    const resize = () => {
-        if (imgElement.isConnected && imgElement.complete && imgElement.naturalWidth > 0) {
-            maximizeRotatedImage(imgElement);
-        }
-    };
-
-    if (imgElement.complete && imgElement.naturalWidth > 0) {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(resize);
-        });
-        return;
-    }
-
-    imgElement.addEventListener('load', () => {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(resize);
-        });
-    }, { once: true });
-}
-
-/**
- * Handles resize and orientation changes in rotated view
- */
-function handleRotatedViewResize() {
-    const rotatedComic = document.getElementById('rotated-comic');
-    if (rotatedComic) {
-        scheduleRotatedComicResize(rotatedComic);
-    }
-}
-
-/**
- * Keep the date-picker button's accessible name in sync with the selected date.
- *
- * `#DatePicker` is a visually hidden 1x1 input opened programmatically by
- * `#DatePickerBtn`, so screen-reader and tooltip users otherwise have no way to
- * know which comic date is currently selected. The date is formatted with the
- * user's own locale rather than the raw ISO value.
- */
 function updateDateDisplay() {
     const dateInput = document.getElementById('DatePicker');
     const button = document.getElementById('DatePickerBtn');
@@ -2486,84 +1205,17 @@ async function loadComic(date, silentMode = false, direction = null) {
             };
             const hasExistingComicImage = () => comicImg.src && comicImg.src !== window.location.href;
             const transitionDirection = displayedComic ? getAdjacentComicDirection(UTILS.dateFromFavoriteDateString(displayedComic.date), result.actualDate || date) : null;
+            const animate = !prefersReducedMotion();
 
             // Adjacent comics slide; jumps across multiple dates morph.
-            const animateTransition = () => {
-                return new Promise((resolve) => {
-                    // Only animate if there's an existing image
-                    if (hasExistingComicImage()) {
-
-                        if (transitionDirection) {
-                            // FILMSTRIP SLIDE animation - both comics visible during transition
-                            const slideOutClass = transitionDirection === 'previous' ? 'slide-out-right' : 'slide-out-left';
-                            const slideInClass = transitionDirection === 'previous' ? 'slide-in-right' : 'slide-in-left';
-
-                            // Create a clone of current comic to slide out
-                            const outgoingClone = comicImg.cloneNode(true);
-                            outgoingClone.removeAttribute('id');
-                            outgoingClone.classList.add('comic-outgoing');
-                            outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve', 'no-transition');
-                            wrapper.appendChild(outgoingClone);
-
-                            // Set new image source on original (it will slide in)
-                            comicImg.classList.add('no-transition');
-                            setComicImage(comicImg, result);
-                            comicImg.classList.add(slideInClass);
-
-                            // Force reflow
-                            comicImg.offsetHeight;
-                            outgoingClone.offsetHeight;
-
-                            // Re-enable transitions and animate both
-                            comicImg.classList.remove('no-transition');
-
-                            requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                    // Slide outgoing clone away
-                                    outgoingClone.classList.add(slideOutClass);
-                                    // Slide incoming comic to center
-                                    comicImg.classList.remove(slideInClass);
-
-                                    // Cleanup after animation
-                                    setTimeout(() => {
-                                        outgoingClone.remove();
-                                        resolve();
-                                    }, 500);
-                                });
-                            });
-                        } else {
-                            // BLUR MORPH animation for random, date picker, first, last
-                            // Create clone of current comic to morph out (sits on top)
-                            const outgoingClone = comicImg.cloneNode(true);
-                            outgoingClone.removeAttribute('id');
-                            outgoingClone.classList.add('comic-pixelate-outgoing');
-                            wrapper.appendChild(outgoingClone);
-
-                            // Load new image underneath (hidden by clone until loaded)
-                            setComicImage(comicImg, result);
-
-                            // Wait for new image to load, THEN blur out clone
-                            const startMorph = () => {
-                                startComicMorph(outgoingClone);
-
-                                // Cleanup after animation
-                                setTimeout(() => {
-                                    outgoingClone.remove();
-                                    resolve();
-                                }, 600);
-                            };
-
-                            // Use requestAnimationFrame to ensure browser has processed the src change
-                            // This fixes the race condition where complete is still true from old image
-                            startMorph();
-                        }
-                    } else {
-                        // First load - no animation needed
-                        setComicImage(comicImg, result);
-                        resolve();
-                    }
-                });
-            };
+            const animateTransition = () => transitionComicImage(comicImg, {
+                animate: animate && hasExistingComicImage(),
+                direction: transitionDirection,
+                container: wrapper,
+                cloneClass: { slide: 'comic-outgoing', morph: 'comic-pixelate-outgoing' },
+                setImage: () => setComicImage(comicImg, result),
+                setTransitionsEnabled: enabled => comicImg.classList.toggle('no-transition', !enabled)
+            });
 
             if (generation === 1) globalThis.performance?.mark?.('comic:decode-start', result.imageReady ? { startTime: result.decodeStart } : undefined);
             if (!result.imageReady) await decodeComicResult(result, CONFIG.COMIC_IMAGE_TIMEOUT_MS, controller.signal);
@@ -2588,10 +1240,7 @@ async function loadComic(date, silentMode = false, direction = null) {
                 language: result.language || language,
                 imageUrl: result.imageUrl
             });
-            const dateLabel = (result.actualDate || date).toLocaleDateString(useSpanish ? 'es-ES' : 'en-US', {
-                year: 'numeric', month: 'long', day: 'numeric'
-            });
-            comicImg.alt = displayedComic.language === 'es' ? `Garfield del ${dateLabel} (español)` : `Garfield for ${dateLabel} (English)`;
+            comicImg.alt = describeComic(result.actualDate || date, language, displayedComic.language);
 
             if (!result.isOffline) {
                 const rememberComic = async () => {
@@ -2619,94 +1268,25 @@ async function loadComic(date, silentMode = false, direction = null) {
             const rotatedComic = document.getElementById('rotated-comic');
             if (rotatedComic) {
                 rotatedComic.alt = comicImg.alt;
-                // Animate the rotated comic too
-                const animateRotatedComic = () => {
-                    return new Promise((resolve) => {
-                        if (transitionDirection) {
-                            // FILMSTRIP SLIDE animation for rotated comic
-                            const slideOutClass = transitionDirection === 'previous' ? 'slide-out-right' : 'slide-out-left';
-                            const slideInClass = transitionDirection === 'previous' ? 'slide-in-right' : 'slide-in-left';
-
-                            // Create a clone of current rotated comic to slide out
-                            const outgoingClone = rotatedComic.cloneNode(true);
-                            outgoingClone.removeAttribute('id');
-                            outgoingClone.classList.add('rotated-comic-outgoing');
-                            outgoingClone.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'dissolve');
-                            // Copy all inline styles to preserve positioning
-                            outgoingClone.style.cssText = rotatedComic.style.cssText;
-                            outgoingClone.style.transition = 'transform 0.5s ease-out';
-                            document.body.appendChild(outgoingClone);
-
-                            // Set new image source on original (it will slide in)
-                            rotatedComic.style.transition = 'none';
-                            rotatedComic.src = result.imageUrl;
-                            rotatedComic.classList.add(slideInClass);
-
-                            // Force reflow
-                            rotatedComic.offsetHeight;
-                            outgoingClone.offsetHeight;
-
-                            // Re-enable transitions and animate both
-                            rotatedComic.style.transition = '';
-
-                            requestAnimationFrame(() => {
-                                requestAnimationFrame(() => {
-                                    // Slide outgoing clone away
-                                    outgoingClone.classList.add(slideOutClass);
-                                    // Slide incoming comic to center
-                                    rotatedComic.classList.remove(slideInClass);
-
-                                    resizeRotatedComicWhenReady(rotatedComic);
-
-                                    // Cleanup after animation
-                                    setTimeout(() => {
-                                        outgoingClone.remove();
-                                        resolve();
-                                    }, 500);
-                                });
-                            });
-                        } else {
-                            // BLUR MORPH animation for rotated comic
-                            // Create clone of current comic to morph out (sits on top)
-                            const outgoingClone = rotatedComic.cloneNode(true);
-                            outgoingClone.removeAttribute('id');
-                            outgoingClone.classList.add('rotated-comic-morph-outgoing');
-                            // Copy inline styles to preserve positioning
-                            outgoingClone.style.cssText = rotatedComic.style.cssText;
-                            outgoingClone.style.transition = 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
-                            document.body.appendChild(outgoingClone);
-
-                            // Load new image underneath - fully visible
-                            rotatedComic.src = result.imageUrl;
-
-                            // When loaded, resize and blur out the clone
-                            const startMorph = () => {
-                                resizeRotatedComicWhenReady(rotatedComic);
-
-                                // Blur out the old image (clone)
-                                startComicMorph(outgoingClone);
-
-                                // Cleanup after animation
-                                setTimeout(() => {
-                                    outgoingClone.remove();
-                                    resolve();
-                                }, 600);
-                            };
-
-                            // Use requestAnimationFrame to ensure browser has processed the src change
-                            // This fixes the race condition where complete is still true from old image
-                            startMorph();
-                        }
-                    });
-                };
-
-                // Run animation (don't await - let it run in parallel with main comic)
-                animateRotatedComic();
+                // Animate the rotated comic too; it runs alongside the main comic rather than being awaited.
+                transitionComicImage(rotatedComic, {
+                    animate,
+                    direction: transitionDirection,
+                    container: document.body,
+                    cloneClass: { slide: 'rotated-comic-outgoing', morph: 'rotated-comic-morph-outgoing' },
+                    setImage: () => { rotatedComic.src = result.imageUrl; },
+                    setTransitionsEnabled: enabled => { rotatedComic.style.transition = enabled ? '' : 'none'; },
+                    prepareClone: (clone, kind) => {
+                        // Preserve the fixed positioning and rotation of the fullscreen copy.
+                        clone.style.cssText = rotatedComic.style.cssText;
+                        clone.style.transition = kind === 'slide' ? 'transform 0.5s ease-out' : 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
+                    },
+                    onSwapped: () => resizeRotatedComicWhenReady(rotatedComic)
+                });
             }
 
             // Store for sharing
             window.pictureUrl = result.imageUrl;
-            previousUrl = result.imageUrl;
 
             // Hide error messages
             const messageContainer = document.getElementById('comic-message');
@@ -3003,59 +1583,7 @@ function initApp() {
         datePicker?.showPicker?.();
     });
 
-    // Rotation/fullscreen logic:
-    // - Mobile phone (not tablet) in PWA mode: use physical rotation (auto-rotation works in PWA)
-    // - Mobile phone in browser (not PWA): use click to rotate (auto-rotation may not work in browser)
-    // - Tablet/Desktop: no rotation needed (already landscape-capable)
-    const isMobilePhone = /iPhone|Android/.test(navigator.userAgent) && !/iPad|Tablet/.test(navigator.userAgent);
-    const isTablet = /iPad|Tablet|Android(?=.*\bTablet\b)/i.test(navigator.userAgent);
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                  window.matchMedia('(display-mode: window-controls-overlay)').matches ||
-                  window.navigator.standalone === true;
-
-    let comicSingleTapAction = null;
-
-    if (isMobilePhone && !isTablet) {
-        if (isPWA) {
-            // Mobile PWA: use physical rotation for fullscreen
-            function handleOrientationChange() {
-                // Skip rotation handling for vertical comics - they have their own fullscreen system
-                if (isVerticalComicActive || isVerticalFullscreen) {
-                    return;
-                }
-
-                const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-                const existingOverlay = document.getElementById('comic-overlay');
-
-                if (isLandscape && !existingOverlay) {
-                    // Device rotated to landscape - enter fullscreen WITHOUT rotation, NO click-to-exit
-                    Rotate(false, false);
-                } else if (isLandscape && existingOverlay) {
-                    scheduleRotatedComicResize(document.getElementById('rotated-comic'));
-                } else if (!isLandscape && existingOverlay) {
-                    // Device rotated back to portrait - exit fullscreen
-                    Rotate(false, false);
-                }
-            }
-
-            // Use screen.orientation API if available, fallback to matchMedia
-            if (screen.orientation) {
-                screen.orientation.addEventListener('change', handleOrientationChange);
-            } else {
-                window.addEventListener('orientationchange', handleOrientationChange);
-            }
-            // Also listen to resize as a fallback for orientation detection
-            window.matchMedia("(orientation: landscape)").addEventListener('change', handleOrientationChange);
-        } else {
-            // Mobile browser (not PWA): use single tap to rotate unless it becomes a double tap.
-            comicSingleTapAction = () => {
-                if (Date.now() - lastSwipeTime < CONFIG.SWIPE_CLICK_DEBOUNCE_MS || Date.now() < suppressComicClickUntil) return;
-                Rotate(true);
-            };
-        }
-    }
-
-    initializeComicTapGestures(comicSingleTapAction);
+    initializeRotationGestures();
     // Tablet and Desktop: no rotation feature - they're already landscape-capable
 
     const favs = UTILS.getFavorites();
@@ -3108,9 +1636,6 @@ function initApp() {
     const etToday = UTILS.getEasternTodayString();
     document.getElementById("DatePicker").setAttribute("max", etToday);
 
-    // Also format today's date for other uses
-    formatDate(UTILS.getEasternDate());
-
     if (document.getElementById("lastdate").checked && localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC) && !action && !view) {
         const storedLastComic = localStorage.getItem(CONFIG.STORAGE_KEYS.LAST_COMIC);
         if (/^\d{4}-\d{2}-\d{2}$/.test(storedLastComic)) {
@@ -3128,7 +1653,7 @@ function initApp() {
     updateExportButtonState(); // Enable/disable export button based on favorites
 
     // One-time migration of existing favorites to global leaderboard
-    migrateExistingFavorites();
+    migrateExistingFavorites(UTILS.getFavorites());
 }
 
 // Call initApp when DOM is ready
@@ -3160,9 +1685,7 @@ async function _dateChangeImpl() {
 
     if (isSpanish && isSunday) {
         // Try to load the comic
-        formatDate(currentselectedDate);
-        formattedComicDate = year + "/" + month + "/" + day;
-        formattedDate = year + "-" + month + "-" + day;
+        commitSelectedDate();
         document.getElementById("DatePicker").value = formattedDate;
 
         const result = await loadComic(currentselectedDate, true);
@@ -3174,9 +1697,7 @@ async function _dateChangeImpl() {
             const message = translations[currentLang].sundayNotAvailable;
             showNotification(message, 6000);
             currentselectedDate = previousDate;
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
+            commitSelectedDate();
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
             return;
@@ -3192,9 +1713,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     // Depth guard: prevent runaway recursion from same-comic detection
     if (_depth > 10) return;
 
-    formatDate(currentselectedDate);
-    formattedComicDate = year + "/" + month + "/" + day;
-    formattedDate = year + "-" + month + "-" + day;
+    commitSelectedDate();
 
     document.getElementById("DatePicker").value = formattedDate;
     document.getElementById('DatePicker').min = UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN;
@@ -3219,9 +1738,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     // all consistent with the comic that is actually on screen.
     if (result.actualDate) {
         currentselectedDate = result.actualDate;
-        formatDate(currentselectedDate);
-        formattedComicDate = year + "/" + month + "/" + day;
-        formattedDate = year + "-" + month + "-" + day;
+        commitSelectedDate();
         if (result.isFallback) document.getElementById('DatePicker').min = CONFIG.GARFIELD_START_EN;
         document.getElementById("DatePicker").value = formattedDate;
         updateDateDisplay();
@@ -3258,9 +1775,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 
             // Check if we've reached the start boundary (depth-limited via the while loop below)
             if (!document.getElementById("Previous")?.disabled) {
-                formatDate(currentselectedDate);
-                formattedComicDate = year + "/" + month + "/" + day;
-                formattedDate = year + "-" + month + "-" + day;
+                commitSelectedDate();
                 document.getElementById("DatePicker").value = formattedDate;
                 updateDateDisplay();
                 await showComic(true, 'previous', _depth + 1);
@@ -3271,9 +1786,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             // Revert to previous date and disable forward navigation
             currentselectedDate.setDate(currentselectedDate.getDate() - 1);
             CompareDates();
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
+            commitSelectedDate();
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
             document.getElementById("Next").disabled = true;
@@ -3312,9 +1825,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             }
 
             // Try loading this comic in silent mode (no error messages)
-            formatDate(currentselectedDate);
-            formattedComicDate = year + "/" + month + "/" + day;
-            formattedDate = year + "-" + month + "-" + day;
+            commitSelectedDate();
             document.getElementById("DatePicker").value = formattedDate;
             updateDateDisplay();
 
@@ -3332,9 +1843,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     }
     if (!success && displayedComic) {
         currentselectedDate = UTILS.dateFromFavoriteDateString(displayedComic.date);
-        formattedComicDate = displayedComic.date;
-        formattedDate = UTILS.dateToISODateString(currentselectedDate);
-        formatDate(currentselectedDate);
+        commitSelectedDate();
         document.getElementById('DatePicker').value = formattedDate;
         updateDateDisplay();
         CompareDates();
@@ -3347,12 +1856,12 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
 
 function PreviousClick() {
     if (navigateOfflineComics('previous')) return;
-    if (_isTop10Mode) {
-        if (_top10BrowseIndex > 0) { _top10BrowseIndex--; loadTop10Comic(); }
+    if (isTop10Mode()) {
+        top10.step(-1);
         return;
     }
     // Shuffle mode: redirect Previous to a random comic from the active pool.
-    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
         if (!UTILS.canShuffleNavigate('previous')) return;
         RandomOlderClick();
         return;
@@ -3371,12 +1880,12 @@ function PreviousClick() {
 
 function NextClick() {
     if (navigateOfflineComics('next')) return;
-    if (_isTop10Mode) {
-        if (_top10BrowseIndex < _top10Entries.length - 1) { _top10BrowseIndex++; loadTop10Comic(); }
+    if (isTop10Mode()) {
+        top10.step(1);
         return;
     }
     // Shuffle mode: redirect Next to a random comic from the active pool.
-    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled() && !_isTop10Mode) {
+    if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
         if (!UTILS.canShuffleNavigate('next')) return;
         RandomNewerClick();
         return;
@@ -3395,8 +1904,8 @@ function NextClick() {
 
 function FirstClick() {
     if (navigateOfflineComics('first')) return;
-    if (_isTop10Mode) {
-        _top10BrowseIndex = 0; loadTop10Comic();
+    if (isTop10Mode()) {
+        top10.first();
         return;
     }
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
@@ -3417,8 +1926,8 @@ function FirstClick() {
 
 function LastClick() {
     if (navigateOfflineComics('last')) return;
-    if (_isTop10Mode) {
-        _top10BrowseIndex = _top10Entries.length - 1; loadTop10Comic();
+    if (isTop10Mode()) {
+        top10.last();
         return;
     }
     if (typeof isShuffleEnabled === 'function' && isShuffleEnabled()) {
@@ -3731,7 +2240,6 @@ function setDatePickerDisabled(disabled) {
 function clearShuffleCandidates() {
     _shuffleCandidateGeneration++;
     _shuffleCandidateQueue.length = 0;
-    _shuffleNextDate = null;
 }
 
 function resetShuffleSession() {
@@ -3812,9 +2320,7 @@ function _pickRandomAnyDate() {
 }
 
 function _shiftShuffleCandidate() {
-    const candidate = _shuffleCandidateQueue.shift() || null;
-    _shuffleNextDate = _shuffleCandidateQueue[0] || null;
-    return candidate;
+    return _shuffleCandidateQueue.shift() || null;
 }
 
 /**
@@ -3822,12 +2328,11 @@ function _shiftShuffleCandidate() {
  * Called by preloadAdjacentComics when shuffle is enabled.
  */
 function pickShuffleCandidates() {
-    if (_isTop10Mode) return;
+    if (isTop10Mode()) return;
     if (!UTILS.shouldPrefetch()) return;
 
     const generation = ++_shuffleCandidateGeneration;
     _shuffleCandidateQueue.length = 0;
-    _shuffleNextDate = null;
 
     const language = UTILS.isSpanishMode() ? 'es' : 'en';
     const source = UTILS.getPreferredSource();
@@ -3859,7 +2364,6 @@ function pickShuffleCandidates() {
                 const alreadyQueued = _shuffleCandidateQueue.some(candidate => _shuffleDateKey(candidate) === _shuffleDateKey(date));
                 if (!alreadyQueued && _shuffleCandidateQueue.length < CONFIG.PREFETCH_SHUFFLE_QUEUE_SIZE) {
                     _shuffleCandidateQueue.push(date);
-                    _shuffleNextDate = _shuffleCandidateQueue[0] || null;
                     updateToolbarModeControls();
                 }
             }
@@ -3910,9 +2414,7 @@ function CompareDates() {
     if (currentselectedDate.getTime() <= startDate.getTime()) {
         document.getElementById('Previous').disabled = true;
         document.getElementById('First').disabled = true;
-        formatDate(startDate);
-        startDate = year + '-' + month + '-' + day;
-        currentselectedDate = UTILS.createLocalDate(Number(year), Number(month), Number(day));
+        currentselectedDate = UTILS.createLocalDate(startDate.getFullYear(), startDate.getMonth() + 1, startDate.getDate());
     } else {
         document.getElementById('Previous').disabled = false;
         document.getElementById('First').disabled = false;
@@ -3930,9 +2432,7 @@ function CompareDates() {
     if (currentselectedDate.getTime() >= endDate.getTime()) {
         document.getElementById('Next').disabled = true;
         document.getElementById('Last').disabled = true;
-        formatDate(endDate);
-        endDate = year + '-' + month + '-' + day;
-        currentselectedDate = UTILS.createLocalDate(Number(year), Number(month), Number(day));
+        currentselectedDate = UTILS.createLocalDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate());
     } else {
         document.getElementById('Next').disabled = false;
         document.getElementById('Last').disabled = false;
@@ -3959,14 +2459,6 @@ function CompareDates() {
     }
 
     updateToolbarModeControls();
-}
-
-function formatDate(datetoFormat) {
-    const d = datetoFormat.getDate();
-    const m = datetoFormat.getMonth() + 1;
-    year = datetoFormat.getFullYear();
-    month = String(m).padStart(2, '0');
-    day = String(d).padStart(2, '0');
 }
 
 // ========================================
@@ -4100,167 +2592,6 @@ if (sourceSelect) {
     });
 }
 
-// Function to check if the comic is vertical and show thumbnail if needed
-function checkImageOrientation() {
-    const comic = document.getElementById('comic');
-    const comicWrapper = document.getElementById('comic-wrapper');
-
-    if (!comic || !comicWrapper) {
-        return;
-    }
-    if (isVerticalFullscreen) {
-        return;
-    }
-    isVerticalComicActive = false;
-    document.body.classList.remove('vertical-thumbnail-mode');
-
-    // Reset any previous thumbnail setup
-    comic.classList.remove('vertical', 'fullscreen-vertical');
-    comic.classList.add('normal');
-
-    // Remove any existing thumbnail container
-    const existingThumbnail = document.querySelector('.thumbnail-container');
-    if (existingThumbnail) {
-        existingThumbnail.parentNode.replaceChild(comic, existingThumbnail);
-    }
-
-    // Check if image is fully loaded and vertical (height > width)
-    if (comic.complete && comic.naturalHeight > 0 && comic.naturalHeight > comic.naturalWidth * 1.5) {
-        // It's a vertical comic, create thumbnail view
-        comic.classList.remove('normal');
-        comic.classList.add('vertical');
-        isVerticalComicActive = true;
-        document.body.classList.add('vertical-thumbnail-mode');
-
-        // Create thumbnail container
-        const thumbnailContainer = document.createElement('div');
-        thumbnailContainer.className = 'thumbnail-container';
-
-        // Create notice
-        const notice = document.createElement('div');
-        notice.className = 'thumbnail-notice';
-        notice.textContent = (translations[UTILS.isSpanishMode() ? 'es' : 'en'] || translations.en).viewFullSize;
-
-        // Set up the thumbnail display
-        comicWrapper.replaceChild(thumbnailContainer, comic);
-        thumbnailContainer.appendChild(comic);
-        thumbnailContainer.appendChild(notice);
-
-        // Add click handler to the thumbnail container
-        thumbnailContainer.onclick = showFullsizeVertical;
-    }
-}
-
-// Function to show fullsize vertical comic
-function showFullsizeVertical(event) {
-    // Prevent default behavior to ensure our handler works
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    if (!isVerticalComicActive || isVerticalFullscreen) {
-        return;
-    }
-    isVerticalFullscreen = true;
-
-    const comic = document.getElementById('comic');
-    const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
-    const controlsDiv = document.querySelector('#controls-container');
-
-    // Switch to fullscreen view
-    comic.classList.remove('vertical');
-    comic.classList.add('fullscreen-vertical');
-    container.classList.add('fullscreen');
-    document.body.classList.add('rotated-state');
-
-    // Clear container background so comic stands alone
-    container.style.background = 'none';
-    container.style.backgroundSize = '';
-
-    // Hide install button if present
-    const installBtn = document.getElementById('installBtn');
-    if (installBtn) installBtn.style.display = 'none';
-
-    // Hide other UI elements
-    elementsToHide.forEach(el => {
-        el.classList.add('hidden-during-fullscreen');
-    });
-
-    if (controlsDiv) {
-        controlsDiv.classList.add('hidden-during-fullscreen');
-    }
-    const thumbnailNotice = document.querySelector('.thumbnail-notice');
-    if (thumbnailNotice) {
-        thumbnailNotice.style.display = 'none';
-    }
-
-    // Add click handler to exit fullscreen
-    comic.addEventListener('click', exitFullsizeVertical);
-    container.addEventListener('click', exitFullsizeVertical);
-
-    // Escape key to exit vertical fullscreen
-    document.addEventListener('keydown', _verticalEscapeHandler);
-}
-
-function _verticalEscapeHandler(e) {
-    if (e.key === 'Escape') {
-        exitFullsizeVertical();
-        document.removeEventListener('keydown', _verticalEscapeHandler);
-    }
-}
-
-// Function to exit fullsize vertical comic view
-function exitFullsizeVertical(event) {
-    // Prevent default behavior
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    isVerticalFullscreen = false;
-
-    const comic = document.getElementById('comic');
-    const container = document.getElementById('comic-container');
-    const elementsToHide = document.querySelectorAll('.logo, .buttongrid, #settingsDIV, .toolbar, .settings-icons-container');
-    const controlsDiv = document.querySelector('#controls-container');
-
-    // Reset container background
-    container.style.background = '';
-    container.style.backgroundSize = '';
-    document.body.classList.remove('rotated-state');
-
-    // Show install button again if present
-    const installBtnRestore = document.getElementById('installBtn');
-    if (installBtnRestore) installBtnRestore.style.display = '';
-
-    // Switch back to thumbnail view
-    comic.classList.remove('fullscreen-vertical');
-    comic.classList.add('vertical');
-    container.classList.remove('fullscreen');
-    comic.style.zIndex = '';
-
-    // Show UI elements again
-    elementsToHide.forEach(el => {
-        el.classList.remove('hidden-during-fullscreen');
-    });
-
-    if (controlsDiv) {
-        controlsDiv.classList.remove('hidden-during-fullscreen');
-    }
-    const thumbnailNotice = document.querySelector('.thumbnail-notice');
-    if (thumbnailNotice) {
-        thumbnailNotice.style.display = '';
-    }
-
-    // Remove this click handler
-    comic.removeEventListener('click', exitFullsizeVertical);
-    container.removeEventListener('click', exitFullsizeVertical);
-    document.removeEventListener('keydown', _verticalEscapeHandler);
-
-    // Rebuild thumbnail view after exiting
-    requestAnimationFrame(() => checkImageOrientation());
-}
-
 // Initialize settings panel (checkbox states are now initialized in initApp)
 const settingsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
 const panel = document.getElementById("settingsDIV");
@@ -4331,78 +2662,6 @@ function showInstallButton() {
 // GLOBAL FAVORITES LEADERBOARD
 // ========================================
 
-async function favoritesApiFetch(path, init = {}, { includeAuth = true, requireAuth = false } = {}) {
-    const headers = new Headers(init.headers || {});
-
-    if (init.body && !headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json');
-    }
-
-    if (includeAuth && typeof window.getFavoritesApiAccessToken === 'function') {
-        const accessToken = await window.getFavoritesApiAccessToken();
-        if (accessToken) {
-            headers.set('Authorization', `Bearer ${accessToken}`);
-        }
-    }
-
-    if (requireAuth && !headers.has('Authorization')) {
-        const error = new Error('Google sign-in required');
-        error.code = 'FAVORITES_AUTH_REQUIRED';
-        throw error;
-    }
-
-    return fetch(`${CONFIG.FAVORITES_API_URL}${path}`, {
-        ...init,
-        headers,
-        // Without a deadline a stalled connection leaves the leaderboard modal
-        // spinning forever and favorite votes silently pending.
-        signal: init.signal || AbortSignal.timeout(CONFIG.FAVORITES_API_TIMEOUT_MS)
-    });
-}
-
-async function reportFavoriteToggle(date, action) {
-    try {
-        if (!/^\d{4}\/\d{2}\/\d{2}$/.test(date)) return;
-
-        const response = await favoritesApiFetch('/favorite', {
-            method: 'POST',
-            body: JSON.stringify({ date, action })
-        }, { requireAuth: true });
-
-        if (!response.ok) throw new Error(`Top Favorites update failed: ${response.status}`);
-
-        const data = await response.json().catch(() => null);
-        if (data && typeof data.count === 'number') {
-            setTop10EntryCount(date, data.count, data.updatedAt);
-        }
-    } catch (error) {
-        // Signed-out visitors simply do not vote; favoriting is a local action and
-        // nagging them to sign in every time would be noise, not information.
-        if (error?.code === 'FAVORITES_AUTH_REQUIRED') return;
-
-        const language = UTILS.isSpanishMode() ? 'es' : 'en';
-        showNotification(translations[language].favoriteVoteFailed, 6000);
-        console.error('Top Favorites update failed:', error);
-    }
-}
-
-function getValidFavoriteDates(favorites) {
-    return normalizeFavorites(favorites).sort();
-}
-
-function favoritesMigrationKey(accountId) {
-    return `${CONFIG.STORAGE_KEYS.FAVS_MIGRATED_DATES}:${CONFIG.FAVORITES_MIGRATION_VERSION}:${encodeURIComponent(accountId)}`;
-}
-
-function getMigratedFavoriteDates(accountId) {
-    return getValidFavoriteDates(UTILS.safeJSONParse(localStorage.getItem(favoritesMigrationKey(accountId)), []));
-}
-
-function markFavoritesAsMigrated(dates, accountId) {
-    const merged = [...new Set([...getMigratedFavoriteDates(accountId), ...getValidFavoriteDates(dates)])].sort();
-    localStorage.setItem(favoritesMigrationKey(accountId), JSON.stringify(merged));
-}
-
 function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
     const validFavorites = getValidFavoriteDates(favorites);
     const showFavsCheckbox = document.getElementById('showfavs');
@@ -4423,423 +2682,8 @@ function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
     UTILS.updateHeartIcon();
 }
 
-function migrateExistingFavorites(favorites = UTILS.getFavorites()) {
-    const validFavorites = getValidFavoriteDates(favorites);
-
-    _favoritesMigrationQueue = _favoritesMigrationQueue
-        .catch(() => {})
-        .then(async () => {
-            try {
-                const identity = await window.getFavoritesApiIdentity?.();
-                if (!identity) return;
-                const migratedDates = new Set(getMigratedFavoriteDates(identity.accountId));
-                const pendingDates = validFavorites.filter(date => !migratedDates.has(date));
-                for (let offset = 0; offset < pendingDates.length; offset += CONFIG.FAVORITES_MIGRATION_BATCH_SIZE) {
-                    const dates = pendingDates.slice(offset, offset + CONFIG.FAVORITES_MIGRATION_BATCH_SIZE);
-                    const response = await favoritesApiFetch('/migrate', {
-                        method: 'POST', cache: 'no-store',
-                        headers: { Authorization: `Bearer ${identity.accessToken}` },
-                        body: JSON.stringify({ dates })
-                    }, { includeAuth: false, requireAuth: true });
-                    if (!response.ok) return;
-                    const data = await response.json().catch(() => null);
-                    if (!data?.ok) return;
-                    markFavoritesAsMigrated(dates, identity.accountId);
-                }
-            } catch { /* noop */ }
-        });
-
-    return _favoritesMigrationQueue;
-}
-
 window.addEventListener('google-auth-changed', event => {
-    if (event.detail?.signedIn) migrateExistingFavorites();
+    if (event.detail?.signedIn) migrateExistingFavorites(UTILS.getFavorites());
 });
 
-async function fetchTop10() {
-    const response = await favoritesApiFetch('/top', { cache: 'no-store' }, { includeAuth: false });
-    if (!response.ok) throw new Error('Failed to fetch leaderboard');
-    return response.json();
-}
 
-// Top Favorites browsing mode state
-let _top10Entries = [];
-let _top10BrowseIndex = -1;
-let _isTop10Mode = false;
-const _thumbCache = new Map(); // date string → image URL
-
-const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-/**
- * Collect the currently focusable, visible, enabled descendants of a container.
- * @param {Element|null} container
- * @returns {HTMLElement[]}
- */
-function getFocusableElements(container) {
-    if (!container) return [];
-
-    return [...container.querySelectorAll(FOCUSABLE_SELECTOR)]
-        .filter(element => !element.disabled && element.getAttribute('aria-hidden') !== 'true' && element.offsetParent !== null);
-}
-
-/**
- * Keep Tab / Shift+Tab inside a dialog container.
- * @param {KeyboardEvent} event
- * @param {Element|null} container
- */
-function trapFocusWithin(event, container) {
-    if (!container) return;
-
-    const focusable = getFocusableElements(container);
-    if (!focusable.length) {
-        event.preventDefault();
-        if (container instanceof HTMLElement) container.focus();
-        return;
-    }
-
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    const activeElement = document.activeElement;
-
-    if (event.shiftKey && activeElement === first) {
-        event.preventDefault();
-        last.focus();
-    } else if (!event.shiftKey && activeElement === last) {
-        event.preventDefault();
-        first.focus();
-    }
-}
-
-function getTop10FocusableElements() {
-    return getFocusableElements(document.getElementById('top10Modal'));
-}
-
-function focusTop10Modal() {
-    const modal = document.getElementById('top10Modal');
-    if (!modal) return;
-
-    const focusTarget = document.getElementById('top10CloseBtn') || getTop10FocusableElements()[0] || modal;
-    focusTarget.focus();
-}
-
-function trapTop10ModalFocus(event) {
-    trapFocusWithin(event, document.getElementById('top10Modal'));
-}
-
-function setTop10EntryCount(date, count, updatedAt = null) {
-    const entry = _top10Entries.find(item => item && item.date === date);
-    if (!entry) return;
-
-    entry.count = Math.max(0, count);
-    if (updatedAt) entry.updatedAt = updatedAt;
-
-    if (_isTop10Mode && _top10Entries[_top10BrowseIndex]?.date === date) {
-        updateTop10Indicator();
-    }
-}
-
-/**
- * Build one leaderboard row as real DOM nodes.
- *
- * Deliberately avoids `innerHTML` for anything derived from the remote
- * leaderboard response (`entry.date`, `entry.count`, `entry.updatedAt`): those
- * values are attacker-influencable if the API is ever compromised, and they
- * previously flowed straight into an HTML string, including into an
- * `aria-label="..."` attribute where a quote would break out of the attribute.
- * @param {{date: string, count: number, updatedAt?: string}} entry
- * @param {number} index
- * @param {Record<string, string>} t - Active translation table
- * @param {string} dateFmtLocale
- * @returns {HTMLButtonElement}
- */
-function createTop10EntryButton(entry, index, t, dateFmtLocale) {
-    const [y, m, d] = entry.date.split('/').map(Number);
-    const dateObj = new Date(y, m - 1, d);
-    const formatted = dateObj.toLocaleDateString(dateFmtLocale, { year: 'numeric', month: 'short', day: 'numeric' });
-    const updatedDate = entry.updatedAt ? new Date(entry.updatedAt) : null;
-    const updatedLabel = updatedDate && !Number.isNaN(updatedDate.getTime())
-        ? t.top10Updated.replace('{date}', updatedDate.toLocaleString(dateFmtLocale, { dateStyle: 'medium', timeStyle: 'short' }))
-        : '';
-    const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'top10-entry';
-    button.dataset.index = String(index);
-    button.dataset.date = entry.date;
-    button.setAttribute('aria-label', t.top10ViewComic.replace('{date}', formatted));
-
-    const rank = document.createElement('span');
-    rank.className = 'top10-rank';
-    rank.textContent = medal || String(index + 1);
-    button.appendChild(rank);
-
-    const thumbWrap = document.createElement('div');
-    thumbWrap.className = 'top10-thumb-wrap';
-    thumbWrap.id = `top10Thumb${index}`;
-    const placeholder = document.createElement('div');
-    placeholder.className = 'top10-thumb-placeholder';
-    // Static, developer-authored markup only.
-    placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
-    thumbWrap.appendChild(placeholder);
-    button.appendChild(thumbWrap);
-
-    const info = document.createElement('div');
-    info.className = 'top10-info';
-
-    const dateSpan = document.createElement('span');
-    dateSpan.className = 'top10-date';
-    dateSpan.textContent = formatted;
-    info.appendChild(dateSpan);
-
-    const countSpan = document.createElement('span');
-    countSpan.className = 'top10-count';
-    countSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-    countSpan.append(` ${Number(entry.count) || 0}`);
-    info.appendChild(countSpan);
-
-    if (updatedLabel) {
-        const updatedSpan = document.createElement('span');
-        updatedSpan.className = 'top10-updated';
-        updatedSpan.textContent = updatedLabel;
-        info.appendChild(updatedSpan);
-    }
-
-    button.appendChild(info);
-    return button;
-}
-
-function showTop10Modal() {
-    const backdrop = document.getElementById('top10Backdrop');
-    const modal = document.getElementById('top10Modal');
-    const list = document.getElementById('top10List');
-    if (!backdrop || !modal || !list) return;
-
-    const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-    const t = translations[lang] || translations.en;
-    const dateFmtLocale = lang === 'es' ? 'es-ES' : 'en-US';
-
-    if (!(document.activeElement instanceof HTMLElement) || !modal.contains(document.activeElement)) {
-        _top10LastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    }
-    modal.setAttribute('aria-busy', 'true');
-    list.replaceChildren(UTILS.createMessageDiv('top10-loading', t.top10Loading));
-    backdrop.classList.add('visible');
-    modal.classList.add('visible');
-    focusTop10Modal();
-
-    fetchTop10().then(entries => {
-        modal.removeAttribute('aria-busy');
-        if (!entries || entries.length === 0) {
-            list.replaceChildren(UTILS.createMessageDiv('top10-empty', t.top10Empty));
-            return;
-        }
-        _top10Entries = entries;
-
-        list.replaceChildren(...entries.map((entry, i) => createTop10EntryButton(entry, i, t, dateFmtLocale)));
-
-        // Load thumbnails in batches, using cached URLs when available.
-        // Abort after too many consecutive failures (proxy may be down/rate-limited).
-        const BATCH_SIZE = 5;
-        const MAX_CONSECUTIVE_FAILURES = 3;
-        let _consecutiveThumbFails = 0;
-        // Honour the reader's own source and language preference so thumbnails
-        // match the strips they will actually see when they open an entry.
-        const thumbSource = UTILS.getPreferredSource();
-        const thumbLanguage = lang;
-
-        function applyThumb(i, imageUrl, dateStr) {
-            const thumbWrap = document.getElementById(`top10Thumb${i}`);
-            if (thumbWrap) {
-                const img = document.createElement('img');
-                img.className = 'top10-thumb';
-                img.loading = 'lazy';
-                img.setAttribute('src', imageUrl);
-                img.setAttribute('alt', t.top10ComicAlt.replace('{date}', dateStr));
-                thumbWrap.replaceChildren(img);
-            }
-        }
-
-        async function loadThumbBatch(startIndex) {
-            if (!modal.classList.contains('visible')) return;
-            if (_consecutiveThumbFails >= MAX_CONSECUTIVE_FAILURES) return;
-            const batch = entries.slice(startIndex, startIndex + BATCH_SIZE);
-            await Promise.all(batch.map((entry, offset) => {
-                const i = startIndex + offset;
-                const cached = _thumbCache.get(entry.date);
-                if (cached) {
-                    applyThumb(i, cached, entry.date);
-                    _consecutiveThumbFails = 0;
-                    return Promise.resolve();
-                }
-                const parts = entry.date.split('/');
-                const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                return getAuthenticatedComic(date, thumbLanguage, thumbSource, {
-                    silent: true,
-                    maxSources: 1,
-                    disableTodayFallback: true
-                }).then(result => {
-                    if (result.success && result.imageUrl) {
-                        _thumbCache.set(entry.date, result.imageUrl);
-                        applyThumb(i, result.imageUrl, entry.date);
-                        _consecutiveThumbFails = 0;
-                    } else {
-                        _consecutiveThumbFails++;
-                    }
-                }).catch(() => {
-                    _consecutiveThumbFails++;
-                });
-            }));
-            if (startIndex + BATCH_SIZE < entries.length && _consecutiveThumbFails < MAX_CONSECUTIVE_FAILURES) {
-                loadThumbBatch(startIndex + BATCH_SIZE);
-            }
-        }
-        loadThumbBatch(0);
-
-        // Click handlers — enter Top 10 browsing mode
-        list.querySelectorAll('.top10-entry').forEach(btn => {
-            btn.addEventListener('click', () => {
-                enterTop10Mode(parseInt(btn.dataset.index));
-            });
-        });
-    }).catch(() => {
-        modal.removeAttribute('aria-busy');
-        const errorWrap = document.createElement('div');
-        errorWrap.className = 'top10-empty';
-        const message = document.createElement('p');
-        message.textContent = t.top10Error;
-        const retry = document.createElement('button');
-        retry.type = 'button';
-        retry.className = 'backup-button top10-retry-button';
-        retry.id = 'top10RetryBtn';
-        retry.textContent = t.retry;
-        retry.addEventListener('click', showTop10Modal);
-        errorWrap.append(message, retry);
-        list.replaceChildren(errorWrap);
-    });
-}
-
-function enterTop10Mode(index) {
-    _top10BrowseIndex = index;
-    _isTop10Mode = true;
-
-    // Close modals and settings
-    closeTop10Modal();
-    const settingsPanel = document.getElementById('settingsDIV');
-    if (settingsPanel?.classList.contains('visible')) {
-        settingsPanel.classList.remove('visible');
-    }
-
-    // Show the floating indicator
-    showTop10Indicator();
-
-    // Load the selected comic
-    loadTop10Comic();
-}
-
-function loadTop10Comic() {
-    const entry = _top10Entries[_top10BrowseIndex];
-    if (!entry) return;
-
-    const parts = entry.date.split('/');
-    currentselectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-
-    // Update nav button states for top 10 mode
-    document.getElementById('Previous').disabled = _top10BrowseIndex === 0;
-    document.getElementById('First').disabled = _top10BrowseIndex === 0;
-    document.getElementById('Next').disabled = _top10BrowseIndex === _top10Entries.length - 1;
-    document.getElementById('Last').disabled = _top10BrowseIndex === _top10Entries.length - 1;
-    document.getElementById('Random').disabled = _top10Entries.length <= 1;
-    document.getElementById('DatePicker').disabled = true;
-
-    // Update indicator
-    updateTop10Indicator();
-
-    showComic();
-}
-
-function exitTop10Mode() {
-    _isTop10Mode = false;
-    _top10BrowseIndex = -1;
-
-    // Hide indicator
-    const indicator = document.getElementById('top10Indicator');
-    if (indicator) indicator.remove();
-
-    // Re-enable navigation
-    document.getElementById('DatePicker').disabled = false;
-    CompareDates();
-    showComic();
-}
-
-function showTop10Indicator() {
-    let indicator = document.getElementById('top10Indicator');
-    if (!indicator) {
-        indicator = document.createElement('div');
-        indicator.id = 'top10Indicator';
-        indicator.className = 'top10-indicator';
-        document.body.appendChild(indicator);
-    }
-    updateTop10Indicator();
-}
-
-function updateTop10Indicator() {
-    const indicator = document.getElementById('top10Indicator');
-    if (!indicator || !_isTop10Mode) return;
-
-    const entry = _top10Entries[_top10BrowseIndex];
-    if (!entry) return;
-
-    const lang = UTILS.isSpanishMode() ? 'es' : 'en';
-    const t = translations[lang] || translations.en;
-    const medal = _top10BrowseIndex === 0 ? '🥇' : _top10BrowseIndex === 1 ? '🥈' : _top10BrowseIndex === 2 ? '🥉' : '';
-    const rank = medal || `#${_top10BrowseIndex + 1}`;
-
-    // Built with DOM APIs rather than innerHTML: `entry.count` and the
-    // translated exit label previously landed inside an HTML string (including
-    // inside an aria-label attribute).
-    const rankSpan = document.createElement('span');
-    rankSpan.className = 'top10-indicator-rank';
-    rankSpan.textContent = rank;
-
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'top10-indicator-label';
-    labelSpan.textContent = t.top10CommunityFavorites;
-
-    const countSpan = document.createElement('span');
-    countSpan.className = 'top10-indicator-count';
-    countSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c" stroke="#e74c3c" stroke-width="2" width="14" height="14"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
-    countSpan.append(` ${Number(entry.count) || 0}`);
-
-    const posSpan = document.createElement('span');
-    posSpan.className = 'top10-indicator-pos';
-    posSpan.textContent = `${_top10BrowseIndex + 1}/${_top10Entries.length}`;
-
-    const exitBtn = document.createElement('button');
-    exitBtn.type = 'button';
-    exitBtn.className = 'top10-indicator-exit';
-    exitBtn.id = 'top10ExitBtn';
-    exitBtn.setAttribute('aria-label', t.top10ExitLabel);
-    exitBtn.textContent = '✕';
-    exitBtn.addEventListener('click', exitTop10Mode);
-
-    indicator.replaceChildren(rankSpan, labelSpan, countSpan, posSpan, exitBtn);
-}
-
-function closeTop10Modal() {
-    const backdrop = document.getElementById('top10Backdrop');
-    const modal = document.getElementById('top10Modal');
-    if (backdrop) backdrop.classList.remove('visible');
-    if (modal) {
-        modal.classList.remove('visible');
-        modal.removeAttribute('aria-busy');
-    }
-    if (_top10LastFocusedElement) {
-        _top10LastFocusedElement.focus();
-        _top10LastFocusedElement = null;
-    }
-}
-
-window.showTop10Modal = showTop10Modal;
-window.closeTop10Modal = closeTop10Modal;
-window.exitTop10Mode = exitTop10Mode;

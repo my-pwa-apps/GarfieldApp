@@ -9,15 +9,22 @@ Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic st
 ## Architecture
 
 ### Module System
-- **ES6 modules** via `type="module"` in HTML
-- `app.js` imports from `comicExtractor.js` using `import { getAuthenticatedComic } from './comicExtractor.js'`
+- **ES6 modules** via `type="module"` in HTML; `index.html` loads `googleDriveSync.js` and `app.js` and `<link rel="modulepreload">`s every other module in the static graph
+- `app.js` is the bootstrap: it imports feature modules and wires them to app-owned state with `configure…()` calls (`configureToolbarLayout`, `configureGestures`, `configureVerticalComic`, `configureFavoritesApi`) placed after `UTILS` and before boot code
+- Optional features load on first use with `import()` (currently `top10.js`)
 - `init.js` performs early bootstrap and fullscreen setup before the DOM is ready; the actual language detection runs in `initApp()` inside `app.js`
-- All functions exposed globally via `window.FunctionName = FunctionName` pattern
+- Only a few globals are published for `googleDriveSync.js` and the native host (`window.UTILS`, `window.CONFIG`, `window.translations`, `window.showNotification`, sync preference hooks, `window.pictureUrl`). Do not add new `window.*` exports unless another script actually reads them
 - `package.json` sets `"type": "module"`, so every Node-executed CommonJS file uses `.cjs` (Playwright configs, `tests/**/*.spec.cjs`, `tests/support/*.cjs`, `tools/*.cjs`)
 
 ### Key Files & Responsibilities
-- **`app.js`**: Main app logic—UI, navigation, settings, toolbar positioning, translations, rotation/fullscreen, favorites, shuffle, community leaderboard
-- **`toolbar.js`**: `makeDraggable()` helper shared by the toolbar and the settings panel
+- **`app.js`**: Bootstrap and remaining UI glue—comic loading/navigation, date state, favorites, settings, shuffle, import/export, translations, install prompt
+- **`config.js`**: Frozen `CONFIG` and the shared `safeJSONParse()`
+- **`toolbarLayout.js`**: Toolbar/settings placement, persisted positions, viewport clamping, rotation snapshot
+- **`toolbar.js`**: `makeDraggable()` helper used by `toolbarLayout.js`
+- **`gestures.js`**: Tap/double-tap, swipe navigation, rotated/landscape fullscreen (`Rotate`, touch handlers)
+- **`verticalComic.js`**: Tall-strip thumbnail and fullscreen view
+- **`favoritesApi.js`**: Leaderboard votes, favorites migration, top list; **`top10.js`**: Top Favorites modal and browse mode (lazy); **`focusTrap.js`**: shared dialog focus helpers
+- **`comicPresentation.js`**: Image load/decode contract, transitions (`transitionComicImage`), comic descriptions
 - **`comicExtractor.js`**: Comic fetching with CORS proxy fallback system, performance tracking
 - **`googleDriveSync.js`**: Google Identity sign-in and Drive appdata sync for favorites/preferences
 - **`serviceworker.js`**: PWA caching (precache, runtime, image cache with LRU eviction)
@@ -32,8 +39,8 @@ Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic st
 
 ## Critical Patterns
 
-### CONFIG Object (app.js top)
-All magic numbers centralized in frozen `CONFIG`:
+### CONFIG Object (config.js)
+All magic numbers centralized in frozen `CONFIG`, imported with `import { CONFIG } from './config.js'`:
 ```javascript
 const CONFIG = Object.freeze({
     SWIPE_MIN_DISTANCE: 50,
@@ -53,7 +60,7 @@ UTILS.getOrCreateMessageContainer(className)  // For error/paywall messages
 ```
 
 ### Rotation & Fullscreen
-Device-specific behavior in `initApp()`:
+Device-specific behavior in `initializeRotationGestures()` (`gestures.js`, called from `initApp()`):
 - **Mobile PWA**: Physical device rotation triggers fullscreen (screen.orientation API)
 - **Mobile Browser**: Click comic to enter fullscreen with CSS rotation
 - **Tablet/Desktop**: No rotation feature (already landscape-capable)
@@ -61,7 +68,7 @@ Device-specific behavior in `initApp()`:
 
 ### Touch Handling
 Native touch events with rotation-awareness:
-- `handleTouchStart()`, `handleTouchMove()`, `handleTouchEnd()` in app.js
+- `handleTouchStart()`, `handleTouchMove()`, `handleTouchEnd()` in `gestures.js`
 - In rotated mode: Swipe Up→Next, Swipe Down→Previous (remapped)
 - Prevents click-after-swipe with `lastSwipeTime` (300ms debounce)
 
@@ -80,7 +87,13 @@ npm run bump:version
 ```
 
 ### Asset & Precache Guard
-Any new statically imported ES module must be added to `PRECACHE_ASSETS` **and** `REQUIRED_PRECACHE_ASSETS` in `serviceworker.js`, or the app breaks offline. `npm run test:assets` enforces this alongside manifest/tile references, and also fails on orphaned image assets that nothing references.
+Every module in the static import graph must be in `PRECACHE_ASSETS` **and** `REQUIRED_PRECACHE_ASSETS` in `serviceworker.js` (or the app breaks offline) and have a `<link rel="modulepreload">` in `index.html` (or the first comic loads a round trip later per import level). Modules loaded with `import()` go in `PRECACHE_ASSETS` only. `npm run test:assets` enforces this alongside manifest/tile references, and also fails on orphaned image assets that nothing references by exact path (platform icons included; intentional exceptions go in `RETAINED_UNREFERENCED_IMAGES` with a reason).
+
+### Module Size
+Client modules stay under 800 lines; `app.js` is capped at 2,750 (`tests/unit/module-boundaries.test.mjs`). Add features as cohesive modules wired with a `configure…()` call instead of growing `app.js`.
+
+### Performance Measurement
+`npm run test:first-visit:throttled` measures the client path under Lighthouse's mobile throttling over HTTP/2 with fixture providers. `npm run test:lighthouse` audits live providers on a local HTTP/1.1 origin (the proxy only allows plain-http loopback); use `-- --url https://garfieldapp.pages.dev/` for a deployed revision.
 
 ### Sitemap Maintenance
 - We maintain both a static `sitemap.xml` and a `sitemap.txt` as a fallback for Search Console parsing bugs.
