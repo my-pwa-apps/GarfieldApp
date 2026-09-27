@@ -1,9 +1,9 @@
 import { CONFIG, safeJSONParse } from './config.js';
 import { makeDraggable } from './toolbar.js';
 
-// Main toolbar and settings panel placement: default position between the logo
-// and the comic, persisted drag positions, viewport clamping, and the snapshot
-// taken while fullscreen rotation temporarily moves the toolbar.
+// Main toolbar placement: default position between the logo and the comic,
+// persisted drag positions, viewport clamping, and the snapshot taken while
+// fullscreen rotation temporarily moves the toolbar.
 const deps = { isRotated: () => false };
 let isToolbarPersistenceSuspended = false;
 let toolbarStateBeforeRotate = null;
@@ -291,18 +291,6 @@ function moveToolbarBetweenLogoAndComic(toolbar, savePosition = true) {
     return true;
 }
 
-function clampSettingsPanelPosition(left, top, width, height) {
-    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-    const minVisibleWidth = 64;
-    const minVisibleHeaderHeight = 48;
-    const minVisiblePanelHeight = 64;
-
-    return {
-        left: Math.max(minVisibleWidth - width, Math.min(left, viewportWidth - minVisibleWidth)),
-        top: Math.max(minVisiblePanelHeight - height, Math.min(top, window.innerHeight - minVisibleHeaderHeight))
-    };
-}
-
 
 /**
  * Positions toolbar centered below logo
@@ -402,58 +390,6 @@ export function restoreToolbarStateAfterRotate() {
             toolbar.style.transform = snapshot.transform || 'none';
         });
     });
-}
-
-/**
- * Initializes draggable settings panel
- */
-export function initializeDraggableSettings() {
-    const panel = document.getElementById("settingsDIV");
-    const header = document.getElementById("settingsHeader");
-    const settingsStorageKey = CONFIG.STORAGE_KEYS.SETTINGS + '_pos';
-
-    if (!panel || !header) return;
-
-    function keepPanelReachable() {
-        const width = panel.offsetWidth;
-        const height = panel.offsetHeight;
-        const top = parseFloat(panel.style.top);
-        const left = parseFloat(panel.style.left);
-
-        if (!width || !height || Number.isNaN(top) || Number.isNaN(left) || panel.style.transform !== 'none') {
-            return;
-        }
-
-        const clamped = clampSettingsPanelPosition(left, top, width, height);
-        if (clamped.top === top && clamped.left === left) return;
-
-        panel.style.top = clamped.top + 'px';
-        panel.style.left = clamped.left + 'px';
-
-        try {
-            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
-        } catch (_) {}
-    }
-
-    // Load and apply saved position immediately without animation
-    const savedPosRaw = localStorage.getItem(settingsStorageKey);
-    const savedPos = safeJSONParse(savedPosRaw, null);
-    if (savedPos && typeof savedPos.top === 'number' && typeof savedPos.left === 'number') {
-        const clamped = clampSettingsPanelPosition(savedPos.left, savedPos.top, panel.offsetWidth || 320, panel.offsetHeight || 0);
-        panel.style.top = clamped.top + 'px';
-        panel.style.left = clamped.left + 'px';
-        panel.style.transform = 'none';
-
-        try {
-            localStorage.setItem(settingsStorageKey, JSON.stringify(clamped));
-        } catch (_) {}
-    }
-
-    // Make draggable
-    makeDraggable(panel, header, settingsStorageKey, {
-        clampPosition: clampSettingsPanelPosition
-    });
-    window.addEventListener('resize', keepPanelReachable);
 }
 
 export function refreshToolbarDefaultPosition() {

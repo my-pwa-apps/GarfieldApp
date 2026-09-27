@@ -19,8 +19,10 @@ Vanilla JavaScript Progressive Web App (PWA) for viewing daily Garfield comic st
 ### Key Files & Responsibilities
 - **`app.js`**: Bootstrap and remaining UI glue—comic loading/navigation, date state, favorites, settings, shuffle, import/export, translations, install prompt
 - **`config.js`**: Frozen `CONFIG` and the shared `safeJSONParse()`
-- **`toolbarLayout.js`**: Toolbar/settings placement, persisted positions, viewport clamping, rotation snapshot
+- **`toolbarLayout.js`**: Toolbar placement, persisted positions, viewport clamping, rotation snapshot
 - **`toolbar.js`**: `makeDraggable()` helper used by `toolbarLayout.js`
+- **`settingsPanel.js`**: Settings dialog—centered modal + backdrop, accordion groups (one open at a time, last group remembered), focus trap/Escape
+- **`dayFilter.js`**: "Days to show" preference (`all` / `sundays` / `no-sundays`) and filter-aware date helpers (`stepToAllowedDate`, `snapToAllowedDate`, `randomAllowedDate`, `filterFavoritesByDay`)
 - **`gestures.js`**: Tap/double-tap, swipe navigation, rotated/landscape fullscreen (`Rotate`, touch handlers)
 - **`verticalComic.js`**: Tall-strip thumbnail and fullscreen view
 - **`favoritesApi.js`**: Leaderboard votes, favorites migration, top list; **`top10.js`**: Top Favorites modal and browse mode (lazy); **`focusTrap.js`**: shared dialog focus helpers
@@ -54,6 +56,7 @@ const CONFIG = Object.freeze({
 Centralized helper functions—**always use these instead of inline code**:
 ```javascript
 UTILS.getFavorites()           // Returns favorites array, never null
+UTILS.getBrowsableFavorites()  // Favorites passing the "Days to show" filter (use for navigation)
 UTILS.isSpanishMode()          // Returns boolean for Spanish checkbox
 UTILS.safeJSONParse(str, [])   // Safe JSON parse with fallback
 UTILS.getOrCreateMessageContainer(className)  // For error/paywall messages
@@ -75,8 +78,11 @@ Native touch events with rotation-awareness:
 ### Draggable Elements
 `makeDraggable(element, dragHandle, storageKey, options)` in `toolbar.js`:
 - **Toolbar**: Vertical-only, always horizontally centered
-- **Settings panel**: Full 2D dragging
 - Position persistence via localStorage under `storageKey` (default `onDrop`)
+- The settings panel is **not** draggable; it is a centered modal (`settingsPanel.js`)
+
+### Day Filter
+Date navigation must go through `dayFilter.js` helpers rather than `setDate(±1)`: `stepToAllowedDate()` for Previous/Next, `getAllowedDateRange()` (app.js) for First/Last bounds, `randomAllowedDate()` for Random/Shuffle, and `UTILS.getBrowsableFavorites()` in favorites-only mode. Top Favorites browsing is intentionally unfiltered.
 
 ## Development Workflow
 

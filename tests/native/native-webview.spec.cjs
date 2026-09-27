@@ -204,7 +204,14 @@ async function setUsableMidRangeDate() {
   await page.evaluate(() => document.activeElement?.blur());
 }
 
+// Settings controls live in accordion groups; open the owning group the way a user would.
+async function openSettingsGroupFor(selector) {
+  const group = page.locator('#settingsDIV details.settings-group').filter({ has: page.locator(selector) });
+  if (!(await group.evaluate(element => element.open))) await group.locator('summary').click();
+}
+
 async function clickSettingsControl(selector) {
+  await openSettingsGroupFor(selector);
   await page.locator('.settings-content').evaluate((container, targetSelector) => {
     container.querySelector(targetSelector)?.scrollIntoView({ block: 'center' });
   }, selector);
@@ -276,6 +283,7 @@ test.describe.serial('native WinUI WebView2 app parity', () => {
     await page.locator('#comicSource').selectOption('gocomics');
     await expect(page.locator('#spanish-setting-row')).not.toHaveCSS('display', 'none');
 
+    await openSettingsGroupFor('#showfavs');
     await page.locator('#showfavs').check();
     await expect(page.locator('#DatePicker')).toBeDisabled();
     await page.locator('#showfavs').uncheck();

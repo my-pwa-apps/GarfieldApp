@@ -11,7 +11,9 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `init.js` - pre-DOM bootstrap: fullscreen state, service worker registration, update banner.
 - `app.js` - app bootstrap and the remaining UI glue: comic loading/navigation, favorites, settings, shuffle, import/export and install prompt. It wires the feature modules below to the app-owned date and comic state.
 - [config.js](config.js) - frozen `CONFIG` (timeouts, start dates, storage keys) and the shared `safeJSONParse` helper.
-- [toolbarLayout.js](toolbarLayout.js) - main toolbar and settings panel placement, persisted drag positions, viewport clamping, and the snapshot kept while fullscreen rotation moves the toolbar. Uses `toolbar.js`.
+- [toolbarLayout.js](toolbarLayout.js) - main toolbar placement, persisted drag positions, viewport clamping, and the snapshot kept while fullscreen rotation moves the toolbar. Uses `toolbar.js`.
+- [settingsPanel.js](settingsPanel.js) - the settings dialog: a centered modal with a backdrop whose groups (Reading, Favorites, Google Drive Sync) form an accordion; only one group is open at a time and the last opened group is remembered.
+- [dayFilter.js](dayFilter.js) - the "Days to show" preference (all days, Sundays only, or no Sundays) and the date helpers that keep navigation, random/shuffle picks, favorites-only browsing, the date picker and prefetching on allowed days.
 - [gestures.js](gestures.js) - comic tap/double-tap, swipe navigation (remapped while rotated), and the rotated/landscape fullscreen view.
 - [verticalComic.js](verticalComic.js) - thumbnail and fullscreen view for tall strips.
 - [favoritesApi.js](favoritesApi.js) - community leaderboard API: authenticated votes, per-account migration of existing favorites, and the top list.
@@ -22,7 +24,7 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - [sharing.js](sharing.js) - Web Share, clipboard, and native-host sharing from an explicit committed comic snapshot.
 - [translations.js](translations.js) - matching English and Spanish message dictionaries.
 - [driveSyncState.js](driveSyncState.js) and [driveFavorites.js](driveFavorites.js) - favorite tombstones/merge and the serialized account-scoped Drive coordinator.
-- `toolbar.js` - shared draggable-element helper used by the toolbar and settings panel.
+- `toolbar.js` - shared draggable-element helper used by the main toolbar.
 - `comicExtractor.js` - comic-source and CORS-proxy fallback logic.
 - `googleDriveSync.js` - Google Drive app-data sync for favorites/settings; injects Google Identity Services on demand.
 - `serviceworker.js` - PWA app-shell, runtime, and image caching.

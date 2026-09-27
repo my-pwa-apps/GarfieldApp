@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.26';
+const VERSION = 'v1.0.27';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = 'garfield-images-v1';
@@ -25,6 +25,8 @@ const PRECACHE_ASSETS = [
   './config.js',
   './favoritesApi.js',
   './focusTrap.js',
+  './settingsPanel.js',
+  './dayFilter.js',
   './toolbarLayout.js',
   './gestures.js',
   './verticalComic.js',
@@ -54,6 +56,8 @@ const REQUIRED_PRECACHE_ASSETS = new Set([
   './config.js',
   './favoritesApi.js',
   './focusTrap.js',
+  './settingsPanel.js',
+  './dayFilter.js',
   './toolbarLayout.js',
   './gestures.js',
   './verticalComic.js',

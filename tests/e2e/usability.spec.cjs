@@ -110,7 +110,14 @@ async function expectNoSeriousAxeViolations(page, contextLabel) {
   expect(severeViolations, contextLabel).toEqual([]);
 }
 
+// Settings controls live in accordion groups; open the owning group the way a user would.
+async function openSettingsGroupFor(page, selector) {
+  const group = page.locator('#settingsDIV details.settings-group').filter({ has: page.locator(selector) });
+  if (!(await group.evaluate(element => element.open))) await group.locator('summary').click();
+}
+
 async function clickSettingsControl(page, selector) {
+  await openSettingsGroupFor(page, selector);
   await page.locator('.settings-content').evaluate((container, targetSelector) => {
     container.querySelector(targetSelector)?.scrollIntoView({ block: 'center' });
   }, selector);
@@ -244,6 +251,7 @@ test('ordinary user can discover and use the main app features in one journey', 
   await page.locator('#comicSource').selectOption('gocomics');
   await expect(page.locator('#spanish-setting-row')).not.toHaveCSS('display', 'none');
 
+  await openSettingsGroupFor(page, '#showfavs');
   await page.locator('#showfavs').check();
   await expect(page.locator('#DatePicker')).toBeDisabled();
   await page.locator('#showfavs').uncheck();

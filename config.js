@@ -37,6 +37,8 @@ export const CONFIG = Object.freeze({
         SOURCE: 'comicSource',
         DARK_MODE: 'darkmode',
         SETTINGS: 'settings',
+        SETTINGS_GROUP: 'settingsGroup',
+        DAY_FILTER: 'dayFilter',
         TOOLBAR_POS: 'toolbarPosition',
         TOOLBAR_OPTIMAL: 'toolbarOptimal',
         FAVS_MIGRATED_DATES: 'favsMigratedDates',

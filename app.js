@@ -1,13 +1,14 @@
 import { translations } from './translations.js';
 import { shareComic } from './sharing.js';
 import { getAuthenticatedComic } from './comicExtractor.js';
-import { configureToolbarLayout, initializeDraggableSettings, initializeToolbar, refreshToolbarDefaultPosition } from './toolbarLayout.js';
+import { configureToolbarLayout, initializeToolbar, refreshToolbarDefaultPosition } from './toolbarLayout.js';
 import { configureGestures, handleTouchEnd, handleTouchMove, handleTouchStart, initializeRotationGestures, isRotated, scheduleRotatedComicResize } from './gestures.js';
 import { checkImageOrientation, configureVerticalComic, isVerticalComicActive, isVerticalFullscreen } from './verticalComic.js';
 import { normalizeFavorites } from './favorites.js';
 import { CONFIG, safeJSONParse } from './config.js';
 import { configureFavoritesApi, getValidFavoriteDates, migrateExistingFavorites, reportFavoriteToggle } from './favoritesApi.js';
-import { getFocusableElements, trapFocusWithin } from './focusTrap.js';
+import { initializeSettingsPanel } from './settingsPanel.js';
+import { filterFavoritesByDay, getDayFilter, initializeDayFilterControl, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate } from './dayFilter.js';
 import { decodeComicResult, describeComic, getAdjacentComicDirection, loadComicWithFallback, prefersReducedMotion, selectOfflineComic, reserveComicSpace, setComicImage, transitionComicImage } from './comicPresentation.js';
 
 
@@ -195,6 +196,11 @@ const UTILS = {
         return normalizeFavorites(this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.FAVS), []));
     },
 
+    /** Favorites that pass the "Days to show" filter — the favorites-only browsing pool. */
+    getBrowsableFavorites() {
+        return filterFavoritesByDay(this.getFavorites());
+    },
+
     getOfflineComics(language) {
         const comics = this.safeJSONParse(localStorage.getItem(CONFIG.STORAGE_KEYS.OFFLINE_COMICS), []);
         if (!Array.isArray(comics)) return [];
@@ -311,7 +317,7 @@ const UTILS = {
 
         const showFavs = document.getElementById('showfavs')?.checked || false;
         if (showFavs) {
-            const favs = this.getFavorites();
+            const favs = this.getBrowsableFavorites();
             return favs.some(date => date !== formattedComicDate);
         }
 
@@ -328,7 +334,7 @@ const UTILS = {
      * @returns {boolean} True if navigation is allowed
      */
     canNavigate(direction) {
-        const favs = this.getFavorites();
+        const favs = this.getBrowsableFavorites();
         const showFavs = document.getElementById('showfavs')?.checked || false;
 
         // Get current date for comparison
@@ -343,8 +349,8 @@ const UTILS = {
                 firstFav.setHours(0, 0, 0, 0);
                 return current.getTime() > firstFav.getTime();
             } else {
-                // Normal mode: check if we're at the first comic date
-                const startDate = this.dateFromISODateString(this.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
+                // Normal mode: check if we're at the first allowed comic date
+                const startDate = new Date(getAllowedDateRange().min);
                 startDate.setHours(0, 0, 0, 0);
                 return current.getTime() > startDate.getTime();
             }
@@ -356,9 +362,9 @@ const UTILS = {
                 lastFav.setHours(0, 0, 0, 0);
                 return current.getTime() < lastFav.getTime();
             } else {
-                // Normal mode: check if we're at today's date (Eastern Time)
+                // Normal mode: check if we're at the latest allowed date (Eastern Time)
                 // Use Eastern Time since comics are released based on ET
-                const today = this.getEasternDate();
+                const today = new Date(getAllowedDateRange().max);
                 today.setHours(0, 0, 0, 0);
                 return current.getTime() < today.getTime();
             }
@@ -484,14 +490,16 @@ const UTILS = {
         };
 
         const prefetchTasks = [];
+        let prevDate = currentDate;
+        let nextDate = currentDate;
         for (let offset = 1; offset <= CONFIG.PREFETCH_ADJACENT_DAYS; offset += 1) {
-            const prevDate = new Date(currentDate);
-            prevDate.setDate(prevDate.getDate() - offset);
-            if (prevDate >= startDate) prefetchTasks.push(() => preloadDate(prevDate, -offset));
+            prevDate = stepToAllowedDate(prevDate, -1);
+            const prevTarget = prevDate;
+            if (new Date(prevTarget).setHours(0, 0, 0, 0) >= startDate.getTime()) prefetchTasks.push(() => preloadDate(prevTarget, -offset));
 
-            const nextDate = new Date(currentDate);
-            nextDate.setDate(nextDate.getDate() + offset);
-            if (nextDate <= today) prefetchTasks.push(() => preloadDate(nextDate, offset));
+            nextDate = stepToAllowedDate(nextDate, 1);
+            const nextTarget = nextDate;
+            if (new Date(nextTarget).setHours(0, 0, 0, 0) <= today.getTime()) prefetchTasks.push(() => preloadDate(nextTarget, offset));
             else if (offset === 1) nextComicUrl = "";
         }
 
@@ -732,7 +740,7 @@ function hideNotification() {
 // Initialize when DOM is ready
 function initializeUiShell() {
     initializeToolbar();
-    initializeDraggableSettings();
+    initializeSettingsPanel();
     initializeMobileButtonStates();
     initGoogleSyncUI();
     initTop10Modal();
@@ -789,6 +797,7 @@ window.getSyncPreferences = function getSyncPreferences() {
         spanish: localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH) === 'true',
         swipeEnabled: localStorage.getItem(CONFIG.STORAGE_KEYS.SWIPE) !== 'false',
         shuffle: localStorage.getItem(CONFIG.STORAGE_KEYS.SHUFFLE) === 'true',
+        dayFilter: getDayFilter(),
         darkMode: getPreferredDarkMode()
     };
 };
@@ -836,9 +845,26 @@ window.applySyncedPreferences = function applySyncedPreferences(preferences = {}
         if (datePicker) datePicker.min = useSpanish ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN;
     }
 
+    if (typeof preferences.dayFilter === 'string') setDayFilter(preferences.dayFilter);
+    applyDayFilterChange();
+};
+
+// Re-anchor browsing after the "Days to show" filter (or anything feeding it) changes.
+function applyDayFilterChange() {
+    resetShuffleSession();
+    const showFavsCheckbox = document.getElementById('showfavs');
+    const wasFavoritesOnly = showFavsCheckbox?.checked === true;
+    refreshFavoritesDependentUI();
+    const favs = UTILS.getBrowsableFavorites();
+    if (showFavsCheckbox?.checked && !favs.includes(formattedComicDate)) {
+        currentselectedDate = UTILS.dateFromFavoriteDateString(favs[0]);
+    } else if (wasFavoritesOnly && !showFavsCheckbox?.checked) {
+        localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'false');
+        showNotification(translations[UTILS.isSpanishMode() ? 'es' : 'en'].noFavoritesForDayFilter, 5000);
+    }
     CompareDates();
     showComic();
-};
+}
 
 // Function to translate the interface
 function translateInterface(lang) {
@@ -854,6 +880,7 @@ function translateInterface(lang) {
         'lastdate': t.rememberComic,
         'darkmode': t.darkMode,
         'comicSource': t.comicSource,
+        'dayFilter': t.dayFilter,
         'spanish': t.spanish,
         'notifications': t.notifyNewComics
     };
@@ -1067,70 +1094,6 @@ function showFavoriteOverlay(added) {
 
     container.addEventListener('animationend', () => container.remove());
 }
-
-let _settingsLastFocusedElement = null;
-
-/**
- * Close the settings dialog and hand focus back to whatever opened it.
- */
-function closeSettingsPanel(panel) {
-    panel.classList.remove('visible');
-    panel.classList.remove('animate');
-    localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "false");
-
-    if (_settingsLastFocusedElement?.isConnected) {
-        _settingsLastFocusedElement.focus();
-    }
-    _settingsLastFocusedElement = null;
-}
-
-function HideSettings(e) {
-    // Prevent event from bubbling if called from event handler
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    const panel = document.getElementById("settingsDIV");
-
-    if (!panel) {
-        console.warn('Settings panel not found');
-        return;
-    }
-
-    // Toggle visibility using class
-    if (panel.classList.contains('visible')) {
-        closeSettingsPanel(panel);
-    } else {
-        _settingsLastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-        panel.classList.add('visible');
-        // Only animate if showing from centered position (no saved position)
-        const savedPosRaw = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS + '_pos');
-        const hasSavedPos = savedPosRaw && savedPosRaw !== 'null';
-        if (!hasSavedPos) {
-            panel.classList.add('animate');
-        }
-        localStorage.setItem(CONFIG.STORAGE_KEYS.SETTINGS, "true");
-
-        // Move focus into the dialog so keyboard and screen-reader users land
-        // on its controls instead of staying behind it.
-        getFocusableElements(panel)[0]?.focus();
-    }
-}
-
-document.addEventListener('keydown', function(e) {
-    const panel = document.getElementById("settingsDIV");
-    if (!panel?.classList.contains('visible')) return;
-
-    if (e.key === 'Tab') {
-        trapFocusWithin(e, panel);
-        return;
-    }
-
-    if (e.key === 'Escape') {
-        closeSettingsPanel(panel);
-    }
-});
 
 function updateDateDisplay() {
     const dateInput = document.getElementById('DatePicker');
@@ -1386,7 +1349,7 @@ function updateConnectionStatus() {
 
 function updateOfflineNavigationControls(date, language) {
     if (navigator.onLine) return;
-    const comics = UTILS.getOfflineComics(language);
+    const comics = UTILS.getOfflineComics(language).filter(comic => isDateAllowed(UTILS.dateFromISODateString(comic.date)));
     const dateString = UTILS.dateToISODateString(date);
     document.getElementById('First').disabled = comics.length === 0 || comics[0].date === dateString;
     document.getElementById('Previous').disabled = !comics.some(comic => comic.date < dateString);
@@ -1397,7 +1360,7 @@ function updateOfflineNavigationControls(date, language) {
 function navigateOfflineComics(destination) {
     if (navigator.onLine) return false;
     const language = UTILS.isSpanishMode() ? 'es' : 'en';
-    const comics = UTILS.getOfflineComics(language);
+    const comics = UTILS.getOfflineComics(language).filter(comic => isDateAllowed(UTILS.dateFromISODateString(comic.date)));
     if (comics.length === 0) return true;
 
     const currentDate = UTILS.dateToISODateString(currentselectedDate);
@@ -1524,6 +1487,11 @@ function initApp() {
         _applySourceSetting(savedSource);
     }
 
+    initializeDayFilterControl(() => {
+        applyDayFilterChange();
+        window.syncFavoritesToDrive?.();
+    });
+
     // Initialize Spanish language preference
     const spanishStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SPANISH);
     const datePickerEl = document.getElementById('DatePicker');
@@ -1566,8 +1534,6 @@ function initApp() {
         window.syncFavoritesToDrive?.();
     });
     document.getElementById('DatePicker').addEventListener('input', DateChange);
-    document.getElementById('settingsBtn').addEventListener('click', HideSettings);
-    document.getElementById('settingsCloseBtn').addEventListener('click', HideSettings);
     document.getElementById('favheart').addEventListener('click', Addfav);
     document.getElementById('shareBtn').addEventListener('click', Share);
     document.getElementById('exportFavs').addEventListener('click', exportFavorites);
@@ -1586,7 +1552,7 @@ function initApp() {
     initializeRotationGestures();
     // Tablet and Desktop: no rotation feature - they're already landscape-capable
 
-    const favs = UTILS.getFavorites();
+    const favs = UTILS.getBrowsableFavorites();
 
     // Set minimum body height at load time to prevent gradient shift
     document.body.style.minHeight = "100vh";
@@ -1676,6 +1642,8 @@ async function _dateChangeImpl() {
     const previousDate = new Date(currentselectedDate);
     currentselectedDate = document.getElementById('DatePicker');
     currentselectedDate = UTILS.dateFromISODateString(currentselectedDate.value);
+    const { min, max } = getAllowedDateRange();
+    currentselectedDate = snapToAllowedDate(currentselectedDate, { min, max }) || currentselectedDate;
     updateDateDisplay();
     CompareDates();
 
@@ -1712,6 +1680,15 @@ async function _dateChangeImpl() {
 async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     // Depth guard: prevent runaway recursion from same-comic detection
     if (_depth > 10) return;
+
+    // Keep the date browser on days allowed by the "Days to show" filter.
+    // Favorites-only and Top Favorites pick from their own (already filtered or ranked) lists.
+    if (!isTop10Mode() && !document.getElementById('showfavs')?.checked && !isDateAllowed(currentselectedDate)) {
+        const { min, max } = getAllowedDateRange();
+        const preferStep = direction === 'next' ? 1 : direction === 'previous' ? -1 : 0;
+        currentselectedDate = snapToAllowedDate(currentselectedDate, { min, max, preferStep }) || currentselectedDate;
+        CompareDates();
+    }
 
     commitSelectedDate();
 
@@ -1770,7 +1747,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     if (result.isSameComic && direction) {
         if (direction === 'previous') {
             // Going backwards and hit same comic - continue to previous day
-            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            currentselectedDate = stepToAllowedDate(currentselectedDate, -1);
             CompareDates();
 
             // Check if we've reached the start boundary (depth-limited via the while loop below)
@@ -1784,7 +1761,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         } else if (direction === 'next') {
             // Going forward and hit same comic - we're at the latest available
             // Revert to previous date and disable forward navigation
-            currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            currentselectedDate = stepToAllowedDate(currentselectedDate, -1);
             CompareDates();
             commitSelectedDate();
             document.getElementById("DatePicker").value = formattedDate;
@@ -1804,10 +1781,8 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         while (!success && attempts < maxAttempts) {
             attempts++;
 
-            if (direction === 'next') {
-                currentselectedDate.setDate(currentselectedDate.getDate() + 1);
-            } else if (direction === 'previous') {
-                currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+            if (direction === 'next' || direction === 'previous') {
+                currentselectedDate = stepToAllowedDate(currentselectedDate, direction === 'next' ? 1 : -1);
             } else {
                 break; // Unknown direction, stop trying
             }
@@ -1866,13 +1841,15 @@ function PreviousClick() {
         RandomOlderClick();
         return;
     }
+    // Arrow keys bypass the disabled button; stepping past the edge would desync date and strip.
+    if (!UTILS.canNavigate('previous')) return;
     if (document.getElementById('showfavs').checked) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         if (favs.indexOf(formattedComicDate) > 0) {
             currentselectedDate = UTILS.dateFromFavoriteDateString(favs[favs.indexOf(formattedComicDate) - 1]);
         }
     } else {
-        currentselectedDate.setDate(currentselectedDate.getDate() - 1);
+        currentselectedDate = stepToAllowedDate(currentselectedDate, -1);
     }
     CompareDates();
     showComic(true, 'previous');
@@ -1890,13 +1867,14 @@ function NextClick() {
         RandomNewerClick();
         return;
     }
+    if (!UTILS.canNavigate('next')) return;
     if (document.getElementById('showfavs').checked) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         if (favs.indexOf(formattedComicDate) < favs.length - 1) {
             currentselectedDate = UTILS.dateFromFavoriteDateString(favs[favs.indexOf(formattedComicDate) + 1]);
         }
     } else {
-        currentselectedDate.setDate(currentselectedDate.getDate() + 1);
+        currentselectedDate = stepToAllowedDate(currentselectedDate, 1);
     }
     CompareDates();
     showComic(true, 'next');
@@ -1913,7 +1891,7 @@ function FirstClick() {
         return;
     }
     if (document.getElementById('showfavs').checked) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         currentselectedDate = UTILS.dateFromFavoriteDateString(favs[0]);
     } else {
         currentselectedDate = UTILS.isSpanishMode()
@@ -1935,7 +1913,7 @@ function LastClick() {
         return;
     }
     if (document.getElementById('showfavs').checked) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         currentselectedDate = UTILS.dateFromFavoriteDateString(favs[favs.length - 1]);
     } else {
         currentselectedDate = UTILS.getEasternDate();
@@ -2076,12 +2054,11 @@ function RandomClick() {
     }
 
     if (document.getElementById('showfavs').checked) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         currentselectedDate = UTILS.dateFromFavoriteDateString(favs[Math.floor(Math.random() * favs.length)]);
     } else {
-        const start = UTILS.dateFromISODateString(UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
-        const end = UTILS.getEasternDate();
-        currentselectedDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+        const { min, max } = getAllowedDateRange();
+        currentselectedDate = randomAllowedDate(min, max) || max;
     }
     CompareDates();
     showComic();
@@ -2296,27 +2273,20 @@ function _pushShuffleForwardHistory(date) {
 function _pickRandomAnyDate() {
     const showFavs = document.getElementById('showfavs')?.checked;
     if (showFavs) {
-        const favs = UTILS.getFavorites();
+        const favs = UTILS.getBrowsableFavorites();
         const pool = favs.filter(d => d !== formattedComicDate);
         if (pool.length === 0) return null;
         return UTILS.dateFromFavoriteDateString(pool[Math.floor(Math.random() * pool.length)]);
     }
-    const start = UTILS.isSpanishMode()
-        ? UTILS.dateFromISODateString(CONFIG.GARFIELD_START_ES)
-        : UTILS.dateFromISODateString(CONFIG.GARFIELD_START_EN);
-    start.setHours(0, 0, 0, 0);
-    const end = UTILS.getEasternDate();
-    end.setHours(0, 0, 0, 0);
-    const span = end.getTime() - start.getTime();
-    if (span <= 0) return null;
-    const currentTs = new Date(currentselectedDate).setHours(0, 0, 0, 0);
+    const { min: start, max: end } = getAllowedDateRange();
+    if (_shuffleDateKey(end) <= _shuffleDateKey(start)) return null;
+    const currentKey = _shuffleDateKey(currentselectedDate);
     // Try a few times to avoid landing on the same day
     for (let i = 0; i < 5; i++) {
-        const pick = new Date(start.getTime() + Math.random() * span);
-        pick.setHours(12, 0, 0, 0);
-        if (pick.getTime() !== new Date(currentTs).setHours(12, 0, 0, 0)) return pick;
+        const pick = randomAllowedDate(start, end);
+        if (pick && _shuffleDateKey(pick) !== currentKey) return pick;
     }
-    return new Date(start.getTime() + Math.random() * span);
+    return randomAllowedDate(start, end);
 }
 
 function _shiftShuffleCandidate() {
@@ -2392,8 +2362,19 @@ function pickShuffleCandidates() {
     });
 }
 
+// First and last days the date browser may land on under the "Days to show" filter.
+function getAllowedDateRange() {
+    const min = UTILS.dateFromISODateString(UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
+    const max = UTILS.getEasternDate();
+    if (isTop10Mode()) return { min, max };
+    return {
+        min: snapToAllowedDate(min, { min, max, preferStep: 1 }) || min,
+        max: snapToAllowedDate(max, { min, max, preferStep: -1 }) || max
+    };
+}
+
 function CompareDates() {
-    const favs = UTILS.getFavorites();
+    const favs = UTILS.getBrowsableFavorites();
     let startDate;
     if (document.getElementById('showfavs').checked) {
         if (!favs.length) {
@@ -2405,7 +2386,7 @@ function CompareDates() {
         startDate = favs.length ? UTILS.dateFromFavoriteDateString(favs[0]) : UTILS.getEasternDate();
     } else {
         setDatePickerDisabled(false);
-        startDate = UTILS.dateFromISODateString(UTILS.isSpanishMode() ? CONFIG.GARFIELD_START_ES : CONFIG.GARFIELD_START_EN);
+        startDate = getAllowedDateRange().min;
     }
     startDate = startDate.setHours(0, 0, 0, 0);
     currentselectedDate = currentselectedDate.setHours(0, 0, 0, 0);
@@ -2425,7 +2406,7 @@ function CompareDates() {
     } else {
         // Use Eastern Time — comics are released based on ET midnight, not local time.
         // Without this, users east of ET can navigate to "tomorrow" before the comic exists.
-        endDate = UTILS.getEasternDate();
+        endDate = getAllowedDateRange().max;
     }
     endDate = endDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDate);
@@ -2490,7 +2471,12 @@ document.getElementById('darkmode')?.addEventListener('click', function() {
 
 document.getElementById('showfavs')?.addEventListener('change', function() {
     resetShuffleSession();
-    const favs = UTILS.getFavorites();
+    const favs = UTILS.getBrowsableFavorites();
+    if (this.checked && !favs.length) {
+        this.checked = false;
+        showNotification(translations[UTILS.isSpanishMode() ? 'es' : 'en'].noFavoritesForDayFilter, 5000);
+        return;
+    }
     if (this.checked) {
         localStorage.setItem(CONFIG.STORAGE_KEYS.SHOW_FAVS, 'true');
         if (favs.indexOf(formattedComicDate) === -1) {
@@ -2592,17 +2578,6 @@ if (sourceSelect) {
     });
 }
 
-// Initialize settings panel (checkbox states are now initialized in initApp)
-const settingsStatus = localStorage.getItem(CONFIG.STORAGE_KEYS.SETTINGS);
-const panel = document.getElementById("settingsDIV");
-if (panel) {
-	if (settingsStatus === "true") {
-		panel.classList.add('visible');
-	} else {
-		panel.classList.remove('visible');
-	}
-}
-
 // Set up app install prompt
 let deferredPrompt;
 
@@ -2663,7 +2638,7 @@ function showInstallButton() {
 // ========================================
 
 function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
-    const validFavorites = getValidFavoriteDates(favorites);
+    const validFavorites = filterFavoritesByDay(getValidFavoriteDates(favorites));
     const showFavsCheckbox = document.getElementById('showfavs');
 
     if (showFavsCheckbox) {

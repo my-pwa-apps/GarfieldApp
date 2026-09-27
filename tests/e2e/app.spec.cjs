@@ -239,6 +239,7 @@ async function openSettings(page) {
 }
 
 async function importFavoritesFile(page, name, content) {
+  await openSettingsGroupFor(page, '#importFavs');
   const fileChooserPromise = page.waitForEvent('filechooser');
   await page.locator('#importFavs').click();
   const fileChooser = await fileChooserPromise;
@@ -249,7 +250,14 @@ async function importFavoritesFile(page, name, content) {
   });
 }
 
+// Settings controls live in accordion groups; open the owning group the way a user would.
+async function openSettingsGroupFor(page, selector) {
+  const group = page.locator('#settingsDIV details.settings-group').filter({ has: page.locator(selector) });
+  if (!(await group.evaluate(element => element.open))) await group.locator('summary').click();
+}
+
 async function clickSettingsControl(page, selector) {
+  await openSettingsGroupFor(page, selector);
   await page.locator('.settings-content').evaluate((container, targetSelector) => {
     container.querySelector(targetSelector)?.scrollIntoView({ block: 'center' });
   }, selector);
@@ -606,6 +614,130 @@ test('toolbar navigation walks normal date boundaries', async ({ page }) => {
   expect(errors.requestErrors).toEqual([]);
 });
 
+test('days-to-show filter limits navigation, random picks, and the date picker', async ({ page }) => {
+  await page.addInitScript(() => { Math.random = () => 0; });
+  const errors = await openApp(page);
+
+  await openSettings(page);
+  await page.locator('#dayFilter').selectOption('sundays');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('dayFilter'))).toBe('sundays');
+  await page.locator('#settingsCloseBtn').click();
+
+  await page.locator('#First').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+  await expect(page.locator('#First')).toBeDisabled();
+  await expect(page.locator('#Previous')).toBeDisabled();
+  await page.locator('#Next').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-07-02');
+  await page.locator('#Previous').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+
+  // A weekday typed into the date picker snaps to the nearest Sunday.
+  await page.locator('#DatePicker').fill('1978-07-06');
+  await page.locator('#DatePicker').dispatchEvent('input');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-07-09');
+
+  await page.locator('#Random').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+
+  // At the latest allowed Sunday, keyboard navigation must not step past the edge.
+  const [year, month, dayOfMonth] = getEasternTodayString().split('-').map(Number);
+  const latestSunday = new Date(Date.UTC(year, month - 1, dayOfMonth));
+  latestSunday.setUTCDate(latestSunday.getUTCDate() - latestSunday.getUTCDay());
+  const latestSundayValue = latestSunday.toISOString().slice(0, 10);
+  await page.locator('#Last').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue(latestSundayValue);
+  await expect(page.locator('#Next')).toBeDisabled();
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('ArrowRight');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#DatePicker')).toHaveValue(latestSundayValue);
+  await page.locator('#First').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+
+  await openSettings(page);
+  await page.locator('#dayFilter').selectOption('no-sundays');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-24');
+  await page.locator('#settingsCloseBtn').click();
+  await page.locator('#Next').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-26');
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#dayFilter')).toHaveValue('no-sundays');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('days-to-show filter also narrows favorites-only browsing', async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('favs', JSON.stringify(['1978/06/24', '1978/06/25', '1978/06/26', '1978/07/02']));
+    } catch {
+      // Sandboxed iframes cannot access localStorage.
+    }
+  });
+  const errors = await openApp(page);
+
+  await openSettings(page);
+  await page.locator('#dayFilter').selectOption('sundays');
+  await openSettingsGroupFor(page, '#showfavs');
+  await page.locator('#showfavs').check();
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+  await page.locator('#settingsCloseBtn').click();
+  await page.locator('#Next').evaluate(element => element.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-07-02');
+  await expect(page.locator('#Next')).toBeDisabled();
+
+  await page.evaluate(() => localStorage.setItem('favs', JSON.stringify(['1978/06/24'])));
+  await openSettings(page);
+  await openSettingsGroupFor(page, '#dayFilter');
+  await page.locator('#dayFilter').selectOption('no-sundays');
+  await page.locator('#dayFilter').selectOption('sundays');
+  await expect(page.locator('#notificationContent')).toHaveText('None of your favorites match the selected days.');
+  await openSettingsGroupFor(page, '#showfavs');
+  await expect(page.locator('#showfavs')).not.toBeChecked();
+  await expect(page.locator('#showfavs')).toBeDisabled();
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('settings dialog is a centered modal whose groups expand one at a time', async ({ page }) => {
+  const errors = await openApp(page);
+
+  await openSettings(page);
+  const reading = page.locator('#settingsDIV details[data-group="reading"]');
+  const favorites = page.locator('#settingsDIV details[data-group="favorites"]');
+  await expect(page.locator('#settingsDIV details.settings-group')).toHaveCount(3);
+  await expect(reading).toHaveJSProperty('open', true);
+  await expect(page.locator('#swipe')).toBeVisible();
+  await expect(page.locator('#settingsHeader')).not.toHaveCSS('cursor', 'move');
+
+  const box = await page.locator('#settingsDIV').boundingBox();
+  const viewport = page.viewportSize();
+  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+
+  await favorites.locator('summary').click();
+  await expect(favorites).toHaveJSProperty('open', true);
+  await expect(reading).toHaveJSProperty('open', false);
+  await expect(page.locator('#showfavs')).toBeVisible();
+  await expect(page.locator('#swipe')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('settingsGroup'))).toBe('favorites');
+
+  await expect(page.locator('#settingsBackdrop')).toBeVisible();
+  await page.mouse.click(4, 4);
+  await expect(page.locator('#settingsDIV')).not.toHaveClass(/visible/);
+  await expect(page.locator('#settingsBackdrop')).toBeHidden();
+
+  await openSettings(page);
+  await expect(favorites).toHaveJSProperty('open', true);
+  await expect(reading).toHaveJSProperty('open', false);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
 test('favorites-only mode navigates stored favorites and empty state', async ({ page }) => {
   await page.addInitScript(() => {
     try {
@@ -618,6 +750,7 @@ test('favorites-only mode navigates stored favorites and empty state', async ({ 
   const errors = await openApp(page);
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettingsGroupFor(page, '#showfavs');
   await page.locator('#showfavs').check();
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
   await expect(page.locator('#DatePicker')).toBeDisabled();
@@ -637,6 +770,7 @@ test('favorites-only mode navigates stored favorites and empty state', async ({ 
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('favs') || '[]'))).not.toContain('1978/06/21');
 
   await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettingsGroupFor(page, '#showfavs');
   await page.locator('#showfavs').uncheck();
   await expect(page.locator('#DatePicker')).toBeEnabled();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('showfavs'))).toBe('false');
@@ -1018,6 +1152,7 @@ test('shuffle mode keeps deterministic favorites history across next previous fi
   const errors = await openApp(page);
 
   await openSettings(page);
+  await openSettingsGroupFor(page, '#showfavs');
   await page.locator('#showfavs').check();
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
   await page.locator('#settingsCloseBtn').click();
@@ -1133,6 +1268,7 @@ test('top favorites empty, error, retry, and toolbar navigation states work', as
   await page.locator('#top10CloseBtn').click();
   await expect(page.locator('#top10Modal')).not.toHaveClass(/visible/);
 
+  await openSettingsGroupFor(page, '#top10Btn');
   await page.locator('#top10Btn').click();
   await expect(page.locator('#top10List')).toContainText('Could not load leaderboard. Try again later.');
   await page.locator('#top10RetryBtn').click();
@@ -1171,6 +1307,7 @@ test('favorites export, import, duplicate, invalid, and notification close paths
 
   await openSettings(page);
   const downloadPromise = page.waitForEvent('download');
+  await openSettingsGroupFor(page, '#exportFavs');
   await page.locator('#exportFavs').click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^garfield-favorites-\d{4}-\d{2}-\d{2}\.json$/);

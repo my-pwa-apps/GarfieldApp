@@ -235,10 +235,11 @@ test('sync preferences report the persisted user configuration', () => {
     const defaults = getSyncPreferences();
     assert.deepEqual(
         Object.keys(defaults).sort(),
-        ['comicSource', 'darkMode', 'shuffle', 'spanish', 'swipeEnabled']
+        ['comicSource', 'darkMode', 'dayFilter', 'shuffle', 'spanish', 'swipeEnabled']
     );
     assert.equal(defaults.spanish, false);
     assert.equal(defaults.shuffle, false);
+    assert.equal(defaults.dayFilter, 'all');
     assert.equal(defaults.swipeEnabled, true, 'swipe is opt-out, not opt-in');
 
     storage.set(CONFIG.STORAGE_KEYS.SPANISH, 'true');

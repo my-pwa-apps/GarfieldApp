@@ -218,7 +218,7 @@ test('settings and top favorites layouts do not overlap critical controls', asyn
     const controls = [...document.querySelectorAll('#settingsDIV button:not([disabled]), #settingsDIV select, #settingsDIV .setting-item')]
       .filter(element => {
         const rect = element.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
+        return rect.width > 0 && rect.height > 0 && element.checkVisibility();
       })
       .map(element => ({ element, id: element.id || element.textContent.trim(), rect: element.getBoundingClientRect() }));
     for (let outer = 0; outer < controls.length; outer += 1) {

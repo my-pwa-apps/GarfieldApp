@@ -1,5 +1,5 @@
 // Dialog focus helpers shared by the settings panel and the Top Favorites modal.
-const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])';
 
 /**
  * Collect the currently focusable, visible, enabled descendants of a container.
