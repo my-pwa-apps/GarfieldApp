@@ -1,13 +1,15 @@
 import { getAuthenticatedComic } from './comicExtractor.js';
 
-export function getAdjacentComicDirection(currentDate, targetDate) {
-    const currentDay = Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-    const targetDay = Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-    const dayDifference = (targetDay - currentDay) / 86400000;
-
-    if (dayDifference === 1) return 'next';
-    if (dayDifference === -1) return 'previous';
-    return null;
+/**
+ * Previous/Next navigation slides like a filmstrip: the neighbour is adjacent in
+ * the active sequence even when the day filter, the favorites list, or the Top
+ * Favorites ranking leaves dates out in between. Every other jump (Random,
+ * Shuffle, First, Last, date picker, settings changes) morphs.
+ * @param {'next'|'previous'|null|undefined} navigation - How the user navigated
+ * @returns {'next'|'previous'|null} Slide direction, or null to morph
+ */
+export function getComicTransitionDirection(navigation) {
+    return navigation === 'next' || navigation === 'previous' ? navigation : null;
 }
 
 export function startComicMorph(element) {
@@ -19,7 +21,7 @@ export function startComicMorph(element) {
 const SLIDE_CLASSES = ['slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'no-transition'];
 
 /**
- * Swap a comic image: adjacent dates slide like a filmstrip, other jumps blur-morph.
+ * Swap a comic image: Previous/Next slide like a filmstrip, other jumps blur-morph.
  * The same sequence drives the page comic and the rotated fullscreen copy.
  * @param {HTMLImageElement} image
  * @param {{ animate: boolean, direction: 'next'|'previous'|null, container: Element,

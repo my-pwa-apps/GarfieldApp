@@ -3,7 +3,7 @@ import test, { mock } from 'node:test';
 import {
     createTransitionClone,
     describeComic,
-    getAdjacentComicDirection,
+    getComicTransitionDirection,
     loadComicImage,
     loadComicWithFallback,
     prefersReducedMotion,
@@ -124,18 +124,16 @@ test('reduced motion follows the user preference and defaults to animating', () 
     }
 });
 
-test('comic transitions slide only between adjacent calendar dates', () => {
-    const current = new Date(2026, 2, 8);
+test('Previous/Next slide as neighbours in the active sequence while every other jump morphs', () => {
+    // The day filter, favorites list or Top Favorites ranking can leave dates out
+    // in between; stepping to the neighbour still slides like a filmstrip.
+    assert.equal(getComicTransitionDirection('next'), 'next');
+    assert.equal(getComicTransitionDirection('previous'), 'previous');
 
-    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 9)), 'next');
-    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 7)), 'previous');
-    assert.equal(getAdjacentComicDirection(current, new Date(2026, 2, 10)), null);
-    assert.equal(getAdjacentComicDirection(current, new Date(2025, 11, 31)), null);
-
-    assert.equal(
-        getAdjacentComicDirection(new Date(2026, 2, 31), new Date(2026, 3, 1)),
-        'next'
-    );
+    // Random, Shuffle, First, Last and the date picker never slide, even onto an adjacent day.
+    assert.equal(getComicTransitionDirection(null), null);
+    assert.equal(getComicTransitionDirection(undefined), null);
+    assert.equal(getComicTransitionDirection('first'), null);
 });
 
 test('comic morph commits the initial clone before starting its transition', () => {

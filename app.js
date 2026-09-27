@@ -9,7 +9,7 @@ import { CONFIG, safeJSONParse } from './config.js';
 import { configureFavoritesApi, getValidFavoriteDates, migrateExistingFavorites, reportFavoriteToggle } from './favoritesApi.js';
 import { initializeSettingsPanel } from './settingsPanel.js';
 import { filterFavoritesByDay, getDayFilter, initializeDayFilterControl, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate } from './dayFilter.js';
-import { decodeComicResult, describeComic, getAdjacentComicDirection, loadComicWithFallback, prefersReducedMotion, selectOfflineComic, reserveComicSpace, setComicImage, transitionComicImage } from './comicPresentation.js';
+import { decodeComicResult, describeComic, getComicTransitionDirection, loadComicWithFallback, prefersReducedMotion, selectOfflineComic, reserveComicSpace, setComicImage, transitionComicImage } from './comicPresentation.js';
 
 
 // ========================================
@@ -334,6 +334,9 @@ const UTILS = {
      * @returns {boolean} True if navigation is allowed
      */
     canNavigate(direction) {
+        // Top Favorites steps through a ranking, not the calendar; its buttons carry the bounds.
+        if (isTop10Mode()) return !document.getElementById(direction === 'next' ? 'Next' : 'Previous')?.disabled;
+
         const favs = this.getBrowsableFavorites();
         const showFavs = document.getElementById('showfavs')?.checked || false;
 
@@ -660,7 +663,7 @@ function getTop10() {
         top10 = createTop10({
             UTILS,
             setCurrentDate: date => { currentselectedDate = date; },
-            showComic: () => showComic(),
+            showComic: direction => showComic(false, direction),
             compareDates: () => CompareDates()
         });
         return top10;
@@ -1167,10 +1170,10 @@ async function loadComic(date, silentMode = false, direction = null) {
                 scheduleRotatedComicResize(imgElement);
             };
             const hasExistingComicImage = () => comicImg.src && comicImg.src !== window.location.href;
-            const transitionDirection = displayedComic ? getAdjacentComicDirection(UTILS.dateFromFavoriteDateString(displayedComic.date), result.actualDate || date) : null;
+            const transitionDirection = displayedComic ? getComicTransitionDirection(direction) : null;
             const animate = !prefersReducedMotion();
 
-            // Adjacent comics slide; jumps across multiple dates morph.
+            // Previous/Next slide like a filmstrip; every other jump morphs.
             const animateTransition = () => transitionComicImage(comicImg, {
                 animate: animate && hasExistingComicImage(),
                 direction: transitionDirection,
@@ -1186,7 +1189,18 @@ async function loadComic(date, silentMode = false, direction = null) {
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
             }
-            await animateTransition();
+            // The transition swaps the visible image synchronously, so record what is on
+            // screen before awaiting it. A navigation started mid-animation makes this load
+            // stale, and the next transition must still compare against this comic.
+            const transitionDone = animateTransition();
+            currentComicUrl = result.imageUrl;
+            displayedComic = Object.freeze({
+                date: UTILS.dateToISODateString(result.actualDate || date).replaceAll('-', '/'),
+                language: result.language || language,
+                imageUrl: result.imageUrl
+            });
+            comicImg.alt = describeComic(result.actualDate || date, language, displayedComic.language);
+            await transitionDone;
             if (generation !== _loadComicGeneration) {
                 return { success: false, isSameComic: false, stale: true };
             }
@@ -1195,15 +1209,6 @@ async function loadComic(date, silentMode = false, direction = null) {
                 if (generation === _loadComicGeneration) globalThis.performance?.mark?.('comic:first-display');
                 if (generation === _loadComicGeneration && result.isFallback) globalThis.performance?.mark?.('comic:fallback-display');
             }));
-
-            // Update current comic URL after successful load
-            currentComicUrl = result.imageUrl;
-            displayedComic = Object.freeze({
-                date: UTILS.dateToISODateString(result.actualDate || date).replaceAll('-', '/'),
-                language: result.language || language,
-                imageUrl: result.imageUrl
-            });
-            comicImg.alt = describeComic(result.actualDate || date, language, displayedComic.language);
 
             if (!result.isOffline) {
                 const rememberComic = async () => {
@@ -1743,8 +1748,9 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         }
     }
 
-    // Handle same comic detection (timezone edge case)
-    if (result.isSameComic && direction) {
+    // Handle same comic detection (timezone edge case). Top Favorites steps through a
+    // ranking, not the calendar, so it never walks dates here.
+    if (result.isSameComic && direction && !isTop10Mode()) {
         if (direction === 'previous') {
             // Going backwards and hit same comic - continue to previous day
             currentselectedDate = stepToAllowedDate(currentselectedDate, -1);

@@ -553,6 +553,105 @@ test('filmstrip navigation waits for the preloaded target image before swapping 
   expect(errors.pageErrors).toEqual([]);
 });
 
+test('Previous/Next slide across days left out by the filter while jumps always morph', async ({ page }) => {
+  await page.addInitScript(() => {
+    Math.random = () => 0;
+    try {
+      localStorage.setItem('favs', JSON.stringify(['1978/06/25', '1978/07/09']));
+    } catch {
+      // Sandboxed iframes cannot access localStorage.
+    }
+  });
+  const errors = await openApp(page, '/', {
+    topFavorites: [
+      { date: '1978/07/02', count: 9, updatedAt: '2026-07-22T12:30:00.000Z' },
+      { date: '1978/06/19', count: 4, updatedAt: '2026-07-21T12:30:00.000Z' }
+    ]
+  });
+  await page.evaluate(() => {
+    window.__transitionKinds = [];
+    new MutationObserver(records => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLImageElement)) continue;
+          if (node.matches('.comic-outgoing')) window.__transitionKinds.push('slide');
+          if (node.matches('.comic-pixelate-outgoing')) window.__transitionKinds.push('morph');
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+
+  const expectTransition = async (kind, action, expectedDate) => {
+    await page.evaluate(() => { window.__transitionKinds = []; });
+    await action();
+    await expect(page.locator('#DatePicker')).toHaveValue(expectedDate);
+    await expect.poll(() => page.evaluate(() => window.__transitionKinds)).toEqual([kind]);
+    await expect(page.locator('#comic')).toHaveAttribute('src', new RegExp(expectedDate.replaceAll('-', '')));
+  };
+  const pickDate = value => async () => {
+    await page.locator('#DatePicker').fill(value);
+    await page.locator('#DatePicker').dispatchEvent('input');
+  };
+  const click = selector => () => page.locator(selector).evaluate(element => element.click());
+
+  await setComicDate(page, '1978-06-20');
+  await expectTransition('morph', pickDate('1978-06-21'), '1978-06-21');
+  await expectTransition('slide', click('#Next'), '1978-06-22');
+  await expectTransition('slide', click('#Previous'), '1978-06-21');
+  await expectTransition('morph', click('#First'), '1978-06-19');
+  await expectTransition('morph', pickDate('1978-06-20'), '1978-06-20');
+  await expectTransition('morph', click('#Random'), '1978-06-19');
+
+  // Swipes navigate like Previous/Next: left is next, right is previous.
+  const swipe = towards => () => dispatchTouchGesture(page, '#comic', towards === 'next'
+    ? [{ x: 300, y: 300 }, { x: 60, y: 300 }]
+    : [{ x: 60, y: 300 }, { x: 300, y: 300 }]);
+
+  // No Sundays: Saturday and Monday are neighbours.
+  await openSettings(page);
+  await page.locator('#dayFilter').selectOption('no-sundays');
+  await page.locator('#settingsCloseBtn').click();
+  await expectTransition('morph', pickDate('1978-06-24'), '1978-06-24');
+  await expectTransition('slide', click('#Next'), '1978-06-26');
+  await expectTransition('slide', click('#Previous'), '1978-06-24');
+  await expectTransition('slide', swipe('next'), '1978-06-26');
+  await expectTransition('slide', swipe('previous'), '1978-06-24');
+
+  // Sundays only: consecutive Sundays are neighbours.
+  await openSettings(page);
+  await page.locator('#dayFilter').selectOption('sundays');
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-25');
+  await page.locator('#settingsCloseBtn').click();
+  await expectTransition('slide', click('#Next'), '1978-07-02');
+  await expectTransition('slide', click('#Previous'), '1978-06-25');
+  await expectTransition('slide', swipe('next'), '1978-07-02');
+  await expectTransition('slide', swipe('previous'), '1978-06-25');
+
+  // Favorites-only: neighbouring favorites slide even with weeks between them.
+  await openSettings(page);
+  await openSettingsGroupFor(page, '#showfavs');
+  await page.locator('#showfavs').check();
+  await page.locator('#settingsCloseBtn').click();
+  await expectTransition('slide', click('#Next'), '1978-07-09');
+  await expectTransition('slide', click('#Previous'), '1978-06-25');
+  await expectTransition('slide', swipe('next'), '1978-07-09');
+  await expectTransition('morph', click('#First'), '1978-06-25');
+  await expectTransition('morph', click('#Last'), '1978-07-09');
+
+  // Top Favorites: entering morphs; stepping through the ranking slides regardless of date order.
+  await openSettings(page);
+  await clickSettingsControl(page, '#top10Btn');
+  await expect(page.locator('.top10-entry')).toHaveCount(2);
+  await expectTransition('morph', () => page.locator('.top10-entry').nth(1).click(), '1978-06-19');
+  await expectTransition('slide', click('#Previous'), '1978-07-02');
+  await expectTransition('slide', click('#Next'), '1978-06-19');
+  await expectTransition('slide', swipe('previous'), '1978-07-02');
+  await expectTransition('slide', swipe('next'), '1978-06-19');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
 test('preloads multiple adjacent comics around the current date for smoother swiping', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Prefetch behavior is viewport-independent and covered in desktop Chromium.');
 

@@ -241,7 +241,7 @@ function enterTop10Mode(index) {
     loadTop10Comic();
 }
 
-function loadTop10Comic() {
+function loadTop10Comic(direction = null) {
     const entry = _top10Entries[_top10BrowseIndex];
     if (!entry) return;
 
@@ -259,7 +259,8 @@ function loadTop10Comic() {
     // Update indicator
     updateTop10Indicator();
 
-    deps.showComic();
+    // Stepping to the neighbouring rank slides; entering, First and Last morph.
+    deps.showComic(direction);
 }
 
 function exitTop10Mode() {
@@ -344,14 +345,14 @@ function closeTop10Modal() {
     }
 }
 
-function browseTo(index) {
+function browseTo(index, direction = null) {
     if (index < 0 || index >= _top10Entries.length) return;
     _top10BrowseIndex = index;
-    loadTop10Comic();
+    loadTop10Comic(direction);
 }
 
 /**
- * @param {{ UTILS: object, setCurrentDate: (date: Date) => void, showComic: () => void, compareDates: () => void }} dependencies
+ * @param {{ UTILS: object, setCurrentDate: (date: Date) => void, showComic: (direction?: 'next'|'previous'|null) => void, compareDates: () => void }} dependencies
  */
 export function createTop10(dependencies) {
     deps = dependencies;
@@ -360,7 +361,7 @@ export function createTop10(dependencies) {
         close: closeTop10Modal,
         exit: exitTop10Mode,
         isActive: () => _isTop10Mode,
-        step: delta => browseTo(_top10BrowseIndex + delta),
+        step: delta => browseTo(_top10BrowseIndex + delta, delta > 0 ? 'next' : 'previous'),
         first: () => browseTo(0),
         last: () => browseTo(_top10Entries.length - 1),
         setEntryCount: setTop10EntryCount,
