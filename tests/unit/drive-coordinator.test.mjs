@@ -8,18 +8,20 @@ function deferred() {
     return { promise, resolve };
 }
 
+// Mirrors real Drive v3: no ETag header, If-Match ignored, and a `version` that increases on every write.
 function createRemote(initial = [{ id: 'canonical', data: { version: 2, favorites: ['2024/01/01'] } }]) {
-    const files = new Map(initial.map(file => [file.id, { data: file.data, revision: 1 }]));
-    const remote = { files, writes: 0, conflicts: 0, fail: false, hold: null };
+    const files = new Map(initial.map(file => [file.id, { data: file.data, version: 1 }]));
+    const remote = { files, writes: 0, fail: false, hold: null };
     remote.request = async (url, options = {}) => {
         const parsed = new URL(url);
         const method = options.method || 'GET';
         const id = parsed.pathname.split('/').at(-1);
-        if (method === 'GET' && id === 'files') return Response.json({ files: [...files.keys()].map(id => ({ id })) });
+        if (method === 'GET' && id === 'files') return Response.json({ files: [...files].map(([id, file]) => ({ id, version: String(file.version) })) });
         const file = files.get(id);
-        if (method === 'GET') return Response.json(file.data, { headers: { ETag: String(file.revision) } });
+        if (!file && method !== 'POST') return new Response('', { status: 404 });
+        if (method === 'GET' && parsed.searchParams.get('fields') === 'version') return Response.json({ version: String(file.version) });
+        if (method === 'GET') return Response.json(file.data);
         if (method === 'DELETE') {
-            if (options.headers['If-Match'] !== String(file.revision)) return new Response('', { status: 412 });
             files.delete(id);
             return new Response(null, { status: 204 });
         }
@@ -28,16 +30,12 @@ function createRemote(initial = [{ id: 'canonical', data: { version: 2, favorite
         if (remote.fail) return new Response('', { status: 503 });
         if (method === 'POST') {
             const content = options.body.split('\r\n\r\n')[2].split('\r\n--')[0];
-            files.set(`created-${remote.writes}`, { data: JSON.parse(content), revision: 1 });
-        } else {
-            if (options.headers['If-Match'] !== String(file.revision)) {
-                remote.conflicts++;
-                return new Response('', { status: 412 });
-            }
-            file.data = JSON.parse(options.body);
-            file.revision++;
+            files.set(`created-${remote.writes}`, { data: JSON.parse(content), version: 1 });
+            return Response.json({ id: `created-${remote.writes}` });
         }
-        return Response.json({ ok: true });
+        file.data = JSON.parse(options.body);
+        file.version++;
+        return Response.json({ version: String(file.version) });
     };
     return remote;
 }
@@ -94,11 +92,21 @@ test('concurrent device additions retry revision conflicts without losing either
     const second = device(remote);
     await first.sync(true);
     await second.sync(true);
+    const writesBefore = remote.writes;
     first.favorites.push('2024/01/02');
     second.favorites.push('2024/01/03');
     await Promise.all([first.sync(), second.sync()]);
-    assert.ok(remote.conflicts > 0);
+    assert.ok(remote.writes - writesBefore > 2, 'a conflicting writer must re-merge and write again');
     assert.deepEqual(remote.files.get('canonical').data.favorites, ['2024/01/01', '2024/01/02', '2024/01/03']);
+});
+
+test('existing Drive favorites are imported on a fresh device even though Drive sends no ETag', async () => {
+    const remote = createRemote([{ id: 'legacy', data: { favorites: ['2020/05/05', '2021/06/06'], preferences: { spanish: true } } }]);
+    const fresh = device(remote, ['2024/01/01']);
+    assert.equal(await fresh.sync(true), true);
+    assert.equal(fresh.pending, false);
+    assert.deepEqual(fresh.favorites, ['2020/05/05', '2021/06/06', '2024/01/01']);
+    assert.deepEqual(remote.files.get('legacy').data.favorites, ['2020/05/05', '2021/06/06', '2024/01/01']);
 });
 
 test('duplicate creation files are merged before cleanup and initial creation settles', async () => {

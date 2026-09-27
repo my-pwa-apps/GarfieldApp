@@ -273,8 +273,10 @@ test('failed Drive writes remain pending and notify instead of succeeding silent
   context.fetch = async (url, options) => {
     assert.ok(options.signal, 'every Google fetch must have a deadline');
     if (url.includes('userinfo')) return Response.json({ sub: 'account' });
-    if (url.includes('alt=media')) return Response.json({ favorites: [] }, { headers: { ETag: 'revision' } });
-    return url.includes('upload/') ? new Response('', { status: 503 }) : Response.json({ files: [{ id: 'file' }] });
+    if (url.includes('alt=media')) return Response.json({ favorites: [] });
+    if (url.includes('upload/')) return new Response('', { status: 503 });
+    if (url.includes('fields=version')) return Response.json({ version: '1' });
+    return Response.json({ files: [{ id: 'file', version: '1' }] });
   };
   await context.__api.syncFavoritesToDrive();
   assert.equal(context.store.get('gDriveSyncPending'), 'true');

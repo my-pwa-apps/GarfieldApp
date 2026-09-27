@@ -17,7 +17,7 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
         const files = [];
         let pageToken;
         do {
-            const query = new URLSearchParams({ spaces: 'appDataFolder', q: `name='${FILE_NAME}' and trashed=false`, fields: 'nextPageToken,files(id)', pageSize: '100' });
+            const query = new URLSearchParams({ spaces: 'appDataFolder', q: `name='${FILE_NAME}' and trashed=false`, fields: 'nextPageToken,files(id,version)', pageSize: '100' });
             if (pageToken) query.set('pageToken', pageToken);
             const response = await send(`${API}?${query}`);
             if (!response.ok) throw new Error(`Drive search failed (${response.status})`);
@@ -26,6 +26,16 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             pageToken = data.nextPageToken;
         } while (pageToken);
         return files.sort((first, second) => first.id.localeCompare(second.id));
+    }
+
+    // Drive v3 sends no ETag and ignores If-Match, so its monotonically increasing
+    // `version` is the only revision signal. Returns null once the file is gone.
+    async function readVersion(send, id) {
+        const response = await send(`${API}/${encodeURIComponent(id)}?fields=version`);
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`Drive metadata read failed (${response.status})`);
+        const data = await response.json();
+        return data?.version == null ? null : String(data.version);
     }
 
     async function synchronize(pull) {
@@ -61,7 +71,7 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
                 if (!response.ok) throw new Error(`Drive read failed (${response.status})`);
                 const data = await response.json();
                 if (!Array.isArray(data) && (!data || !Array.isArray(data.favorites))) throw new Error('Invalid Drive favorites file');
-                remote.push({ ...file, data, etag: response.headers.get('ETag') });
+                remote.push({ ...file, data, version: file.version == null ? null : String(file.version) });
             }
             capture();
             entries = mergeFavoriteStates(entries, ...remote.map(file => readFavoriteState(file.data)));
@@ -73,11 +83,16 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             const content = JSON.stringify({ version: 3, entries, favorites, preferences });
             let response;
             if (remote.length) {
-                if (!remote[0].etag) throw new Error('Drive did not provide a revision validator');
-                response = await send(`${UPLOAD}/${encodeURIComponent(remote[0].id)}?uploadType=media`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'If-Match': remote[0].etag }, body: content
+                // Another device wrote after our read: merge its state before overwriting.
+                if (await readVersion(send, remote[0].id) !== remote[0].version) continue;
+                response = await send(`${UPLOAD}/${encodeURIComponent(remote[0].id)}?uploadType=media&fields=version`, {
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: content
                 });
-                if (response.status === 412) continue;
+                if (response.ok) {
+                    const written = await response.json().catch(() => null);
+                    // A concurrent writer landed after us; re-merge so neither side's changes are lost.
+                    if (written?.version != null && await readVersion(send, remote[0].id) !== String(written.version)) continue;
+                }
             } else {
                 const boundary = `garfield_${crypto.randomUUID()}`;
                 const metadata = JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] });
@@ -98,8 +113,10 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             if (pull && preferences && !preferencesChanged) applyPreferences(preferences);
             if (changedDuringWrite || preferencesChanged || !remote.length) requested = true;
             for (const duplicate of remote.slice(1)) {
-                if (!duplicate.etag) continue;
-                const deleted = await send(`${API}/${encodeURIComponent(duplicate.id)}`, { method: 'DELETE', headers: { 'If-Match': duplicate.etag } });
+                const current = await readVersion(send, duplicate.id);
+                if (current === null) continue;
+                if (current !== duplicate.version) { requested = true; continue; }
+                const deleted = await send(`${API}/${encodeURIComponent(duplicate.id)}`, { method: 'DELETE' });
                 if (!deleted.ok && deleted.status !== 404) requested = true;
             }
             return;
