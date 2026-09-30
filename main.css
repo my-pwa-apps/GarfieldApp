@@ -29,6 +29,14 @@
     --transition-normal: 0.3s ease;
     --transition-slow: 0.5s ease;
     --footer-height: 24px;
+    --logo-max-width: 760px;
+    --comic-top-gap: 108px;
+}
+
+@media (max-height: 820px) {
+    :root {
+        --logo-max-width: 420px;
+    }
 }
 
 :root[data-theme="dark"] {
@@ -288,6 +296,13 @@ input {
     transition: none !important;
 }
 
+/* Tall strips (e.g. Sundays) shrink so the logo, comic, controls and footer fit without scrolling. */
+#comic.normal {
+    max-height: max(160px, calc(100vh - (min(84vw, var(--logo-max-width)) * 0.2407 + 12px) - var(--comic-top-gap) - 22px - 68px - var(--footer-height) - env(safe-area-inset-bottom, 0px)));
+    max-height: max(160px, calc(100dvh - (min(84vw, var(--logo-max-width)) * 0.2407 + 12px) - var(--comic-top-gap) - 22px - 68px - var(--footer-height) - env(safe-area-inset-bottom, 0px)));
+    object-fit: contain;
+}
+
 /* Outgoing comic clone for pixelation morph - sits on top and pixelates away */
 .comic-pixelate-outgoing {
     position: absolute;
@@ -524,7 +539,7 @@ input {
 }
 
 .logo img {
-    max-width: min(84vw, 760px);
+    max-width: min(84vw, var(--logo-max-width));
     height: auto;
     margin: 12px auto 0;
     display: block;
@@ -1465,8 +1480,12 @@ input {
         background-color: var(--app-background-color);
     }
 
+    :root {
+        --comic-top-gap: 62px;
+    }
+
     #comic-container {
-        margin-top: 62px;
+        margin-top: var(--comic-top-gap);
     }
 
     .toolbar {
@@ -1547,8 +1566,12 @@ input {
 
 /* Extra small mobile devices */
 @media (max-width: 480px) {
+    :root {
+        --comic-top-gap: 58px;
+    }
+
     #comic-container {
-        margin-top: 58px;
+        margin-top: var(--comic-top-gap);
     }
 
     .toolbar {
