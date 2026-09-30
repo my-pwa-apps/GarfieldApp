@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
