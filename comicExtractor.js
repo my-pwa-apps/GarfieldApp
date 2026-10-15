@@ -17,7 +17,14 @@ function requestSignal(options) {
 }
 
 async function fetchViaProxy(url, options = {}) {
-    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, {
+    const fullUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+    const early = typeof window !== 'undefined' ? window.__earlyProxyFetch : null;
+    if (early?.fullUrl === fullUrl) {
+        delete window.__earlyProxyFetch;
+        return early.promise;
+    }
+
+    const response = await fetch(fullUrl, {
         signal: requestSignal(options),
         mode: 'cors',
         credentials: 'omit'
@@ -405,6 +412,7 @@ async function _getComicFromArcaMax(date, options = {}) {
  * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
  */
 export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'gocomics', options = {}) {
+    const validateImage = options.validateImage || options.verifyImage;
     // Build the ordered list of sources to try.
     // ArcaMax is always appended last; the three EN-capable sources rotate
     // so the user's preferred source is first.
@@ -440,7 +448,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             }
 
             if (result.success) {
-                if (options.validateImage) await options.validateImage(result.imageUrl);
+                if (validateImage) await validateImage(result.imageUrl);
                 options.signal?.throwIfAborted();
                 return result;
             }
@@ -460,7 +468,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 }
 
                 if (yesterdayResult && yesterdayResult.success) {
-                    if (options.validateImage) await options.validateImage(yesterdayResult.imageUrl);
+                    if (validateImage) await validateImage(yesterdayResult.imageUrl);
                     options.signal?.throwIfAborted();
                     return { ...yesterdayResult, actualDate: yesterday };
                 }
@@ -482,4 +490,3 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
 
     return { success: false, imageUrl: null };
 }
-

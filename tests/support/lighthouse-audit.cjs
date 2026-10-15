@@ -17,11 +17,13 @@ const deployedUrl = urlArgIndex === -1 ? null : process.argv[urlArgIndex + 1];
 let url;
 const outputPath = path.resolve(__dirname, '../lighthouse-report.json');
 const thresholds = {
-  performance: 0.6,
+  performance: 0.8,
   accessibility: 0.9,
   'best-practices': 0.85,
   seo: 0.9
 };
+const maxLcpMs = 3000;
+const maxSpeedIndexMs = 5800;
 
 async function readFirstVisit(page) {
   await page.waitForFunction(() => {
@@ -119,7 +121,15 @@ async function main() {
       }
     }
 
-    console.log(`Lighthouse passed: ${JSON.stringify(scores)}`);
+    const lcpSelector =
+      report.audits['lcp-breakdown-insight']?.details?.items?.[1]?.selector ||
+      report.audits['largest-contentful-paint-element']?.details?.items?.[0]?.node?.selector ||
+      '';
+
+    if (!lcpSelector.includes('#comic')) {
+      throw new Error(`Expected #comic to be the LCP element, but got "${lcpSelector || 'unknown'}"`);
+    }
+    console.log(`Lighthouse passed: ${JSON.stringify({ ...scores, lcpMs: Math.round(lcpMs), siMs: Math.round(speedIndexMs), lcpSelector })}`);
   } finally {
     if (browser) await browser.close();
     await server?.close();

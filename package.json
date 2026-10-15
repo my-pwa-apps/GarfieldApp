@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
@@ -36,8 +36,13 @@
     "eslint": "^10.9.1",
     "globals": "^17.11.0",
     "lighthouse": "^13.4.1",
-    "miniflare": "5.20260811.1-alpha",
-    "sharp": "^0.35.4",
-    "wrangler": "^4.123.0"
+    "miniflare": "^4.20260730.0",
+    "sharp": "^0.35.5",
+    "wrangler": "^4.148.0"
+  },
+  "overrides": {
+    "brace-expansion": "^5.0.12",
+    "sharp": "$sharp",
+    "undici": "^7.30.0"
   }
 }

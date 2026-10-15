@@ -300,9 +300,13 @@ async function googleApiFetch(url, options = {}, { interactive = false, retryOnA
     let response = await fetch(url, { ...options, headers, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) });
 
     if (response.status === 401 && retryOnAuthFailure) {
+        const previousAccountId = accountIdentity?.accountId || null;
         _clearTokenState();
         lastSilentRefreshAttempt = 0; // Allow immediate silent re-auth on 401 retry
         const refreshedToken = await ensureValidAccessToken({ interactive: false });
+        if (previousAccountId) {
+            accountIdentity = { accountId: previousAccountId, accessToken: refreshedToken };
+        }
         const retryHeaders = new Headers(options.headers || {});
         retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
         response = await fetch(url, { ...options, headers: retryHeaders, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) });
@@ -532,7 +536,7 @@ async function fetchGoogleUserInfo() {
 const synchronizeDriveFavorites = createDriveFavoritesSync({
     storage: localStorage,
     identify: () => window.getFavoritesApiIdentity(),
-    request: (url, options = {}) => fetch(url, { ...options, signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS) }),
+    request: (url, options = {}) => googleApiFetch(url, options),
     getFavorites: _getFavorites,
     getPreferences: _getSyncPreferences,
     applyPreferences: _applySyncedPreferences,
@@ -611,14 +615,11 @@ window.getFavoritesApiIdentity = async function getFavoritesApiIdentity() {
     try {
         const token = await ensureValidAccessToken({ interactive: false });
         if (accountIdentity?.accessToken === token) return accountIdentity;
-        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${token}` },
-            signal: AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS)
-        });
+        const response = await googleApiFetch('https://www.googleapis.com/oauth2/v3/userinfo');
         if (!response.ok) return null;
         const data = await response.json();
-        if (!data?.sub || accessToken !== token || !_isSyncEnabled()) return null;
-        accountIdentity = { accountId: String(data.sub), accessToken: token };
+        if (!data?.sub || !accessToken || !_isSyncEnabled()) return null;
+        accountIdentity = { accountId: String(data.sub), accessToken };
         return accountIdentity;
     } catch (_) {
         return null;

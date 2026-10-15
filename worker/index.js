@@ -38,6 +38,8 @@ const IMAGE_CACHE_TTL        = 86400;
 const DEFAULT_CACHE_TTL      = 3600;
 // Don't cache upstream HTML that is suspiciously short — likely a bot-challenge page.
 const MIN_HTML_CACHE_BYTES   = 10000;
+const DEFAULT_BROWSER_USER_AGENT =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
 export default {
     async fetch(request, env, ctx) {
@@ -98,10 +100,17 @@ export default {
 
         let upstreamResponse;
         try {
-            upstreamResponse = await fetchAllowlistedFollowingRedirects(upstreamRequest, upstreamUrl, allowedHosts, {
-                cacheEverything: request.method === 'GET',
-                cacheTtl: getCacheTtl(upstreamUrl),
-            });
+            const ttl = getCacheTtl(upstreamUrl);
+            const cfOptions = request.method === 'GET' && !bypassCache
+                ? {
+                    cacheEverything: true,
+                    cacheTtlByStatus: {
+                        '200-299': ttl,
+                        '400-599': -1,
+                    },
+                }
+                : undefined;
+            upstreamResponse = await fetchAllowlistedFollowingRedirects(upstreamRequest, upstreamUrl, allowedHosts, cfOptions);
         } catch (error) {
             if (error instanceof DisallowedRedirectError) {
                 return withCors(allowedOrigin, jsonResponse({ error: 'Redirect target not allowed' }, 403));
@@ -109,16 +118,36 @@ export default {
             return withCors(allowedOrigin, jsonResponse({ error: 'Upstream fetch failed' }, 502));
         }
 
-        const response = sanitizeUpstreamResponse(upstreamResponse);
+        const contentType   = upstreamResponse.headers.get('content-type') || '';
+        const isHtml        = contentType.includes('text/html');
+        const isGoComics    = upstreamUrl.hostname.toLowerCase().includes('gocomics.com');
 
-        if (request.method === 'GET' && upstreamResponse.ok && !bypassCache) {
-            // Skip caching suspiciously short HTML responses (bot-challenge / error pages).
-            const contentType   = upstreamResponse.headers.get('content-type') || '';
-            const contentLength = parseInt(upstreamResponse.headers.get('content-length') || '0', 10);
-            const isHtml        = contentType.includes('text/html');
-            if (!isHtml || contentLength === 0 || contentLength >= MIN_HTML_CACHE_BYTES) {
-                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+        let response;
+        let shouldCache = request.method === 'GET' && upstreamResponse.ok && !bypassCache;
+        if (request.method === 'GET' && upstreamResponse.ok && isHtml && isGoComics) {
+            const rawHtml = await upstreamResponse.text();
+            if (rawHtml.length < MIN_HTML_CACHE_BYTES) {
+                shouldCache = false;
             }
+            const bodyText = compactGoComicsHtml(rawHtml);
+            response = sanitizeUpstreamResponse(upstreamResponse, bodyText);
+        } else {
+            const contentLength = parseInt(upstreamResponse.headers.get('content-length') || '0', 10);
+            if (isHtml && contentLength > 0 && contentLength < MIN_HTML_CACHE_BYTES) {
+                shouldCache = false;
+            }
+            response = sanitizeUpstreamResponse(upstreamResponse);
+        }
+
+        if (shouldCache) {
+            const cacheCopy = response.clone();
+            const cacheHeaders = new Headers(cacheCopy.headers);
+            cacheHeaders.set('cache-control', `public, max-age=${getCacheTtl(upstreamUrl)}`);
+            ctx.waitUntil(cache.put(cacheKey, new Response(cacheCopy.body, {
+                status: cacheCopy.status,
+                statusText: cacheCopy.statusText,
+                headers: cacheHeaders,
+            })));
         }
 
         return withCors(allowedOrigin, response, false);
@@ -193,25 +222,54 @@ function isAllowedHost(hostname, allowedHosts) {
     });
 }
 
+function normalizeUpstreamUserAgent(userAgent) {
+    if (!userAgent) return DEFAULT_BROWSER_USER_AGENT;
+    if (/HeadlessChrome|Chrome-Lighthouse|GarfieldApp|Playwright|node|curl/i.test(userAgent)) {
+        return DEFAULT_BROWSER_USER_AGENT;
+    }
+    return userAgent;
+}
+
 function buildUpstreamHeaders(request) {
     const headers = new Headers();
     const accept         = request.headers.get('accept');
     const acceptLanguage = request.headers.get('accept-language');
     const userAgent      = request.headers.get('user-agent');
-    if (accept)         headers.set('accept', accept);
-    if (acceptLanguage) headers.set('accept-language', acceptLanguage);
-    if (userAgent)      headers.set('user-agent', userAgent);
-    headers.set('x-forwarded-host',  new URL(request.url).host);
-    headers.set('x-forwarded-proto', 'https');
+    headers.set('accept', accept || 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8');
+    headers.set('accept-language', acceptLanguage || 'en-US,en;q=0.9');
+    headers.set('user-agent', normalizeUpstreamUserAgent(userAgent));
     return headers;
 }
 
-function sanitizeUpstreamResponse(upstreamResponse) {
+function compactGoComicsHtml(html) {
+    if (html.length < MIN_HTML_CACHE_BYTES) return html;
+    const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+    let ogImageTag = '';
+    let ogUrlTag = '';
+    for (const tag of metaTags) {
+        if (!ogImageTag && /(?:property|name)\s*=\s*(["'])og:image\1/i.test(tag) &&
+            /(featureassets\.gocomics\.com|assets\.amuniversal\.com)/i.test(tag)) {
+            ogImageTag = tag;
+        } else if (!ogUrlTag && /(?:property|name)\s*=\s*(["'])og:url\1/i.test(tag)) {
+            ogUrlTag = tag;
+        }
+        if (ogImageTag && ogUrlTag) break;
+    }
+    if (!ogImageTag) return html;
+    const canonicalTag = (html.match(/<link\b[^>]*rel\s*=\s*(["'])canonical\1[^>]*>/i) || [])[0] || '';
+    const titleTag = (html.match(/<title\b[^>]*>[\s\S]*?<\/title>/i) || [])[0] || '';
+    return `<!doctype html><html><head><meta charset="utf-8">${titleTag}${canonicalTag}${ogUrlTag}${ogImageTag}</head><body></body></html>`;
+}
+
+function sanitizeUpstreamResponse(upstreamResponse, overrideBody = undefined) {
     const headers = new Headers(upstreamResponse.headers);
     for (const header of HOP_BY_HOP_HEADERS) headers.delete(header);
+    if (overrideBody !== undefined) {
+        headers.delete('content-encoding');
+    }
     headers.set('x-proxy-by', 'garfieldapp-corsproxy');
     headers.set('vary', 'Origin');
-    return new Response(upstreamResponse.body, {
+    return new Response(overrideBody !== undefined ? overrideBody : upstreamResponse.body, {
         status:     upstreamResponse.status,
         statusText: upstreamResponse.statusText,
         headers,

@@ -166,3 +166,34 @@ test('Cloudflare Pages preview origins are allowed', async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('access-control-allow-origin'), origin);
 });
+
+test('non-browser User-Agents are normalized, x-forwarded-host is omitted, and 4xx/5xx are never edge-cached', async () => {
+  let capturedRequest = null;
+  let capturedInit = null;
+  let putCalled = false;
+  mock.method(globalThis, 'fetch', async (request, init) => {
+    capturedRequest = request;
+    capturedInit = init;
+    return new Response('<html>challenge</html>', { status: 403, headers: { 'content-type': 'text/html' } });
+  });
+  globalThis.caches = {
+    default: {
+      async match() { return undefined; },
+      async put() { putCalled = true; }
+    }
+  };
+
+  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield/2026/04/29', {
+    headers: {
+      origin: 'https://garfieldapp.pages.dev',
+      'user-agent': 'GarfieldApp predeploy health check (+https://garfieldapp.pages.dev)'
+    }
+  }), env, ctx);
+
+  assert.equal(response.status, 403);
+  assert.equal(putCalled, false, '403 responses must never be written to caches.default');
+  assert.equal(capturedRequest.headers.get('x-forwarded-host'), null);
+  assert.ok(!capturedRequest.headers.get('user-agent').includes('GarfieldApp'));
+  assert.ok(capturedRequest.headers.get('user-agent').includes('Mozilla/5.0'));
+  assert.deepEqual(capturedInit?.cf?.cacheTtlByStatus, { '200-299': 300, '400-599': -1 });
+});

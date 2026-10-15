@@ -64,9 +64,13 @@ test('comic transitions share one sequence for slide, morph and reduced motion',
         assert.equal(still.appended.length, 0);
 
         const morph = run({ animate: true, direction: null });
-        mock.timers.tick(600);
+        mock.timers.tick(700);
         await morph.done;
-        assert.deepEqual(morph.events, ['clone+morph-clone', 'appended', 'setImage', 'swapped', 'clone:layout', 'clone+morph-out', 'clone:removed']);
+        assert.deepEqual(morph.events, [
+            'clone+morph-clone', 'appended', 'comic+no-transition', 'comic+morph-in',
+            'setImage', 'swapped', 'comic:layout', 'clone:layout', 'clone+morph-out',
+            'comic+morph-resolve', 'clone:removed'
+        ]);
         assert.equal(morph.appended[0].classList.contains('no-transition'), false, 'a morph clone must not inherit a paused slide');
         assert.equal(morph.appended[0].attributes.get('aria-hidden'), 'true');
 

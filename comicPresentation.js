@@ -12,13 +12,12 @@ export function getComicTransitionDirection(navigation) {
     return navigation === 'next' || navigation === 'previous' ? navigation : null;
 }
 
+const SLIDE_CLASSES = ['slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'no-transition'];
+
 export function startComicMorph(element) {
-    // Commit the clone's initial styles before applying the transition endpoint.
     element.offsetHeight;
     requestAnimationFrame(() => element.classList.add('morph-out'));
 }
-
-const SLIDE_CLASSES = ['slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right', 'no-transition'];
 
 /**
  * Swap a comic image: Previous/Next slide like a filmstrip, other jumps blur-morph.
@@ -46,10 +45,23 @@ export function transitionComicImage(image, { animate, direction, container, clo
         const removeCloneAfter = ms => setTimeout(() => { clone.remove(); resolve(); }, ms);
 
         if (kind === 'morph') {
+            image.classList.remove('morph-resolve');
+            image.classList.add('no-transition', 'morph-in');
             setImage();
             onSwapped();
-            startComicMorph(clone);
-            removeCloneAfter(600);
+            image.offsetHeight;
+            clone.offsetHeight;
+            image.classList.remove('no-transition');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                clone.classList.add('morph-out');
+                image.classList.add('morph-resolve');
+                image.classList.remove('morph-in');
+            }));
+            setTimeout(() => {
+                clone.remove();
+                image.classList.remove('morph-resolve');
+                resolve();
+            }, 700);
             return;
         }
 

@@ -135,3 +135,45 @@ test('failed deletion upload stays pending and retries without losing local inte
     assert.equal(reader.pending, false);
     assert.deepEqual(remote.files.get('canonical').data.favorites, []);
 });
+
+test('browser CORS responses without an ETag header still sync and detect concurrent metadata revisions', async () => {
+    const files = new Map([['canonical', { data: { version: 2, favorites: ['2024/01/01'] }, revision: 1 }]]);
+    let listCalls = 0;
+    let simulateConcurrentChange = true;
+    const remote = {
+        files,
+        request: async (url, options = {}) => {
+            const parsed = new URL(url);
+            const method = options.method || 'GET';
+            const id = parsed.pathname.split('/').at(-1);
+            if (method === 'GET' && id === 'files') {
+                listCalls++;
+                if (simulateConcurrentChange && listCalls === 2) {
+                    simulateConcurrentChange = false;
+                    const existing = files.get('canonical');
+                    existing.data = { version: 2, favorites: ['2024/01/01', '2024/01/03'] };
+                    existing.revision++;
+                }
+                return Response.json({
+                    files: [...files.entries()].map(([fileId, file]) => ({
+                        id: fileId,
+                        version: String(file.revision),
+                        md5Checksum: `md5-${file.revision}`
+                    }))
+                });
+            }
+            const file = files.get(id);
+            // Simulate browser CORS filtering: no ETag header exposed on alt=media GET
+            if (method === 'GET') return Response.json(file.data);
+            if (method === 'PATCH') {
+                file.data = JSON.parse(options.body);
+                file.revision++;
+                return Response.json({ ok: true });
+            }
+            return new Response(null, { status: 204 });
+        }
+    };
+    const reader = device(remote, ['2024/01/01', '2024/01/02']);
+    assert.equal(await reader.sync(), true);
+    assert.deepEqual(files.get('canonical').data.favorites, ['2024/01/01', '2024/01/02', '2024/01/03']);
+});

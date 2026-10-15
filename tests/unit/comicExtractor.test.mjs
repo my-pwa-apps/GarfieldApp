@@ -225,3 +225,43 @@ test('uClick probes for existence with HEAD so the strip is not downloaded twice
     global.fetch = originalFetch;
   }
 });
+
+test('source fallback continues to the next provider when verifyImage rejects and evicts failed Fandom cache entries', async () => {
+  const originalFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).includes('garfield.fandom.com/api.php')) {
+      return makeFandomResponse('2026-06-06.gif');
+    }
+    if (String(url).includes('gocomics.com')) {
+      return { status: 403, ok: false };
+    }
+    if (String(url).includes('picayune.uclick.com')) {
+      return { status: 200, ok: true };
+    }
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    const result = await getAuthenticatedComic(new Date('2026-06-06T12:00:00Z'), 'en', 'gocomics', {
+      silent: true,
+      disableTodayFallback: true,
+      verifyImage: async (imageUrl) => {
+        if (imageUrl.includes('2026-06-06.gif')) {
+          throw new Error('Fandom image 503');
+        }
+      }
+    });
+
+    assert.equal(result.success, true);
+    assert.ok(result.imageUrl.includes(encodeURIComponent('https://picayune.uclick.com/comics/ga/2026/ga260606.gif')));
+    assert.equal(
+      calls.some(u => u.includes('codetabs') || u.includes('allorigins')),
+      false,
+      'Upstream 403 on primary proxy must not call third-party public proxies'
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

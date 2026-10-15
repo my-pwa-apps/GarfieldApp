@@ -1,4 +1,4 @@
-const VERSION = 'v1.0.29';
+const VERSION = 'v1.0.30';
 const CACHE_NAME = `garfield-${VERSION}`;
 const RUNTIME_CACHE = `garfield-runtime-${VERSION}`;
 const IMAGE_CACHE = 'garfield-images-v1';
@@ -279,4 +279,3 @@ async function networkFirstStrategy(request, cacheName) {
     throw error;
   }
 }
-

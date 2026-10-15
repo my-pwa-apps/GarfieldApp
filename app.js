@@ -4,7 +4,7 @@ import { getAuthenticatedComic } from './comicExtractor.js';
 import { configureToolbarLayout, initializeToolbar, refreshToolbarDefaultPosition } from './toolbarLayout.js';
 import { configureGestures, handleTouchEnd, handleTouchMove, handleTouchStart, initializeRotationGestures, isRotated, scheduleRotatedComicResize } from './gestures.js';
 import { checkImageOrientation, configureVerticalComic, isVerticalComicActive, isVerticalFullscreen } from './verticalComic.js';
-import { normalizeFavorites } from './favorites.js';
+import { normalizeFavoriteDate, normalizeFavorites } from './favorites.js';
 import { CONFIG, safeJSONParse } from './config.js';
 import { configureFavoritesApi, getValidFavoriteDates, migrateExistingFavorites, reportFavoriteToggle } from './favoritesApi.js';
 import { initializeSettingsPanel } from './settingsPanel.js';
@@ -1644,9 +1644,20 @@ async function DateChange() {
 }
 
 async function _dateChangeImpl() {
+    const datePicker = document.getElementById('DatePicker');
+    const rawValue = datePicker?.value || '';
+    const normalized = normalizeFavoriteDate(rawValue);
+    if (!normalized) {
+        if (datePicker && !rawValue) {
+            datePicker.value = displayedComic?.date
+                ? displayedComic.date.replaceAll('/', '-')
+                : UTILS.getEasternTodayString();
+            updateDateDisplay();
+        }
+        return;
+    }
     const previousDate = new Date(currentselectedDate);
-    currentselectedDate = document.getElementById('DatePicker');
-    currentselectedDate = UTILS.dateFromISODateString(currentselectedDate.value);
+    currentselectedDate = UTILS.dateFromFavoriteDateString(normalized);
     const { min, max } = getAllowedDateRange();
     currentselectedDate = snapToAllowedDate(currentselectedDate, { min, max }) || currentselectedDate;
     updateDateDisplay();
@@ -2666,5 +2677,3 @@ function refreshFavoritesDependentUI(favorites = UTILS.getFavorites()) {
 window.addEventListener('google-auth-changed', event => {
     if (event.detail?.signedIn) migrateExistingFavorites(UTILS.getFavorites());
 });
-
-
