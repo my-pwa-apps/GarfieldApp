@@ -10,6 +10,7 @@
     --text-secondary: rgba(36, 32, 26, 0.68);
     --app-background: linear-gradient(180deg, #fff7bd 0%, #ffd16b 48%, #f2a23a 100%) no-repeat fixed;
     --app-background-color: #f2a23a;
+    --system-background: #fff7bd;
     --button-text: #24201a;
     --panel-header: rgba(255, 246, 214, 0.88);
     --panel-item: rgba(255, 255, 255, 0.46);
@@ -50,6 +51,7 @@
     --text-secondary: rgba(247, 239, 227, 0.68);
     --app-background: linear-gradient(180deg, #14110d 0%, #251a12 50%, #4a250f 100%) no-repeat fixed;
     --app-background-color: #14110d;
+    --system-background: #14110d;
     --button-text: #20160f;
     --panel-header: rgba(43, 35, 27, 0.94);
     --panel-item: rgba(255, 255, 255, 0.06);
@@ -81,6 +83,7 @@
 
 html {
     height: 100%;
+    background-color: var(--system-background);
     overflow-x: hidden;
     overscroll-behavior: none;
 }
