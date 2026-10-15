@@ -865,9 +865,27 @@ test('random, date picker button, and keyboard navigation update dates', async (
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-21');
   await page.keyboard.press('ArrowLeft');
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
+  await expect(page.locator('.comic-pixelate-outgoing')).toHaveCount(0);
 
   await page.locator('#Random').click();
+  await expect(page.locator('.comic-pixelate-outgoing')).toHaveCount(1);
+  await expect.poll(async () => page.locator('.comic-pixelate-outgoing').evaluate(element => {
+    const opacity = Number.parseFloat(getComputedStyle(element).opacity);
+    return opacity > 0.1 && opacity < 0.9;
+  })).toBe(true);
+  const incomingMorph = await page.locator('#comic').evaluate(element => {
+    const style = getComputedStyle(element);
+    return {
+      opacity: Number.parseFloat(style.opacity),
+      filter: style.filter
+    };
+  });
+  expect(incomingMorph.opacity).toBeGreaterThan(0.55);
+  expect(incomingMorph.opacity).toBeLessThan(1);
+  expect(incomingMorph.filter).not.toBe('none');
+  expect(incomingMorph.filter).not.toBe('blur(0px)');
   await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  await expect(page.locator('.comic-pixelate-outgoing')).toHaveCount(0);
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

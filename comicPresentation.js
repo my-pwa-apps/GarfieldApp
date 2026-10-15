@@ -72,18 +72,29 @@ export function animateComicTransition(comicImg, wrapper, imageUrl, direction) {
             const outgoingClone = comicImg.cloneNode(true);
             outgoingClone.removeAttribute('id');
             outgoingClone.classList.add('comic-pixelate-outgoing');
+            outgoingClone.classList.remove('morph-in', 'morph-resolve', 'morph-out', 'no-transition');
             wrapper.appendChild(outgoingClone);
 
+            comicImg.classList.remove('morph-resolve');
+            comicImg.classList.add('no-transition', 'morph-in');
             comicImg.src = imageUrl;
+            comicImg.offsetHeight;
+            outgoingClone.offsetHeight;
 
             requestAnimationFrame(() => {
-                outgoingClone.classList.add('morph-out');
+                comicImg.classList.remove('no-transition');
+                requestAnimationFrame(() => {
+                    outgoingClone.classList.add('morph-out');
+                    comicImg.classList.add('morph-resolve');
+                    comicImg.classList.remove('morph-in');
+                });
             });
 
             setTimeout(() => {
                 outgoingClone.remove();
+                comicImg.classList.remove('morph-resolve');
                 resolve();
-            }, 600);
+            }, 700);
         }
     });
 }
@@ -134,20 +145,35 @@ export function animateRotatedComicTransition(rotatedComic, imageUrl, direction,
             outgoingClone.removeAttribute('id');
             outgoingClone.classList.add('rotated-comic-morph-outgoing');
             outgoingClone.style.cssText = rotatedComic.style.cssText;
-            outgoingClone.style.transition = 'filter 0.6s ease-in-out, opacity 0.6s ease-in-out';
             document.body.appendChild(outgoingClone);
 
+            const previousTransition = rotatedComic.style.transition;
+            const previousFilter = rotatedComic.style.filter;
+            const previousOpacity = rotatedComic.style.opacity;
+            rotatedComic.style.transition = 'none';
+            rotatedComic.style.filter = 'blur(12px)';
+            rotatedComic.style.opacity = '0.55';
             rotatedComic.src = imageUrl;
             onResize?.(rotatedComic);
+            rotatedComic.offsetHeight;
+            outgoingClone.offsetHeight;
 
             requestAnimationFrame(() => {
-                outgoingClone.classList.add('morph-out');
+                rotatedComic.style.transition = 'filter 0.7s ease-in-out, opacity 0.7s ease-in-out';
+                requestAnimationFrame(() => {
+                    outgoingClone.classList.add('morph-out');
+                    rotatedComic.style.filter = previousFilter || 'blur(0px)';
+                    rotatedComic.style.opacity = previousOpacity || '1';
+                });
             });
 
             setTimeout(() => {
                 outgoingClone.remove();
+                rotatedComic.style.transition = previousTransition;
+                rotatedComic.style.filter = previousFilter;
+                rotatedComic.style.opacity = previousOpacity;
                 resolve();
-            }, 600);
+            }, 700);
         }
     });
 }
