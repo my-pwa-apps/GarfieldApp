@@ -365,6 +365,7 @@ const UTILS = {
                 lastFav.setHours(0, 0, 0, 0);
                 return current.getTime() < lastFav.getTime();
             } else {
+                if (isAtConfirmedForwardBoundary()) return false;
                 // Normal mode: check if we're at the latest allowed date (Eastern Time)
                 // Use Eastern Time since comics are released based on ET
                 const today = new Date(getAllowedDateRange().max);
@@ -470,18 +471,14 @@ const UTILS = {
                         const actualDay = new Date(result.actualDate); actualDay.setHours(0,0,0,0);
                         const currentDay = new Date(currentDate); currentDay.setHours(0,0,0,0);
                         if (actualDay <= currentDay) {
-                            nextComicUrl = currentComicUrl;
-                        } else {
-                            nextComicUrl = result.imageUrl;
+                            confirmForwardBoundary(currentDate, targetDate, language, source);
+                            this.checkNextComicAvailability();
+                            return;
                         }
-                    } else {
-                        // Store next comic URL and check for timezone edge case
-                        nextComicUrl = result.imageUrl;
                     }
-                    this.checkNextComicAvailability();
+                    clearForwardBoundary(language, source);
                 } else if (offset === 1 && result.notFound) {
-                    // Next comic definitively doesn't exist — disable forward navigation
-                    nextComicUrl = currentComicUrl; // Force same-comic detection
+                    confirmForwardBoundary(currentDate, targetDate, language, source);
                     this.checkNextComicAvailability();
                 }
                 // else: transient proxy/network failure — leave buttons as-is;
@@ -503,7 +500,6 @@ const UTILS = {
             nextDate = stepToAllowedDate(nextDate, 1);
             const nextTarget = nextDate;
             if (new Date(nextTarget).setHours(0, 0, 0, 0) <= today.getTime()) prefetchTasks.push(() => preloadDate(nextTarget, offset));
-            else if (offset === 1) nextComicUrl = "";
         }
 
         prefetchTasks.forEach((task, index) => {
@@ -530,12 +526,10 @@ const UTILS = {
     },
 
     /**
-     * Check if next comic is available (different from current)
-     * Disables Next/Last buttons if next comic is same as current (timezone edge case)
+     * Apply a confirmed latest-comic boundary to the toolbar.
      */
     checkNextComicAvailability() {
-        if (currentComicUrl && nextComicUrl && currentComicUrl === nextComicUrl) {
-            // Next comic is same as current - we're at the latest available comic
+        if (isAtConfirmedForwardBoundary()) {
             document.getElementById("Next").disabled = true;
             document.getElementById("Last").disabled = true;
         }
@@ -983,7 +977,7 @@ function translateInterface(lang) {
 
 // Global variables for app functionality
 let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
-let nextComicUrl = ""; // Track preloaded next comic URL to detect timezone edge cases
+let confirmedForwardBoundary = null;
 let currentselectedDate;
 let formattedComicDate;
 let formattedDate;
@@ -1038,6 +1032,36 @@ async function Share() {
  * Add or remove comic from favorites
  */
 let displayedComic = null;
+
+function navigationDateKey(date) {
+    return UTILS.dateToISODateString(date);
+}
+
+function confirmForwardBoundary(fromDate, targetDate, language, source) {
+    const latestAllowed = getAllowedDateRange().max;
+    if (navigationDateKey(targetDate) !== navigationDateKey(latestAllowed)) return;
+    confirmedForwardBoundary = {
+        fromDate: navigationDateKey(fromDate),
+        targetDate: navigationDateKey(targetDate),
+        language,
+        source
+    };
+}
+
+function clearForwardBoundary(language, source) {
+    if (confirmedForwardBoundary?.language === language && confirmedForwardBoundary?.source === source) {
+        confirmedForwardBoundary = null;
+    }
+}
+
+function isAtConfirmedForwardBoundary() {
+    if (!confirmedForwardBoundary || !currentselectedDate) return false;
+    const language = UTILS.isSpanishMode() ? 'es' : 'en';
+    return confirmedForwardBoundary.fromDate === navigationDateKey(currentselectedDate) &&
+        confirmedForwardBoundary.targetDate === navigationDateKey(getAllowedDateRange().max) &&
+        confirmedForwardBoundary.language === language &&
+        confirmedForwardBoundary.source === UTILS.getPreferredSource();
+}
 
 function Addfav() {
     // Use formattedComicDate which is in YYYY/MM/DD format (consistent with rest of app)
@@ -1721,6 +1745,9 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
     }
 
     // Load the comic (silent mode off for first attempt when not auto-skipping)
+    const requestedDate = new Date(currentselectedDate);
+    const requestedLanguage = UTILS.isSpanishMode() ? 'es' : 'en';
+    const requestedSource = UTILS.getPreferredSource();
     const result = await loadComic(currentselectedDate, skipOnFailure, direction);
     if (result.stale) return;
     const success = result.success;
@@ -1736,10 +1763,12 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         document.getElementById("DatePicker").value = formattedDate;
         updateDateDisplay();
         CompareDates();
-        // CompareDates() re-enables Next/Last because actualDate (yesterday) < today.
-        // But we know today's comic isn't published yet (that's why the redirect happened),
-        // so disable linear forward navigation immediately. Shuffle keeps Next usable
-        // when there is another comic in the active pool.
+        const redirectedFromLatest = navigationDateKey(requestedDate) === navigationDateKey(getAllowedDateRange().max) &&
+            navigationDateKey(result.actualDate) < navigationDateKey(requestedDate);
+        if (redirectedFromLatest) {
+            confirmForwardBoundary(result.actualDate, requestedDate, requestedLanguage, requestedSource);
+        }
+
         if (result.isFallback) {
             updateToolbarModeControls();
         } else if (isShuffleEnabled()) {
@@ -1749,7 +1778,7 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             document.getElementById('Next').disabled = !UTILS.canShuffleNavigate('next');
             document.getElementById('Last').disabled = !UTILS.canShuffleNavigate('last');
             updateToolbarModeControls();
-        } else {
+        } else if (redirectedFromLatest) {
             document.getElementById('Next').disabled = true;
             document.getElementById('Last').disabled = true;
         }
@@ -1776,9 +1805,19 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
             }
             return;
         } else if (direction === 'next') {
-            // Going forward and hit same comic - we're at the latest available
-            // Revert to previous date and disable forward navigation
-            currentselectedDate = stepToAllowedDate(currentselectedDate, -1);
+            const latestAllowed = getAllowedDateRange().max;
+            if (navigationDateKey(currentselectedDate) < navigationDateKey(latestAllowed)) {
+                currentselectedDate = stepToAllowedDate(currentselectedDate, 1);
+                CompareDates();
+                await showComic(true, 'next', _depth + 1);
+                return;
+            }
+
+            const unavailableTarget = new Date(currentselectedDate);
+            currentselectedDate = displayedComic
+                ? UTILS.dateFromFavoriteDateString(displayedComic.date)
+                : stepToAllowedDate(currentselectedDate, -1);
+            confirmForwardBoundary(currentselectedDate, unavailableTarget, requestedLanguage, requestedSource);
             CompareDates();
             commitSelectedDate();
             document.getElementById("DatePicker").value = formattedDate;
@@ -2427,7 +2466,7 @@ function CompareDates() {
     }
     endDate = endDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDate);
-    if (currentselectedDate.getTime() >= endDate.getTime()) {
+    if (currentselectedDate.getTime() >= endDate.getTime() || isAtConfirmedForwardBoundary()) {
         document.getElementById('Next').disabled = true;
         document.getElementById('Last').disabled = true;
         currentselectedDate = UTILS.createLocalDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate());

@@ -15,6 +15,7 @@ async function mockExternalServices(page, options = {}) {
   const failComics = options.failComics || false;
   const failShareImage = options.failShareImage || false;
   const googleScriptBody = options.googleScriptBody || '';
+  const comicRedirects = options.comicRedirects || {};
 
   const comicHtml = (url, source = 'garfield') => {
     const target = url ? new URL(url) : null;
@@ -22,9 +23,11 @@ async function mockExternalServices(page, options = {}) {
     const dateParts = pathParts.slice(-3);
     const [year = '2026', month = '04', day = '29'] = dateParts;
     const comicSlug = pathParts[0] || source;
-    const hash = `${year}${month}${day}abcdef0123456789abcdef`;
+    const requestedDate = `${year}-${month}-${day}`;
+    const [actualYear, actualMonth, actualDay] = (comicRedirects[requestedDate] || requestedDate).split('-');
+    const hash = `${actualYear}${actualMonth}${actualDay}abcdef0123456789abcdef`;
     const imageUrl = `https://featureassets.gocomics.com/assets/${hash}`;
-    const canonical = `https://www.gocomics.com/${comicSlug}/${year}/${month}/${day}`;
+    const canonical = `https://www.gocomics.com/${comicSlug}/${actualYear}/${actualMonth}/${actualDay}`;
 
     return `<!doctype html><html><head><link rel="canonical" href="${canonical}"><meta property="og:image" content="${imageUrl}"></head><body></body></html>`;
   };
@@ -832,6 +835,54 @@ test('settings dialog is a centered modal whose groups expand one at a time', as
   await openSettings(page);
   await expect(favorites).toHaveJSProperty('open', true);
   await expect(reading).toHaveJSProperty('open', false);
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('historical redirects keep forward buttons and swipe navigation synchronized', async ({ page }) => {
+  const requestedComicDates = [];
+  const errors = await openApp(page, '/', {
+    allowPrefetch: true,
+    comicRedirects: {
+      '1978-06-20': '1978-06-19'
+    },
+    onComicProxyRequest: targetUrl => {
+      const match = targetUrl.match(/garfield\/(\d{4})\/(\d{2})\/(\d{2})/);
+      if (match) requestedComicDates.push(`${match[1]}-${match[2]}-${match[3]}`);
+    }
+  });
+
+  await setComicDate(page, '1978-06-19');
+  await expect.poll(() => requestedComicDates).toContain('1978-06-20');
+  await expect(page.locator('#Next')).toBeEnabled();
+  await expect(page.locator('#Last')).toBeEnabled();
+
+  await dispatchTouchGesture(page, '#comic', [{ x: 300, y: 200 }, { x: 100, y: 200 }]);
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-21');
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for June 21, 1978 (English)');
+  await expect(page.locator('#Next')).toBeEnabled();
+  await expect(page.locator('#Last')).toBeEnabled();
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('a confirmed unpublished latest comic blocks buttons and forward swipes', async ({ page, context }) => {
+  await installMockClock(context, '2026-04-29T12:00:00-04:00');
+  const errors = await openApp(page, '/', {
+    comicRedirects: {
+      '2026-04-29': '2026-04-28'
+    }
+  });
+
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-04-28');
+  await expect(page.locator('#Next')).toBeDisabled();
+  await expect(page.locator('#Last')).toBeDisabled();
+
+  await dispatchTouchGesture(page, '#comic', [{ x: 300, y: 200 }, { x: 100, y: 200 }]);
+  await page.waitForTimeout(300);
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-04-28');
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);
