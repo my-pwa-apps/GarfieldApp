@@ -331,3 +331,40 @@ test('normal token storage uses sessionStorage without persisting the bearer loc
   context.__api.googleSignOut();
   assert.equal(session.has('gDriveToken'), false);
 });
+
+test('syncFavoritesToDrive silently refreshes token once on Drive 401 and completes upload', async () => {
+  const context = createContext();
+  context.store.set('gDriveSyncEnabled', 'true');
+  context.store.set('favs', JSON.stringify(['2024/01/01']));
+  context.google = {
+    accounts: {
+      oauth2: {
+        initTokenClient(config) {
+          context.tokenConfig = config;
+          return {
+            requestAccessToken: () => {
+              queueMicrotask(() => config.callback({ access_token: 'refreshed-token', expires_in: 3600 }));
+            }
+          };
+        }
+      }
+    }
+  };
+  let listAttempt = 0;
+  context.fetch = async (url, options = {}) => {
+    if (url.includes('userinfo')) return Response.json({ sub: 'account-1' });
+    if (url.includes('alt=media')) return Response.json({ favorites: [] });
+    if (url.includes('upload/')) return Response.json({ ok: true });
+    listAttempt++;
+    if (listAttempt === 1) return new Response('', { status: 401 });
+    const auth = new Headers(options.headers || {}).get('Authorization') || options.headers?.Authorization;
+    assert.equal(auth, 'Bearer refreshed-token');
+    return Response.json({ files: [{ id: 'file-1', version: '1' }] });
+  };
+
+  context.__api.initGoogleSync();
+  context.__api.handleTokenResponse({ access_token: 'stale-token', expires_in: 3600 });
+  const ok = await context.__api.syncFavoritesToDrive();
+  assert.equal(ok, true);
+  assert.equal(context.store.has('gDriveSyncPending'), false);
+});

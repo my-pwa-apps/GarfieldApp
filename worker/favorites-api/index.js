@@ -34,6 +34,8 @@ const GOOGLE_TOKENINFO_URL = 'https://oauth2.googleapis.com/tokeninfo';
 // deployment; the literal below is only the local/dev default.
 const DEFAULT_GOOGLE_CLIENT_ID = '495923472176-iummunjkudkt4p7bqtd5m7441664gl6t.apps.googleusercontent.com';
 const IDENTITY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const NEGATIVE_IDENTITY_CACHE_TTL_MS = 10 * 1000; // 10 seconds for deterministic 4xx auth rejections
+const GOOGLE_VERIFY_TIMEOUT_MS = 5000;
 const IDENTITY_CACHE_MAX = 500;
 const LEADERBOARD_OBJECT_NAME = 'global';
 const LEADERBOARD_VERSION = 'google-v1';
@@ -430,24 +432,27 @@ export class FavoritesLeaderboard {
         // Google OAuth access token with profile scope, which would allow
         // a malicious site's tokens to be used here.
         const tokenInfoResp = await fetch(
-            `${GOOGLE_TOKENINFO_URL}?access_token=${encodeURIComponent(token)}`
+            `${GOOGLE_TOKENINFO_URL}?access_token=${encodeURIComponent(token)}`,
+            { signal: AbortSignal.timeout(GOOGLE_VERIFY_TIMEOUT_MS) }
         ).catch(() => null);
 
         if (!tokenInfoResp?.ok) {
-            this.cacheIdentity(token, null);
+            if (tokenInfoResp && tokenInfoResp.status >= 400 && tokenInfoResp.status < 500 && tokenInfoResp.status !== 429) {
+                this.cacheIdentity(token, null, NEGATIVE_IDENTITY_CACHE_TTL_MS);
+            }
             return null;
         }
 
         const tokenInfo = await tokenInfoResp.json().catch(() => null);
         const expectedAudience = this.env?.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
         if (!tokenInfo || tokenInfo.aud !== expectedAudience) {
-            this.cacheIdentity(token, null);
+            this.cacheIdentity(token, null, NEGATIVE_IDENTITY_CACHE_TTL_MS);
             return null;
         }
 
         const expiresInSec = parseInt(tokenInfo.expires_in || '0', 10);
         if (!(expiresInSec > 0)) {
-            this.cacheIdentity(token, null);
+            this.cacheIdentity(token, null, NEGATIVE_IDENTITY_CACHE_TTL_MS);
             return null;
         }
 
@@ -455,11 +460,14 @@ export class FavoritesLeaderboard {
         const response = await fetch(GOOGLE_USERINFO_URL, {
             headers: {
                 Authorization: `Bearer ${token}`
-            }
+            },
+            signal: AbortSignal.timeout(GOOGLE_VERIFY_TIMEOUT_MS)
         }).catch(() => null);
 
         if (!response?.ok) {
-            this.cacheIdentity(token, null);
+            if (response && response.status >= 400 && response.status < 500 && response.status !== 429) {
+                this.cacheIdentity(token, null, NEGATIVE_IDENTITY_CACHE_TTL_MS);
+            }
             return null;
         }
 
@@ -602,8 +610,19 @@ function getAllowedOrigins(env) {
 function resolveOrigin(request, env) {
     const origin = request.headers.get('Origin') || '';
     const allowedOrigins = getAllowedOrigins(env);
-    if (allowedOrigins.includes(origin) || origin.endsWith('.garfieldapp.pages.dev')) {
+    if (allowedOrigins.includes(origin)) {
         return origin;
+    }
+    try {
+        const parsed = new URL(origin);
+        if (!parsed.username && !parsed.password &&
+            parsed.protocol === 'https:' &&
+            parsed.hostname.endsWith('.garfieldapp.pages.dev') &&
+            parsed.hostname !== '.garfieldapp.pages.dev') {
+            return parsed.origin;
+        }
+    } catch {
+        // Fall through to default allowed origin.
     }
     return allowedOrigins[0];
 }

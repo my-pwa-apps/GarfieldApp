@@ -11,7 +11,11 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - `init.js` - pre-DOM bootstrap: fullscreen state, service worker registration, update banner.
 - `app.js` - main UI, navigation, favorites, settings, shuffle, and modals.
 - [favorites.js](favorites.js) - canonical favorite schema and published-date validation for every client ingestion path.
-- [comicPresentation.js](comicPresentation.js) - bounded image load/decode contract, required before committing a comic.
+- [comicPresentation.js](comicPresentation.js) - bounded image load/decode contract and main/rotated transition animations.
+- [toolbarLayout.js](toolbarLayout.js) - toolbar and settings-panel positioning, clamping, and resize handling.
+- [rotation.js](rotation.js) - rotated/landscape fullscreen and vertical comic thumbnail/fullscreen views.
+- [shuffle.js](shuffle.js) - shuffle history stacks, candidate queue prefetching, and toolbar mode controls.
+- [topFavorites.js](topFavorites.js) - community Top Favorites modal, focus trapping, and browsing mode state.
 - [sharing.js](sharing.js) - Web Share, clipboard, and native-host sharing from an explicit committed comic snapshot.
 - [translations.js](translations.js) - matching English and Spanish message dictionaries.
 - [driveSyncState.js](driveSyncState.js) and [driveFavorites.js](driveFavorites.js) - favorite tombstones/merge and the serialized account-scoped Drive coordinator.
@@ -61,7 +65,7 @@ npm run test:predeploy
 
 Every push and pull request to `main` also runs syntax, lint, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
 
-New client feature modules must stay below 800 lines; the existing app has a temporary no-growth cap while the remaining extraction is tracked in [BACKLOG.md](BACKLOG.md#r14). Put favorite validation, presentation readiness, sharing, translations, and Drive state in their owning modules above, not back into the bootstrap/UI file. Keep browser globals enabled in the test lint environment because Playwright `page.evaluate` callbacks execute in the browser.
+New client feature modules must stay below 800 lines, and `app.js` is capped below 3,000 lines (`tests/unit/module-boundaries.test.mjs`). Put favorite validation, presentation readiness/transitions, toolbar layout, rotation, shuffle, top favorites, sharing, translations, and Drive state in their owning modules above, not back into the bootstrap/UI file. Keep browser globals enabled in the test lint environment because Playwright `page.evaluate` callbacks execute in the browser.
 
 ## Deployment Notes
 

@@ -1,6 +1,6 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
@@ -34,5 +34,9 @@
     "lighthouse": "^13.4.1",
     "miniflare": "5.20260811.1-alpha",
     "wrangler": "^4.123.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.5",
+    "undici": "^7.30.0"
   }
 }

@@ -461,3 +461,46 @@ test('rate sweeps traverse beyond a full expired first page', async () => {
   assert.deepEqual([...storage.map.keys()], ['rate:zz-live']);
   assert.ok(storage.alarm);
 });
+
+test('transient Google 5xx/network errors are not negative-cached and malformed preview origins are rejected', async () => {
+  const api = new FavoritesLeaderboard({ storage: new MemoryStorage() }, { GOOGLE_CLIENT_ID: 'configured-client-id' });
+  const originalFetch = global.fetch;
+  let tokenInfoCalls = 0;
+  global.fetch = async url => {
+    if (String(url).includes('tokeninfo')) {
+      tokenInfoCalls++;
+      if (tokenInfoCalls === 1) return new Response('unavailable', { status: 503 });
+      return new Response(JSON.stringify({ aud: 'configured-client-id', expires_in: '3600' }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ sub: 'user-9', email: 'user9@example.com' }), { status: 200 });
+  };
+
+  try {
+    assert.equal(await api.verifyGoogleIdentity('transient-token'), null);
+    assert.deepEqual(await api.verifyGoogleIdentity('transient-token'), { sub: 'user-9', email: 'user9@example.com' });
+    assert.equal(tokenInfoCalls, 2);
+  } finally {
+    global.fetch = originalFetch;
+  }
+
+  const object = createObject();
+  const env = {
+    LEADERBOARD: {
+      idFromName: () => 'global',
+      get: () => ({ fetch: req => object.fetch(req) })
+    }
+  };
+
+  for (const badOrigin of ['http://sub.garfieldapp.pages.dev', 'https://evil.example.com?.garfieldapp.pages.dev', 'https://.garfieldapp.pages.dev']) {
+    const res = await worker.fetch(new Request('https://favorites-api.garfieldapp.workers.dev/top', {
+      headers: { Origin: badOrigin }
+    }), env);
+    assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'https://garfieldapp.pages.dev', `must not echo ${badOrigin}`);
+  }
+
+  const validPreview = await worker.fetch(new Request('https://favorites-api.garfieldapp.workers.dev/top', {
+    headers: { Origin: 'https://geminifix.garfieldapp.pages.dev' }
+  }), env);
+  assert.equal(validPreview.headers.get('Access-Control-Allow-Origin'), 'https://geminifix.garfieldapp.pages.dev');
+});
+

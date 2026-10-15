@@ -29,10 +29,22 @@ async function mockExternalServices(page, options = {}) {
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://garfield.fandom.com/**', route => {
     comicRequests.push(route.request().url());
+    const reqUrl = new URL(route.request().url());
+    const firstTitle = (reqUrl.searchParams.get('titles') || 'File:mock.gif').split('|')[0];
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
+      body: JSON.stringify({
+        query: {
+          pages: {
+            1: {
+              pageid: 1,
+              title: firstTitle,
+              imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }]
+            }
+          }
+        }
+      })
     });
   });
   await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
@@ -43,6 +55,16 @@ async function mockExternalServices(page, options = {}) {
       return;
     }
     const targetUrl = decodeURIComponent(new URL(route.request().url()).search.slice(1));
+    if (
+      targetUrl.includes('static.wikia.nocookie.net') ||
+      targetUrl.includes('picayune.uclick.com') ||
+      targetUrl.includes('featureassets.gocomics.com') ||
+      targetUrl.includes('assets.amuniversal.com') ||
+      targetUrl.includes('resources.arcamax.com')
+    ) {
+      route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
+      return;
+    }
     route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(targetUrl, 'worker') });
   });
   await context.route('https://api.codetabs.com/**', route => {
@@ -101,9 +123,13 @@ test('explicit comic source choices route to their expected providers', async ({
   await openSettings(page);
   await page.locator('#comicSource').selectOption('fandom');
   await expect.poll(() => result.comicRequests.some(url => url.includes('garfield.fandom.com'))).toBe(true);
+  await expect(page.locator('#comic-message')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.getElementById('comic').naturalWidth)).toBeGreaterThan(0);
 
   await page.locator('#comicSource').selectOption('uclick');
-  await expect.poll(() => result.comicRequests.some(url => url.includes('picayune.uclick.com') || url.includes('allorigins') || url.includes('codetabs'))).toBe(true);
+  await expect.poll(() => result.comicRequests.some(url => url.includes('picayune.uclick.com'))).toBe(true);
+  await expect(page.locator('#comic-message')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.getElementById('comic').naturalWidth)).toBeGreaterThan(0);
   expect(result.errors).toEqual([]);
 });
 
@@ -163,3 +189,46 @@ test('basic performance budget stays within an app-shell threshold', async ({ pa
   expect(loadDuration).toBeLessThan(10_000);
   expect(resourceCount).toBeLessThan(80);
 });
+
+test('clearing the date picker or favoriting/randomizing in Top Favorites preserves navigation invariants', async ({ page }) => {
+  await openApp(page);
+  await page.context().route('https://favorites-api.garfieldapp.workers.dev/top', route => {
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { date: '1978/06/19', count: 5 },
+        { date: '1978/06/20', count: 3 }
+      ])
+    });
+  });
+
+  await expect(page.locator('#favheart')).toBeEnabled();
+  const initialDate = await page.locator('#DatePicker').inputValue();
+
+  await page.evaluate(() => {
+    const picker = document.getElementById('DatePicker');
+    picker.value = '';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(() => localStorage.getItem('lastcomic'))).not.toBe('NaN-NaN-NaN');
+  await expect(page.locator('#DatePicker')).toHaveValue(initialDate);
+
+  await openSettings(page);
+  await page.locator('#top10Btn').click();
+  await page.locator('.top10-entry').first().click();
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-19');
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
+  await expect(page.locator('#Previous')).toBeDisabled();
+
+  await expect(page.locator('#favheart')).toBeEnabled();
+  await page.locator('#favheart').click();
+  await expect(page.locator('#DatePickerBtn')).toBeDisabled();
+  await expect(page.locator('#Previous')).toBeDisabled();
+
+  await page.locator('#Random').evaluate(el => el.click());
+  await expect(page.locator('#DatePicker')).toHaveValue('1978-06-20');
+  await expect(page.locator('#top10Indicator')).toBeVisible();
+});
+

@@ -17,11 +17,15 @@ export async function shareComic({ comic, t, showNotification }) {
         // and bypass opaque-response restrictions.
         let fetchUrl = imageUrl;
         if (!imageUrl.startsWith('https://garfieldapp-corsproxy.garfieldapp.workers.dev/')) {
-            const parsed = new URL(imageUrl);
-            const target = parsed.origin === 'https://corsproxy.garfieldapp.workers.dev'
-                ? parsed.searchParams.get('url') || decodeURIComponent(parsed.search.slice(1))
-                : imageUrl;
-            fetchUrl = `https://garfieldapp-corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(target)}`;
+            const parsed = new URL(imageUrl, window.location.href);
+            if (parsed.origin === window.location.origin || parsed.protocol === 'data:' || parsed.protocol === 'blob:') {
+                fetchUrl = parsed.href;
+            } else {
+                const target = parsed.origin === 'https://corsproxy.garfieldapp.workers.dev'
+                    ? parsed.searchParams.get('url') || decodeURIComponent(parsed.search.slice(1))
+                    : parsed.href;
+                fetchUrl = `https://garfieldapp-corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(target)}`;
+            }
         }
 
         const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(10000) });

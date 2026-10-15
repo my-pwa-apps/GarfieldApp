@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 
 const args = process.argv.slice(2);
 const getArg = (name, fallback) => {
@@ -49,8 +50,23 @@ const server = http.createServer((request, response) => {
     }
 
     const ext = path.extname(filePath).toLowerCase();
+    const contentType = contentTypes[ext] || 'application/octet-stream';
+    const compressible = /\.(css|html|js|json|svg|txt|webmanifest|xml)$/i.test(ext);
+    const acceptEncoding = request.headers['accept-encoding'] || '';
+
+    if (compressible && acceptEncoding.includes('gzip')) {
+      const compressed = zlib.gzipSync(content);
+      response.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Encoding': 'gzip',
+        'Vary': 'Accept-Encoding'
+      });
+      response.end(compressed);
+      return;
+    }
+
     response.writeHead(200, {
-      'Content-Type': contentTypes[ext] || 'application/octet-stream'
+      'Content-Type': contentType
     });
     response.end(content);
   });

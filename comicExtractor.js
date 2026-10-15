@@ -14,6 +14,7 @@ const CORS_PROXIES = [
 ];
 
 const FETCH_TIMEOUT = 15000;
+const PUBLIC_PROXY_TIMEOUT = 4000;
 
 // Performance tracking
 const proxyFailureCount = new Array(CORS_PROXIES.length).fill(0);
@@ -68,19 +69,37 @@ function updateProxyStats(proxyIndex, success, responseTime) {
  */
 async function tryProxy(url, proxyIndex, startTime) {
     const proxyUrl = CORS_PROXIES[proxyIndex];
+    const timeoutMs = proxyIndex === 0 ? FETCH_TIMEOUT : PUBLIC_PROXY_TIMEOUT;
 
     try {
         const fullUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+        const early = proxyIndex === 0 && typeof window !== 'undefined' ? window.__earlyProxyFetch : null;
+        if (early && early.fullUrl === fullUrl) {
+            delete window.__earlyProxyFetch;
+            const html = await early.promise;
+            updateProxyStats(proxyIndex, true, Date.now() - startTime);
+            return html;
+        }
         // Default cache mode (not 'no-cache') so the Cloudflare Worker can
         // serve a HIT for previously fetched GoComics/ArcaMax HTML.
         const response = await fetch(fullUrl, {
-            signal: AbortSignal.timeout(FETCH_TIMEOUT),
+            signal: AbortSignal.timeout(timeoutMs),
             mode: 'cors',
             credentials: 'omit'
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            const error = new Error(`HTTP ${response.status}`);
+            error.status = response.status;
+            // When our own Cloudflare Worker returns 400/403/404, the proxy itself is
+            // healthy and the upstream rejected/missed the target. Do not penalize the
+            // primary proxy or waste 15s on public proxies for the same blocked URL.
+            if (proxyIndex === 0 && response.status >= 400 && response.status < 500) {
+                error.noProxyFallback = true;
+                updateProxyStats(proxyIndex, true, Date.now() - startTime);
+                throw error;
+            }
+            throw error;
         }
 
         const responseTime = Date.now() - startTime;
@@ -88,7 +107,9 @@ async function tryProxy(url, proxyIndex, startTime) {
 
         return await response.text();
     } catch (error) {
-        updateProxyStats(proxyIndex, false, 0);
+        if (!error?.noProxyFallback) {
+            updateProxyStats(proxyIndex, false, 0);
+        }
         throw error;
     }
 }
@@ -96,12 +117,16 @@ async function tryProxy(url, proxyIndex, startTime) {
 /**
  * Fetches through the Garfield Cloudflare proxy first, then public fallbacks.
  * @param {string} url - URL to fetch
+ * @param {{silent?: boolean}} [options]
  * @returns {Promise<string>} HTML content
  */
-async function fetchWithProxyFallback(url) {
+async function fetchWithProxyFallback(url, options = {}) {
     try {
         return await tryProxy(url, 0, Date.now());
-    } catch {
+    } catch (primaryError) {
+        if (primaryError?.noProxyFallback || options.silent) {
+            throw primaryError;
+        }
         for (const proxyIndex of getPublicProxyOrder()) {
             try {
                 return await tryProxy(url, proxyIndex, Date.now());
@@ -195,7 +220,7 @@ async function _getComicFromGoComics(date, language, options = {}) {
     const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
     const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
 
-    const html = await fetchWithProxyFallback(url);
+    const html = await fetchWithProxyFallback(url, options);
 
     if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
         return { success: false, imageUrl: null, notFound: true };
@@ -537,7 +562,22 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 result = await _getComicFromArcaMax(date);
             }
 
-            if (result.success) return result;
+            if (result.success && result.imageUrl) {
+                if (typeof options.verifyImage === 'function') {
+                    try {
+                        await options.verifyImage(result.imageUrl);
+                    } catch (imageError) {
+                        if (source === 'fandom') {
+                            _fandomLookupCache.delete(`fandom:${_dateToISO(date)}`);
+                        }
+                        if (!options.silent) {
+                            console.warn(`${source}: comic image failed to load (${imageError.message}), trying next source`);
+                        }
+                        result = { success: false, imageUrl: null };
+                    }
+                }
+                if (result.success) return result;
+            }
 
             // If today's strip is missing, first treat it as a source-local
             // timezone/publication delay and retry yesterday within that same
@@ -553,8 +593,20 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                     yesterdayResult = await _getComicFromUClick(yesterday, options);
                 }
 
-                if (yesterdayResult && yesterdayResult.success) {
-                    return { ...yesterdayResult, actualDate: yesterday };
+                if (yesterdayResult && yesterdayResult.success && yesterdayResult.imageUrl) {
+                    if (typeof options.verifyImage === 'function') {
+                        try {
+                            await options.verifyImage(yesterdayResult.imageUrl);
+                        } catch {
+                            if (source === 'fandom') {
+                                _fandomLookupCache.delete(`fandom:${_dateToISO(yesterday)}`);
+                            }
+                            yesterdayResult = { success: false, imageUrl: null };
+                        }
+                    }
+                    if (yesterdayResult.success) {
+                        return { ...yesterdayResult, actualDate: yesterday };
+                    }
                 }
             }
 

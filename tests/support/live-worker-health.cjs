@@ -1,7 +1,18 @@
 const checks = [
   {
-    name: 'CORS proxy GoComics fetch',
+    name: 'CORS proxy GoComics English fetch',
     url: 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?https%3A%2F%2Fwww.gocomics.com%2Fgarfield%2F2026%2F04%2F29',
+    validate: async response => {
+      const body = await response.text();
+      return response.ok &&
+        response.headers.get('access-control-allow-origin') === 'https://garfieldapp.pages.dev' &&
+        response.headers.get('x-proxy-by') === 'garfieldapp-corsproxy' &&
+        body.includes('featureassets.gocomics.com');
+    }
+  },
+  {
+    name: 'CORS proxy GoComics Spanish fetch',
+    url: 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?https%3A%2F%2Fwww.gocomics.com%2Fgarfieldespanol%2F2026%2F09%2F07',
     validate: async response => {
       const body = await response.text();
       return response.ok &&

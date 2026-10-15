@@ -17,7 +17,12 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
         const files = [];
         let pageToken;
         do {
-            const query = new URLSearchParams({ spaces: 'appDataFolder', q: `name='${FILE_NAME}' and trashed=false`, fields: 'nextPageToken,files(id)', pageSize: '100' });
+            const query = new URLSearchParams({
+                spaces: 'appDataFolder',
+                q: `name='${FILE_NAME}' and trashed=false`,
+                fields: 'nextPageToken,files(id,version,md5Checksum,headRevisionId,modifiedTime)',
+                pageSize: '100'
+            });
             if (pageToken) query.set('pageToken', pageToken);
             const response = await send(`${API}?${query}`);
             if (!response.ok) throw new Error(`Drive search failed (${response.status})`);
@@ -26,6 +31,15 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             pageToken = data.nextPageToken;
         } while (pageToken);
         return files.sort((first, second) => first.id.localeCompare(second.id));
+    }
+
+    function getMetadataRevision(file) {
+        if (!file || typeof file !== 'object') return null;
+        return file.headRevisionId ||
+            file.md5Checksum ||
+            (file.version !== undefined && file.version !== null ? String(file.version) : null) ||
+            file.modifiedTime ||
+            null;
     }
 
     async function synchronize(pull) {
@@ -61,7 +75,9 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
                 if (!response.ok) throw new Error(`Drive read failed (${response.status})`);
                 const data = await response.json();
                 if (!Array.isArray(data) && (!data || !Array.isArray(data.favorites))) throw new Error('Invalid Drive favorites file');
-                remote.push({ ...file, data, etag: response.headers.get('ETag') });
+                const etag = response.headers.get('ETag');
+                const revision = etag || getMetadataRevision(file);
+                remote.push({ ...file, data, etag, revision });
             }
             capture();
             entries = mergeFavoriteStates(entries, ...remote.map(file => readFavoriteState(file.data)));
@@ -73,9 +89,18 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             const content = JSON.stringify({ version: 3, entries, favorites, preferences });
             let response;
             if (remote.length) {
-                if (!remote[0].etag) throw new Error('Drive did not provide a revision validator');
+                if (!remote[0].etag && !remote[0].revision) throw new Error('Drive did not provide a revision validator');
+                if (!remote[0].etag) {
+                    const latestFiles = await listFiles(send);
+                    const latestPrimary = latestFiles.find(file => file.id === remote[0].id);
+                    if (!latestPrimary || getMetadataRevision(latestPrimary) !== remote[0].revision) {
+                        continue;
+                    }
+                }
+                const patchHeaders = { 'Content-Type': 'application/json' };
+                if (remote[0].etag) patchHeaders['If-Match'] = remote[0].etag;
                 response = await send(`${UPLOAD}/${encodeURIComponent(remote[0].id)}?uploadType=media`, {
-                    method: 'PATCH', headers: { 'Content-Type': 'application/json', 'If-Match': remote[0].etag }, body: content
+                    method: 'PATCH', headers: patchHeaders, body: content
                 });
                 if (response.status === 412) continue;
             } else {
@@ -98,8 +123,9 @@ export function createDriveFavoritesSync({ storage, identify, request, getFavori
             if (pull && preferences && !preferencesChanged) applyPreferences(preferences);
             if (changedDuringWrite || preferencesChanged || !remote.length) requested = true;
             for (const duplicate of remote.slice(1)) {
-                if (!duplicate.etag) continue;
-                const deleted = await send(`${API}/${encodeURIComponent(duplicate.id)}`, { method: 'DELETE', headers: { 'If-Match': duplicate.etag } });
+                if (!duplicate.etag && !duplicate.revision) continue;
+                const deleteHeaders = duplicate.etag ? { 'If-Match': duplicate.etag } : {};
+                const deleted = await send(`${API}/${encodeURIComponent(duplicate.id)}`, { method: 'DELETE', headers: deleteHeaders });
                 if (!deleted.ok && deleted.status !== 404) requested = true;
             }
             return;

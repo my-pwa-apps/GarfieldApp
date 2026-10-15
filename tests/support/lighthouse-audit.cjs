@@ -9,10 +9,12 @@ const chromeDebugPort = 9223;
 const url = `http://${host}:${port}/`;
 const outputPath = path.resolve(__dirname, '../lighthouse-report.json');
 const thresholds = {
-  performance: 0.6,
+  performance: 0.8,
   accessibility: 0.9,
   'best-practices': 0.85
 };
+const maxLcpMs = 3000;
+const maxSpeedIndexMs = 5800;
 
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -74,7 +76,24 @@ async function main() {
       }
     }
 
-    console.log(`Lighthouse passed: ${JSON.stringify(scores)}`);
+    const lcpMs = report.audits['largest-contentful-paint']?.numericValue;
+    const siMs = report.audits['speed-index']?.numericValue;
+    const lcpSelector =
+      report.audits['lcp-breakdown-insight']?.details?.items?.[1]?.selector ||
+      report.audits['largest-contentful-paint-element']?.details?.items?.[0]?.node?.selector ||
+      '';
+
+    if (!lcpSelector.includes('#comic')) {
+      throw new Error(`Expected #comic to be the LCP element, but got "${lcpSelector || 'unknown'}"`);
+    }
+    if (!(lcpMs < maxLcpMs)) {
+      throw new Error(`LCP ${Math.round(lcpMs)}ms exceeds ${maxLcpMs}ms target`);
+    }
+    if (!(siMs < maxSpeedIndexMs)) {
+      throw new Error(`Speed Index ${Math.round(siMs)}ms exceeds ${maxSpeedIndexMs}ms target`);
+    }
+
+    console.log(`Lighthouse passed: ${JSON.stringify({ ...scores, lcpMs: Math.round(lcpMs), siMs: Math.round(siMs), lcpSelector })}`);
   } finally {
     if (browser) await browser.close();
     server.kill('SIGTERM');

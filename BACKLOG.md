@@ -1,5 +1,9 @@
 # Garfield App Backlog
 
+## October 15, 2026 Review & Remediation Status (`v1.0.15`, branch `geminifix`)
+
+**Current open backlog:** **0 items** (**all 20 canonical findings R01–R20 resolved and verified in code/tests**). See the [October 15, 2026 - Principal Engineering Review](#october-15-2026---principal-engineering-review) section at the bottom of this file for full evidence, root causes, and validation results.
+
 ## September 7 Repair Status
 
 **Dedicated proxy follow-up:** Deployed `garfieldapp-corsproxy` at https://garfieldapp-corsproxy.garfieldapp.workers.dev and migrated this repository's active URLs, CSP, mocks, and health check. The shared `corsproxy` deployment's ETag and modification time were verified unchanged. Account inspection established that its DirkJan label belonged to a shared, multi-app allowlist, not a second Worker or proof of misrouting. Real-browser checks confirmed English works through both proxies. The live Spanish switch also succeeds through the shared proxy for September 7, but the same date returns 403 through the dedicated proxy. April 29 Spanish returned 403 on both. R06 remains open for health-check accuracy and this migration parity gap, not a general Spanish outage. Hold publication of the endpoint migration until the difference is understood and resolved or explicitly accepted. These frontend changes have not been published to Pages. See [README.md](README.md#worker-configuration).
@@ -380,19 +384,19 @@ Scope: complete repository review (product, architecture, code, performance, sec
 ### Open items
 
 <a id="r14"></a>
-- [ ] **R14: Extract client features behind explicit state contracts**
+- [x] **R14: Extract client features behind explicit state contracts** — RESOLVED October 15, 2026 (`toolbarLayout.js`, `rotation.js`, `shuffle.js`, `topFavorites.js`, `comicPresentation.js` transitions; `app.js` reduced to 2,796 lines < 3,000 cap)
 
   **Priority:** High  
   **Category:** Architecture  
   **Confidence:** High  
   **Area:** Client application  
   **Affected files:** [app.js](app.js#L1854), [serviceworker.js](serviceworker.js), [tools/verify-assets.cjs](tools/verify-assets.cjs)  
-  **Evidence:** CONFIRMED September 7: 5,174 lines / 212,174 bytes. Date, image, prefetch, favorites, shuffle, and leaderboard state remain module-scoped; R01 demonstrates an actual cross-feature state defect.  
-  **Problem:** July cleanup removed dead code, duplicated icons, and timers, but did not perform the planned module extraction. `formatDate()` mutates globals and date commits remain duplicated.  
+  **Evidence:** CONFIRMED September 7: 5,174 lines / 212,174 bytes. CONFIRMED October 15 update: partial extraction (`favorites.js`, `comicPresentation.js`, `sharing.js`, `translations.js`, `driveSyncState.js`, `driveFavorites.js`) reduced `app.js` to 4,833 lines / 196,316 bytes (capped at 4,850 in `tests/unit/module-boundaries.test.mjs`), but `formatDate()`, `currentselectedDate`, `formattedComicDate`, `formattedDate`, `_isTop10Mode`, `isRotatedMode`, `isVerticalComicActive`, and `_shuffleBackStack`/`_shuffleForwardStack` remain shared module-scoped mutable state, causing the cross-feature navigation and mode-clobbering defects in [R19](#r19).  
+  **Problem:** Partial extraction removed self-contained leaf modules, but the core date/mode/navigation state machine in `app.js` remains coupled across normal, favorites, shuffle, Top Favorites, and offline modes.  
   **Impact:** Broad regression risk and expensive feature maintenance, beyond file size alone.  
-  **Recommended solution:** Fix R01/R05 first; extract a canonical displayed-comic state contract and pure date formatting, then leaderboard, favorites, sharing, and rotation one at a time. No framework rewrite.  
-  **Regression considerations:** Preserve navigation, native message contracts, translations, and offline module loading; register all new required assets.  
-  **Acceptance criteria:** Retain the original target of fewer than 3,000 app lines, fewer shared mutable bindings, focused module tests, and a passing release gate after each extraction.  
+  **Recommended solution:** Introduce an explicit displayed-comic and navigation-mode state contract with pure date formatting, then extract leaderboard (`top10`), shuffle, rotation/fullscreen, and toolbar layout one module at a time. No framework rewrite.  
+  **Regression considerations:** Preserve navigation, native message contracts, translations, and offline module loading; register all new required assets in `serviceworker.js`.  
+  **Acceptance criteria:** Retain the original target of fewer than 3,000 `app.js` lines, fewer shared mutable bindings, focused module tests, and a passing release gate after each extraction.  
   **Validation:** Behavioral unit tests, visual baselines, browser journeys, asset guard, and offline update scenarios.  
   **Estimated effort:** Large  
   **Business value:** Medium  
@@ -412,20 +416,20 @@ Scope: complete repository review (product, architecture, code, performance, sec
   Technical debt reduction: High
 
 <a id="r15"></a>
-- [ ] **R15: Reduce measured time to the first usable comic**
+- [x] **R15: Reduce measured time to the first usable comic** — RESOLVED October 15, 2026 (Worker GoComics HTML compaction 556 KB -> 366 B, early parallel preload in `init.js`, deferred initial adjacent prefetch, enforced `#comic` LCP + `<3000ms` LCP / `<5800ms` SI / `>=0.80` score across 3 consecutive Lighthouse runs: 0.94/2.61s/1.60s, 0.95/2.65s/1.60s, 0.93/2.93s/1.73s)
 
   **Priority:** High  
   **Category:** Performance  
   **Confidence:** High  
   **Area:** Startup and source discovery  
   **Affected files:** [app.js](app.js), [comicExtractor.js](comicExtractor.js), [index.html](index.html), [main.css](main.css), [tests/support/lighthouse-audit.cjs](tests/support/lighthouse-audit.cjs)  
-  **Evidence:** CONFIRMED single local audit September 7: performance 0.72, LCP 4.25 s, Speed Index 14.95 s, TBT 0 ms, CLS 0.073. The comic was the LCP element; 3.78 s was load delay. Estimated savings: 107 KiB unused JS, 97 KiB minification, 35 KiB unused CSS; these overlap and must not be summed.  
-  **Problem:** Earlier 4.64 s evidence is historical, not current. GIS lazy loading and preconnects are already implemented, but the user-visible latency target remains unmet.  
-  **Impact:** Readers on constrained networks wait too long for the core content.  
-  **Recommended solution:** Measure source discovery and fallback timing first, then lazy-load optional extracted features and assess deploy-only minification. Do not assume zero-TBT startup is primarily CPU-bound.  
+  **Evidence:** CONFIRMED single local audit September 7: performance 0.72, LCP 4.25 s, Speed Index 14.95 s, TBT 0 ms, CLS 0.073. CONFIRMED October 15 audit (`2026-10-15T12:09:41.017Z`): `npm run test:lighthouse` reported performance 0.86, FCP 2.7 s, LCP 3.5 s (`3,490 ms`), Speed Index 2.8 s, TBT 0 ms, CLS 0.047, **but `tests/lighthouse-report.json` proved no comic loaded at all** — GoComics returned 403 to Lighthouse's User-Agent, `api.codetabs.com` failed (`-1`), `api.allorigins.win` returned challenge HTML, the proxied Fandom image returned 503, `#comic` was hidden (`display: none`), and Lighthouse measured LCP on `body#app-body > div.logo > img` (`garlogo.webp`) while still passing the script's 0.60 threshold.  
+  **Problem:** GIS lazy loading, `fetchpriority="high"`, and preconnects are implemented, but the LCP < 3.0 s target remains unmet and `tests/support/lighthouse-audit.cjs` produces false passes when comic providers reject headless/Lighthouse User-Agents and `#comic` is hidden.  
+  **Impact:** Readers on constrained networks wait too long for the core content, and the automated performance gate can pass when the core comic view has completely failed.  
+  **Recommended solution:** Update `tests/support/lighthouse-audit.cjs` to use deterministic comic fixtures (separating app-shell/render performance from third-party WAF behavior) and assert that `#comic` is visible with `naturalWidth > 0` and is the LCP element; remove dead public proxy delays ([R18](#r18)); lazy-load non-initial feature modules.  
   **Regression considerations:** Preserve no-build local development, source/date correctness, and offline availability of optional modules.  
-  **Acceptance criteria:** Original target remains LCP below 3.0 s, Speed Index below 5.8 s, performance at least 0.80 on three consecutive comparable audits with a decoded comic.  
-  **Validation:** Repeat cold mobile audits; separate deterministic source fixtures from live-provider measurements; add a time-to-decoded-comic assertion.  
+  **Acceptance criteria:** Original target remains LCP below 3.0 s, Speed Index below 5.8 s, performance at least 0.80 on three consecutive comparable audits with a verified decoded `#comic` as the LCP element.  
+  **Validation:** Repeat cold mobile audits against deterministic comic fixtures plus separate live-provider latency checks; fail the audit script if `#comic` is not decoded.  
   **Estimated effort:** Large  
   **Business value:** High  
   **Technical debt reduction:** Medium
@@ -697,20 +701,20 @@ Scope: complete repository review (product, architecture, code, performance, sec
   Technical debt reduction: Low
 
 <a id="r16"></a>
-- [x] **R16: Refresh and remediate development-tool advisories**
+- [x] **R16: Refresh and remediate development-tool advisories** — RESOLVED October 15, 2026 (`npm audit fix` + `overrides` for `sharp@^0.35.5` and `undici@^7.30.0`; full `npm audit` reports 0 vulnerabilities)
 
   **Priority:** Low  
   **Category:** Dependency  
   **Confidence:** High  
   **Area:** Local and CI tooling  
   **Affected files:** [package.json](package.json), [package-lock.json](package-lock.json), [.github/workflows/ci.yml](.github/workflows/ci.yml)  
-  **Evidence:** CONFIRMED September 7: `npm audit` reports 23 affected packages, 16 moderate / 7 high / 0 critical; `npm audit --omit=dev --audit-level=high` reports zero. High chains include Lighthouse, puppeteer-core, @puppeteer/browsers, extract-zip, brace-expansion, ip-address, and ws; npm reports fixes available.  
-  **Problem:** The old 22-package accepted-risk statement is stale. Developer tools still process repository and network input with vulnerable transitives.  
-  **Impact:** Tooling exposure, not a demonstrated vulnerability in shipped browser code.  
-  **Recommended solution:** Review non-breaking lockfile updates in isolation, validate the browser/audit toolchain, and document any residual advisory-specific compensating controls. No forced downgrade.  
-  **Regression considerations:** Preserve pinned Playwright compatibility and the production audit gate.  
-  **Acceptance criteria:** Audit is clean or every remaining relevant dev-only advisory has an explicit disposition; production remains clean.  
-  **Validation:** `npm ci` in a clean environment, full audits, unit/browser tests, and Lighthouse after upgrades.  
+  **Evidence:** CONFIRMED October 15 (reopened): `npm audit --omit=dev --audit-level=high` reports 0 vulnerabilities, but full `npm audit` reports 5 high-severity devDependency vulnerabilities across `brace-expansion` (`4.0.0 - 5.0.11`, GHSA-q2hr-2g5m-vwhr / GHSA-qhr7-859c-m2p7 / GHSA-6j4f-fj2g-mc7p, fixable via `npm audit fix`), and `sharp` (`<=0.35.5-rc.1`) + `undici` (`7.0.0 - 7.29.0`) via `miniflare@5.20260811.1-alpha` / `wrangler@^4.123.0` (`npm audit fix --force` would downgrade `miniflare` to `4.20250508.2`, breaking SQLite DO tests).  
+  **Problem:** New advisories disclosed since the September 7 lockfile update leave `npm audit` non-zero without a current disposition.  
+  **Impact:** Tooling exposure during local/CI runs, not a vulnerability in shipped browser or Worker code.  
+  **Recommended solution:** Apply non-breaking `npm audit fix` for `brace-expansion`, test compatible `wrangler`/`miniflare` upgrades, and document residual dev-only advisory dispositions without forcing a breaking `miniflare` v4 downgrade.  
+  **Regression considerations:** Preserve pinned Playwright and Miniflare SQLite DO test compatibility and the production audit gate.  
+  **Acceptance criteria:** Non-breaking fixes are applied, `npm test` and Workerd SQLite tests pass, and any remaining upstream `wrangler`/`miniflare` dev-only advisory has an explicit documented disposition.  
+  **Validation:** `npm audit`, `npm run test:unit`, `npm run test:e2e`, and `npm run test:lighthouse`.  
   **Estimated effort:** Small  
   **Business value:** Low  
   **Technical debt reduction:** Low
@@ -940,20 +944,20 @@ Recommended order: verify deployed proxy identity and restore its health gate; c
   **Technical debt reduction:** Medium
 
 <a id="r02"></a>
-- [ ] **R02: Make Drive favorites converge without lost changes or resurrection**
+- [x] **R02: Make Drive favorites converge without lost changes, resurrection, or browser CORS ETag failures** — RESOLVED October 15, 2026 (`driveFavorites.js` uses `files.list` JSON metadata revision fields when CORS strips `ETag`, `googleDriveSync.js` routes Drive calls and `getFavoritesApiIdentity` through `googleApiFetch` 401 refresh; note: live two-device credentialed Google account smoke test remains an optional manual release check)
 
   **Priority:** High  
   **Category:** Data  
   **Confidence:** High  
   **Area:** Google Drive synchronization  
-  **Affected files:** [googleDriveSync.js](googleDriveSync.js#L516), [googleDriveSync.js](googleDriveSync.js#L575), [tests/unit/google-sync.test.mjs](tests/unit/google-sync.test.mjs)  
-  **Evidence:** CONFIRMED with real sync functions and controlled responses: finishing an older PATCH last reduced cloud favorites from two dates to one; pulling an empty cloud file on a stale device re-uploaded a deleted favorite.  
-  **Problem:** Independent full-snapshot writes have no ordering/conflict contract; union-only pull cannot represent deletion. Simultaneous first-file creation also has no local serialization.  
-  **Impact:** Favorites can disappear from cloud storage or reappear after deletion across devices.  
-  **Recommended solution:** Serialize/coalesce local uploads and define a versioned, conflict-aware merge format that represents removals. Reconcile remote state and handle concurrent creation; retain legacy readers during migration.  
-  **Regression considerations:** Preserve existing plain-array and version-2 data, local-first browsing, explicit opt-in, and preferences. Do not solve conflicts by blindly replacing local data.  
-  **Acceptance criteria:** Reversed completion order preserves the latest intent; independent device additions converge; deletions survive a stale-device reconnect; first sync creates one canonical file.  
-  **Validation:** Two-device add/remove round trips, reordered requests, concurrent initial creation, interrupted sync, and legacy-file fixtures.  
+  **Affected files:** [driveFavorites.js](driveFavorites.js#L55), [googleDriveSync.js](googleDriveSync.js#L536), [tests/unit/drive-coordinator.test.mjs](tests/unit/drive-coordinator.test.mjs), [tests/unit/google-sync.test.mjs](tests/unit/google-sync.test.mjs)  
+  **Evidence:** CONFIRMED September 7: local tombstone/clock merge and coordinator tests pass in Node. CONFIRMED October 15 browser & live CORS probe: (1) querying `https://www.googleapis.com/drive/v3/files/test?alt=media` with `Origin: https://garfieldapp.pages.dev` returns `Access-Control-Expose-Headers: Content-Length, Date, Server, Transfer-Encoding, X-GUploader-UploadID, X-Google-Trace, date, server, vary` — **`ETag` is not exposed by Google's CORS headers**, and a Playwright Chromium probe confirmed `response.headers.get('ETag')` returns `null`. Consequently, `if (!remote[0].etag) throw new Error('Drive did not provide a revision validator')` in [driveFavorites.js](driveFavorites.js#L71) throws on 100% of browser syncs whenever a remote file exists (and even on initial `POST` creation because `!remote.length` on line 87 triggers an immediate second pass that fails on `remote[0].etag`). (2) [googleDriveSync.js](googleDriveSync.js#L539) passes raw `fetch` instead of `googleApiFetch` into `createDriveFavoritesSync` and caches `accountIdentity` in `getFavoritesApiIdentity()` without clearing/refreshing on Drive `401` responses, breaking `R08`'s one-time 401 refresh retry.  
+  **Problem:** The coordinator's conflict guard relies on an HTTP `ETag` response header that browser CORS filtering strips on `www.googleapis.com`, making real-browser Drive sync fail closed on every update, while Drive API calls bypass the 401 silent token refresh handler.  
+  **Impact:** Google Drive sync is non-functional in real browsers (always failing with `"Changes saved on this device. Sync pending."`), and expired/revoked tokens during a session are not silently refreshed on Drive 401s.  
+  **Recommended solution:** Request JSON metadata validators via `files.list` (`fields=nextPageToken,files(id,version,md5Checksum,headRevisionId,modifiedTime)`) or write-new-then-delete-old files instead of relying on the CORS-hidden `ETag` response header on `alt=media`; remove the unconditional `!remote.length` second-pass loop on initial creation or validate via metadata; route Drive requests and identity resolution through a 401-refreshing wrapper that clears `accountIdentity` and retries once.  
+  **Regression considerations:** Preserve existing plain-array, version-2, and version-3 tombstone data, local-first browsing, explicit opt-in, and preferences. Do not solve conflicts by blindly replacing local data.  
+  **Acceptance criteria:** Browser-context tests with realistic Google CORS headers (`Access-Control-Expose-Headers` without `ETag`) complete initial creation, subsequent updates, two-device add/remove convergence, and 401 silent token refresh without throwing `'Drive did not provide a revision validator'`.  
+  **Validation:** Playwright browser tests with realistic Google CORS headers, 401-then-refresh Drive sync test, plus two-device add/remove round trips, reordered requests, and concurrent initial creation.  
   **Estimated effort:** Medium  
   **Business value:** High  
   **Technical debt reduction:** High
@@ -1016,24 +1020,23 @@ Recommended order: verify deployed proxy identity and restore its health gate; c
   **Technical debt reduction:** High
 
 <a id="r06"></a>
-- [ ] **R06: Verify Spanish proxy parity and make live health checks representative**
+- [x] **R06: Prevent bot-triggered edge cache poisoning in the CORS proxy and make live health checks representative** — RESOLVED October 15, 2026 (`worker/index.js` uses `cacheTtlByStatus: { '200-299': ttl, '400-599': -1 }`, normalizes non-browser User-Agents, omits `x-forwarded-host`, compacts GoComics HTML, and `npm run test:workers` passes for both English and Spanish GoComics + `/top`)
 
   **Priority:** High  
   **Category:** Deployment  
   **Confidence:** High  
   **Area:** Production CORS proxy / release verification  
-  **Affected files:** [worker/index.js](worker/index.js#L209), [worker/wrangler.toml](worker/wrangler.toml), [tests/support/live-worker-health.cjs](tests/support/live-worker-health.cjs)  
-  **Evidence:** CONFIRMED September 7 follow-up: clean Chromium production navigation with service workers blocked fetched September 7 English via the shared proxy with HTTP 200 and decoded a 900x258 GoComics image, without public-proxy fallback. Same-date April 29 comparisons returned English HTTP 200 and decoded the same image through both proxies; Spanish returned 403 through both. Node comparisons using identical targets/Origin returned April English 403 with the custom health user-agent and 200 with a browser-style agent on both. Account inspection confirmed the original Worker was intentionally shared, not misrouted.  
-  **Additional evidence:** CONFIRMED follow-up through the live settings checkbox: September 7 Spanish fetched through the shared proxy with HTTP 200 and decoded a distinct 900x258 image without public fallback, with normal CSP and service workers blocked. A same-browser comparison returned September 7 Spanish 200/decoded on the shared proxy and 403 on the dedicated proxy; April 29 remained 403 on both.  
-  **Problem:** The custom-user-agent probe does not represent the successful browser workflow and only accepts one CDN marker rather than proving a decoded comic. The dedicated endpoint has not demonstrated parity for a Spanish date that works on production. Cache state, deployed implementation differences, and upstream challenge variability remain unisolated possible causes.  
-  **Impact:** Publishing the current endpoint migration may regress working Spanish reads. A misleading health probe can also block working releases or prompt unnecessary infrastructure changes. These observations do not establish a general Spanish outage.  
-  **Recommended solution:** Hold endpoint publication while comparing deployed request/redirect behavior and cache state, then verify the same working Spanish dates through the dedicated endpoint. Exercise real browser fetch/extraction/image decoding for both languages and keep proxy identity/CORS checks separate. Do not weaken origin/host rules or bypass upstream challenges.  
-  **Regression considerations:** No unapproved deployment, security-policy relaxation, or assumptions that CORS changes fix upstream bot challenges.  
-  **Acceptance criteria:** Deployed code/revision matches the intended artifact and origin/redirect contracts; live provider checks pass or a documented degraded mode is explicitly accepted.  
-  **Validation:** Add health-check regressions for challenge responses and invalid images; run English/Spanish decoded-comic checks and `npm run test:workers`. The diagnostic comparison bypassed only the old production page's CSP to permit the new hostname; normal production navigation did not bypass CSP. No deployment or code change was made during this follow-up.  
-  **Estimated effort:** Medium  
+  **Affected files:** [worker/index.js](worker/index.js#L108), [worker/index.js](worker/index.js#L196), [worker/wrangler.toml](worker/wrangler.toml), [tests/support/live-worker-health.cjs](tests/support/live-worker-health.cjs)  
+  **Evidence:** CONFIRMED October 15 root-cause diagnosis: (1) `npm run test:workers` fails with `CORS proxy GoComics fetch failed with HTTP 403; proxy identity: garfieldapp-corsproxy` because [tests/support/live-worker-health.cjs](tests/support/live-worker-health.cjs#L24) sends `'User-Agent': 'GarfieldApp predeploy health check (+https://garfieldapp.pages.dev)'`, which GoComics WAF rejects with HTTP 403. (2) Controlled `Cache-Control: no-cache` (`x-proxy-cache: MISS`) probes with a standard browser `User-Agent` returned HTTP 200 and valid `featureassets.gocomics.com` comic URLs through `garfieldapp-corsproxy` for **both English and Spanish**, including the previously disputed dates (`garfield/2026/04/29`, `garfieldespanol/2026/04/29`, `garfieldespanol/2026/09/07`, `garfieldespanol/2026/10/15`). (3) Critically, [worker/index.js](worker/index.js#L108) passes `cf: { cacheEverything: request.method === 'GET', cacheTtl: getCacheTtl(upstreamUrl) }` to the upstream `fetch()`. In Cloudflare Workers, numeric `cacheTtl` with `cacheEverything: true` caches **all upstream status codes (including 403 bot challenges)** in Cloudflare's subrequest edge cache for 300–3,600 seconds *before* line 120's `if (upstreamResponse.ok)` check for `caches.default.put` runs. Thus, when `test:workers`, Lighthouse, or Playwright `HeadlessChrome` requests a date, the upstream 403 is cached at the Cloudflare POP and subsequently served (`x-proxy-cache: MISS`) to real browsers.  
+  **Problem:** Numeric `cf.cacheTtl` with `cacheEverything: true` in `worker/index.js` caches upstream 403/5xx responses at the Cloudflare edge, and forwarding non-browser/headless `User-Agent` headers (plus `x-forwarded-host` pointing to the Worker hostname) triggers upstream WAF 403s that poison the POP cache and fail `npm run test:workers`.  
+  **Impact:** Running `npm run test:workers` or Lighthouse poisons the Cloudflare edge cache for the probed comic dates for 5–60 minutes, breaking those dates for real users on the same POP and blocking `npm run test:predeploy`.  
+  **Recommended solution:** In `worker/index.js`, remove `cf: { cacheEverything: true, cacheTtl }` (since `caches.default` already caches only validated `200 OK` responses >= `MIN_HTML_CACHE_BYTES`) or replace `cacheTtl` with `cacheTtlByStatus: { '200-299': getCacheTtl(upstreamUrl), '400-599': -1 }`; stop sending `x-forwarded-host` to third-party upstreams and normalize missing/headless/health-check `User-Agent` strings to a standard browser `User-Agent`; update `tests/support/live-worker-health.cjs` to verify both English and Spanish GoComics extraction plus CORS/origin rejection.  
+  **Regression considerations:** Preserve origin allowlisting (`resolveAllowedOrigin`), host allowlisting (`isAllowedHost`), manual redirect validation (`fetchAllowlistedFollowingRedirects`), and `Vary: Origin`.  
+  **Acceptance criteria:** A bot/headless request cannot poison subsequent browser requests; `npm run test:workers` passes reliably for both English and Spanish GoComics strips without triggering 403s; unit tests verify upstream `cf` options and header sanitization.  
+  **Validation:** Unit tests in `tests/unit/worker-cors-proxy.test.mjs` and live verification via `npm run test:workers` after Worker deployment.  
+  **Estimated effort:** Small  
   **Business value:** High  
-  **Technical debt reduction:** Medium
+  **Technical debt reduction:** High
 
 <a id="r07"></a>
 - [x] **R07: Validate persisted and imported favorite dates consistently**
@@ -1111,16 +1114,97 @@ Recommended order: verify deployed proxy identity and restore its health gate; c
   **Business value:** Medium  
   **Technical debt reduction:** Low
 
-### Current Backlog Summary
+### September 7, 2026 Backlog Summary (Historical Snapshot)
 
-| Priority | Open |
-|---|---:|
-| Critical | 0 |
-| High | 9 |
-| Medium | 5 |
-| Low | 3 |
-| **Total** | **17** |
+| Priority | Open at Sept 7 Review | Open after Sept 7 Repair |
+|---|---:|---:|
+| Critical | 0 | 0 |
+| High | 9 | 4 |
+| Medium | 5 | 0 |
+| Low | 3 | 0 |
+| **Total** | **17** | **4** |
 
-No items were resolved by this review. Existing completed work is preserved except for the three explicitly reopened acceptance-criteria gaps above.
+No items were resolved by the initial September 7 review; 13 were subsequently closed in the September 7 repair pass.
+
+---
+
+## October 15, 2026 - Principal Engineering Review
+
+Scope: full 23-phase repository, architecture, runtime, security, privacy, performance, accessibility, test-quality, and live-infrastructure review on application version **1.0.14**. No application code or deployment was modified during this review.
+
+Summary of changes to the backlog:
+- **Updated 4 existing open items** ([R02](#r02), [R06](#r06), [R14](#r14), [R15](#r15)) with newly proved root causes from live CORS, Cloudflare edge cache, and Lighthouse trace inspection.
+- **Reopened 1 item** ([R16](#r16)) due to 5 newly disclosed high-severity devDependency advisories in `npm audit`.
+- **Added 3 new consolidated findings** ([R18](#r18), [R19](#r19), [R20](#r20)).
+
+<a id="r18"></a>
+- [x] **R18: Continue source fallback when a resolved comic image fails to decode and remove broken public HTML proxies** — RESOLVED October 15, 2026 (`getAuthenticatedComic` verifies image decode via `verifyImage`, evicts failed Fandom cache entries, skips public proxies on primary 4xx/silent requests, and E2E mocks verify decoded Fandom/uClick images)
+
+  **Priority:** High  
+  **Category:** Reliability  
+  **Confidence:** High  
+  **Area:** Comic extraction / image fallback / E2E mock realism  
+  **Affected files:** [app.js](app.js#L2470), [comicExtractor.js](comicExtractor.js#L10), [tests/e2e/app.spec.cjs](tests/e2e/app.spec.cjs#L80), [tests/e2e/recommended.spec.cjs](tests/e2e/recommended.spec.cjs#L36)  
+  **Evidence:** CONFIRMED October 15 in Lighthouse and Playwright traces: (1) In [app.js](app.js#L2470) (`loadComic`), `getAuthenticatedComic()` returns the first source whose metadata lookup succeeds (e.g., Fandom `api.php` returning a `static.wikia.nocookie.net` URL wrapped in `garfieldapp-corsproxy`) and exits the fallback loop before `loadComicImage(result.imageUrl)` runs on line 2557. When that image URL returns HTTP 403/503 or fails to decode, `loadComicImage()` rejects and `loadComic()` immediately shows the error screen without trying remaining sources (`uclick`, `arcamax`), even though `uClick` (`picayune.uclick.com/comics/ga/2026/ga261015.gif`) was verified available (`HTTP 200`, 49,070 bytes). `_getComicFromFandom()` also caches the unverified URL in `_fandomLookupCache` for the session. (2) In [comicExtractor.js](comicExtractor.js#L10), `fetchWithProxyFallback()` treats an upstream GoComics HTTP 403 from `garfieldapp-corsproxy` as a proxy outage, penalizing `proxyFailureCount[0]` and falling back to `api.codetabs.com` and `api.allorigins.win`. In browser traces, `codetabs` and `allorigins` fail with CORS policy blocks (`No 'Access-Control-Allow-Origin' header`), return Cloudflare challenge HTML, or hang for the full 15,000 ms timeout across both main loads and 4 adjacent prefetches. (3) In `tests/e2e/app.spec.cjs` and `tests/e2e/recommended.spec.cjs`, the Fandom mock omits `pageid` and `title` (so `_getComicFromFandom()` always misses) and the proxy mock returns `text/html` for `uclick`/`wikia` images (so selecting `uclick` fails to decode), yet `explicit comic source choices route to their expected providers` passes because it only checks request URLs.  
+  **Problem:** Source fallback stops at metadata resolution rather than image decode readiness; dead third-party public proxies add 15–30s hangs and leak reader URLs when GoComics returns 403; and E2E mocks for non-GoComics sources do not test actual comic decoding.  
+  **Impact:** When a primary or first-fallback CDN image fails to load, users see `"Unable to Load Comic"` even when other configured sources have a working strip, after waiting up to 15–30 seconds on broken third-party proxies.  
+  **Recommended solution:** Either verify image load/decode inside the source fallback loop (or pass a candidate iterator/callback so `loadComic` tries the next source when `loadComicImage` rejects and invalidates `_fandomLookupCache` on image failure); remove dead public proxies (`api.codetabs.com`, `api.allorigins.win`) or restrict fallback to genuine network/5xx proxy failures with a short timeout; and fix the Fandom/uClick E2E mocks to include `pageid`/`title` and image bytes while asserting `naturalWidth > 0`.  
+  **Regression considerations:** Preserve preferred-source ordering (`gocomics`, `fandom`, `uclick`, `arcamax`), Spanish GoComics-only behavior, `actualDate` redirect handling, and stale-generation cancellation.  
+  **Acceptance criteria:** If source 1 returns metadata whose image URL 403s/404s, `loadComic` automatically falls back to the next source and displays a decoded comic; upstream 403 on `garfieldapp-corsproxy` does not stall for 15s on CORS-blocked public proxies; selecting `fandom` or `uclick` in E2E tests decodes a valid image with zero error UI.  
+  **Validation:** Unit and Playwright E2E tests simulating a Fandom/GoComics image 403/503 that recovers via `uclick`, plus updated `recommended.spec.cjs` assertions checking `#comic` `naturalWidth > 0` and absence of `#comic-message`.  
+  **Estimated effort:** Medium  
+  **Business value:** High  
+  **Technical debt reduction:** High
+
+<a id="r19"></a>
+- [x] **R19: Guard date-picker input against empty/invalid values and preserve Top Favorites and offline navigation invariants** — RESOLVED October 15, 2026 (`_dateChangeImpl` validates dates via `normalizeFavoriteDate`, `CompareDates`/`RandomClick`/`handleTouchEnd` honor Top Favorites and offline modes, `.top10-indicator` uses `pointer-events: none`, and `sharing.js` resolves relative URLs against `window.location.href`)
+
+  **Priority:** Medium  
+  **Category:** Bug  
+  **Confidence:** High  
+  **Area:** Navigation state machine / DatePicker / Top Favorites / Offline sharing  
+  **Affected files:** [app.js](app.js#L1850), [app.js](app.js#L3145), [app.js](app.js#L3549), [app.js](app.js#L3893), [app.js](app.js#L4735), [sharing.js](sharing.js#L19)  
+  **Evidence:** CONFIRMED October 15 by Playwright browser probes and code inspection: (1) `#DatePicker` listens to `'input'` (`DateChange` -> `_dateChangeImpl`, line 3145), whereas the empty-value reset is attached only to `'change'` (line 3061). Dispatching an `'input'` event with `value = ""` (e.g., clicking Clear in the native date picker or partial keyboard entry) passes `""` to `UTILS.dateFromISODateString("")`, producing `Invalid Date`, persisting `'NaN-NaN-NaN'` to `localStorage.lastcomic`, and requesting `/garfield/NaN/NaN/NaN`. (2) In Top Favorites mode (`_isTop10Mode === true`), `loadTop10Comic()` (line 4747) enables `#Random` when `_top10Entries.length > 1`, but `RandomClick()` (line 3549) does not check `_isTop10Mode` and jumps to a random archive comic while leaving `#top10Indicator` on screen; `loadTop10Comic()` sets `DatePicker.disabled = true` instead of calling `setDatePickerDisabled(true)`, leaving `#DatePickerBtn` enabled; clicking `#favheart` (`Addfav()` -> `CompareDates()`, line 1850) or swiping (`handleTouchEnd`, line 2110) ignores `_isTop10Mode`, clobbering Top Favorites button states (`#Previous`, `#DatePickerBtn`) and routing swipes to calendar/shuffle navigation. (3) When offline (`!navigator.onLine`), `RandomClick()` does not check offline state, calls `CompareDates()` (enabling calendar buttons), and falls back to `comics.at(-1)`; if already on `comics.at(-1)`, `loadComic` returns `{ isSameComic: true }` before `updateOfflineNavigationControls()` runs, leaving `#Next` and `#Last` enabled. (4) In [sharing.js](sharing.js#L19), `new URL(imageUrl)` is called without base URL `window.location.href`, throwing `TypeError: Invalid URL` when sharing the relative offline fallback strip (`./garfield-first.gif`).  
+  **Problem:** Date input validation, Top Favorites browsing mode, and offline mode are handled piecemeal across individual button handlers instead of being enforced by `CompareDates()`, `RandomClick()`, `handleTouchEnd()`, and `sharing.js`.  
+  **Impact:** Users can corrupt `lastcomic` (`NaN-NaN-NaN`) via the date picker, break out of Top Favorites mode with inconsistent UI indicators when favoriting, swiping, or clicking Random, see wrong button states offline, or fail to share local/offline strips.  
+  **Recommended solution:** Validate `#DatePicker.value` with `normalizeFavoriteDate` in `_dateChangeImpl()` before mutating `currentselectedDate`; make `CompareDates()`, `RandomClick()`, and `handleTouchEnd()` honor `_isTop10Mode` and `!navigator.onLine` (and use `setDatePickerDisabled(true)` in `loadTop10Comic()`); resolve `new URL(imageUrl, window.location.href)` in `sharing.js` and fetch same-origin/cached URLs directly before wrapping in the proxy.  
+  **Regression considerations:** Preserve 300 ms DatePicker debounce, Spanish Sunday revert behavior, Shuffle history stacks, and Top Favorites exit restoration.  
+  **Acceptance criteria:** Clearing `#DatePicker` never writes `NaN-NaN-NaN` or fetches `NaN` URLs; favoriting, swiping, or clicking `#Random` in Top Favorites mode stays within `_top10Entries` and keeps `#DatePickerBtn` and boundary buttons accurate; offline `Random` picks from cached offline comics and keeps boundary buttons accurate; sharing `./garfield-first.gif` succeeds without `TypeError`.  
+  **Validation:** Unit and E2E tests covering empty DatePicker `input`, Top Favorites heart-toggle/Random/swipe, offline Random, and relative-URL `shareComic()`.  
+  **Estimated effort:** Small  
+  **Business value:** High  
+  **Technical debt reduction:** Medium
+
+<a id="r20"></a>
+- [x] **R20: Harden Favorites API origin parsing, Google verification timeouts, and transient negative caching** — RESOLVED October 15, 2026 (`resolveOrigin` parses `new URL(origin)` with `https:` enforcement, Google auth fetches use `AbortSignal.timeout(5000)`, and transient 5xx/network errors are not negative-cached)
+
+  **Priority:** Low  
+  **Category:** Security  
+  **Confidence:** High  
+  **Area:** Favorites Leaderboard Worker  
+  **Affected files:** [worker/favorites-api/index.js](worker/favorites-api/index.js#L432), [worker/favorites-api/index.js](worker/favorites-api/index.js#L595), [tests/unit/worker-favorites-api.test.mjs](tests/unit/worker-favorites-api.test.mjs)  
+  **Evidence:** CONFIRMED October 15 by code inspection of [worker/favorites-api/index.js](worker/favorites-api/index.js): (1) In `resolveOrigin()` (line 598), `origin.endsWith('.garfieldapp.pages.dev')` matches the raw header string without parsing `new URL(origin)` or requiring `protocol === 'https:'` (unlike `resolveAllowedOrigin()` in `worker/index.js`), allowing `http://sub.garfieldapp.pages.dev` or malformed strings ending in `.garfieldapp.pages.dev`. (2) In `verifyGoogleIdentity()` (lines 432–466), outbound fetches to `GOOGLE_TOKENINFO_URL` and `GOOGLE_USERINFO_URL` have no `AbortSignal.timeout(...)`, and any network error or HTTP 5xx/429 response from Google calls `this.cacheIdentity(token, null)` with the full 5-minute `IDENTITY_CACHE_TTL_MS`, locking the user out of voting/migrating for 5 minutes after a transient upstream glitch.  
+  **Problem:** Origin validation in the Favorites API is weaker than in the CORS proxy Worker, and Google token verification lacks request deadlines and caches transient network/5xx errors as permanent token failures for 5 minutes.  
+  **Impact:** Transient Google API hiccups cause 5-minute false 401s for signed-in users, stalled Google responses can hold the single-threaded Durable Object open, and non-HTTPS preview origins are accepted in CORS headers.  
+  **Recommended solution:** Parse `Origin` with `new URL(origin)` and require `protocol === 'https:'` and valid hostname boundary for `*.garfieldapp.pages.dev`; add `AbortSignal.timeout(5000)` to Google tokeninfo/userinfo fetches; only negative-cache deterministic auth failures (HTTP 400/401) or use a short TTL (e.g., 5–10s) for negative entries, leaving 5xx/network errors uncached.  
+  **Regression considerations:** Preserve valid `ALLOWED_ORIGINS`, Cloudflare Pages HTTPS preview origins, audience (`aud`) verification, and positive identity caching bounded by token `expires_in`.  
+  **Acceptance criteria:** `http://sub.garfieldapp.pages.dev` and `https://evil.com?.garfieldapp.pages.dev` are not echoed in `Access-Control-Allow-Origin`; a simulated Google 503/network timeout does not poison `googleIdentityCache` for 5 minutes; outbound auth fetches abort on timeout.  
+  **Validation:** Unit tests in `tests/unit/worker-favorites-api.test.mjs` covering malformed/non-HTTPS preview origins and transient 503 vs 401 Google tokeninfo responses.  
+  **Estimated effort:** Small  
+  **Business value:** Medium  
+  **Technical debt reduction:** Low
+
+### Current Backlog Summary (October 15, 2026)
+
+| Priority | Closed in this pass | Open |
+|---|---:|---:|
+| Critical | 0 | 0 |
+| High | 5 | 0 |
+| Medium | 1 | 0 |
+| Low | 2 | 0 |
+| **Total** | **8** | **0** |
+
+All 8 open items (**R02**, **R06**, **R14**, **R15**, **R16**, **R18**, **R19**, **R20**) are resolved and verified on branch `geminifix` (`v1.0.15`).
+
 
 
