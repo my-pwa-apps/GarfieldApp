@@ -10,7 +10,7 @@ globalThis.localStorage = {
 globalThis.document = { getElementById: () => null, documentElement: { lang: 'en' } };
 
 const {
-    filterFavoritesByDay, getDayFilter, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate
+    createForwardBoundaryTracker, filterFavoritesByDay, getDayFilter, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate
 } = await import('../../dayFilter.js');
 
 const day = (y, m, d) => new Date(y, m - 1, d, 12);
@@ -84,3 +84,31 @@ test('favorites are filtered by weekday without touching the stored list', () =>
     assert.deepEqual(filterFavoritesByDay(favorites, 'sundays'), ['2024/01/07']);
     assert.deepEqual(filterFavoritesByDay(favorites, 'no-sundays'), ['2024/01/06', '2024/01/08']);
 });
+
+test('forward boundary tracker expires after TTL and clears when target date is reached', () => {
+    let clock = 1_000;
+    let changeCalls = 0;
+    const tracker = createForwardBoundaryTracker({
+        ttlMs: 300_000,
+        now: () => clock,
+        onChange: () => { changeCalls += 1; }
+    });
+    const saturday = day(2026, 11, 14);
+    const sunday = day(2026, 11, 15);
+    const monday = day(2026, 11, 16);
+
+    tracker.confirm(saturday, sunday, sunday, 'en', 'gocomics');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), true);
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'fandom'), false);
+    assert.equal(tracker.isAtBoundary(saturday, monday, 'en', 'gocomics'), false);
+
+    clock += 300_000;
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), false);
+
+    tracker.confirm(saturday, sunday, sunday, 'en', 'gocomics');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), true);
+    tracker.clearIfReached(sunday, 'en', 'gocomics');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), false);
+    assert.equal(changeCalls, 1);
+});
+

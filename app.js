@@ -8,7 +8,7 @@ import { normalizeFavoriteDate, normalizeFavorites } from './favorites.js';
 import { CONFIG, safeJSONParse } from './config.js';
 import { configureFavoritesApi, getValidFavoriteDates, migrateExistingFavorites, reportFavoriteToggle } from './favoritesApi.js';
 import { initializeSettingsPanel } from './settingsPanel.js';
-import { filterFavoritesByDay, getDayFilter, initializeDayFilterControl, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate } from './dayFilter.js';
+import { createForwardBoundaryTracker, filterFavoritesByDay, getDayFilter, initializeDayFilterControl, isDateAllowed, randomAllowedDate, setDayFilter, snapToAllowedDate, stepToAllowedDate } from './dayFilter.js';
 import { decodeComicResult, describeComic, getComicTransitionDirection, loadComicWithFallback, prefersReducedMotion, selectOfflineComic, reserveComicSpace, setComicImage, transitionComicImage } from './comicPresentation.js';
 
 
@@ -977,7 +977,6 @@ function translateInterface(lang) {
 
 // Global variables for app functionality
 let currentComicUrl = ""; // Track current comic URL to prevent duplicate loads
-let confirmedForwardBoundary = null;
 let currentselectedDate;
 let formattedComicDate;
 let formattedDate;
@@ -1018,49 +1017,33 @@ async function Share() {
     return shareComic({ comic: displayedComic, t: translations[UTILS.isSpanishMode() ? 'es' : 'en'], showNotification });
 }
 
-
-
-
-
-
-
-
-
-
-
 /**
  * Add or remove comic from favorites
  */
 let displayedComic = null;
+const forwardBoundary = createForwardBoundaryTracker({
+    onChange: () => { if (navigator.onLine && !isTop10Mode() && currentselectedDate) CompareDates(); }
+});
 
 function navigationDateKey(date) {
     return UTILS.dateToISODateString(date);
 }
 
 function confirmForwardBoundary(fromDate, targetDate, language, source) {
-    const latestAllowed = getAllowedDateRange().max;
-    if (navigationDateKey(targetDate) !== navigationDateKey(latestAllowed)) return;
-    confirmedForwardBoundary = {
-        fromDate: navigationDateKey(fromDate),
-        targetDate: navigationDateKey(targetDate),
-        language,
-        source
-    };
+    forwardBoundary.confirm(fromDate, targetDate, getAllowedDateRange().max, language, source);
 }
 
 function clearForwardBoundary(language, source) {
-    if (confirmedForwardBoundary?.language === language && confirmedForwardBoundary?.source === source) {
-        confirmedForwardBoundary = null;
-    }
+    forwardBoundary.clear(language, source);
 }
 
 function isAtConfirmedForwardBoundary() {
-    if (!confirmedForwardBoundary || !currentselectedDate) return false;
-    const language = UTILS.isSpanishMode() ? 'es' : 'en';
-    return confirmedForwardBoundary.fromDate === navigationDateKey(currentselectedDate) &&
-        confirmedForwardBoundary.targetDate === navigationDateKey(getAllowedDateRange().max) &&
-        confirmedForwardBoundary.language === language &&
-        confirmedForwardBoundary.source === UTILS.getPreferredSource();
+    return forwardBoundary.isAtBoundary(
+        currentselectedDate,
+        getAllowedDateRange().max,
+        UTILS.isSpanishMode() ? 'es' : 'en',
+        UTILS.getPreferredSource()
+    );
 }
 
 function Addfav() {
@@ -1473,6 +1456,22 @@ function initApp() {
         showComic();
     });
 
+    const refreshDateBoundsOnResume = () => {
+        const picker = document.getElementById('DatePicker');
+        if (picker) picker.setAttribute('max', UTILS.getEasternTodayString());
+        if (!navigator.onLine || isTop10Mode() || !currentselectedDate) return;
+        const wasForwardBlocked = document.getElementById('Next')?.disabled === true;
+        CompareDates();
+        if (wasForwardBlocked && document.getElementById('Next')?.disabled === false) {
+            UTILS.preloadAdjacentComics(currentselectedDate);
+        }
+    };
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshDateBoundsOnResume();
+    });
+    window.addEventListener('focus', refreshDateBoundsOnResume);
+    window.addEventListener('pageshow', refreshDateBoundsOnResume);
+
     // Restore checkbox states from localStorage FIRST, before any code depends on them
     initializeDarkMode();
 
@@ -1786,6 +1785,8 @@ async function showComic(skipOnFailure = false, direction = null, _depth = 0) {
         if (document.getElementById("lastdate").checked) {
             localStorage.setItem(CONFIG.STORAGE_KEYS.LAST_COMIC, UTILS.dateToISODateString(currentselectedDate));
         }
+    } else if (success) {
+        forwardBoundary.clearIfReached(requestedDate, requestedLanguage, requestedSource);
     }
 
     // Handle same comic detection (timezone edge case). Top Favorites steps through a
@@ -2430,6 +2431,8 @@ function getAllowedDateRange() {
 }
 
 function CompareDates() {
+    const datePickerEl = document.getElementById('DatePicker');
+    if (datePickerEl) datePickerEl.setAttribute('max', UTILS.getEasternTodayString());
     const favs = UTILS.getBrowsableFavorites();
     let startDate;
     if (document.getElementById('showfavs').checked) {
@@ -2466,13 +2469,16 @@ function CompareDates() {
     }
     endDate = endDate.setHours(0, 0, 0, 0);
     endDate = new Date(endDate);
-    if (currentselectedDate.getTime() >= endDate.getTime() || isAtConfirmedForwardBoundary()) {
+    const atEndDate = currentselectedDate.getTime() >= endDate.getTime();
+    if (atEndDate || isAtConfirmedForwardBoundary()) {
         document.getElementById('Next').disabled = true;
         document.getElementById('Last').disabled = true;
-        currentselectedDate = UTILS.createLocalDate(endDate.getFullYear(), endDate.getMonth() + 1, endDate.getDate());
+        const clamped = atEndDate ? endDate : currentselectedDate;
+        currentselectedDate = UTILS.createLocalDate(clamped.getFullYear(), clamped.getMonth() + 1, clamped.getDate());
     } else {
         document.getElementById('Next').disabled = false;
         document.getElementById('Last').disabled = false;
+        currentselectedDate = UTILS.createLocalDate(currentselectedDate.getFullYear(), currentselectedDate.getMonth() + 1, currentselectedDate.getDate());
     }
     if (document.getElementById('showfavs').checked) {
         if (favs.length === 1) {

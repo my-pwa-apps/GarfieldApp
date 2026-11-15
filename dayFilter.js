@@ -141,3 +141,77 @@ export function initializeDayFilterControl(onChange) {
     window.addEventListener('language-changed', translateDayFilterControl);
     select.addEventListener('change', () => onChange(setDayFilter(select.value)));
 }
+
+function toISODate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+/**
+ * Tracks a temporary forward-navigation boundary when the latest calendar day's
+ * comic is confirmed unpublished, expiring automatically after `ttlMs`.
+ */
+export function createForwardBoundaryTracker({
+    ttlMs = CONFIG.FORWARD_BOUNDARY_TTL_MS,
+    now = () => Date.now(),
+    onChange = () => {}
+} = {}) {
+    let state = null;
+    let timer = null;
+
+    const stopTimer = () => {
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
+        }
+    };
+
+    return {
+        confirm(fromDate, targetDate, latestAllowed, language, source) {
+            if (toISODate(targetDate) !== toISODate(latestAllowed)) return;
+            stopTimer();
+            state = {
+                fromDate: toISODate(fromDate),
+                targetDate: toISODate(targetDate),
+                language,
+                source,
+                expiresAt: now() + ttlMs
+            };
+            timer = setTimeout(() => {
+                timer = null;
+                if (state && now() >= state.expiresAt) {
+                    state = null;
+                    onChange();
+                }
+            }, ttlMs);
+            timer?.unref?.();
+        },
+        clear(language, source) {
+            if (state?.language === language && state?.source === source) {
+                state = null;
+                stopTimer();
+                onChange();
+            }
+        },
+        clearIfReached(reachedDate, language, source) {
+            if (state && toISODate(reachedDate) >= state.targetDate) {
+                this.clear(language, source);
+            }
+        },
+        isAtBoundary(currentDate, latestAllowed, language, source) {
+            if (!state || !currentDate) return false;
+            if (now() >= state.expiresAt) {
+                state = null;
+                stopTimer();
+                return false;
+            }
+            return state.fromDate === toISODate(currentDate) &&
+                state.targetDate === toISODate(latestAllowed) &&
+                state.language === language &&
+                state.source === source;
+        }
+    };
+}
+

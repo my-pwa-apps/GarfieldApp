@@ -21,6 +21,7 @@ export const CONFIG = Object.freeze({
     PREFETCH_ADJACENT_DAYS: 2,            // Days to warm on each side for swipe navigation
     COMIC_LOAD_TIMEOUT_MS: 12000,
     COMIC_IMAGE_TIMEOUT_MS: 3000,
+    FORWARD_BOUNDARY_TTL_MS: 300000,      // Re-check unpublished "today" boundary after 5 min (matches proxy HTML TTL)
     PREFETCH_SHUFFLE_QUEUE_SIZE: 3,        // Random comics to warm ahead in Shuffle mode
     PREFETCH_STAGGER_MS: 150,              // Delay between background prefetch requests
     SHUFFLE_HISTORY_MAX: 200,              // Bound on shuffle back/forward history depth

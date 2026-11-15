@@ -265,3 +265,39 @@ test('source fallback continues to the next provider when verifyImage rejects an
     global.fetch = originalFetch;
   }
 });
+
+test('today fallback checks alternate English sources before falling back to yesterday', async () => {
+  const originalFetch = global.fetch;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date()).map(part => [part.type, part.value]));
+  const today = new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 12, 0, 0);
+  const todayIso = `${parts.year}-${parts.month}-${parts.day}`;
+
+  const requestedUrls = [];
+  global.fetch = async (url) => {
+    const str = String(url);
+    requestedUrls.push(str);
+    if (str.includes('gocomics.com')) {
+      return { ok: true, text: async () => '<html><title>404 Page Not Found</title></html>' };
+    }
+    if (str.includes('garfield.fandom.com/api.php')) {
+      return makeFandomResponse(`${todayIso}.gif`);
+    }
+    throw new Error(`Unexpected fetch: ${str}`);
+  };
+
+  try {
+    const result = await getAuthenticatedComic(today, 'en', 'gocomics', { silent: true });
+    assert.equal(result.success, true);
+    assert.equal(result.actualDate, undefined, 'Should serve today from Fandom rather than yesterday from GoComics');
+    assert.ok(result.imageUrl.includes(encodeURIComponent(`https://example.test/${todayIso}.gif`)));
+    assert.equal(requestedUrls.filter(u => u.includes('gocomics.com')).length, 1);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+

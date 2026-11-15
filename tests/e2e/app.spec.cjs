@@ -145,8 +145,8 @@ async function mockExternalServices(page, options = {}) {
 
 async function installMockClock(context, fixedIso) {
   await context.addInitScript(iso => {
-    const fixedTime = new Date(iso).getTime();
     const RealDate = Date;
+    let fixedTime = new RealDate(iso).getTime();
 
     class MockDate extends RealDate {
       constructor(...args) {
@@ -169,6 +169,9 @@ async function installMockClock(context, fixedIso) {
     Object.setPrototypeOf(MockDate, RealDate);
     MockDate.prototype = RealDate.prototype;
     globalThis.Date = MockDate;
+    globalThis.__setMockClock = nextIso => {
+      fixedTime = new RealDate(nextIso).getTime();
+    };
   }, fixedIso);
 }
 
@@ -868,21 +871,63 @@ test('historical redirects keep forward buttons and swipe navigation synchronize
   expect(errors.requestErrors).toEqual([]);
 });
 
-test('a confirmed unpublished latest comic blocks buttons and forward swipes', async ({ page, context }) => {
+test('a confirmed unpublished latest comic blocks buttons and forward swipes until boundary TTL expires', async ({ page, context }) => {
   await installMockClock(context, '2026-04-29T12:00:00-04:00');
+  const redirects = {
+    '2026-04-29': '2026-04-28'
+  };
   const errors = await openApp(page, '/', {
-    comicRedirects: {
-      '2026-04-29': '2026-04-28'
-    }
+    comicRedirects: redirects
   });
 
   await expect(page.locator('#DatePicker')).toHaveValue('2026-04-28');
   await expect(page.locator('#Next')).toBeDisabled();
   await expect(page.locator('#Last')).toBeDisabled();
 
+  // Toggling favorites triggers CompareDates() and must not mutate the displayed Saturday/yesterday date.
+  await page.locator('#favheart').click();
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-04-28');
+  await expect(page.locator('#Next')).toBeDisabled();
+
   await dispatchTouchGesture(page, '#comic', [{ x: 300, y: 200 }, { x: 100, y: 200 }]);
   await page.waitForTimeout(300);
   await expect(page.locator('#DatePicker')).toHaveValue('2026-04-28');
+
+  // Once the comic is published and the 5-minute boundary TTL has elapsed, resuming unlocks forward navigation.
+  delete redirects['2026-04-29'];
+  await page.evaluate(() => {
+    window.__setMockClock('2026-04-29T12:06:00-04:00');
+    window.dispatchEvent(new Event('focus'));
+  });
+  await expect(page.locator('#Next')).toBeEnabled();
+  await expect(page.locator('#Last')).toBeEnabled();
+  await page.locator('#Next').click();
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-04-29');
+  expect(errors.consoleErrors).toEqual([]);
+  expect(errors.pageErrors).toEqual([]);
+  expect(errors.requestErrors).toEqual([]);
+});
+
+test('resuming an open session on Sunday unlocks forward navigation and date picker max from Saturday', async ({ page, context }) => {
+  await installMockClock(context, '2026-11-14T18:00:00-05:00');
+  const errors = await openApp(page);
+
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-11-14');
+  await expect(page.locator('#DatePicker')).toHaveAttribute('max', '2026-11-14');
+  await expect(page.locator('#Next')).toBeDisabled();
+  await expect(page.locator('#Last')).toBeDisabled();
+
+  await page.evaluate(() => {
+    window.__setMockClock('2026-11-15T09:00:00-05:00');
+    window.dispatchEvent(new Event('focus'));
+  });
+
+  await expect(page.locator('#DatePicker')).toHaveAttribute('max', '2026-11-15');
+  await expect(page.locator('#Next')).toBeEnabled();
+  await expect(page.locator('#Last')).toBeEnabled();
+  await page.locator('#Next').click();
+  await expect(page.locator('#DatePicker')).toHaveValue('2026-11-15');
+  await expect(page.locator('#comic')).toHaveAttribute('alt', 'Garfield for November 15, 2026 (English)');
   expect(errors.consoleErrors).toEqual([]);
   expect(errors.pageErrors).toEqual([]);
   expect(errors.requestErrors).toEqual([]);

@@ -40,13 +40,16 @@ function _dateToISO(date) {
     return `${year}-${month}-${day}`;
 }
 
+const _easternDateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+});
+
 function _isRequestedDateTodayInET(date) {
-    const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    const etToday = new Date(etNow);
-    etToday.setHours(0, 0, 0, 0);
-    const requestedDay = new Date(date);
-    requestedDay.setHours(0, 0, 0, 0);
-    return requestedDay.getTime() === etToday.getTime();
+    const parts = Object.fromEntries(_easternDateFormatter.formatToParts(new Date()).map(part => [part.type, part.value]));
+    return _dateToISO(date) === `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function _getPreviousDayAtNoon(date) {
@@ -399,6 +402,13 @@ async function _getComicFromArcaMax(date, options = {}) {
 // MAIN EXPORT — orchestrates the fallback chain
 // ============================================================
 
+async function _fetchComicFromSource(source, date, language, options) {
+    if (source === 'gocomics') return _getComicFromGoComics(date, language, options);
+    if (source === 'fandom') return _getComicFromFandom(date, options);
+    if (source === 'uclick') return _getComicFromUClick(date, options);
+    return _getComicFromArcaMax(date, options);
+}
+
 /**
  * Fetches a Garfield comic for the given date.
  *
@@ -427,6 +437,9 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
         : null;
     const sourceOrder = maxSources ? order.slice(0, maxSources) : order;
 
+    let sawNotFound = false;
+    let sawOtherFailure = false;
+
     for (const source of sourceOrder) {
         options.signal?.throwIfAborted();
         // Spanish is only available on GoComics
@@ -436,16 +449,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
         }
 
         try {
-            let result;
-            if (source === 'gocomics') {
-                result = await _getComicFromGoComics(date, language, options);
-            } else if (source === 'fandom') {
-                result = await _getComicFromFandom(date, options);
-            } else if (source === 'uclick') {
-                result = await _getComicFromUClick(date, options);
-            } else {
-                result = await _getComicFromArcaMax(date, options);
-            }
+            const result = await _fetchComicFromSource(source, date, language, options);
 
             if (result.success) {
                 if (validateImage) await validateImage(result.imageUrl);
@@ -453,26 +457,8 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 return result;
             }
 
-            // If today's strip is missing, first treat it as a source-local
-            // timezone/publication delay and retry yesterday within that same
-            // source before falling back across sources.
-            if (!options.disableTodayFallback && _isRequestedDateTodayInET(date) && source !== 'arcamax') {
-                const yesterday = _getPreviousDayAtNoon(date);
-                let yesterdayResult;
-                if (source === 'gocomics') {
-                    yesterdayResult = await _getComicFromGoComics(yesterday, language, options);
-                } else if (source === 'fandom') {
-                    yesterdayResult = await _getComicFromFandom(yesterday, options);
-                } else if (source === 'uclick') {
-                    yesterdayResult = await _getComicFromUClick(yesterday, options);
-                }
-
-                if (yesterdayResult && yesterdayResult.success) {
-                    if (validateImage) await validateImage(yesterdayResult.imageUrl);
-                    options.signal?.throwIfAborted();
-                    return { ...yesterdayResult, actualDate: yesterday };
-                }
-            }
+            if (result.notFound) sawNotFound = true;
+            else sawOtherFailure = true;
 
             if (!options.silent) {
                 if (result.blocked) {
@@ -482,11 +468,40 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 }
             }
         } catch (err) {
+            options.signal?.throwIfAborted();
+            sawOtherFailure = true;
             if (!options.silent) {
                 console.warn(`${source} error:`, err.message);
             }
         }
     }
 
-    return { success: false, imageUrl: null };
+    // Only fall back to yesterday after checking all eligible sources for today's
+    // strip, so a delayed or blocked primary source cannot hide an available comic.
+    if (!options.disableTodayFallback && _isRequestedDateTodayInET(date)) {
+        const yesterday = _getPreviousDayAtNoon(date);
+        for (const source of sourceOrder) {
+            options.signal?.throwIfAborted();
+            if (source === 'arcamax') continue;
+            if (language === 'es' && source !== 'gocomics') continue;
+
+            try {
+                const yesterdayResult = await _fetchComicFromSource(source, yesterday, language, options);
+                if (yesterdayResult?.success) {
+                    if (validateImage) await validateImage(yesterdayResult.imageUrl);
+                    options.signal?.throwIfAborted();
+                    return { ...yesterdayResult, actualDate: yesterday };
+                }
+            } catch (err) {
+                options.signal?.throwIfAborted();
+                if (!options.silent) {
+                    console.warn(`${source} error:`, err.message);
+                }
+            }
+        }
+    }
+
+    return sawNotFound && !sawOtherFailure
+        ? { success: false, imageUrl: null, notFound: true }
+        : { success: false, imageUrl: null };
 }
