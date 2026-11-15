@@ -122,7 +122,7 @@ export function randomAllowedDate(start, end, { filter = getDayFilter(), random 
 function translateDayFilterControl() {
     const select = document.getElementById('dayFilter');
     if (!select) return;
-    const t = translations[document.documentElement.lang === 'es' ? 'es' : 'en'] || translations.en;
+    const t = translations.en;
     for (const option of select.options) {
         const key = OPTION_LABEL_KEYS[option.value];
         if (key && t[key]) option.textContent = t[key];
@@ -138,7 +138,6 @@ export function initializeDayFilterControl(onChange) {
     if (!select) return;
     select.value = getDayFilter();
     translateDayFilterControl();
-    window.addEventListener('language-changed', translateDayFilterControl);
     select.addEventListener('change', () => onChange(setDayFilter(select.value)));
 }
 
@@ -169,13 +168,12 @@ export function createForwardBoundaryTracker({
     };
 
     return {
-        confirm(fromDate, targetDate, latestAllowed, language, source) {
+        confirm(fromDate, targetDate, latestAllowed, source) {
             if (toISODate(targetDate) !== toISODate(latestAllowed)) return;
             stopTimer();
             state = {
                 fromDate: toISODate(fromDate),
                 targetDate: toISODate(targetDate),
-                language,
                 source,
                 expiresAt: now() + ttlMs
             };
@@ -188,19 +186,19 @@ export function createForwardBoundaryTracker({
             }, ttlMs);
             timer?.unref?.();
         },
-        clear(language, source) {
-            if (state?.language === language && state?.source === source) {
+        clear(source) {
+            if (state?.source === source) {
                 state = null;
                 stopTimer();
                 onChange();
             }
         },
-        clearIfReached(reachedDate, language, source) {
+        clearIfReached(reachedDate, source) {
             if (state && toISODate(reachedDate) >= state.targetDate) {
-                this.clear(language, source);
+                this.clear(source);
             }
         },
-        isAtBoundary(currentDate, latestAllowed, language, source) {
+        isAtBoundary(currentDate, latestAllowed, source) {
             if (!state || !currentDate) return false;
             if (now() >= state.expiresAt) {
                 state = null;
@@ -209,7 +207,6 @@ export function createForwardBoundaryTracker({
             }
             return state.fromDate === toISODate(currentDate) &&
                 state.targetDate === toISODate(latestAllowed) &&
-                state.language === language &&
                 state.source === source;
         }
     };

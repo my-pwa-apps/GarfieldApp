@@ -6,9 +6,6 @@
  */
 
 const DEFAULT_ALLOWED_HOSTS = [
-    'gocomics.com',
-    '*.gocomics.com',
-    'assets.amuniversal.com',
     'picayune.uclick.com',
     'www.arcamax.com',
     'resources.arcamax.com',
@@ -22,10 +19,8 @@ const MAX_REDIRECTS = 5;
 const HOP_BY_HOP_HEADERS = new Set([
     'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
     'te', 'trailer', 'transfer-encoding', 'upgrade', 'content-length',
-    // Strip Link preload headers — upstream sites (e.g. GoComics/Next.js) send
-    // Link: </_next/static/media/font.woff2>; rel=preload; as=font
-    // The browser resolves these relative URLs against the proxy domain and
-    // then tries to load the fonts from the proxy, causing spurious 400 errors.
+    // Strip Link preload headers so relative upstream font/asset preloads are
+    // never resolved against the proxy domain.
     'link',
     // Strip upstream CSP — it would conflict with the app's own policy.
     'content-security-policy',
@@ -33,7 +28,6 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const HTML_CACHE_TTL         = 600;
-const GOCOMICS_HTML_CACHE_TTL = 300;
 const IMAGE_CACHE_TTL        = 86400;
 const DEFAULT_CACHE_TTL      = 3600;
 // Don't cache upstream HTML that is suspiciously short — likely a bot-challenge page.
@@ -120,24 +114,13 @@ export default {
 
         const contentType   = upstreamResponse.headers.get('content-type') || '';
         const isHtml        = contentType.includes('text/html');
-        const isGoComics    = upstreamUrl.hostname.toLowerCase().includes('gocomics.com');
 
-        let response;
         let shouldCache = request.method === 'GET' && upstreamResponse.ok && !bypassCache;
-        if (request.method === 'GET' && upstreamResponse.ok && isHtml && isGoComics) {
-            const rawHtml = await upstreamResponse.text();
-            if (rawHtml.length < MIN_HTML_CACHE_BYTES) {
-                shouldCache = false;
-            }
-            const bodyText = compactGoComicsHtml(rawHtml);
-            response = sanitizeUpstreamResponse(upstreamResponse, bodyText);
-        } else {
-            const contentLength = parseInt(upstreamResponse.headers.get('content-length') || '0', 10);
-            if (isHtml && contentLength > 0 && contentLength < MIN_HTML_CACHE_BYTES) {
-                shouldCache = false;
-            }
-            response = sanitizeUpstreamResponse(upstreamResponse);
+        const contentLength = parseInt(upstreamResponse.headers.get('content-length') || '0', 10);
+        if (isHtml && contentLength > 0 && contentLength < MIN_HTML_CACHE_BYTES) {
+            shouldCache = false;
         }
+        const response = sanitizeUpstreamResponse(upstreamResponse);
 
         if (shouldCache) {
             const cacheCopy = response.clone();
@@ -241,35 +224,12 @@ function buildUpstreamHeaders(request) {
     return headers;
 }
 
-function compactGoComicsHtml(html) {
-    if (html.length < MIN_HTML_CACHE_BYTES) return html;
-    const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
-    let ogImageTag = '';
-    let ogUrlTag = '';
-    for (const tag of metaTags) {
-        if (!ogImageTag && /(?:property|name)\s*=\s*(["'])og:image\1/i.test(tag) &&
-            /(featureassets\.gocomics\.com|assets\.amuniversal\.com)/i.test(tag)) {
-            ogImageTag = tag;
-        } else if (!ogUrlTag && /(?:property|name)\s*=\s*(["'])og:url\1/i.test(tag)) {
-            ogUrlTag = tag;
-        }
-        if (ogImageTag && ogUrlTag) break;
-    }
-    if (!ogImageTag) return html;
-    const canonicalTag = (html.match(/<link\b[^>]*rel\s*=\s*(["'])canonical\1[^>]*>/i) || [])[0] || '';
-    const titleTag = (html.match(/<title\b[^>]*>[\s\S]*?<\/title>/i) || [])[0] || '';
-    return `<!doctype html><html><head><meta charset="utf-8">${titleTag}${canonicalTag}${ogUrlTag}${ogImageTag}</head><body></body></html>`;
-}
-
-function sanitizeUpstreamResponse(upstreamResponse, overrideBody = undefined) {
+function sanitizeUpstreamResponse(upstreamResponse) {
     const headers = new Headers(upstreamResponse.headers);
     for (const header of HOP_BY_HOP_HEADERS) headers.delete(header);
-    if (overrideBody !== undefined) {
-        headers.delete('content-encoding');
-    }
     headers.set('x-proxy-by', 'garfieldapp-corsproxy');
     headers.set('vary', 'Origin');
-    return new Response(overrideBody !== undefined ? overrideBody : upstreamResponse.body, {
+    return new Response(upstreamResponse.body, {
         status:     upstreamResponse.status,
         statusText: upstreamResponse.statusText,
         headers,
@@ -278,11 +238,8 @@ function sanitizeUpstreamResponse(upstreamResponse, overrideBody = undefined) {
 
 function getCacheTtl(targetUrl) {
     const pathname = targetUrl.pathname.toLowerCase();
-    const hostname = targetUrl.hostname.toLowerCase();
-    if (pathname.includes('/cartoon/'))                       return HTML_CACHE_TTL;
-    if (pathname.includes('/wp-content/uploads/'))            return IMAGE_CACHE_TTL;
-    if (hostname.includes('gocomics.com') && !pathname.match(/\.(png|jpg|jpeg|gif|webp|svg)(\?|$)/i))
-        return GOCOMICS_HTML_CACHE_TTL;
+    if (pathname.includes('/cartoon/') || pathname.includes('/thefunnies/')) return HTML_CACHE_TTL;
+    if (pathname.includes('/comics/ga/') || pathname.includes('/newspics/')) return IMAGE_CACHE_TTL;
     return DEFAULT_CACHE_TTL;
 }
 

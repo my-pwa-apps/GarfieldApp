@@ -3,15 +3,12 @@ const PROXY_IDENTITY = 'garfieldapp-corsproxy';
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 2_000;
 const REQUEST_TIMEOUT_MS = 20_000;
-// GoComics sits behind CDN/WAF protection (Cloudflare challenge or BunnyCDN
-// geo/bot 403), which intermittently blocks the proxy's upstream request and is
-// passed through unchanged.
-const UPSTREAM_CHALLENGE_MARKERS = ['Establishing a secure connection', 'checking your browser', 'fonts.bunny.net'];
+const UPSTREAM_CHALLENGE_MARKERS = ['Establishing a secure connection', 'checking your browser', 'Just a moment...', 'fonts.bunny.net'];
 
 /**
  * @returns {{ ok: true } | { ok: false, retryable: boolean, reason: string }}
  */
-function classifyProxyResponse(response, body) {
+function classifyProxyHeaders(response, body = '') {
   if (response.headers.get('x-proxy-by') !== PROXY_IDENTITY) {
     return { ok: false, retryable: false, reason: `proxy identity missing (HTTP ${response.status}); the request did not reach the Garfield worker's proxy path` };
   }
@@ -20,13 +17,10 @@ function classifyProxyResponse(response, body) {
   }
   if (UPSTREAM_CHALLENGE_MARKERS.some(marker => body.includes(marker)) ||
       (response.status === 403 && response.headers.get('cdn-pullzone'))) {
-    return { ok: false, retryable: true, reason: `GoComics returned its bot challenge to the proxy (HTTP ${response.status}); upstream issue, not an origin or proxy fault` };
+    return { ok: false, retryable: true, reason: `upstream returned a bot challenge to the proxy (HTTP ${response.status}); upstream issue, not an origin or proxy fault` };
   }
   if (!response.ok) {
     return { ok: false, retryable: true, reason: `upstream request failed with HTTP ${response.status}` };
-  }
-  if (!body.includes('featureassets.gocomics.com')) {
-    return { ok: false, retryable: true, reason: 'GoComics page contained no comic image reference' };
   }
   return { ok: true };
 }
@@ -40,11 +34,6 @@ function classifyFavoritesResponse(response, body) {
 
 const PROXY = 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?';
 
-function extractComicImage(body) {
-  const meta = body.match(/<meta\b[^>]*og:image[^>]*content="([^"]+)"/i) || body.match(/<meta\b[^>]*content="([^"]+)"[^>]*og:image/i);
-  return meta?.[1] || body.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/)?.[0] || null;
-}
-
 function isImageBytes(bytes) {
   const ascii = (start, end) => String.fromCharCode(...bytes.slice(start, end));
   return ascii(0, 4) === 'GIF8' ||
@@ -53,19 +42,42 @@ function isImageBytes(bytes) {
     (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP');
 }
 
-// Validates the whole browser path: page discovery, then the comic image bytes through the proxy.
-function gocomicsCheck(name, comicPath) {
+function uclickImageCheck(name, comicUrl) {
   return {
     name,
-    url: `${PROXY}${encodeURIComponent(`https://www.gocomics.com/${comicPath}`)}`,
-    classify: async (response, body, fetchImpl) => {
-      const page = classifyProxyResponse(response, body);
-      if (!page.ok) return page;
-      const imageUrl = extractComicImage(body);
-      const image = await fetchImpl(`${PROXY}${encodeURIComponent(imageUrl)}`, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      const bytes = new Uint8Array(await image.arrayBuffer());
-      if (!image.ok || !isImageBytes(bytes)) {
-        return { ok: false, retryable: true, reason: `comic image was not returned as image data through the proxy (HTTP ${image.status}, ${bytes.length} bytes)` };
+    url: `${PROXY}${encodeURIComponent(comicUrl)}`,
+    classify: async (response) => {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const bodyPreview = isImageBytes(bytes) ? '' : new TextDecoder().decode(bytes.slice(0, 512));
+      const headerVerdict = classifyProxyHeaders(response, bodyPreview);
+      if (!headerVerdict.ok) return headerVerdict;
+      if (!isImageBytes(bytes)) {
+        return { ok: false, retryable: true, reason: `comic image was not returned as image data through the proxy (HTTP ${response.status}, ${bytes.length} bytes)` };
+      }
+      return { ok: true };
+    }
+  };
+}
+
+function arcamaxCheck(name) {
+  const pageUrl = 'https://www.arcamax.com/thefunnies/garfield/';
+  return {
+    name,
+    url: `${PROXY}${encodeURIComponent(pageUrl)}`,
+    classify: async (response, fetchImpl) => {
+      const html = await response.text();
+      const pageVerdict = classifyProxyHeaders(response, html);
+      if (!pageVerdict.ok) return pageVerdict;
+      const match = html.match(/https:\/\/resources\.arcamax\.com\/newspics\/[^"'\s<>]+/i);
+      if (!match?.[0]) {
+        return { ok: false, retryable: true, reason: 'ArcaMax page contained no comic image reference' };
+      }
+      const imageResp = await fetchImpl(`${PROXY}${encodeURIComponent(match[0])}`, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      const bytes = new Uint8Array(await imageResp.arrayBuffer());
+      const headerVerdict = classifyProxyHeaders(imageResp, isImageBytes(bytes) ? '' : new TextDecoder().decode(bytes.slice(0, 512)));
+      if (!headerVerdict.ok) return headerVerdict;
+      if (!isImageBytes(bytes)) {
+        return { ok: false, retryable: true, reason: `ArcaMax image was not returned as image data through the proxy (HTTP ${imageResp.status}, ${bytes.length} bytes)` };
       }
       return { ok: true };
     }
@@ -73,12 +85,13 @@ function gocomicsCheck(name, comicPath) {
 }
 
 const checks = [
-  gocomicsCheck('CORS proxy GoComics English comic', 'garfield/2026/04/29'),
-  gocomicsCheck('CORS proxy GoComics Spanish comic', 'garfieldespanol/2026/04/29'),
+  uclickImageCheck('CORS proxy uClick daily comic', 'https://picayune.uclick.com/comics/ga/2026/ga260429.gif'),
+  uclickImageCheck('CORS proxy uClick Sunday comic', 'https://picayune.uclick.com/comics/ga/2026/ga260426.jpg'),
+  arcamaxCheck('CORS proxy ArcaMax fallback comic'),
   {
     name: 'Favorites API top list',
     url: 'https://favorites-api.garfieldapp.workers.dev/top',
-    classify: classifyFavoritesResponse
+    classify: async (response) => classifyFavoritesResponse(response, await response.text())
   }
 ];
 
@@ -93,7 +106,7 @@ async function runCheck(check, { fetchImpl = fetch, delayMs = RETRY_DELAY_MS, lo
     let verdict;
     try {
       const response = await fetchImpl(check.url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-      verdict = await check.classify(response, await response.text(), fetchImpl);
+      verdict = await check.classify(response, fetchImpl);
     } catch (error) {
       verdict = { ok: false, retryable: true, reason: `request failed: ${error.message}` };
     }
@@ -108,7 +121,7 @@ async function runCheck(check, { fetchImpl = fetch, delayMs = RETRY_DELAY_MS, lo
   throw new Error(`${check.name} failed after ${failures.length} attempt(s): ${failures.join('; ')}`);
 }
 
-module.exports = { classifyProxyResponse, classifyFavoritesResponse, extractComicImage, gocomicsCheck, isImageBytes, runCheck, MAX_ATTEMPTS };
+module.exports = { arcamaxCheck, classifyProxyHeaders, classifyFavoritesResponse, isImageBytes, runCheck, uclickImageCheck, MAX_ATTEMPTS };
 
 if (require.main === module) {
   Promise.allSettled(checks.map(check => runCheck(check))).then(results => {

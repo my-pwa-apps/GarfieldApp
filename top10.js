@@ -119,9 +119,8 @@ function showTop10Modal() {
     const list = document.getElementById('top10List');
     if (!backdrop || !modal || !list) return;
 
-    const lang = deps.UTILS.isSpanishMode() ? 'es' : 'en';
-    const t = translations[lang] || translations.en;
-    const dateFmtLocale = lang === 'es' ? 'es-ES' : 'en-US';
+    const t = translations.en;
+    const dateFmtLocale = 'en-US';
 
     if (!(document.activeElement instanceof HTMLElement) || !modal.contains(document.activeElement)) {
         _top10LastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -147,10 +146,9 @@ function showTop10Modal() {
         const BATCH_SIZE = 5;
         const MAX_CONSECUTIVE_FAILURES = 3;
         let _consecutiveThumbFails = 0;
-        // Honour the reader's own source and language preference so thumbnails
-        // match the strips they will actually see when they open an entry.
+        // Honour the reader's source preference so thumbnails match the strips
+        // they will actually see when they open an entry.
         const thumbSource = deps.UTILS.getPreferredSource();
-        const thumbLanguage = lang;
 
         function applyThumb(i, imageUrl, dateStr) {
             const thumbWrap = document.getElementById(`top10Thumb${i}`);
@@ -178,7 +176,7 @@ function showTop10Modal() {
                 }
                 const parts = entry.date.split('/');
                 const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                return getAuthenticatedComic(date, thumbLanguage, thumbSource, {
+                return getAuthenticatedComic(date, thumbSource, {
                     silent: true,
                     maxSources: 1,
                     disableTodayFallback: true
@@ -295,8 +293,7 @@ function updateTop10Indicator() {
     const entry = _top10Entries[_top10BrowseIndex];
     if (!entry) return;
 
-    const lang = deps.UTILS.isSpanishMode() ? 'es' : 'en';
-    const t = translations[lang] || translations.en;
+    const t = translations.en;
     const medal = _top10BrowseIndex === 0 ? '🥇' : _top10BrowseIndex === 1 ? '🥈' : _top10BrowseIndex === 2 ? '🥉' : '';
     const rank = medal || `#${_top10BrowseIndex + 1}`;
 

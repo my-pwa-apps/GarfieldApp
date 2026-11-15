@@ -51,9 +51,8 @@ function _getFavorites() {
         return [];
     }
 }
-function _isSpanish() { return typeof window.UTILS !== 'undefined' ? window.UTILS.isSpanishMode() : false; }
 function _getFavsKey() { return (typeof window.CONFIG !== 'undefined' && window.CONFIG.STORAGE_KEYS) ? window.CONFIG.STORAGE_KEYS.FAVS : 'favs'; }
-function _t(key) { const lang = _isSpanish() ? 'es' : 'en'; const dict = typeof window.translations !== 'undefined' ? window.translations[lang] : null; return dict ? dict[key] : null; }
+function _t(key) { return window.translations?.en?.[key] || null; }
 function _getSyncPreferences() { return typeof window.getSyncPreferences === 'function' ? window.getSyncPreferences() : null; }
 function _applySyncedPreferences(preferences) { if (typeof window.applySyncedPreferences === 'function') window.applySyncedPreferences(preferences); }
 
@@ -546,7 +545,7 @@ const synchronizeDriveFavorites = createDriveFavoritesSync({
         window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { favorites, source: 'google-drive' } }));
     },
     onStatus(pending) {
-        const message = _t('googleSyncPending') || (_isSpanish() ? 'Cambios guardados en este dispositivo. Sincronizacion pendiente.' : 'Changes saved on this device. Sync pending.');
+        const message = _t('googleSyncPending') || 'Changes saved on this device. Sync pending.';
         if (pending) {
             if (!localStorage.getItem(GOOGLE_SYNC_PENDING_KEY)) _notify(message);
             localStorage.setItem(GOOGLE_SYNC_PENDING_KEY, 'true');
@@ -572,11 +571,9 @@ function renderSyncDescription(signedIn = _hasUsableToken()) {
     if (!description) return;
     const pending = _isSyncEnabled() && !!localStorage.getItem(GOOGLE_SYNC_PENDING_KEY);
     description.style.display = pending || !signedIn ? '' : 'none';
-    if (pending) description.textContent = _t('googleSyncPending') || (_isSpanish() ? 'Sincronizacion pendiente.' : 'Sync pending.');
+    if (pending) description.textContent = _t('googleSyncPending') || 'Sync pending.';
     else description.textContent = _t('googleSyncDesc') || '';
 }
-
-window.addEventListener('language-changed', () => renderSyncDescription());
 
 for (const event of ['online', 'focus']) {
     window.addEventListener(event, () => {

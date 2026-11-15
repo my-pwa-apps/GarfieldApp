@@ -97,8 +97,8 @@ test('search, social and structured metadata consistently describe the canonical
   assert.equal(metadata.get('twitter:url'), canonical);
   assert.equal(metadata.get('twitter:card'), 'summary_large_image');
   const preconnects = [...html.matchAll(/<link rel="preconnect"[^>]+>/g)].map(match => match[0]);
-  assert.equal(preconnects.length, 4);
-  for (const origin of ['featureassets.gocomics.com', 'resources.arcamax.com']) {
+  assert.equal(preconnects.length, 3);
+  for (const origin of ['resources.arcamax.com']) {
     assert.ok(preconnects.some(link => link.includes(origin) && !link.includes('crossorigin')));
   }
   for (const origin of ['garfieldapp-corsproxy.garfieldapp.workers.dev', 'garfield.fandom.com']) {
@@ -123,7 +123,7 @@ test('search, social and structured metadata consistently describe the canonical
   assert.doesNotMatch(files.get('serviceworker.js').toString(), /screenshots\//);
   assert.doesNotMatch(html, /<link[^>]*rel="preload"[^>]*screenshots\//);
   assert.equal(schema.applicationCategory, 'EntertainmentApplication');
-  assert.deepEqual(schema.inLanguage, ['en', 'es']);
+  assert.deepEqual(schema.inLanguage, ['en']);
   assert.equal(schema.mainEntityOfPage.url, canonical);
   assert.equal(schema.mainEntityOfPage.isPartOf.url, canonical);
   assert.equal(schema.mainEntityOfPage.isPartOf.name, metadata.get('og:site_name'));

@@ -104,13 +104,9 @@ test('transition clones are hidden from assistive technology without touching th
     assert.equal(original.alt, 'Garfield for June 19, 1978 (English)');
 });
 
-test('comic descriptions never mix the interface language with the strip language', () => {
+test('comic descriptions format the comic date cleanly', () => {
     const date = new Date(1978, 5, 19);
-    assert.equal(describeComic(date, 'en', 'en'), 'Garfield for June 19, 1978 (English)');
-    assert.equal(describeComic(date, 'es', 'es'), 'Garfield del 19 de junio de 1978 (español)');
-    // Spanish interface showing the bundled English fallback strip.
-    assert.equal(describeComic(date, 'es', 'en'), 'Garfield del 19 de junio de 1978 (inglés)');
-    assert.equal(describeComic(date, 'en', 'es'), 'Garfield for June 19, 1978 (Spanish)');
+    assert.equal(describeComic(date), 'Garfield for June 19, 1978');
 });
 
 test('reduced motion follows the user preference and defaults to animating', () => {
@@ -203,10 +199,10 @@ test('comic presentation rejects failed, empty, undecodable and stalled images',
 
 test('online deadline aborts discovery and selects a decoded fallback', async () => {
     let requestSignal;
-    const fallback = { imageUrl: 'first.gif', actualDate: new Date(1978, 5, 19), language: 'en' };
+    const fallback = { imageUrl: 'first.gif', actualDate: new Date(1978, 5, 19) };
     const result = await loadComicWithFallback({
-        date: new Date(), language: 'en', source: 'gocomics', timeoutMs: 10, imageTimeoutMs: 10,
-        fetchComic: (date, language, source, options) => {
+        date: new Date(), source: 'uclick', timeoutMs: 10, imageTimeoutMs: 10,
+        fetchComic: (date, source, options) => {
             requestSignal = options.signal;
             return new Promise(() => {});
         },
@@ -224,11 +220,11 @@ test('successful online image avoids fallback and cancellation never selects a f
     const controller = new AbortController();
     let fallbackCalls = 0;
     const options = {
-        date: new Date(), language: 'en', source: 'gocomics', timeoutMs: 100, imageTimeoutMs: 10,
+        date: new Date(), source: 'uclick', timeoutMs: 100, imageTimeoutMs: 10,
         signal: controller.signal,
         getFallbacks: async () => { fallbackCalls++; return []; },
         loadImage: async () => ({ naturalWidth: 900, naturalHeight: 633 }),
-        fetchComic: async (date, language, source, request) => {
+        fetchComic: async (date, source, request) => {
             await request.validateImage('good.gif');
             return { success: true, imageUrl: 'good.gif' };
         }
@@ -248,9 +244,9 @@ test('cancelling an in-flight image aborts discovery without choosing a fallback
     let imageStarted;
     const started = new Promise(resolve => { imageStarted = resolve; });
     const pending = loadComicWithFallback({
-        date: new Date(), language: 'en', source: 'gocomics', timeoutMs: 1000, imageTimeoutMs: 1000,
+        date: new Date(), source: 'uclick', timeoutMs: 1000, imageTimeoutMs: 1000,
         signal: controller.signal,
-        fetchComic: async (date, language, source, request) => {
+        fetchComic: async (date, source, request) => {
             await request.validateImage('pending.gif');
             return { success: true, imageUrl: 'pending.gif' };
         },

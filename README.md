@@ -1,6 +1,6 @@
 # Daily Garfield Comics PWA
 
-A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, switch between English and Spanish when supported, choose a comic source (the shipped UI default is GoComics), save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, support development through Stripe, and install the app.
+A static Progressive Web App for browsing Garfield comic strips by date. Users can navigate decades of comics, choose a comic source (the shipped UI default is uClick, with Fandom Wiki and ArcaMax fallbacks), save favorites locally, import/export favorites, sync favorites with Google Drive, browse community favorites, share the current strip, support development through Stripe, and install the app.
 
 > **Windows Native App**: The WinUI 3 desktop wrapper for Windows lives in a separate `GarfieldNative` repository and references this PWA as a sibling dependency for web assets.
 
@@ -22,7 +22,7 @@ A static Progressive Web App for browsing Garfield comic strips by date. Users c
 - [favorites.js](favorites.js) - canonical favorite schema and published-date validation for every client ingestion path.
 - [comicPresentation.js](comicPresentation.js) - bounded image load/decode contract, required before committing a comic.
 - [sharing.js](sharing.js) - Web Share, clipboard, and native-host sharing from an explicit committed comic snapshot.
-- [translations.js](translations.js) - matching English and Spanish message dictionaries.
+- [translations.js](translations.js) - frozen English UI message dictionary.
 - [driveSyncState.js](driveSyncState.js) and [driveFavorites.js](driveFavorites.js) - favorite tombstones/merge and the serialized account-scoped Drive coordinator.
 - `toolbar.js` - shared draggable-element helper used by the main toolbar.
 - `comicExtractor.js` - comic-source and CORS-proxy fallback logic.
@@ -68,7 +68,7 @@ For the full pre-deployment gate, run:
 npm run test:predeploy
 ```
 
-`test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy. For English and Spanish comics it fetches the GoComics page and the comic image bytes through the proxy, retrying twice. A GoComics bot-challenge page is reported as an upstream issue, separately from proxy faults such as missing proxy identity or CORS headers, which fail immediately. The challenge depends on the forwarded `User-Agent`: headless browsers (`HeadlessChrome`) and self-identifying probes can be challenged while normal browsers are not, so a challenge here does not mean real users are affected. See [BACKLOG.md](BACKLOG.md#r06).
+`test:workers` checks live worker dependencies, so it requires network access and the deployed workers to be healthy. It verifies daily and Sunday uClick comics plus Fandom discovery and image bytes through the dedicated CORS proxy, alongside the Favorites API `/top` endpoint, retrying transient upstream errors twice while failing immediately on missing proxy identity or CORS headers.
 
 `test:first-visit` uses deterministic provider fixtures on desktop and mobile Chromium. It checks a decoded, visible comic and records separate startup, discovery, image load/decode, and first-display milestones. The first-display mark runs after two animation frames; it is a render-readiness approximation, not a browser paint metric. No timing data is sent to an analytics service.
 
@@ -76,7 +76,7 @@ npm run test:predeploy
 
 `test:lighthouse` audits live providers and reports performance, accessibility, best practices, SEO, LCP, Speed Index, and captured first-comic marks. It fails if the trace never observes a decoded comic, even when the logo gives the page a good LCP score. A successful trace is followed by a separate cold, unthrottled mobile-emulation timing probe; those timings are not Lighthouse's modeled mobile timings. Provider errors remain failures, not fixture results. The local app is served over HTTP/1.1 because the production proxy only accepts plain-http loopback origins. Lighthouse then models six connections per host, which overstates the cost of the multi-module graph compared with production. Use `npm run test:lighthouse -- --url https://garfieldapp.pages.dev/` to audit a deployed revision over its real protocol.
 
-Run `npm run test:lighthouse -- --strict-performance` to additionally enforce R15's LCP <3 seconds, Speed Index <5.8 seconds, and performance >=0.80 targets. Require three comparable cold passes; a single fast run is not sufficient. Results depend on GoComics' bot protection at the time: a challenged request pushes the app onto slower fallback sources.
+Run `npm run test:lighthouse -- --strict-performance` to additionally enforce R15's LCP <3 seconds, Speed Index <5.8 seconds, and performance >=0.80 targets. Require three comparable cold passes; a single fast run is not sufficient.
 
 Every push and pull request to `main` also runs syntax, lint, asset, unit and Chromium E2E checks through `.github/workflows/ci.yml`.
 
@@ -133,7 +133,7 @@ The logo uses 420px and 700px responsive WebP variants with a matching responsiv
 
 Comic loading reserves a 900x270 daily-strip estimate or 900x633 Sunday estimate (Eastern Time on initial bootstrap), then applies the decoded image's actual width and height before display. Existing comics retain their dimensions until their replacements are ready. Historical, translated, redirected or differently cropped strips may differ from the estimate, so this reduces rather than guarantees elimination of layout shifts. Desktop toolbar clearance is reserved in CSS from the start.
 
-Connection hints are limited to four likely origins. The proxy and Fandom API use anonymous CORS hints; direct GoComics and ArcaMax image hosts use non-CORS hints. Provider ordering and deadlines are unchanged.
+Connection hints are limited to three active origins. The proxy and Fandom API use anonymous CORS hints; the ArcaMax image host uses a non-CORS hint. Provider ordering and deadlines are unchanged.
 
 ## Screenshot Assets
 

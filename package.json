@@ -1,12 +1,12 @@
 {
   "name": "garfieldapp",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "private": true,
   "engines": {
     "node": ">=22.19.0"
   },
   "type": "module",
-  "description": "Daily Garfield Comics — a vanilla-JavaScript Progressive Web App with English/Spanish strips, offline caching, favorites sync and a community leaderboard.",
+  "description": "Daily Garfield Comics — a vanilla-JavaScript Progressive Web App with offline caching, favorites sync and a community leaderboard.",
   "scripts": {
     "test:lint": "eslint . --quiet",
     "serve": "node tests/support/static-server.cjs --host 127.0.0.1 --port 8000",

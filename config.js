@@ -9,8 +9,7 @@ export const CONFIG = Object.freeze({
     SWIPE_CLICK_DEBOUNCE_MS: 300,         // Ignore clicks for this long after a swipe
 
     // Comic dates
-    GARFIELD_START_EN: '1978-06-19',      // First English Garfield comic
-    GARFIELD_START_ES: '1999-12-06',      // First Spanish Garfield comic
+    GARFIELD_START_EN: '1978-06-19',      // First Garfield comic
 
     // Favorites leaderboard API
     FAVORITES_API_URL: 'https://favorites-api.garfieldapp.workers.dev',
@@ -34,7 +33,6 @@ export const CONFIG = Object.freeze({
         SHUFFLE: 'shuffle',
         SHOW_FAVS: 'showfavs',
         LAST_DATE: 'lastdate',
-        SPANISH: 'spanish',
         SOURCE: 'comicSource',
         DARK_MODE: 'darkmode',
         SETTINGS: 'settings',

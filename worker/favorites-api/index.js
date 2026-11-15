@@ -585,8 +585,8 @@ function isValidComicDate(value) {
 }
 
 /**
- * GoComics publishes on US Eastern time. Allow "today" in Eastern plus one day
- * of slack so clients slightly ahead of the Worker clock are not rejected.
+ * Garfield strips syndicate on US Eastern time. Allow "today" in Eastern plus
+ * one day of slack so clients slightly ahead of the Worker clock are not rejected.
  */
 function getLatestPublishableComicDateUTC() {
     const parts = new Intl.DateTimeFormat('en-US', {

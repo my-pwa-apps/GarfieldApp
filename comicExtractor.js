@@ -1,11 +1,10 @@
 /**
  * Dedicated CORS proxy and comic source discovery
  *
- * Comic source fallback chain (runtime default in the app: GoComics first):
- *   1. GoComics (default UI source) — all dates from 1978, supports EN + ES
- *   2. Garfield Fandom Wiki (fallback) — all dates from 1978, EN only
- *   3. uClick / picayune (fallback) — all dates from 1978, EN only
- *   4. ArcaMax (last fallback) — last ~30 days, EN only
+ * Comic source fallback chain (runtime default in the app: uClick first):
+ *   1. uClick / picayune (default UI source) — all dates from 1978
+ *   2. Garfield Fandom Wiki (fallback) — all dates from 1978
+ *   3. ArcaMax (last fallback) — last ~30 days
  */
 const CORS_PROXY = 'https://garfieldapp-corsproxy.garfieldapp.workers.dev/?';
 const FETCH_TIMEOUT = 4000;
@@ -18,12 +17,6 @@ function requestSignal(options) {
 
 async function fetchViaProxy(url, options = {}) {
     const fullUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-    const early = typeof window !== 'undefined' ? window.__earlyProxyFetch : null;
-    if (early?.fullUrl === fullUrl) {
-        delete window.__earlyProxyFetch;
-        return early.promise;
-    }
-
     const response = await fetch(fullUrl, {
         signal: requestSignal(options),
         mode: 'cors',
@@ -60,105 +53,8 @@ function _getPreviousDayAtNoon(date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1, 12, 0, 0);
 }
 
-/**
- * Extracts comic image URL from GoComics HTML
- * @param {string} html
- * @returns {string|null}
- */
-function _extractGoComicsImage(html) {
-    // The page can contain unrelated CDN images in sections such as "Five Favorites".
-    // Prefer the page-level Open Graph image and accept either HTML attribute order.
-    const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
-    for (const metaTag of metaTags) {
-        const propertyMatch = metaTag.match(/(?:property|name)\s*=\s*(["'])og:image\1/i);
-        if (!propertyMatch) continue;
-
-        const contentMatch = metaTag.match(/content\s*=\s*(["'])(.*?)\1/i);
-        if (!contentMatch?.[2]) continue;
-
-        try {
-            const imageUrl = new URL(contentMatch[2].replace(/&amp;/gi, '&'));
-            const isApprovedHost =
-                imageUrl.hostname === 'featureassets.gocomics.com' ||
-                imageUrl.hostname === 'assets.amuniversal.com';
-            if (imageUrl.protocol === 'https:' && isApprovedHost) {
-                return imageUrl.href;
-            }
-        } catch {
-            // Ignore malformed metadata and continue to the existing fallbacks.
-        }
-    }
-
-    // featureassets CDN (current)
-    let match = html.match(/https:\/\/featureassets\.gocomics\.com\/assets\/[a-f0-9]+/);
-    if (match) return match[0];
-
-    // amuniversal CDN (legacy)
-    match = html.match(/https:\/\/assets\.amuniversal\.com\/[a-f0-9]+/);
-    if (match) return match[0];
-
-    // picture tag fallback
-    match = html.match(/<picture[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?<\/picture>/i);
-    if (match && match[1]) return match[1];
-
-    return null;
-}
-
-async function _getComicFromGoComics(date, language, options = {}) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const comicPath = language === 'es' ? 'garfieldespanol' : 'garfield';
-    const url = `https://www.gocomics.com/${comicPath}/${year}/${month}/${day}`;
-
-    const html = await fetchViaProxy(url, options);
-
-    if (html.includes('<title>404') || html.includes('Page Not Found') || html.includes('does not exist')) {
-        return { success: false, imageUrl: null, notFound: true };
-    }
-
-    // Cloudflare bot-protection challenge — GoComics is blocking the proxy request.
-    // This is a known transient issue; fall through to the next source.
-    if (html.includes('Establishing a secure connection') || html.includes('checking your browser')) {
-        if (!options.silent) {
-            console.warn('GoComics: Cloudflare challenge received — proxy request blocked. Falling back to next source.');
-        }
-        return { success: false, imageUrl: null, blocked: true };
-    }
-
-    const imageUrl = _extractGoComicsImage(html);
-    if (imageUrl) {
-        // Detect if GoComics redirected to a different date (comic not yet published).
-        // Extract the actual date from the canonical/og:url and return it so the caller
-        // can correct the displayed date instead of silently showing the wrong strip.
-        const requestedPath = `/${year}/${month}/${day}`;
-        const canonicalMatch =
-            html.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/i) ||
-            html.match(/property="og:url"[^>]*content="([^"]+)"/i) ||
-            html.match(/content="([^"]+)"[^>]*property="og:url"/i);
-        if (canonicalMatch && !canonicalMatch[1].includes(requestedPath)) {
-            const actualMatch = canonicalMatch[1].match(/\/(\d{4})\/(\d{2})\/(\d{2})/);
-            if (actualMatch) {
-                const actualDate = new Date(
-                    parseInt(actualMatch[1]),
-                    parseInt(actualMatch[2]) - 1,
-                    parseInt(actualMatch[3]),
-                    12, 0, 0
-                );
-                return { success: true, imageUrl, actualDate };
-            }
-        }
-        return { success: true, imageUrl };
-    }
-
-    if (!options.silent) {
-        console.warn(`GoComics: no image found in response (HTML length: ${html.length}). First 200 chars: ${html.slice(0, 200).replace(/\s+/g, ' ')}`);
-    }
-    return { success: false, imageUrl: null };
-}
-
 // ============================================================
-// SOURCE 2: GARFIELD FANDOM WIKI (FIRST FALLBACK) — EN only
+// SOURCE 1: GARFIELD FANDOM WIKI — full archive from 1978
 // Uses the Fandom MediaWiki JSON API (CORS-enabled, no proxy needed).
 // Images are served via the CORS proxy so they load through Cloudflare
 // regardless of the client's VPN or CDN edge assignment.
@@ -224,6 +120,13 @@ async function _getComicFromFandom(date, options = {}) {
                 _fandomLookupCache.set(cacheKey, result);
                 return result;
             }
+
+            const missingResult = { success: false, imageUrl: null, notFound: true };
+            _fandomLookupCache.set(cacheKey, missingResult);
+            if (!options.silent) {
+                console.warn(`Fandom wiki: no image found for ${dateStr}`);
+            }
+            return missingResult;
         }
     } catch (err) {
         if (!options.silent) {
@@ -233,16 +136,11 @@ async function _getComicFromFandom(date, options = {}) {
         return { success: false, imageUrl: null };
     }
 
-    const result = { success: false, imageUrl: null };
-    _fandomLookupCache.set(cacheKey, result);
-    if (!options.silent) {
-        console.warn(`Fandom wiki: no image found for ${dateStr}`);
-    }
-    return result;
+    return { success: false, imageUrl: null };
 }
 
 // ============================================================
-// SOURCE 3: UCLICK / PICAYUNE — EN only, full archive from 1978
+// SOURCE 2: UCLICK / PICAYUNE (DEFAULT) — full archive from 1978
 // Direct image URLs of the form:
 //   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.{gif|jpg}
 // Modern Sunday color strips use .jpg while daily strips and older archival
@@ -256,6 +154,7 @@ async function _getComicFromUClick(date, options = {}) {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     const extensions = date.getDay() === 0 ? ['jpg', 'gif'] : ['gif', 'jpg'];
+    let allNotFound = true;
 
     for (const ext of extensions) {
         options.signal?.throwIfAborted();
@@ -263,23 +162,33 @@ async function _getComicFromUClick(date, options = {}) {
         const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
 
         try {
-            // HEAD, not GET: this call only probes for existence so the strip
-            // is not transferred twice (once here, once by the <img> tag).
-            const resp = await fetch(proxiedUrl, {
-                method: 'HEAD',
-                signal: requestSignal(options),
-                mode: 'cors',
-                credentials: 'omit',
-                cache: 'no-cache'
-            });
+            const early = typeof window !== 'undefined' ? window.__earlyUClickProbe : null;
+            let resp;
+            if (early?.proxiedUrl === proxiedUrl) {
+                delete window.__earlyUClickProbe;
+                resp = await early.promise;
+            } else {
+                // HEAD, not GET: this call only probes for existence so the strip
+                // is not transferred twice (once here, once by the <img> tag).
+                resp = await fetch(proxiedUrl, {
+                    method: 'HEAD',
+                    signal: requestSignal(options),
+                    mode: 'cors',
+                    credentials: 'omit',
+                    cache: 'no-cache'
+                });
+            }
             if (resp.ok) {
                 return { success: true, imageUrl: proxiedUrl };
             }
-            if (resp.status && resp.status !== 404) {
+            if (resp.status !== 404) {
+                allNotFound = false;
+                if (resp.status === 403) return { success: false, imageUrl: null, blocked: true };
                 break;
             }
         } catch (err) {
             options.signal?.throwIfAborted();
+            allNotFound = false;
             if (!options.silent) {
                 console.warn(`uClick (${imageUrl}):`, err.message);
             }
@@ -287,11 +196,13 @@ async function _getComicFromUClick(date, options = {}) {
         }
     }
 
-    return { success: false, imageUrl: null };
+    return allNotFound
+        ? { success: false, imageUrl: null, notFound: true }
+        : { success: false, imageUrl: null };
 }
 
 // ============================================================
-// SOURCE 4: ARCAMAX (LAST FALLBACK) — EN only, last ~30 days
+// SOURCE 3: ARCAMAX (LAST FALLBACK) — last ~30 days
 // ============================================================
 
 // In-session date→articleId cache built up during traversal
@@ -415,36 +326,30 @@ async function _getComicFromArcaMax(date, options = {}) {
 // MAIN EXPORT — orchestrates the fallback chain
 // ============================================================
 
-async function _fetchComicFromSource(source, date, language, options) {
-    if (source === 'gocomics') return _getComicFromGoComics(date, language, options);
-    if (source === 'fandom') return _getComicFromFandom(date, options);
+async function _fetchComicFromSource(source, date, options) {
     if (source === 'uclick') return _getComicFromUClick(date, options);
+    if (source === 'fandom') return _getComicFromFandom(date, options);
     return _getComicFromArcaMax(date, options);
 }
 
 /**
  * Fetches a Garfield comic for the given date.
  *
- * Tries sources in order. ArcaMax is always last; the EN-capable sources
- * (fandom / gocomics / uclick) are reordered so that the user's preferred
- * source is tried first, followed by the others in a fixed fallback order.
+ * Tries sources in order. ArcaMax is always last; the full-archive sources
+ * (uclick / fandom) rotate so the user's preferred source is tried first.
  *
  * @param {Date} date
- * @param {string} language     - 'en' or 'es'  (ES only available on GoComics)
- * @param {string} preferredSource - 'gocomics' | 'fandom' | 'uclick' (defaults to GoComics, matching the app UI)
- * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean}>}
+ * @param {string} [preferredSource='uclick'] - 'uclick' | 'fandom'
+ * @param {object} [options]
+ * @returns {Promise<{success: boolean, imageUrl: string|null, notFound?: boolean, actualDate?: Date}>}
  */
-export async function getAuthenticatedComic(date, language = 'en', preferredSource = 'gocomics', options = {}) {
+export async function getAuthenticatedComic(date, preferredSource = 'uclick', options = {}) {
     const validateImage = options.validateImage || options.verifyImage;
-    // Build the ordered list of sources to try.
-    // ArcaMax is always appended last; the three EN-capable sources rotate
-    // so the user's preferred source is first.
     const FALLBACK_ORDER = {
-        fandom:   ['fandom', 'gocomics', 'uclick', 'arcamax'],
-        gocomics: ['gocomics', 'fandom', 'uclick', 'arcamax'],
-        uclick:   ['uclick', 'fandom', 'gocomics', 'arcamax']
+        uclick: ['uclick', 'fandom', 'arcamax'],
+        fandom: ['fandom', 'uclick', 'arcamax']
     };
-    const order = FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.gocomics;
+    const order = FALLBACK_ORDER[preferredSource] || FALLBACK_ORDER.uclick;
     const maxSources = Number.isInteger(options.maxSources) && options.maxSources > 0
         ? options.maxSources
         : null;
@@ -456,14 +361,9 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
     for (const source of order) {
         if (maxSources && nonBlockedAttempts >= maxSources) break;
         options.signal?.throwIfAborted();
-        // Spanish is only available on GoComics
-        if (language === 'es' && source !== 'gocomics') {
-            if (source === 'arcamax') break; // No point trying further
-            continue;
-        }
 
         try {
-            const result = await _fetchComicFromSource(source, date, language, options);
+            const result = await _fetchComicFromSource(source, date, options);
 
             if (result.success) {
                 if (validateImage) await validateImage(result.imageUrl);
@@ -477,7 +377,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
 
             if (!options.silent) {
                 if (result.blocked) {
-                    console.warn(`${source}: proxy blocked by bot-protection, trying next source`);
+                    console.warn(`${source}: proxy blocked by upstream protection, trying next source`);
                 } else {
                     console.warn(`${source}: unavailable, no comic found`);
                 }
@@ -501,10 +401,9 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             if (maxSources && yesterdayAttempts >= maxSources) break;
             options.signal?.throwIfAborted();
             if (source === 'arcamax') continue;
-            if (language === 'es' && source !== 'gocomics') continue;
 
             try {
-                const yesterdayResult = await _fetchComicFromSource(source, yesterday, language, options);
+                const yesterdayResult = await _fetchComicFromSource(source, yesterday, options);
                 if (yesterdayResult?.success) {
                     if (validateImage) await validateImage(yesterdayResult.imageUrl);
                     options.signal?.throwIfAborted();

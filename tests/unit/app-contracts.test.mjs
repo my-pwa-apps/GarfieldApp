@@ -108,11 +108,11 @@ test('the module exposes its shared helpers without booting the UI', () => {
     assert.ok(Object.isFrozen(CONFIG), 'CONFIG must stay immutable at runtime');
 });
 
-test('translation dictionaries expose the same application keys in English and Spanish', () => {
-    assert.deepEqual(Object.keys(translations.es).sort(), Object.keys(translations.en).sort());
+test('translation dictionary exposes immutable English application strings', () => {
+    assert.deepEqual(Object.keys(translations), ['en']);
+    assert.ok(Object.isFrozen(translations) && Object.isFrozen(translations.en));
     for (const key of ['shareText', 'shareEmpty', 'shareCopied', 'shareUnsupported', 'shareFailed', 'loadTitle', 'loadFailed', 'loadHint', 'updateAvailable', 'updateRefresh', 'googleSyncPending']) {
-        assert.ok(translations.es[key]);
-        assert.notEqual(translations.es[key], translations.en[key]);
+        assert.ok(translations.en[key]);
     }
 });
 
@@ -129,17 +129,13 @@ test('ISO and favorite date strings parse as local calendar days, never UTC midn
 
     // Round-tripping must be lossless regardless of the machine timezone.
     assert.equal(UTILS.dateToISODateString(UTILS.dateFromISODateString('2000-01-01')), '2000-01-01');
-    assert.equal(UTILS.dateToISODateString(UTILS.dateFromFavoriteDateString('1999/12/31')), '1999-12-31');
+    assert.equal(UTILS.dateToISODateString(UTILS.dateFromFavoriteDateString('1999/12/31')), '1999/12/31'.replaceAll('/', '-'));
 });
 
-test('the Garfield start dates survive parsing as the documented calendar days', () => {
+test('the Garfield start date survives parsing as the documented calendar day', () => {
     assert.equal(
         UTILS.dateToISODateString(UTILS.dateFromISODateString(CONFIG.GARFIELD_START_EN)),
         CONFIG.GARFIELD_START_EN
-    );
-    assert.equal(
-        UTILS.dateToISODateString(UTILS.dateFromISODateString(CONFIG.GARFIELD_START_ES)),
-        CONFIG.GARFIELD_START_ES
     );
 });
 
@@ -161,27 +157,23 @@ test('getFavorites always returns an array, even when localStorage is corrupt', 
     assert.deepEqual(UTILS.getFavorites(), ['2024/01/02', '2024/01/01']);
 });
 
-test('offline comics are indexed per language and stay bounded', () => {
+test('offline comics stay sorted, deduplicated, and bounded', () => {
     assert.equal(CONFIG.STORAGE_KEYS.OFFLINE_COMICS, 'offlineComics');
 
-    UTILS.rememberOfflineComic('2024-01-02', 'en', 'https://example.test/b.gif');
-    UTILS.rememberOfflineComic('2024-01-01', 'en', 'https://example.test/a.gif');
-    UTILS.rememberOfflineComic('2024-01-03', 'es', 'https://example.test/es.gif');
+    UTILS.rememberOfflineComic('2024-01-02', 'https://example.test/b.gif');
+    UTILS.rememberOfflineComic('2024-01-01', 'https://example.test/a.gif');
 
-    assert.deepEqual(UTILS.getOfflineComics('en').map(comic => comic.date), ['2024-01-01', '2024-01-02']);
-    assert.deepEqual(UTILS.getOfflineComics('es').map(comic => comic.date), ['2024-01-03']);
-    assert.equal(UTILS.getOfflineComics().length, 3);
+    assert.deepEqual(UTILS.getOfflineComics().map(comic => comic.date), ['2024-01-01', '2024-01-02']);
 
     // Re-caching the same day replaces rather than duplicates the entry.
-    UTILS.rememberOfflineComic('2024-01-02', 'en', 'https://example.test/b2.gif');
-    const english = UTILS.getOfflineComics('en');
-    assert.equal(english.length, 2);
-    assert.equal(english.at(-1).imageUrl, 'https://example.test/b2.gif');
+    UTILS.rememberOfflineComic('2024-01-02', 'https://example.test/b2.gif');
+    const cached = UTILS.getOfflineComics();
+    assert.equal(cached.length, 2);
+    assert.equal(cached.at(-1).imageUrl, 'https://example.test/b2.gif');
 
     for (let index = 0; index < 60; index += 1) {
         UTILS.rememberOfflineComic(
-            `2023-01-${String((index % 28) + 1).padStart(2, '0')}`,
-            `lang${index}`,
+            `2023-${String(Math.floor(index / 28) + 1).padStart(2, '0')}-${String((index % 28) + 1).padStart(2, '0')}`,
             'https://example.test/x.gif'
         );
     }
@@ -201,17 +193,17 @@ test('favorite ingestion rejects malformed schemas and impossible dates', () => 
 });
 
 test('offline navigation walks to the nearest cached neighbour in the requested direction', () => {
-    UTILS.rememberOfflineComic('2024-01-01', 'en', 'https://example.test/a.gif');
-    UTILS.rememberOfflineComic('2024-01-05', 'en', 'https://example.test/b.gif');
+    UTILS.rememberOfflineComic('2024-01-01', 'https://example.test/a.gif');
+    UTILS.rememberOfflineComic('2024-01-05', 'https://example.test/b.gif');
 
-    assert.equal(UTILS.getOfflineComic('2024-01-05', 'en').imageUrl, 'https://example.test/b.gif');
-    assert.equal(UTILS.getOfflineComic('2024-01-03', 'en', 'previous').imageUrl, 'https://example.test/a.gif');
-    assert.equal(UTILS.getOfflineComic('2024-01-03', 'en', 'next').imageUrl, 'https://example.test/b.gif');
-    assert.equal(UTILS.getOfflineComic('2023-12-31', 'en', 'previous').success, false);
+    assert.equal(UTILS.getOfflineComic('2024-01-05').imageUrl, 'https://example.test/b.gif');
+    assert.equal(UTILS.getOfflineComic('2024-01-03', 'previous').imageUrl, 'https://example.test/a.gif');
+    assert.equal(UTILS.getOfflineComic('2024-01-03', 'next').imageUrl, 'https://example.test/b.gif');
+    assert.equal(UTILS.getOfflineComic('2023-12-31', 'previous').success, false);
 });
 
 test('an empty offline index still serves the bundled first strip', () => {
-    const result = UTILS.getOfflineComic('2024-01-01', 'en');
+    const result = UTILS.getOfflineComic('2024-01-01');
     assert.equal(result.success, true);
     assert.equal(result.imageUrl, './garfield-first.gif');
     assert.equal(UTILS.dateToISODateString(result.actualDate), CONFIG.GARFIELD_START_EN);
@@ -219,8 +211,8 @@ test('an empty offline index still serves the bundled first strip', () => {
 });
 
 test('offline reconciliation removes dates whose image bytes were evicted', async () => {
-    UTILS.rememberOfflineComic('2024-01-01', 'en', 'https://example.test/evicted.gif');
-    UTILS.rememberOfflineComic('2024-01-02', 'en', 'https://example.test/resident.gif');
+    UTILS.rememberOfflineComic('2024-01-01', 'https://example.test/evicted.gif');
+    UTILS.rememberOfflineComic('2024-01-02', 'https://example.test/resident.gif');
     const previous = globalThis.caches;
     globalThis.caches = { match: async url => url.endsWith('/resident.gif') ? {} : undefined };
     try {
@@ -231,27 +223,25 @@ test('offline reconciliation removes dates whose image bytes were evicted', asyn
     }
 });
 
-test('sync preferences report the persisted user configuration', () => {
+test('sync preferences report the persisted user configuration and migrate legacy gocomics source', () => {
     const defaults = getSyncPreferences();
     assert.deepEqual(
         Object.keys(defaults).sort(),
-        ['comicSource', 'darkMode', 'dayFilter', 'shuffle', 'spanish', 'swipeEnabled']
+        ['comicSource', 'darkMode', 'dayFilter', 'shuffle', 'swipeEnabled']
     );
-    assert.equal(defaults.spanish, false);
+    assert.equal(defaults.comicSource, 'uclick');
     assert.equal(defaults.shuffle, false);
     assert.equal(defaults.dayFilter, 'all');
     assert.equal(defaults.swipeEnabled, true, 'swipe is opt-out, not opt-in');
 
-    storage.set(CONFIG.STORAGE_KEYS.SPANISH, 'true');
     storage.set(CONFIG.STORAGE_KEYS.SHUFFLE, 'true');
     storage.set(CONFIG.STORAGE_KEYS.SWIPE, 'false');
-    storage.set(CONFIG.STORAGE_KEYS.SOURCE, 'not-a-real-source');
+    storage.set(CONFIG.STORAGE_KEYS.SOURCE, 'gocomics');
 
     const stored = getSyncPreferences();
-    assert.equal(stored.spanish, true);
     assert.equal(stored.shuffle, true);
     assert.equal(stored.swipeEnabled, false);
-    assert.notEqual(stored.comicSource, 'not-a-real-source', 'an unknown source must fall back to a supported one');
+    assert.equal(stored.comicSource, 'uclick', 'legacy gocomics or unknown source must fall back to uclick');
 });
 
 test('community favorite writes are authenticated by bearer token only', async () => {

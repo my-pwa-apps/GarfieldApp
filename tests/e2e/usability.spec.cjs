@@ -13,27 +13,6 @@ async function mockExternalServices(page, options = {}) {
     { date: '1978/06/20', count: 5 }
   ];
 
-  const comicHtml = (url) => {
-    const target = new URL(url);
-    const [year = '2026', month = '04', day = '29'] = target.pathname.split('/').filter(Boolean).slice(-3);
-    const imageUrl = `https://featureassets.gocomics.com/assets/${year}${month}${day}abcdef0123456789abcdef`;
-    return `<!doctype html><html><head><meta property="og:image" content="${imageUrl}"></head><body></body></html>`;
-  };
-
-  // When the app proxies an image asset (e.g. during share, to build a
-  // same-origin canvas source) the nested target is an image URL, not a
-  // comic page — return PNG bytes instead of HTML so the image decodes.
-  const isImageTarget = (target) => /\.(png|jpe?g|gif|webp)(\?|$)/i.test(target) ||
-    /featureassets\.gocomics\.com|static\.wikia\.nocookie\.net|assets\.amuniversal\.com|resources\.arcamax\.com/i.test(target);
-
-  const proxyFulfill = (route, target) => {
-    if (isImageTarget(target)) {
-      route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-    } else {
-      route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(target) });
-    }
-  };
-
   await context.route('**/{favicon-16x16.png,favicon-32x32.png,apple-touch-icon.png}', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
@@ -43,31 +22,19 @@ async function mockExternalServices(page, options = {}) {
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(topFavorites) });
   });
-  await context.route('https://featureassets.gocomics.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-  });
   await context.route('https://static.wikia.nocookie.net/**', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
-  await context.route('https://assets.amuniversal.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-  });
   await context.route('https://garfield.fandom.com/**', route => {
+    const title = new URL(route.request().url()).searchParams.get('titles')?.split('|')[0] || 'File:2026-04-29.gif';
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
+      body: JSON.stringify({ query: { pages: [{ pageid: 1, title, imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
   await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
-    const requestUrl = new URL(route.request().url());
-    proxyFulfill(route, decodeURIComponent(requestUrl.search.slice(1)));
-  });
-  await context.route('https://api.codetabs.com/**', route => {
-    proxyFulfill(route, route.request().url());
-  });
-  await context.route('https://api.allorigins.win/**', route => {
-    proxyFulfill(route, route.request().url());
+    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
 }
 
@@ -241,15 +208,10 @@ test('ordinary user can discover and use the main app features in one journey', 
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
 
-  await page.locator('#spanish').check();
-  await expect(page.getByRole('button', { name: 'Anterior' })).toBeVisible();
-  await page.locator('#spanish').uncheck();
-  await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();
-
   await page.locator('#comicSource').selectOption('fandom');
-  await expect(page.locator('#spanish-setting-row')).toHaveCSS('display', 'none');
-  await page.locator('#comicSource').selectOption('gocomics');
-  await expect(page.locator('#spanish-setting-row')).not.toHaveCSS('display', 'none');
+  await expect(page.locator('#comicSource')).toHaveValue('fandom');
+  await page.locator('#comicSource').selectOption('uclick');
+  await expect(page.locator('#comicSource')).toHaveValue('uclick');
 
   await openSettingsGroupFor(page, '#showfavs');
   await page.locator('#showfavs').check();

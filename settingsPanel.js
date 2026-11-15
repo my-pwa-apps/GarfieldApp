@@ -96,7 +96,7 @@ function initializeAccordion(panel) {
 }
 
 function translateGroups() {
-    const t = translations[document.documentElement.lang === 'es' ? 'es' : 'en'] || translations.en;
+    const t = translations.en;
     const title = document.getElementById('settingsTitle');
     if (title) title.textContent = t.settings;
     for (const group of getGroups()) {
@@ -116,7 +116,6 @@ export function initializeSettingsPanel() {
 
     initializeAccordion(panel);
     translateGroups();
-    window.addEventListener('language-changed', translateGroups);
 
     document.getElementById('settingsBtn')?.addEventListener('click', toggleSettings);
     document.getElementById('settingsCloseBtn')?.addEventListener('click', toggleSettings);

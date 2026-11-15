@@ -13,15 +13,13 @@ test('client feature modules stay bounded and the legacy app cannot grow', async
     }
 });
 
-test('sharing takes a committed comic input and reports the empty state in either language', async () => {
+test('sharing takes a committed comic input and reports the empty state', async () => {
     const previousWindow = globalThis.window;
     globalThis.window = { location: { href: 'https://garfieldapp.pages.dev/' } };
     try {
-        for (const language of ['en', 'es']) {
-            const messages = [];
-            await shareComic({ comic: null, t: translations[language], showNotification: message => messages.push(message) });
-            assert.deepEqual(messages, [translations[language].shareEmpty]);
-        }
+        const messages = [];
+        await shareComic({ comic: null, t: translations.en, showNotification: message => messages.push(message) });
+        assert.deepEqual(messages, [translations.en.shareEmpty]);
     } finally {
         globalThis.window = previousWindow;
     }

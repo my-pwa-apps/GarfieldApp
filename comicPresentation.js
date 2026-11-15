@@ -96,14 +96,9 @@ export function createTransitionClone(image) {
     return clone;
 }
 
-// The sentence follows the interface language; the parenthesis names the strip's own language.
-export function describeComic(date, uiLanguage, comicLanguage) {
-    const spanishUi = uiLanguage === 'es';
-    const dateLabel = date.toLocaleDateString(spanishUi ? 'es-ES' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const spanishComic = comicLanguage === 'es';
-    return spanishUi
-        ? `Garfield del ${dateLabel} (${spanishComic ? 'español' : 'inglés'})`
-        : `Garfield for ${dateLabel} (${spanishComic ? 'Spanish' : 'English'})`;
+export function describeComic(date) {
+    const dateLabel = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return `Garfield for ${dateLabel}`;
 }
 
 export function reserveComicSpace(image, date) {
@@ -136,7 +131,7 @@ export function selectOfflineComic(dateString, comics, direction, parseDate, fir
     }
     if (comic) return { success: true, imageUrl: comic.imageUrl, actualDate: parseDate(comic.date), isOffline: true };
     if (comics.length === 0) {
-        return { success: true, imageUrl: './garfield-first.gif', actualDate: parseDate(firstDate), language: 'en', isOffline: true };
+        return { success: true, imageUrl: './garfield-first.gif', actualDate: parseDate(firstDate), isOffline: true };
     }
     return { success: false, imageUrl: null, isOffline: true };
 }
@@ -180,7 +175,7 @@ export function loadComicImage(imageUrl, timeoutMs = 8000, signal) {
 }
 
 export async function loadComicWithFallback({
-    date, language, source, timeoutMs, imageTimeoutMs, getFallbacks,
+    date, source, timeoutMs, imageTimeoutMs, getFallbacks,
     signal, fetchComic = getAuthenticatedComic, loadImage = loadComicImage
 }) {
     const controller = new AbortController();
@@ -198,7 +193,7 @@ export async function loadComicWithFallback({
     let readyImage;
     try {
         const result = await Promise.race([
-            fetchComic(date, language, source, {
+            fetchComic(date, source, {
                 signal: controller.signal,
                 validateImage: async imageUrl => {
                     controller.signal.throwIfAborted();

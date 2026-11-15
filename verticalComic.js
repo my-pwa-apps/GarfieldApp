@@ -2,14 +2,8 @@ import { translations } from './translations.js';
 
 // Tall (vertical) strips: shown as a thumbnail with a "view full size" notice,
 // expanded to a fullscreen view on click and closed by click or Escape.
-const deps = { isSpanishMode: () => false };
 let verticalComicActive = false;
 let verticalFullscreen = false;
-
-/** @param {{ isSpanishMode: () => boolean }} dependencies */
-export function configureVerticalComic(dependencies) {
-    Object.assign(deps, dependencies);
-}
 
 export const isVerticalComicActive = () => verticalComicActive;
 export const isVerticalFullscreen = () => verticalFullscreen;
@@ -53,7 +47,7 @@ export function checkImageOrientation() {
         // Create notice
         const notice = document.createElement('div');
         notice.className = 'thumbnail-notice';
-        notice.textContent = (translations[deps.isSpanishMode() ? 'es' : 'en'] || translations.en).viewFullSize;
+        notice.textContent = translations.en.viewFullSize;
 
         // Set up the thumbnail display
         comicWrapper.replaceChild(thumbnailContainer, comic);

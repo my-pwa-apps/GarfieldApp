@@ -9,21 +9,18 @@ const transparentPng = Buffer.from(
 
 async function mockExternalServices(page) {
   const context = page.context();
-  const comicHtml = '<!doctype html><html><head><meta property="og:image" content="https://featureassets.gocomics.com/assets/offline-test-image"></head><body></body></html>';
 
   await context.route('**/{favicon-16x16.png,favicon-32x32.png,apple-touch-icon.png}', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
   await context.route('https://accounts.google.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
-  await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
-  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml }));
-  await context.route('https://api.codetabs.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml }));
-  await context.route('https://api.allorigins.win/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml }));
+  await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://garfield.fandom.com/**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://featureassets.gocomics.com/assets/offline-test-image' }] }] } })
+    body: JSON.stringify({ query: { pages: [{ pageid: 1, title: 'File:2026-04-29.gif', imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/offline-test-image.png' }] }] } })
   }));
 }
 
@@ -113,7 +110,7 @@ test('service worker precaches the app shell and serves it while offline', async
   await expect(page.locator('#DatePicker')).toBeVisible();
   await expect(page.locator('#offline-indicator')).toBeVisible();
   await expect(page.locator('#offline-indicator')).toHaveText('Offline: showing saved comics');
-  await expect(page.locator('#comic')).toHaveAttribute('src', /offline-test-image/);
+  await expect(page.locator('#comic')).toHaveAttribute('src', /picayune\.uclick\.com/);
   await expect.poll(() => page.locator('#comic').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   expect(errors.filter(error => !error.includes('net::ERR_INTERNET_DISCONNECTED'))).toEqual([]);
 });

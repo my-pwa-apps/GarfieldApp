@@ -97,18 +97,18 @@ test('forward boundary tracker expires after TTL and clears when target date is 
     const sunday = day(2026, 11, 15);
     const monday = day(2026, 11, 16);
 
-    tracker.confirm(saturday, sunday, sunday, 'en', 'gocomics');
-    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), true);
-    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'fandom'), false);
-    assert.equal(tracker.isAtBoundary(saturday, monday, 'en', 'gocomics'), false);
+    tracker.confirm(saturday, sunday, sunday, 'uclick');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'uclick'), true);
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'fandom'), false);
+    assert.equal(tracker.isAtBoundary(saturday, monday, 'uclick'), false);
 
     clock += 300_000;
-    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), false);
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'uclick'), false);
 
-    tracker.confirm(saturday, sunday, sunday, 'en', 'gocomics');
-    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), true);
-    tracker.clearIfReached(sunday, 'en', 'gocomics');
-    assert.equal(tracker.isAtBoundary(saturday, sunday, 'en', 'gocomics'), false);
+    tracker.confirm(saturday, sunday, sunday, 'uclick');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'uclick'), true);
+    tracker.clearIfReached(sunday, 'uclick');
+    assert.equal(tracker.isAtBoundary(saturday, sunday, 'uclick'), false);
     assert.equal(changeCalls, 1);
 });
 

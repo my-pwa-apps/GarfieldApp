@@ -89,14 +89,6 @@ async function mockExternalServices(targetPage, options = {}) {
     { date: '1978/06/20', count: 5 }
   ];
 
-  const comicHtml = requestUrl => {
-    const target = new URL(requestUrl);
-    const [year = '2026', month = '04', day = '29'] = target.pathname.split('/').filter(Boolean).slice(-3);
-    const imageUrl = `https://featureassets.gocomics.com/assets/${year}${month}${day}abcdef0123456789abcdef`;
-    const canonical = `https://www.gocomics.com/garfield/${year}/${month}/${day}`;
-    return `<!doctype html><html><head><link rel="canonical" href="${canonical}"><meta property="og:image" content="${imageUrl}"></head><body></body></html>`;
-  };
-
   await targetPage.route('https://accounts.google.com/**', route => {
     route.fulfill({ status: 200, contentType: 'text/javascript', body: '' });
   });
@@ -108,37 +100,19 @@ async function mockExternalServices(targetPage, options = {}) {
       body: requestUrl.pathname === '/top' ? JSON.stringify(topFavorites) : JSON.stringify({ ok: true, count: 1 })
     });
   });
-  await targetPage.route('https://featureassets.gocomics.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-  });
   await targetPage.route('https://static.wikia.nocookie.net/**', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
-  await targetPage.route('https://assets.amuniversal.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-  });
   await targetPage.route('https://garfield.fandom.com/**', route => {
+    const title = new URL(route.request().url()).searchParams.get('titles')?.split('|')[0] || 'File:2026-04-29.gif';
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
+      body: JSON.stringify({ query: { pages: [{ pageid: 1, title, imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } })
     });
   });
   await targetPage.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => {
-    const requestUrl = new URL(route.request().url());
-    const targetUrl = decodeURIComponent(requestUrl.search.slice(1));
-    if (targetUrl.includes('featureassets.gocomics.com') || targetUrl.includes('assets.amuniversal.com')) {
-      route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-      return;
-    }
-
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(targetUrl) });
-  });
-  await targetPage.route('https://api.codetabs.com/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url()) });
-  });
-  await targetPage.route('https://api.allorigins.win/**', route => {
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url()) });
+    route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
 }
 
@@ -273,15 +247,10 @@ test.describe.serial('native WinUI WebView2 app parity', () => {
     await page.getByRole('button', { name: 'Settings' }).click();
     await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
 
-    await page.locator('#spanish').check();
-    await expect(page.getByRole('button', { name: 'Anterior' })).toBeVisible();
-    await page.locator('#spanish').uncheck();
-    await expect(page.getByRole('button', { name: 'Previous' })).toBeVisible();
-
     await page.locator('#comicSource').selectOption('fandom');
-    await expect(page.locator('#spanish-setting-row')).toHaveCSS('display', 'none');
-    await page.locator('#comicSource').selectOption('gocomics');
-    await expect(page.locator('#spanish-setting-row')).not.toHaveCSS('display', 'none');
+    await expect(page.locator('#comicSource')).toHaveValue('fandom');
+    await page.locator('#comicSource').selectOption('uclick');
+    await expect(page.locator('#comicSource')).toHaveValue('uclick');
 
     await openSettingsGroupFor('#showfavs');
     await page.locator('#showfavs').check();

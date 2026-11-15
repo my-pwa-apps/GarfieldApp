@@ -12,25 +12,20 @@ const corsHeaders = {
 
 async function mockExternalServices(page) {
   const context = page.context();
-  const comicHtml = '<!doctype html><html><head><meta property="og:image" content="https://featureassets.gocomics.com/assets/cross-browser-smoke.png"><link rel="canonical" href="https://www.gocomics.com/garfield/2026/04/29"></head><body></body></html>';
 
   await context.route('**/{favicon-16x16.png,favicon-32x32.png,apple-touch-icon.png}', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
   await context.route('https://accounts.google.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '', headers: corsHeaders }));
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]', headers: corsHeaders }));
-  await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
-  await context.route('https://assets.amuniversal.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
   await context.route('https://garfield.fandom.com/**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({ query: { pages: [{ imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } }),
+    body: JSON.stringify({ query: { pages: [{ pageid: 1, title: 'File:2026-04-29.gif', imageinfo: [{ url: 'https://static.wikia.nocookie.net/garfield/images/mock.png' }] }] } }),
     headers: corsHeaders
   }));
-  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
-  await context.route('https://api.codetabs.com/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
-  await context.route('https://api.allorigins.win/**', route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml, headers: corsHeaders }));
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng, headers: corsHeaders }));
 }
 
 async function openApp(page) {
@@ -64,7 +59,7 @@ test('core comic workflow works across browser engines', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.locator('#settingsDIV')).toHaveClass(/visible/);
-  await expect(page.locator('#comicSource')).toHaveValue('gocomics');
+  await expect(page.locator('#comicSource')).toHaveValue('uclick');
   await page.locator('#settingsCloseBtn').click();
 
   const selectedDate = await page.locator('#DatePicker').inputValue();

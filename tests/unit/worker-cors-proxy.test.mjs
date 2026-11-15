@@ -6,7 +6,7 @@ const workerSource = await readFile(new URL('../../worker/index.js', import.meta
 const workerModule = await import(`data:text/javascript;base64,${Buffer.from(workerSource).toString('base64')}`);
 const worker = workerModule.default;
 
-const env = { ALLOWED_HOSTS: 'gocomics.com,*.gocomics.com,assets.amuniversal.com,garfield.fandom.com' };
+const env = { ALLOWED_HOSTS: 'picayune.uclick.com,www.arcamax.com,resources.arcamax.com,garfield.fandom.com,static.wikia.nocookie.net' };
 const ctx = { waitUntil() {} };
 
 /**
@@ -35,9 +35,9 @@ function proxyRequest(target, init = {}) {
 test.afterEach(() => mock.restoreAll());
 
 test('requests to allowlisted hosts are proxied and CORS-enabled', async () => {
-  stubNetwork(() => new Response('ok', { status: 200, headers: { 'content-type': 'text/plain' } }));
+  stubNetwork(() => new Response('ok', { status: 200, headers: { 'content-type': 'image/gif' } }));
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield/1978/06/19', {
+  const response = await worker.fetch(proxyRequest('https://picayune.uclick.com/comics/ga/1978/ga780619.gif', {
     headers: { origin: 'https://garfieldapp.pages.dev' }
   }), env, ctx);
 
@@ -52,6 +52,9 @@ test('non-allowlisted hosts and unsupported protocols are refused', async () => 
   let response = await worker.fetch(proxyRequest('https://evil.example.com/'), env, ctx);
   assert.equal(response.status, 403);
 
+  response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield/1978/06/19'), env, ctx);
+  assert.equal(response.status, 403);
+
   response = await worker.fetch(proxyRequest('file:///etc/passwd'), env, ctx);
   assert.equal(response.status, 400);
 
@@ -61,23 +64,23 @@ test('non-allowlisted hosts and unsupported protocols are refused', async () => 
 
 test('write methods are rejected', async () => {
   stubNetwork(() => new Response('should not be reached'));
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield', { method: 'POST' }), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://picayune.uclick.com/comics/ga/1978/ga780619.gif', { method: 'POST' }), env, ctx);
   assert.equal(response.status, 405);
 });
 
 test('redirects within the allowlist are followed', async () => {
   const calls = stubNetwork(url => {
     if (url.includes('/redirect')) {
-      return new Response(null, { status: 302, headers: { location: 'https://assets.amuniversal.com/final.gif' } });
+      return new Response(null, { status: 302, headers: { location: 'https://resources.arcamax.com/newspics/final.gif' } });
     }
     return new Response('image-bytes', { status: 200, headers: { 'content-type': 'image/gif' } });
   });
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/redirect'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/redirect'), env, ctx);
 
   assert.equal(response.status, 200);
   assert.equal(calls.length, 2);
-  assert.equal(calls[1], 'https://assets.amuniversal.com/final.gif');
+  assert.equal(calls[1], 'https://resources.arcamax.com/newspics/final.gif');
 });
 
 test('a redirect that leaves the allowlist is blocked instead of followed', async () => {
@@ -88,7 +91,7 @@ test('a redirect that leaves the allowlist is blocked instead of followed', asyn
     return new Response('should not be reached');
   });
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/open-redirect'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/open-redirect'), env, ctx);
 
   assert.equal(response.status, 403);
   assert.equal(calls.length, 1, 'the disallowed hop must never be fetched');
@@ -98,10 +101,10 @@ test('a redirect that leaves the allowlist is blocked instead of followed', asyn
 test('redirect loops terminate instead of hanging', async () => {
   const calls = stubNetwork(() => new Response(null, {
     status: 302,
-    headers: { location: 'https://www.gocomics.com/loop' }
+    headers: { location: 'https://www.arcamax.com/loop' }
   }));
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/loop'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/loop'), env, ctx);
 
   assert.equal(response.status, 403);
   assert.ok(calls.length <= 7, `expected a bounded number of hops, saw ${calls.length}`);
@@ -118,7 +121,7 @@ test('upstream security and preload headers are stripped from proxied responses'
     }
   }));
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/thefunnies/garfield/'), env, ctx);
 
   assert.equal(response.headers.get('content-security-policy'), null);
   assert.equal(response.headers.get('link'), null);
@@ -129,7 +132,7 @@ test('upstream security and preload headers are stripped from proxied responses'
 test('upstream failures surface as 502 rather than an unhandled rejection', async () => {
   stubNetwork(() => { throw new TypeError('network down'); });
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/thefunnies/garfield/'), env, ctx);
 
   assert.equal(response.status, 502);
 });
@@ -137,7 +140,7 @@ test('upstream failures surface as 502 rather than an unhandled rejection', asyn
 test('foreign browser origins are rejected without CORS headers', async () => {
   stubNetwork(() => new Response('should not be reached'));
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield', {
+  const response = await worker.fetch(proxyRequest('https://picayune.uclick.com/comics/ga/1978/ga780619.gif', {
     headers: { origin: 'https://evil.example.com' }
   }), env, ctx);
 
@@ -149,7 +152,7 @@ test('foreign browser origins are rejected without CORS headers', async () => {
 test('requests with no Origin still succeed for same-origin and image fetches', async () => {
   stubNetwork(() => new Response('ok', { status: 200 }));
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield'), env, ctx);
+  const response = await worker.fetch(proxyRequest('https://picayune.uclick.com/comics/ga/1978/ga780619.gif'), env, ctx);
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('access-control-allow-origin'), '*');
@@ -159,7 +162,7 @@ test('Cloudflare Pages preview origins are allowed', async () => {
   stubNetwork(() => new Response('ok', { status: 200 }));
 
   const origin = 'https://abc123.garfieldapp.pages.dev';
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield', {
+  const response = await worker.fetch(proxyRequest('https://picayune.uclick.com/comics/ga/1978/ga780619.gif', {
     headers: { origin }
   }), env, ctx);
 
@@ -183,7 +186,7 @@ test('non-browser User-Agents are normalized, x-forwarded-host is omitted, and 4
     }
   };
 
-  const response = await worker.fetch(proxyRequest('https://www.gocomics.com/garfield/2026/04/29', {
+  const response = await worker.fetch(proxyRequest('https://www.arcamax.com/thefunnies/garfield/', {
     headers: {
       origin: 'https://garfieldapp.pages.dev',
       'user-agent': 'GarfieldApp predeploy health check (+https://garfieldapp.pages.dev)'
@@ -195,5 +198,5 @@ test('non-browser User-Agents are normalized, x-forwarded-host is omitted, and 4
   assert.equal(capturedRequest.headers.get('x-forwarded-host'), null);
   assert.ok(!capturedRequest.headers.get('user-agent').includes('GarfieldApp'));
   assert.ok(capturedRequest.headers.get('user-agent').includes('Mozilla/5.0'));
-  assert.deepEqual(capturedInit?.cf?.cacheTtlByStatus, { '200-299': 300, '400-599': -1 });
+  assert.deepEqual(capturedInit?.cf?.cacheTtlByStatus, { '200-299': 600, '400-599': -1 });
 });

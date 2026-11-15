@@ -12,22 +12,11 @@ async function mockExternalServices(page, options = {}) {
   const proxyFailuresRemaining = { count: options.proxyFailures || 0 };
   const comicRequests = [];
 
-  const comicHtml = (url, source = 'garfield') => {
-    const target = url ? new URL(url) : null;
-    const dateParts = target?.pathname.split('/').filter(Boolean).slice(-3) || [];
-    const [year = '2026', month = '04', day = '29'] = dateParts;
-    const hash = `${year}${month}${day}${source}abcdef0123456789`;
-    const imageUrl = `https://featureassets.gocomics.com/assets/${hash}`;
-    return `<!doctype html><html><head><meta property="og:image" content="${imageUrl}"><link rel="canonical" href="https://www.gocomics.com/garfield/${year}/${month}/${day}"></head><body></body></html>`;
-  };
-
   await context.route('**/{favicon-16x16.png,favicon-32x32.png,apple-touch-icon.png}', route => {
     route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
   });
   await context.route('https://accounts.google.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
-  await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
-  await context.route('https://assets.amuniversal.com/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://static.wikia.nocookie.net/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng }));
   await context.route('https://garfield.fandom.com/**', route => {
     comicRequests.push(route.request().url());
@@ -45,19 +34,7 @@ async function mockExternalServices(page, options = {}) {
       route.fulfill({ status: 502, contentType: 'text/plain; charset=utf-8', body: 'proxy failure' });
       return;
     }
-    const targetUrl = decodeURIComponent(new URL(route.request().url()).search.slice(1));
-    if (['static.wikia.nocookie.net', 'picayune.uclick.com'].includes(new URL(targetUrl).hostname)) {
-      return route.fulfill({ status: 200, contentType: 'image/png', body: transparentPng });
-    }
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(targetUrl, 'worker') });
-  });
-  await context.route('https://api.codetabs.com/**', route => {
-    comicRequests.push(route.request().url());
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url(), 'codetabs') });
-  });
-  await context.route('https://api.allorigins.win/**', route => {
-    comicRequests.push(route.request().url());
-    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: comicHtml(route.request().url(), 'allorigins') });
+    return route.fulfill({ status: 200, contentType: 'image/png', body: options.comicImage || transparentPng });
   });
 
   return { comicRequests };
@@ -104,13 +81,12 @@ for (const [date, height] of [['2026-09-12', 270], ['2026-09-13', 633]]) {
         }
       }).observe({ type: 'layout-shift', buffered: true });
     });
-    await mockExternalServices(page);
     const image = await sharp({ create: { width: 900, height, channels: 3, background: '#ffffff' } }).png().toBuffer();
-    await page.context().route('https://featureassets.gocomics.com/**', route => route.fulfill({ contentType: 'image/png', body: image }));
+    await mockExternalServices(page, { comicImage: image });
     let release;
     const gate = new Promise(resolve => { release = resolve; });
     await page.context().route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', async route => {
-      await gate;
+      if (route.request().method() === 'GET') await gate;
       await route.fallback();
     });
     try {
@@ -204,7 +180,7 @@ test('corrupt and unknown local storage preferences recover without breaking boo
 
   await expect(page.locator('#comic')).toHaveJSProperty('complete', true);
   await openSettings(page);
-  await expect(page.locator('#comicSource')).toHaveValue('gocomics');
+  await expect(page.locator('#comicSource')).toHaveValue('uclick');
   await expect.poll(() => page.evaluate(() => window.UTILS.getFavorites())).toEqual([]);
   expect(result.errors).toEqual([]);
 });

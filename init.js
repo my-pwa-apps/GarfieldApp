@@ -10,12 +10,7 @@ if (initialComic && new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZon
     try {
         if (navigator.onLine === false) return;
         const source = localStorage.getItem('comicSource');
-        if (source && source !== 'gocomics') return;
-
-        const spanishStored = localStorage.getItem('spanish');
-        const isSpanish = spanishStored === null
-            ? Boolean((navigator.language || '').startsWith('es'))
-            : spanishStored === 'true';
+        if (source === 'fandom') return;
 
         let dateStr = null;
         const params = new URLSearchParams(window.location.search);
@@ -43,31 +38,32 @@ if (initialComic && new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZon
             dateStr = `${map.year}/${map.month}/${map.day}`;
         }
 
-        const comicPath = isSpanish ? 'garfieldespanol' : 'garfield';
-        const targetUrl = `https://www.gocomics.com/${comicPath}/${dateStr}`;
-        const fullUrl = `https://garfieldapp-corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(targetUrl)}`;
-        const promise = fetch(fullUrl, {
-            signal: AbortSignal.timeout(15000),
+        const [yearStr, monthStr, dayStr] = dateStr.split('/');
+        const yyyy = Number(yearStr);
+        const mm = monthStr.padStart(2, '0');
+        const dd = dayStr.padStart(2, '0');
+        const yy = String(yyyy).slice(-2);
+        const isSunday = new Date(yyyy, Number(monthStr) - 1, Number(dayStr), 12).getDay() === 0;
+        const ext = isSunday ? 'jpg' : 'gif';
+        const targetUrl = `https://picayune.uclick.com/comics/ga/${yyyy}/ga${yy}${mm}${dd}.${ext}`;
+        const proxiedUrl = `https://garfieldapp-corsproxy.garfieldapp.workers.dev/?${encodeURIComponent(targetUrl)}`;
+
+        const promise = fetch(proxiedUrl, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(4000),
             mode: 'cors',
-            credentials: 'omit'
-        }).then(async response => {
-            if (!response.ok) {
-                const error = new Error(`HTTP ${response.status}`);
-                error.status = response.status;
-                if (response.status >= 400 && response.status < 500) error.noProxyFallback = true;
-                throw error;
-            }
-            const html = await response.text();
-            const ogMatch = html.match(/https:\/\/(?:featureassets\.gocomics\.com\/assets|assets\.amuniversal\.com)\/[a-f0-9]+/i);
-            if (ogMatch?.[0]) {
+            credentials: 'omit',
+            cache: 'no-cache'
+        }).then(response => {
+            if (response.ok) {
                 const img = new Image();
                 img.fetchPriority = 'high';
-                img.src = ogMatch[0];
+                img.src = proxiedUrl;
                 window.__earlyComicImage = img;
             }
-            return html;
+            return { ok: response.ok, status: response.status };
         });
-        window.__earlyProxyFetch = { fullUrl, promise };
+        window.__earlyUClickProbe = { proxiedUrl, promise };
         promise.catch(() => {});
     } catch {
         // Best-effort early preload only.
@@ -150,16 +146,11 @@ function showUpdateNotification(onAccept) {
     updateBanner.className = 'update-banner';
 
     const message = document.createElement('p');
-    const localize = () => {
-        const spanish = document.documentElement.lang === 'es';
-        const text = window.translations?.[spanish ? 'es' : 'en'];
-        message.textContent = text?.updateAvailable || (spanish ? 'Hay una nueva version disponible.' : 'A new version is available.');
-        updateButton.textContent = text?.updateRefresh || (spanish ? 'Actualizar' : 'Refresh');
-    };
+    const text = window.translations?.en;
+    message.textContent = text?.updateAvailable || 'A new version is available.';
 
     const updateButton = document.createElement('button');
-    localize();
-    window.addEventListener('language-changed', localize);
+    updateButton.textContent = text?.updateRefresh || 'Refresh';
     updateButton.className = 'button update-banner-button';
     updateButton.addEventListener('click', () => {
         updateButton.disabled = true;

@@ -29,9 +29,7 @@ const NETWORK = { offline: false, latency: 562.5, downloadThroughput: (1474.56 *
 const CPU_SLOWDOWN = 4;
 
 async function routeProviders(context, comicPng) {
-  const html = `<!doctype html><html><head><meta property="og:image" content="https://featureassets.gocomics.com/assets/fixture"></head><body></body></html>`;
-  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8', body: html }));
-  await context.route('https://featureassets.gocomics.com/**', route => route.fulfill({ contentType: 'image/png', body: comicPng }));
+  await context.route('https://garfieldapp-corsproxy.garfieldapp.workers.dev/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: comicPng }));
   await context.route('https://favorites-api.garfieldapp.workers.dev/**', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
   await context.route('https://accounts.google.com/**', route => route.fulfill({ contentType: 'text/javascript', body: '' }));
   await context.route(/garfield\.fandom\.com|static\.wikia\.nocookie\.net|resources\.arcamax\.com/, route => route.abort());

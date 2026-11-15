@@ -21,7 +21,7 @@ function makeFandomResponse(filename) {
   };
 }
 
-test('a blocked dedicated proxy advances to another source without public proxies', async () => {
+test('a blocked dedicated proxy advances from uClick to Fandom without public proxies', async () => {
   const originalFetch = global.fetch;
   const requests = [];
   global.fetch = async url => {
@@ -30,35 +30,11 @@ test('a blocked dedicated proxy advances to another source without public proxie
     return { ok: false, status: 403 };
   };
   try {
-    const result = await getAuthenticatedComic(new Date(2026, 5, 8, 12), 'en', 'gocomics', { silent: true });
+    const result = await getAuthenticatedComic(new Date(2026, 5, 8, 12), 'uclick', { silent: true });
     assert.equal(result.success, true);
     assert.equal(requests.length, 2);
     assert.equal(new URL(requests[0]).host, 'garfieldapp-corsproxy.garfieldapp.workers.dev');
     assert.equal(new URL(requests[1]).host, 'garfield.fandom.com');
-  } finally {
-    global.fetch = originalFetch;
-  }
-});
-
-test('GoComics prefers the page comic metadata over unrelated featured assets', async () => {
-  const firstStripUrl = 'https://featureassets.gocomics.com/assets/239495d0fa06013ebddf005056a9545d';
-  const requestedStripUrl = 'https://featureassets.gocomics.com/assets/e707a5202f95013fc0c4005056a9545d';
-  const html = `<!doctype html><html><head>
-    <meta content="${requestedStripUrl}?optimizer=image&amp;width=768" property="og:image">
-    <link rel="canonical" href="https://www.gocomics.com/garfield/2026/06/20">
-  </head><body><section>${firstStripUrl}</section></body></html>`;
-  const originalFetch = global.fetch;
-  global.fetch = async () => ({ ok: true, text: async () => html });
-
-  try {
-    const result = await getAuthenticatedComic(new Date(2026, 5, 20, 12), 'en', 'gocomics', {
-      silent: true,
-      maxSources: 1,
-      disableTodayFallback: true
-    });
-
-    assert.equal(result.success, true);
-    assert.equal(result.imageUrl, `${requestedStripUrl}?optimizer=image&width=768`);
   } finally {
     global.fetch = originalFetch;
   }
@@ -76,8 +52,8 @@ test('Fandom fallback reuses the same image lookup within a session', async () =
   };
 
   try {
-    const first = await getAuthenticatedComic(new Date('2026-06-02T12:00:00Z'), 'en', 'fandom', { silent: true, maxSources: 1 });
-    const second = await getAuthenticatedComic(new Date('2026-06-02T12:00:00Z'), 'en', 'fandom', { silent: true, maxSources: 1 });
+    const first = await getAuthenticatedComic(new Date('2026-06-02T12:00:00Z'), 'fandom', { silent: true, maxSources: 1 });
+    const second = await getAuthenticatedComic(new Date('2026-06-02T12:00:00Z'), 'fandom', { silent: true, maxSources: 1 });
 
     assert.equal(first.success, true);
     assert.equal(second.success, true);
@@ -114,7 +90,7 @@ test('Fandom resolves every filename candidate in a single batched API request',
   };
 
   try {
-    const result = await getAuthenticatedComic(new Date('2026-06-03T12:00:00Z'), 'en', 'fandom', { silent: true, maxSources: 1 });
+    const result = await getAuthenticatedComic(new Date('2026-06-03T12:00:00Z'), 'fandom', { silent: true, maxSources: 1 });
 
     assert.equal(result.success, true);
     assert.equal(calls.length, 1, 'All filename candidates must be resolved in one request');
@@ -142,8 +118,8 @@ test('a transient Fandom network error is not cached as a permanent miss', async
   };
 
   try {
-    const first = await getAuthenticatedComic(new Date('2026-06-04T12:00:00Z'), 'en', 'fandom', { silent: true, maxSources: 1 });
-    const second = await getAuthenticatedComic(new Date('2026-06-04T12:00:00Z'), 'en', 'fandom', { silent: true, maxSources: 1 });
+    const first = await getAuthenticatedComic(new Date('2026-06-04T12:00:00Z'), 'fandom', { silent: true, maxSources: 1 });
+    const second = await getAuthenticatedComic(new Date('2026-06-04T12:00:00Z'), 'fandom', { silent: true, maxSources: 1 });
 
     assert.equal(first.success, false);
     assert.equal(second.success, true, 'A network failure must not poison the session cache');
@@ -152,25 +128,20 @@ test('a transient Fandom network error is not cached as a permanent miss', async
   }
 });
 
-test('preferredSource defaults to GoComics when omitted', async () => {
-  const requestedStripUrl = 'https://featureassets.gocomics.com/assets/default-source-strip';
-  const html = `<!doctype html><html><head>
-    <meta content="${requestedStripUrl}" property="og:image">
-  </head></html>`;
+test('preferredSource defaults to uClick when omitted', async () => {
   const originalFetch = global.fetch;
   const urls = [];
-  global.fetch = async (url, init) => {
+  global.fetch = async (url) => {
     urls.push(String(url));
-    assert.notEqual(init?.cache, 'no-cache', 'HTML proxy fetches must not bypass the Worker cache');
-    return { ok: true, text: async () => html };
+    return { ok: true, status: 200 };
   };
 
   try {
-    const result = await getAuthenticatedComic(new Date(2026, 5, 20, 12), 'en');
+    const result = await getAuthenticatedComic(new Date(2026, 5, 20, 12));
 
     assert.equal(result.success, true);
-    assert.equal(result.imageUrl, requestedStripUrl);
-    assert.ok(urls.some(url => url.includes('gocomics.com')), 'Default source must query GoComics');
+    assert.ok(result.imageUrl.includes(encodeURIComponent('https://picayune.uclick.com/comics/ga/2026/ga260620.gif')));
+    assert.ok(urls.some(url => url.includes('picayune.uclick.com')), 'Default source must query uClick');
   } finally {
     global.fetch = originalFetch;
   }
@@ -181,13 +152,13 @@ test('an undecodable image advances to the next source', async () => {
   const validated = [];
   global.fetch = async url => String(url).includes('garfield.fandom.com/api.php')
     ? makeFandomResponse('2026-06-09.gif')
-    : { ok: true, text: async () => '<meta property="og:image" content="https://featureassets.gocomics.com/assets/broken">' };
+    : { ok: true, status: 200 };
   try {
-    const result = await getAuthenticatedComic(new Date(2026, 5, 9, 12), 'en', 'gocomics', {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 9, 12), 'uclick', {
       silent: true,
       validateImage: async url => {
         validated.push(url);
-        if (url.endsWith('/broken')) throw new Error('decode failed');
+        if (url.includes('ga260609.gif')) throw new Error('decode failed');
       }
     });
     assert.equal(result.success, true);
@@ -195,7 +166,7 @@ test('an undecodable image advances to the next source', async () => {
     assert.equal(result.imageUrl, validated[1]);
     const controller = new AbortController();
     controller.abort();
-    await assert.rejects(getAuthenticatedComic(new Date(), 'en', 'gocomics', { signal: controller.signal }), { name: 'AbortError' });
+    await assert.rejects(getAuthenticatedComic(new Date(), 'uclick', { signal: controller.signal }), { name: 'AbortError' });
   } finally {
     global.fetch = originalFetch;
   }
@@ -209,11 +180,11 @@ test('uClick probes for existence with HEAD so the strip is not downloaded twice
       throw new Error(`Unexpected fetch: ${url}`);
     }
     methods.push(init?.method);
-    return { ok: true };
+    return { ok: true, status: 200 };
   };
 
   try {
-    const result = await getAuthenticatedComic(new Date('2026-06-05T12:00:00Z'), 'en', 'uclick', {
+    const result = await getAuthenticatedComic(new Date('2026-06-05T12:00:00Z'), 'uclick', {
       silent: true,
       maxSources: 1,
       disableTodayFallback: true
@@ -226,16 +197,13 @@ test('uClick probes for existence with HEAD so the strip is not downloaded twice
   }
 });
 
-test('source fallback continues to the next provider when verifyImage rejects and evicts failed Fandom cache entries', async () => {
+test('source fallback continues to the next provider when verifyImage rejects without calling public proxies', async () => {
   const originalFetch = global.fetch;
   const calls = [];
   global.fetch = async (url) => {
     calls.push(String(url));
     if (String(url).includes('garfield.fandom.com/api.php')) {
       return makeFandomResponse('2026-06-06.gif');
-    }
-    if (String(url).includes('gocomics.com')) {
-      return { status: 403, ok: false };
     }
     if (String(url).includes('picayune.uclick.com')) {
       return { status: 200, ok: true };
@@ -244,7 +212,7 @@ test('source fallback continues to the next provider when verifyImage rejects an
   };
 
   try {
-    const result = await getAuthenticatedComic(new Date('2026-06-06T12:00:00Z'), 'en', 'gocomics', {
+    const result = await getAuthenticatedComic(new Date('2026-06-06T12:00:00Z'), 'fandom', {
       silent: true,
       disableTodayFallback: true,
       verifyImage: async (imageUrl) => {
@@ -259,14 +227,14 @@ test('source fallback continues to the next provider when verifyImage rejects an
     assert.equal(
       calls.some(u => u.includes('codetabs') || u.includes('allorigins')),
       false,
-      'Upstream 403 on primary proxy must not call third-party public proxies'
+      'Fallback must never call third-party public proxies'
     );
   } finally {
     global.fetch = originalFetch;
   }
 });
 
-test('today fallback checks alternate English sources before falling back to yesterday', async () => {
+test('today fallback checks alternate sources before falling back to yesterday', async () => {
   const originalFetch = global.fetch;
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
@@ -281,8 +249,8 @@ test('today fallback checks alternate English sources before falling back to yes
   global.fetch = async (url) => {
     const str = String(url);
     requestedUrls.push(str);
-    if (str.includes('gocomics.com')) {
-      return { ok: true, text: async () => '<html><title>404 Page Not Found</title></html>' };
+    if (str.includes('picayune.uclick.com')) {
+      return { ok: false, status: 404 };
     }
     if (str.includes('garfield.fandom.com/api.php')) {
       return makeFandomResponse(`${todayIso}.gif`);
@@ -291,11 +259,11 @@ test('today fallback checks alternate English sources before falling back to yes
   };
 
   try {
-    const result = await getAuthenticatedComic(today, 'en', 'gocomics', { silent: true });
+    const result = await getAuthenticatedComic(today, 'uclick', { silent: true });
     assert.equal(result.success, true);
-    assert.equal(result.actualDate, undefined, 'Should serve today from Fandom rather than yesterday from GoComics');
+    assert.equal(result.actualDate, undefined, 'Should serve today from Fandom rather than yesterday from uClick');
     assert.ok(result.imageUrl.includes(encodeURIComponent(`https://example.test/${todayIso}.gif`)));
-    assert.equal(requestedUrls.filter(u => u.includes('gocomics.com')).length, 1);
+    assert.equal(requestedUrls.filter(u => u.includes('picayune.uclick.com')).length, 2);
   } finally {
     global.fetch = originalFetch;
   }
@@ -314,7 +282,7 @@ test('uClick probes .jpg first on Sundays and falls back to .gif for older archi
   };
 
   try {
-    const modernSunday = await getAuthenticatedComic(new Date(2026, 10, 15, 12), 'en', 'uclick', {
+    const modernSunday = await getAuthenticatedComic(new Date(2026, 10, 15, 12), 'uclick', {
       silent: true,
       maxSources: 1,
       disableTodayFallback: true
@@ -322,7 +290,7 @@ test('uClick probes .jpg first on Sundays and falls back to .gif for older archi
     assert.equal(modernSunday.success, true);
     assert.ok(modernSunday.imageUrl.includes(encodeURIComponent('https://picayune.uclick.com/comics/ga/2026/ga261115.jpg')));
 
-    const archivalSunday = await getAuthenticatedComic(new Date(1978, 5, 25, 12), 'en', 'uclick', {
+    const archivalSunday = await getAuthenticatedComic(new Date(1978, 5, 25, 12), 'uclick', {
       silent: true,
       maxSources: 1,
       disableTodayFallback: true
@@ -340,16 +308,16 @@ test('uClick probes .jpg first on Sundays and falls back to .gif for older archi
   }
 });
 
-test('maxSources=1 advances past an HTTP 403 WAF block to a healthy English source', async () => {
+test('maxSources=1 advances past an HTTP 403 WAF block to a healthy source', async () => {
   const originalFetch = global.fetch;
   global.fetch = async (url) => {
-    if (String(url).includes('gocomics.com')) return { ok: false, status: 403 };
+    if (String(url).includes('picayune.uclick.com')) return { ok: false, status: 403 };
     if (String(url).includes('garfield.fandom.com/api.php')) return makeFandomResponse('2026-06-10.gif');
     throw new Error(`Unexpected fetch: ${url}`);
   };
 
   try {
-    const result = await getAuthenticatedComic(new Date(2026, 5, 10, 12), 'en', 'gocomics', {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 10, 12), 'uclick', {
       silent: true,
       maxSources: 1,
       disableTodayFallback: true
