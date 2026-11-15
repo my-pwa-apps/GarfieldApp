@@ -301,3 +301,64 @@ test('today fallback checks alternate English sources before falling back to yes
   }
 });
 
+test('uClick probes .jpg first on Sundays and falls back to .gif for older archival Sundays', async () => {
+  const originalFetch = global.fetch;
+  const probed = [];
+  global.fetch = async (url) => {
+    const decoded = decodeURIComponent(String(url).split('?')[1] || '');
+    probed.push(decoded);
+    if (decoded.endsWith('/ga261115.jpg') || decoded.endsWith('/ga780625.gif')) {
+      return { ok: true, status: 200 };
+    }
+    return { ok: false, status: 404 };
+  };
+
+  try {
+    const modernSunday = await getAuthenticatedComic(new Date(2026, 10, 15, 12), 'en', 'uclick', {
+      silent: true,
+      maxSources: 1,
+      disableTodayFallback: true
+    });
+    assert.equal(modernSunday.success, true);
+    assert.ok(modernSunday.imageUrl.includes(encodeURIComponent('https://picayune.uclick.com/comics/ga/2026/ga261115.jpg')));
+
+    const archivalSunday = await getAuthenticatedComic(new Date(1978, 5, 25, 12), 'en', 'uclick', {
+      silent: true,
+      maxSources: 1,
+      disableTodayFallback: true
+    });
+    assert.equal(archivalSunday.success, true);
+    assert.ok(archivalSunday.imageUrl.includes(encodeURIComponent('https://picayune.uclick.com/comics/ga/1978/ga780625.gif')));
+
+    assert.deepEqual(probed, [
+      'https://picayune.uclick.com/comics/ga/2026/ga261115.jpg',
+      'https://picayune.uclick.com/comics/ga/1978/ga780625.jpg',
+      'https://picayune.uclick.com/comics/ga/1978/ga780625.gif'
+    ]);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('maxSources=1 advances past an HTTP 403 WAF block to a healthy English source', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    if (String(url).includes('gocomics.com')) return { ok: false, status: 403 };
+    if (String(url).includes('garfield.fandom.com/api.php')) return makeFandomResponse('2026-06-10.gif');
+    throw new Error(`Unexpected fetch: ${url}`);
+  };
+
+  try {
+    const result = await getAuthenticatedComic(new Date(2026, 5, 10, 12), 'en', 'gocomics', {
+      silent: true,
+      maxSources: 1,
+      disableTodayFallback: true
+    });
+    assert.equal(result.success, true);
+    assert.ok(result.imageUrl.includes(encodeURIComponent('https://example.test/2026-06-10.gif')));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+

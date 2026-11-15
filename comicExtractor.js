@@ -29,7 +29,11 @@ async function fetchViaProxy(url, options = {}) {
         mode: 'cors',
         credentials: 'omit'
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+        const error = new Error(`HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+    }
     return response.text();
 }
 
@@ -240,10 +244,10 @@ async function _getComicFromFandom(date, options = {}) {
 // ============================================================
 // SOURCE 3: UCLICK / PICAYUNE — EN only, full archive from 1978
 // Direct image URLs of the form:
-//   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.gif
-// We verify existence with a HEAD request through the dedicated CORS proxy.
-// The returned image URL is wrapped in the same proxy so the <img> tag loads
-// via Cloudflare — independent of the client's VPN routing.
+//   https://picayune.uclick.com/comics/ga/YYYY/gaYYMMDD.{gif|jpg}
+// Modern Sunday color strips use .jpg while daily strips and older archival
+// Sundays use .gif. We verify existence with a HEAD request through the
+// dedicated CORS proxy, probing the expected extension for the weekday first.
 // ============================================================
 
 async function _getComicFromUClick(date, options = {}) {
@@ -251,26 +255,35 @@ async function _getComicFromUClick(date, options = {}) {
     const yy = String(yyyy).slice(-2);
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
-    const imageUrl = `https://picayune.uclick.com/comics/ga/${yyyy}/ga${yy}${mm}${dd}.gif`;
-    const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
+    const extensions = date.getDay() === 0 ? ['jpg', 'gif'] : ['gif', 'jpg'];
 
-    try {
-        // HEAD, not GET: this call only probes for existence. A GET downloaded
-        // the whole strip and threw the bytes away, so every uClick comic was
-        // transferred twice (once here, once by the <img> tag).
-        const resp = await fetch(proxiedUrl, {
-            method: 'HEAD',
-            signal: requestSignal(options),
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-cache'
-        });
-        if (resp.ok) {
-            return { success: true, imageUrl: proxiedUrl };
-        }
-    } catch (err) {
-        if (!options.silent) {
-            console.warn(`uClick (${imageUrl}):`, err.message);
+    for (const ext of extensions) {
+        options.signal?.throwIfAborted();
+        const imageUrl = `https://picayune.uclick.com/comics/ga/${yyyy}/ga${yy}${mm}${dd}.${ext}`;
+        const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(imageUrl)}`;
+
+        try {
+            // HEAD, not GET: this call only probes for existence so the strip
+            // is not transferred twice (once here, once by the <img> tag).
+            const resp = await fetch(proxiedUrl, {
+                method: 'HEAD',
+                signal: requestSignal(options),
+                mode: 'cors',
+                credentials: 'omit',
+                cache: 'no-cache'
+            });
+            if (resp.ok) {
+                return { success: true, imageUrl: proxiedUrl };
+            }
+            if (resp.status && resp.status !== 404) {
+                break;
+            }
+        } catch (err) {
+            options.signal?.throwIfAborted();
+            if (!options.silent) {
+                console.warn(`uClick (${imageUrl}):`, err.message);
+            }
+            break;
         }
     }
 
@@ -435,12 +448,13 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
     const maxSources = Number.isInteger(options.maxSources) && options.maxSources > 0
         ? options.maxSources
         : null;
-    const sourceOrder = maxSources ? order.slice(0, maxSources) : order;
 
     let sawNotFound = false;
     let sawOtherFailure = false;
+    let nonBlockedAttempts = 0;
 
-    for (const source of sourceOrder) {
+    for (const source of order) {
+        if (maxSources && nonBlockedAttempts >= maxSources) break;
         options.signal?.throwIfAborted();
         // Spanish is only available on GoComics
         if (language === 'es' && source !== 'gocomics') {
@@ -457,6 +471,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                 return result;
             }
 
+            if (!result.blocked) nonBlockedAttempts += 1;
             if (result.notFound) sawNotFound = true;
             else sawOtherFailure = true;
 
@@ -469,6 +484,7 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
             }
         } catch (err) {
             options.signal?.throwIfAborted();
+            if (err?.status !== 403) nonBlockedAttempts += 1;
             sawOtherFailure = true;
             if (!options.silent) {
                 console.warn(`${source} error:`, err.message);
@@ -480,7 +496,9 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
     // strip, so a delayed or blocked primary source cannot hide an available comic.
     if (!options.disableTodayFallback && _isRequestedDateTodayInET(date)) {
         const yesterday = _getPreviousDayAtNoon(date);
-        for (const source of sourceOrder) {
+        let yesterdayAttempts = 0;
+        for (const source of order) {
+            if (maxSources && yesterdayAttempts >= maxSources) break;
             options.signal?.throwIfAborted();
             if (source === 'arcamax') continue;
             if (language === 'es' && source !== 'gocomics') continue;
@@ -492,8 +510,10 @@ export async function getAuthenticatedComic(date, language = 'en', preferredSour
                     options.signal?.throwIfAborted();
                     return { ...yesterdayResult, actualDate: yesterday };
                 }
+                if (!yesterdayResult?.blocked) yesterdayAttempts += 1;
             } catch (err) {
                 options.signal?.throwIfAborted();
+                if (err?.status !== 403) yesterdayAttempts += 1;
                 if (!options.silent) {
                     console.warn(`${source} error:`, err.message);
                 }

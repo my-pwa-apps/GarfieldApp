@@ -1498,7 +1498,7 @@ input {
     }
 
     :root {
-        --comic-top-gap: 62px;
+        --comic-top-gap: 100px;
     }
 
     #comic-container {
@@ -1584,7 +1584,7 @@ input {
 /* Extra small mobile devices */
 @media (max-width: 480px) {
     :root {
-        --comic-top-gap: 58px;
+        --comic-top-gap: 98px;
     }
 
     #comic-container {

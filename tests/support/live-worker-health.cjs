@@ -3,9 +3,10 @@ const PROXY_IDENTITY = 'garfieldapp-corsproxy';
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 2_000;
 const REQUEST_TIMEOUT_MS = 20_000;
-// GoComics sits behind Cloudflare bot protection, which intermittently challenges
-// the proxy's upstream request. The worker passes that page through unchanged.
-const UPSTREAM_CHALLENGE_MARKERS = ['Establishing a secure connection', 'checking your browser'];
+// GoComics sits behind CDN/WAF protection (Cloudflare challenge or BunnyCDN
+// geo/bot 403), which intermittently blocks the proxy's upstream request and is
+// passed through unchanged.
+const UPSTREAM_CHALLENGE_MARKERS = ['Establishing a secure connection', 'checking your browser', 'fonts.bunny.net'];
 
 /**
  * @returns {{ ok: true } | { ok: false, retryable: boolean, reason: string }}
@@ -17,7 +18,8 @@ function classifyProxyResponse(response, body) {
   if (response.headers.get('access-control-allow-origin') !== PRODUCTION_ORIGIN) {
     return { ok: false, retryable: false, reason: `production origin not echoed in CORS headers (HTTP ${response.status})` };
   }
-  if (UPSTREAM_CHALLENGE_MARKERS.some(marker => body.includes(marker))) {
+  if (UPSTREAM_CHALLENGE_MARKERS.some(marker => body.includes(marker)) ||
+      (response.status === 403 && response.headers.get('cdn-pullzone'))) {
     return { ok: false, retryable: true, reason: `GoComics returned its bot challenge to the proxy (HTTP ${response.status}); upstream issue, not an origin or proxy fault` };
   }
   if (!response.ok) {

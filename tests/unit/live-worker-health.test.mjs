@@ -15,6 +15,14 @@ test('an upstream GoComics challenge is retryable and not blamed on the origin o
     assert.equal(verdict.ok, false);
     assert.equal(verdict.retryable, true);
     assert.match(verdict.reason, /bot challenge.*not an origin or proxy fault/);
+
+    const bunnyBlock = classifyProxyResponse(
+        response(403, { ...proxyHeaders, 'cdn-pullzone': '4334715' }),
+        '<html><head><title>403 Forbidden</title><link href="//fonts.bunny.net/css?family=Rubik"></head></html>'
+    );
+    assert.equal(bunnyBlock.ok, false);
+    assert.equal(bunnyBlock.retryable, true);
+    assert.match(bunnyBlock.reason, /bot challenge.*not an origin or proxy fault/);
 });
 
 test('proxy identity and CORS faults fail immediately without retrying', () => {
